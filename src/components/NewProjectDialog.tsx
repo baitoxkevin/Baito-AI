@@ -47,8 +47,10 @@ const projectSchema = z.object({
     required_error: 'Start date is required',
   }).min(new Date(), 'Date cannot be in the past'),
   end_date: z.date().optional(),
+  is_all_day: z.boolean().default(false),
   working_hours_start: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Invalid time format'),
   working_hours_end: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Invalid time format'),
+  repeat_option: z.enum(['does-not-repeat', 'daily', 'weekly', 'monthly', 'yearly']).default('does-not-repeat'),
   event_type: z.enum(['roving', 'roadshow', 'in-store', 'ad-hoc', 'corporate', 'wedding', 'concert', 'conference', 'other']),
   crew_count: z.number().min(1, 'Must have at least one crew member'),
   venue_address: z.string().min(1, 'Venue address is required'),
@@ -56,6 +58,15 @@ const projectSchema = z.object({
   needs_supervisors: z.boolean().default(false),
   supervisors_required: z.number().min(0).max(9).optional(),
   color: z.string().regex(/^#[0-9A-Fa-f]{6}$/, 'Invalid color format').default('#E2E8F0'),
+  guest_permissions: z.object({
+    modify: z.boolean().default(false),
+    invite: z.boolean().default(true),
+    see_guest_list: z.boolean().default(true)
+  }).default({
+    modify: false,
+    invite: true,
+    see_guest_list: true
+  })
 });
 
 type ProjectFormValues = z.infer<typeof projectSchema>;
@@ -80,6 +91,7 @@ export default function NewProjectDialog({
   const [managers, setManagers] = useState<{ id: string; full_name: string; }[]>([]);
   const { toast } = useToast();
 
+  const [activeTab, setActiveTab] = useState<'details' | 'find-time'>('details');
   const form = useForm<ProjectFormValues>({
     resolver: zodResolver(projectSchema),
     defaultValues: {
@@ -97,6 +109,13 @@ export default function NewProjectDialog({
       start_date: initialDates?.start || new Date(),
       end_date: initialDates?.end,
       color: '#E2E8F0',
+      is_all_day: false,
+      repeat_option: 'does-not-repeat',
+      guest_permissions: {
+        modify: false,
+        invite: true,
+        see_guest_list: true
+      }
     },
   });
 
@@ -180,8 +199,8 @@ export default function NewProjectDialog({
           manager_id: data.manager_id,
           start_date: data.start_date.toISOString(),
           end_date: data.end_date?.toISOString(),
-          working_hours_start: data.working_hours_start,
-          working_hours_end: data.working_hours_end,
+          working_hours_start: data.is_all_day ? '00:00' : data.working_hours_start,
+          working_hours_end: data.is_all_day ? '23:59' : data.working_hours_end,
           event_type: data.event_type,
           crew_count: data.crew_count,
           venue_address: data.venue_address,
@@ -192,6 +211,9 @@ export default function NewProjectDialog({
           priority: 'medium',
           priority_auto_set: false,
           color: data.color,
+          is_all_day: data.is_all_day,
+          repeat_option: data.repeat_option,
+          guest_permissions: data.guest_permissions,
         });
 
       if (error) throw error;

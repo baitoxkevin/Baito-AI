@@ -36,6 +36,29 @@ export interface Notification {
   created_at: string;
 }
 
+export interface Project {
+  id: string;
+  title: string;
+  client: {
+    full_name: string;
+  };
+  client_id: string;
+  manager_id: string;
+  status: string;
+  priority: string;
+  start_date: string;
+  end_date: string | null;
+  crew_count: number;
+  filled_positions: number;
+  working_hours_start: string;
+  working_hours_end: string;
+  event_type: string;
+  venue_address: string;
+  venue_details: string | null;
+  supervisors_required: number;
+  color: string;
+}
+
 export interface User {
   id: string;
   email: string;

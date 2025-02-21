@@ -30,7 +30,7 @@ export function MentionInput({ value, onChange, onMention }: MentionInputProps) 
         .ilike('full_name', `%${search}%`);
 
       if (!error && data) {
-        setUsers(data);
+        setUsers(data as User[]);
       }
     };
 

@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef } from 'react';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isWithinInterval, differenceInDays, isSameMonth, isAfter, isBefore, isSameDay, addMonths, subMonths } from 'date-fns';
-import { Calendar } from '@/components/ui/calendar';
+import { useState, useEffect } from 'react';
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, differenceInDays, isSameMonth, isSameDay, addMonths, subMonths, isAfter, isBefore } from 'date-fns';
+import type { Project } from '@/lib/types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from "@/components/ui/badge";
 import {
@@ -11,7 +11,6 @@ import {
 } from "@/components/ui/tooltip";
 import {
   Tabs,
-  TabsContent,
   TabsList,
   TabsTrigger,
 } from '@/components/ui/tabs';
@@ -30,17 +29,7 @@ import { useToast } from '@/hooks/use-toast';
 import EditProjectDialog from './EditProjectDialog';
 import NewProjectDialog from './NewProjectDialog';
 
-const eventColors = {
-  'roving': 'bg-red-200 text-red-800',
-  'roadshow': 'bg-blue-200 text-blue-800',
-  'in-store': 'bg-purple-200 text-purple-800',
-  'ad-hoc': 'bg-yellow-200 text-yellow-800',
-  'corporate': 'bg-green-200 text-green-800',
-  'wedding': 'bg-pink-200 text-pink-800',
-  'concert': 'bg-indigo-200 text-indigo-800',
-  'conference': 'bg-orange-200 text-orange-800',
-  'other': 'bg-gray-200 text-gray-800',
-} as const;
+// Project colors are now stored in the database
 
 const formatTimeString = (timeStr: string) => {
   const [hours, minutes] = timeStr.split(':');
@@ -70,6 +59,7 @@ type Project = {
   supervisors_required: number;
   crew_count: number;
   filled_positions: number;
+  color: string;
 };
 
 const projectsOverlap = (a: Project, b: Project) => {
@@ -81,18 +71,7 @@ const projectsOverlap = (a: Project, b: Project) => {
   return aStart <= bEnd && aEnd >= bStart;
 };
 
-const getProjectsForWeek = (projects: Project[], weekStart: number, monthStart: Date) => {
-  return projects.filter(project => {
-    const startDate = new Date(project.start_date);
-    const endDate = project.end_date ? new Date(project.end_date) : startDate;
-    const weekEndDay = weekStart + 6;
-    
-    const projectStartDay = differenceInDays(startDate, monthStart);
-    const projectEndDay = differenceInDays(endDate, monthStart);
-    
-    return (projectStartDay <= weekEndDay && projectEndDay >= weekStart);
-  });
-};
+// Removed unused function
 
 const groupOverlappingProjects = (projects: Project[]) => {
   const groups: Project[][] = [];
@@ -156,7 +135,6 @@ const CalendarView = ({
   const [dragStartDate, setDragStartDate] = useState<Date | null>(null);
   const [dragEndDate, setDragEndDate] = useState<Date | null>(null);
   const [selectedDates, setSelectedDates] = useState<Date[]>([]);
-  const calendarRef = useRef<HTMLDivElement>(null);
 
   const monthStart = startOfMonth(date);
   const monthEnd = endOfMonth(date);
@@ -313,12 +291,12 @@ const CalendarView = ({
                                   }}
                                 >
                                   <div 
-                                    className={`
-                                      rounded-md border shadow h-full
-                                      px-2 py-1 cursor-pointer hover:opacity-80 transition-opacity
-                                      flex items-center overflow-hidden
-                                      ${eventColors[project.event_type as keyof typeof eventColors]}
-                                    `}
+                                    className="rounded-md border shadow h-full px-2 py-1 cursor-pointer hover:opacity-80 transition-opacity flex items-center overflow-hidden"
+                                    style={{
+                                      backgroundColor: project.color + '33',
+                                      color: project.color,
+                                      borderColor: project.color
+                                    }}
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       onProjectClick(project);
@@ -437,12 +415,12 @@ const ListView = ({
                           }}
                         >
                           <div 
-                            className={`
-                              rounded-xl border bg-card text-card-foreground shadow h-full
-                              px-3 cursor-pointer hover:opacity-80 transition-opacity
-                              ${eventColors[project.event_type as keyof typeof eventColors]}
-                              flex flex-col justify-center items-center text-center
-                            `}
+                            className="rounded-xl border shadow h-full px-3 cursor-pointer hover:opacity-80 transition-opacity flex flex-col justify-center items-center text-center"
+                            style={{
+                              backgroundColor: project.color + '33',
+                              color: project.color,
+                              borderColor: project.color
+                            }}
                             onClick={() => onProjectClick(project)}
                           >
                             <div className="space-y-1">
@@ -516,7 +494,8 @@ export default function CalendarPage() {
           event_type,
           venue_address,
           venue_details,
-          supervisors_required
+          supervisors_required,
+          color
         `)
         .or(
           `and(start_date.gte.${startDate.toISOString()},start_date.lte.${endDate.toISOString()}),` +
@@ -527,14 +506,12 @@ export default function CalendarPage() {
 
       if (error) throw error;
 
-      // Process dates to ensure they're in the correct format and year
-      const processedData = (data || []).map(project => ({
-        ...project,
-        start_date: new Date(project.start_date).toISOString(),
-        end_date: project.end_date ? new Date(project.end_date).toISOString() : null
-      }));
-
-      setProjects(processedData);
+      if (data && isProjectArray(data)) {
+        setProjects(data);
+      } else {
+        setProjects([]);
+        console.error('Invalid project data received');
+      }
     } catch (error) {
       console.error('Error loading projects:', error);
       toast({

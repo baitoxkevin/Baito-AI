@@ -446,7 +446,7 @@ const Card = ({
       layout
       layoutId={task.id}
       draggable="true"
-      onDragStart={(e: React.DragEvent<Element>) => handleDragStart(e, task)}
+      onDragStart={(e: any) => handleDragStart(e, task)}
       className="mb-2 cursor-grab rounded-lg border bg-card p-3 active:cursor-grabbing"
     >
       <div className="flex items-start justify-between">
