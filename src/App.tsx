@@ -75,5 +75,6 @@ export default function App() {
 
       <AIAssistant />
     </div>
+    </NotificationProvider>
   );
 }
