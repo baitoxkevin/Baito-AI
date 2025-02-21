@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { format } from 'date-fns';
-import { CalendarIcon, Loader2Icon } from 'lucide-react';
+import { CalendarIcon, Loader2Icon, Plus } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -75,6 +75,8 @@ export default function NewProjectDialog({
 }: NewProjectDialogProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [customers, setCustomers] = useState<{ id: string; full_name: string; }[]>([]);
+  const [newClientDialogOpen, setNewClientDialogOpen] = useState(false);
+  const [newManagerDialogOpen, setNewManagerDialogOpen] = useState(false);
   const [managers, setManagers] = useState<{ id: string; full_name: string; }[]>([]);
   const { toast } = useToast();
 
@@ -248,14 +250,14 @@ export default function NewProjectDialog({
                   name="client_id"
                   render={({ field }) => (
                     <FormItem className="flex-1">
-                      <FormLabel>Customer *</FormLabel>
-                      <FormControl>
+                      <FormLabel>Client *</FormLabel>
+                      <div className="flex gap-2">
                         <Select
                           onValueChange={field.onChange}
                           value={field.value}
                         >
                           <SelectTrigger>
-                            <SelectValue placeholder="Select customer" />
+                            <SelectValue placeholder="Select client" />
                           </SelectTrigger>
                           <SelectContent>
                             {customers.map((customer) => (
@@ -265,7 +267,15 @@ export default function NewProjectDialog({
                             ))}
                           </SelectContent>
                         </Select>
-                      </FormControl>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          onClick={() => setNewClientDialogOpen(true)}
+                        >
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      </div>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -277,7 +287,7 @@ export default function NewProjectDialog({
                   render={({ field }) => (
                     <FormItem className="flex-1">
                       <FormLabel>Person in Charge *</FormLabel>
-                      <FormControl>
+                      <div className="flex gap-2">
                         <Select
                           onValueChange={field.onChange}
                           value={field.value}
@@ -293,7 +303,15 @@ export default function NewProjectDialog({
                             ))}
                           </SelectContent>
                         </Select>
-                      </FormControl>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          onClick={() => setNewManagerDialogOpen(true)}
+                        >
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      </div>
                       <FormMessage />
                     </FormItem>
                   )}
