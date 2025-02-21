@@ -8,7 +8,7 @@ export interface Task {
   status: TaskStatus;
   created_at: string;
   updated_at: string;
-  assigned_to?: string;
+  assigned_to?: User;
   assigned_by?: string;
   project_id?: string;
   priority: 'low' | 'medium' | 'high';

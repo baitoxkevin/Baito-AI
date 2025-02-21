@@ -1,6 +1,7 @@
+import * as React from 'react';
 import { useState, useEffect } from 'react';
-import { User } from '@/lib/types';
-import { supabase } from '@/lib/supabase';
+import { User } from '../lib/types';
+import { supabase } from '../lib/supabase';
 import {
   Command,
   CommandInput,
@@ -8,7 +9,7 @@ import {
   CommandEmpty,
   CommandGroup,
   CommandItem,
-} from '@/components/ui/command';
+} from '../components/ui/command';
 
 interface MentionInputProps {
   value: string;

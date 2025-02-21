@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { FiPlus, FiTrash, FiUserPlus, FiEdit2, FiList, FiGrid } from 'react-icons/fi';
 import { MentionInput } from './MentionInput';
-import { supabase } from '@/lib/supabase';
-import { createNotification } from '@/lib/notifications';
-import { updateTask } from '@/lib/tasks';
+import { supabase } from '../lib/supabase';
+import { createNotification } from '../lib/notifications';
+import { updateTask } from '../lib/tasks';
 import { FaFire } from 'react-icons/fa';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
