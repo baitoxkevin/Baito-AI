@@ -277,6 +277,10 @@ const SidebarContent = () => {
           />
         ))}
       </nav>
+
+      <div className="mt-auto pt-4 border-t text-center text-xs text-muted-foreground">
+        <span>v0.0.1</span>
+      </div>
     </div>
   );
 };
