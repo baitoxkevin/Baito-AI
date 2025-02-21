@@ -79,3 +79,27 @@ export const handleSupabaseError = (error: any): Error => {
   }
   return new Error(error?.message || 'An unexpected error occurred');
 };
+
+export type Notification = {
+  id: string;
+  user_id: string;
+  type: 'mention' | 'assignment' | 'update';
+  task_id?: string;
+  project_id?: string;
+  title: string;
+  message: string;
+  read: boolean;
+  created_at: string;
+};
+
+export const subscribeToNotifications = (userId: string, callback: (payload: { new: Notification }) => void) => {
+  return supabase
+    .channel(`notifications:${userId}`)
+    .on('postgres_changes', {
+      event: 'INSERT',
+      schema: 'public',
+      table: 'notifications',
+      filter: `user_id=eq.${userId}`,
+    }, callback)
+    .subscribe();
+};
