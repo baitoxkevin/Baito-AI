@@ -1,4 +1,5 @@
 import { useState, createContext, useContext } from 'react';
+import { NotificationBell } from './NotificationBell';
 import { AnimatePresence, motion } from 'framer-motion';
 import { IconMenu2, IconX } from '@tabler/icons-react';
 import { cn } from '@/lib/utils';
@@ -267,6 +268,7 @@ const SidebarContent = () => {
         >
           RecruitPro
         </motion.h2>
+        <NotificationBell />
       </div>
       <nav className="space-y-1">
         {links.map((link) => (
