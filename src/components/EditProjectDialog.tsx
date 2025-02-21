@@ -83,6 +83,7 @@ const projectSchema = z.object({
   supervisors_required: z.number().min(0).max(9).optional(),
   status: z.enum(['new', 'in-progress', 'completed', 'cancelled']),
   priority: z.enum(['low', 'medium', 'high']),
+  color: z.string().regex(/^#[0-9A-Fa-f]{6}$/, 'Invalid color format').default('#E2E8F0'),
 });
 
 type ProjectFormValues = z.infer<typeof projectSchema>;
@@ -127,6 +128,7 @@ export default function EditProjectDialog({
       supervisors_required: project.supervisors_required,
       status: project.status,
       priority: project.priority,
+      color: project.color || '#E2E8F0',
     },
   });
 
@@ -391,6 +393,7 @@ export default function EditProjectDialog({
           supervisors_required: data.needs_supervisors ? data.supervisors_required : 0,
           status: data.status,
           priority: data.priority,
+          color: data.color,
         })
         .eq('id', project.id);
 
@@ -500,6 +503,24 @@ export default function EditProjectDialog({
                   )}
                 />
               </div>
+
+              <FormField
+                control={form.control}
+                name="color"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Project Color</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="color"
+                        {...field}
+                        className="h-10 w-20 p-1"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
               <div className="flex gap-4">
                 <FormField

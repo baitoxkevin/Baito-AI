@@ -55,6 +55,7 @@ const projectSchema = z.object({
   venue_details: z.string().optional(),
   needs_supervisors: z.boolean().default(false),
   supervisors_required: z.number().min(0).max(9).optional(),
+  color: z.string().regex(/^#[0-9A-Fa-f]{6}$/, 'Invalid color format').default('#E2E8F0'),
 });
 
 type ProjectFormValues = z.infer<typeof projectSchema>;
@@ -93,6 +94,7 @@ export default function NewProjectDialog({
       venue_details: '',
       start_date: initialDates?.start || new Date(),
       end_date: initialDates?.end,
+      color: '#E2E8F0',
     },
   });
 
@@ -187,6 +189,7 @@ export default function NewProjectDialog({
           filled_positions: 0,
           priority: 'medium',
           priority_auto_set: false,
+          color: data.color,
         });
 
       if (error) throw error;
@@ -419,6 +422,24 @@ export default function NewProjectDialog({
 
             <div className="space-y-4">
               <h3 className="text-lg font-semibold">Event Details</h3>
+              <FormField
+                control={form.control}
+                name="color"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Project Color</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="color"
+                        {...field}
+                        className="h-10 w-20 p-1"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
               <FormField
                 control={form.control}
                 name="event_type"
