@@ -333,7 +333,7 @@ const Column = ({
   const [active, setActive] = useState(false);
   const { toast } = useToast();
 
-  const handleDragStart = (e: React.DragEvent<HTMLDivElement>, card: Task) => {
+  const handleDragStart = (e: React.DragEvent<Element>, card: Task) => {
     e.dataTransfer.setData('taskId', card.id);
   };
 
@@ -446,7 +446,7 @@ const Card = ({
       layout
       layoutId={task.id}
       draggable="true"
-      onDragStart={(e) => handleDragStart(e, task)}
+      onDragStart={(e: React.DragEvent<Element>) => handleDragStart(e, task)}
       className="mb-2 cursor-grab rounded-lg border bg-card p-3 active:cursor-grabbing"
     >
       <div className="flex items-start justify-between">
