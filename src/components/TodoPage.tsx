@@ -121,7 +121,7 @@ const CompletedTasksList = () => {
                 {task.assigned_to ? (
                   <div className="flex items-center gap-2">
                     <div className="h-2 w-2 rounded-full bg-primary" />
-                    <span>{task.assigned_to.full_name}</span>
+                    <span>{(task.assigned_to as User).full_name}</span>
                   </div>
                 ) : (
                   <span className="text-muted-foreground">Unassigned</span>
@@ -201,7 +201,7 @@ const Board = () => {
     loadTasks();
   }, []);
 
-  const handleAssignTask = async (taskId: string, userId: string, role: UserRole) => {
+  const handleAssignTask = async (taskId: string, userId: string, _role: UserRole) => {
     try {
       await assignTask(taskId, userId, userId); // TODO: Get current user ID
       await loadTasks();
@@ -333,7 +333,7 @@ const Column = ({
   const [active, setActive] = useState(false);
   const { toast } = useToast();
 
-  const handleDragStart = (e: React.DragEvent, card: Task) => {
+  const handleDragStart = (e: React.DragEvent<HTMLDivElement>, card: Task) => {
     e.dataTransfer.setData('taskId', card.id);
   };
 
@@ -369,17 +369,9 @@ const Column = ({
     });
   };
 
-  const highlightIndicator = (e: React.DragEvent) => {
-    const indicators = getIndicators();
+  // Removed unused highlightIndicator function
 
-    clearHighlights(indicators);
-
-    const el = getNearestIndicator(e, indicators);
-
-    el.element.style.opacity = '1';
-  };
-
-  const getNearestIndicator = (e: React.DragEvent, indicators: HTMLElement[]) => {
+  const getNearestIndicator = (e: React.DragEvent<HTMLDivElement>, indicators: HTMLElement[]) => {
     const DISTANCE_OFFSET = 50;
 
     const el = indicators.reduce(
@@ -404,7 +396,7 @@ const Column = ({
   };
 
   const getIndicators = () => {
-    return Array.from(document.querySelectorAll(`[data-column="${column}"]`));
+    return Array.from(document.querySelectorAll(`[data-column="${column}"]`)) as HTMLElement[];
   };
 
   const filteredCards = cards.filter((c) => c.status === column);
@@ -469,10 +461,11 @@ const Card = ({
   onEdit,
 }: { 
   task: Task;
-  handleDragStart: (e: React.DragEvent, task: Task) => void;
+  handleDragStart: (e: React.DragEvent<HTMLDivElement>, task: Task) => void;
   onAssign: () => void;
   onEdit: () => void;
 }) => {
+  const { toast } = useToast();
   return (
     <motion.div
       layout
@@ -506,7 +499,7 @@ const Card = ({
         <div className="mt-2 flex items-center gap-2">
           <div className="h-2 w-2 rounded-full bg-primary" />
           <span className="text-xs text-muted-foreground">
-            Assigned to {task.assigned_to.full_name}
+            Assigned to {(task.assigned_to as User).full_name}
           </span>
         </div>
       )}
@@ -521,7 +514,7 @@ const Card = ({
           onChange={async (newValue) => {
             try {
               await updateTask(task.id, { description: newValue });
-              await loadTasks();
+              window.location.reload(); // Temporary solution until we implement proper state management
             } catch (error) {
               console.error('Error updating task:', error);
               toast({
@@ -572,7 +565,7 @@ const Card = ({
 const BurnBarrel = ({ onDelete }: { onDelete: (taskId: string) => Promise<void> }) => {
   const [active, setActive] = useState(false);
 
-  const handleDragOver = (e: React.DragEvent) => {
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     setActive(true);
   };
@@ -604,10 +597,8 @@ const BurnBarrel = ({ onDelete }: { onDelete: (taskId: string) => Promise<void> 
 };
 
 const AddCard = ({ 
-  column, 
   onAdd 
 }: { 
-  column: string;
   onAdd: (title: string) => Promise<void>;
 }) => {
   const [text, setText] = useState('');
