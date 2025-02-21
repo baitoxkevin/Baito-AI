@@ -1,5 +1,9 @@
 import { useState, useEffect } from 'react';
 import { FiPlus, FiTrash, FiUserPlus, FiEdit2, FiList, FiGrid } from 'react-icons/fi';
+import { MentionInput } from './MentionInput';
+import { supabase } from '@/lib/supabase';
+import { createNotification } from '@/lib/notifications';
+import { updateTask } from '@/lib/tasks';
 import { FaFire } from 'react-icons/fa';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
@@ -511,6 +515,45 @@ const Card = ({
           {task.description}
         </p>
       )}
+      <div className="mt-2">
+        <MentionInput
+          value={task.description || ''}
+          onChange={async (newValue) => {
+            try {
+              await updateTask(task.id, { description: newValue });
+              await loadTasks();
+            } catch (error) {
+              console.error('Error updating task:', error);
+              toast({
+                title: 'Error updating task',
+                description: error instanceof Error ? error.message : 'An unexpected error occurred',
+                variant: 'destructive',
+              });
+            }
+          }}
+          onMention={async (userId) => {
+            try {
+              const { data: user } = await supabase
+                .from('users')
+                .select('full_name')
+                .eq('id', userId)
+                .single();
+
+              if (user) {
+                await createNotification({
+                  user_id: userId,
+                  type: 'mention',
+                  task_id: task.id,
+                  title: 'You were mentioned in a task',
+                  message: `${user.full_name} mentioned you in task: ${task.title}`,
+                });
+              }
+            } catch (error) {
+              console.error('Error creating notification:', error);
+            }
+          }}
+        />
+      </div>
       {task.priority !== 'medium' && (
         <div className="mt-2">
           <span className={`text-xs ${

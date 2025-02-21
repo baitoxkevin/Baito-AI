@@ -14,6 +14,14 @@ export interface Task {
   priority: 'low' | 'medium' | 'high';
   due_date?: string;
   assignee_role?: UserRole;
+  mentions?: string[];
+  comments?: {
+    id: string;
+    text: string;
+    created_at: string;
+    created_by: string;
+    mentions?: string[];
+  }[];
 }
 
 export interface User {
