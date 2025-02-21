@@ -24,6 +24,18 @@ export interface Task {
   }[];
 }
 
+export interface Notification {
+  id: string;
+  user_id: string;
+  type: 'mention' | 'assignment' | 'update';
+  task_id?: string;
+  project_id?: string;
+  title: string;
+  message: string;
+  read: boolean;
+  created_at: string;
+}
+
 export interface User {
   id: string;
   email: string;

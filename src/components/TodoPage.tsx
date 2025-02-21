@@ -6,10 +6,10 @@ import { createNotification } from '../lib/notifications';
 import { updateTask } from '../lib/tasks';
 import { FaFire } from 'react-icons/fa';
 import { motion } from 'framer-motion';
-import { Button } from '@/components/ui/button';
-import { useToast } from '@/hooks/use-toast';
-import { getTasks, createTask, updateTaskStatus, deleteTask, assignTask } from '@/lib/tasks';
-import type { Task, UserRole } from '@/lib/types';
+import { Button } from '../components/ui/button';
+import { useToast } from '../hooks/use-toast';
+import { getTasks, createTask, updateTaskStatus, deleteTask, assignTask } from '../lib/tasks';
+import type { Task, UserRole, User } from '../lib/types';
 import AssignTaskDialog from './AssignTaskDialog';
 import EditTaskDialog from './EditTaskDialog';
 import { format } from 'date-fns';
@@ -20,8 +20,8 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
+} from "../components/ui/table";
+import { Badge } from "../components/ui/badge";
 
 export default function TodoPage() {
   const [view, setView] = useState<'kanban' | 'list'>('kanban');
