@@ -1,6 +1,6 @@
 import { useState, createContext, useContext } from 'react';
 import { NotificationBell } from '@/components/NotificationBell';
-import { AnimatePresence, motion, HTMLMotionProps } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { IconMenu2, IconX } from '@tabler/icons-react';
 import { cn } from '@/lib/utils';
 import { Link, useLocation } from 'react-router-dom';

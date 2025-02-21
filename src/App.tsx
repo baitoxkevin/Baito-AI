@@ -42,8 +42,8 @@ export default function App() {
   };
 
   return (
-    <NotificationProvider>
-      <div className="min-h-screen w-full bg-background">
+    <div className="min-h-screen w-full bg-background">
+      <NotificationProvider>
         <div className="flex h-screen">
           <Sidebar />
 
@@ -74,7 +74,7 @@ export default function App() {
       </div>
 
       <AIAssistant />
-    </div>
-    </NotificationProvider>
-  );
+        </NotificationProvider>
+      </div>
+    );
 }
