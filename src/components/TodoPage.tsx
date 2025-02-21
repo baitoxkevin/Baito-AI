@@ -369,31 +369,7 @@ const Column = ({
     });
   };
 
-  // Removed unused highlightIndicator function
-
-  const getNearestIndicator = (e: React.DragEvent<HTMLDivElement>, indicators: HTMLElement[]) => {
-    const DISTANCE_OFFSET = 50;
-
-    const el = indicators.reduce(
-      (closest, child) => {
-        const box = child.getBoundingClientRect();
-
-        const offset = e.clientY - (box.top + DISTANCE_OFFSET);
-
-        if (offset < 0 && offset > closest.offset) {
-          return { offset: offset, element: child };
-        } else {
-          return closest;
-        }
-      },
-      {
-        offset: Number.NEGATIVE_INFINITY,
-        element: indicators[indicators.length - 1],
-      }
-    );
-
-    return el;
-  };
+  // Removed unused functions
 
   const getIndicators = () => {
     return Array.from(document.querySelectorAll(`[data-column="${column}"]`)) as HTMLElement[];
@@ -430,7 +406,6 @@ const Column = ({
           />
         ))}
         <AddCard 
-          column={column} 
           onAdd={async (title) => {
             try {
               const newTask = await createTask({
@@ -461,7 +436,7 @@ const Card = ({
   onEdit,
 }: { 
   task: Task;
-  handleDragStart: (e: React.DragEvent<HTMLDivElement>, task: Task) => void;
+  handleDragStart: (e: React.DragEvent<Element>, task: Task) => void;
   onAssign: () => void;
   onEdit: () => void;
 }) => {
