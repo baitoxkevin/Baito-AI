@@ -20,19 +20,9 @@ export default defineConfig({
     port: 5173,
     host: '0.0.0.0',
     strictPort: true,
-    fs: {
-      strict: false,
-      allow: ['..']
-    }
   },
   build: {
     outDir: 'dist',
-    assetsDir: 'assets',
-    sourcemap: true,
-    rollupOptions: {
-      input: {
-        main: path.resolve(__dirname, 'index.html')
-      }
-    }
+    sourcemap: true
   }
 })
