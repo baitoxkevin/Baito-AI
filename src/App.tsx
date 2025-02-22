@@ -2,6 +2,7 @@ import { Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { LoginPage } from '@/pages/LoginPage';
+import { TestColorPicker } from '@/pages/TestColorPicker';
 import Sidebar from '@/components/Sidebar';
 import ProjectsPage from '@/components/ProjectsPage';
 import CalendarPage from '@/components/CalendarPage';
@@ -24,7 +25,7 @@ export default function App() {
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!session && window.location.pathname !== '/login') {
+      if (!session && window.location.pathname !== '/login' && window.location.pathname !== '/test-color-picker') {
         navigate('/login');
       }
     });
@@ -75,6 +76,7 @@ export default function App() {
               <Route path="/" element={<ProjectsPage />} />
               <Route path="/projects" element={<ProjectsPage />} />
               <Route path="/calendar" element={<CalendarPage />} />
+              <Route path="/test-color-picker" element={<TestColorPicker />} />
               <Route path="/todo" element={<TodoPage />} />
               {isAdmin && <Route path="/admin" element={<AdminPage />} />}
               <Route path="/candidates" element={<CandidatesPage />} />
