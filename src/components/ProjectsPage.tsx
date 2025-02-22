@@ -4,6 +4,7 @@ import {
   FilterIcon,
   ArrowUpDownIcon,
   ClockIcon,
+  Plus,
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -62,6 +63,8 @@ type Project = {
   venue_address: string;
   venue_details: string | null;
   supervisors_required: number;
+  deleted_at?: string | null;
+  deleted_by?: string | null;
 };
 
 export default function ProjectsPage() {
@@ -72,12 +75,22 @@ export default function ProjectsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [newProjectDialogOpen, setNewProjectDialogOpen] = useState(false);
   const { toast } = useToast();
 
   const loadProjects = async () => {
     setIsLoading(true);
     try {
-      const { data, error } = await supabase
+      const { data: { user } } = await supabase.auth.getUser();
+      const { data: userData } = await supabase
+        .from('users')
+        .select('is_super_admin')
+        .eq('id', user?.id)
+        .single();
+
+      const isSuperAdmin = userData?.is_super_admin === true;
+
+      const query = supabase
         .from('projects')
         .select(`
           id,
@@ -97,21 +110,29 @@ export default function ProjectsPage() {
           event_type,
           venue_address,
           venue_details,
-          supervisors_required
+          supervisors_required,
+          deleted_at,
+          deleted_by
         `)
         .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('Error loading projects:', error);
-        toast({
-          title: 'Error loading projects',
-          description: error.message,
-          variant: 'destructive',
-        });
-        return;
+      // Super admins see all projects, regular admins only see non-deleted
+      if (!isSuperAdmin) {
+        query.is('deleted_at', null);
       }
 
-      setProjects(data || []);
+      const { data, error } = await query;
+
+      if (error) throw error;
+      const formattedProjects = (data || []).map(project => ({
+        ...project,
+        client: { 
+          full_name: project.client?.full_name || 'N/A'
+        },
+        status: project.status as keyof typeof statusColors,
+        priority: project.priority as keyof typeof priorityColors,
+      }));
+      setProjects(formattedProjects);
     } catch (error) {
       console.error('Error loading projects:', error);
       toast({
@@ -153,7 +174,17 @@ export default function ProjectsPage() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">Projects</h1>
-        <NewProjectDialog onProjectAdded={loadProjects} />
+        <div className="flex items-center gap-4">
+          <Button onClick={() => setNewProjectDialogOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            New Project
+          </Button>
+          <NewProjectDialog 
+            open={newProjectDialogOpen}
+            onOpenChange={setNewProjectDialogOpen}
+            onProjectAdded={loadProjects}
+          />
+        </div>
       </div>
 
       <div className="flex flex-col sm:flex-row gap-4">
