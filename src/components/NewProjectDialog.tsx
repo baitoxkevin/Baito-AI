@@ -5,6 +5,7 @@ import * as z from 'zod';
 import { format } from 'date-fns';
 import { CalendarIcon, Loader2Icon, Plus } from 'lucide-react';
 import { ColorPicker } from "@/components/ui/color-picker";
+import { PROJECT_COLORS } from '@/lib/colors';
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -58,7 +59,7 @@ const projectSchema = z.object({
   venue_details: z.string().optional(),
   needs_supervisors: z.boolean().default(false),
   supervisors_required: z.number().min(0).max(9).optional(),
-  color: z.string().regex(/^#[0-9A-Fa-f]{6}$/, 'Invalid color format').default('#E2E8F0'),
+  color: z.string().regex(/^#[0-9A-Fa-f]{6}$/, 'Invalid color format').default(PROJECT_COLORS.blue),
   guest_permissions: z.object({
     modify: z.boolean().default(false),
     invite: z.boolean().default(true),
@@ -105,7 +106,7 @@ export default function NewProjectDialog({
       venue_details: '',
       start_date: initialDates?.start || new Date(),
       end_date: initialDates?.end,
-      color: '#E2E8F0',
+      color: PROJECT_COLORS.blue,
       is_all_day: false,
       repeat_option: 'does-not-repeat',
       guest_permissions: {
