@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, differenceInDays, isSameMonth, isSameDay, addMonths, subMonths, isAfter, isBefore } from 'date-fns';
 import { Card, CardContent } from '@/components/ui/card';
 import { getColorWithOpacity } from '@/lib/colors';
-import { Project, isProject } from '@/lib/types';
-import { Badge } from "@/components/ui/badge";
+import { Project } from '@/lib/types';
+import { Button } from '@/components/ui/button';
 import {
   Tooltip,
   TooltipContent,
@@ -11,20 +11,17 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import {
-  Tabs,
-  TabsList,
-  TabsTrigger,
-} from '@/components/ui/tabs';
-import {
-  ChevronLeft as ChevronLeftIcon,
-  ChevronRight as ChevronRightIcon,
-  Calendar as CalendarIcon,
-  List as ListIcon,
-  Plus,
   Clock,
   Users,
   MapPin,
+  ChevronLeft,
+  ChevronRight,
+  Calendar,
+  List,
+  Plus
 } from 'lucide-react';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Badge } from "@/components/ui/badge";
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 import EditProjectDialog from './EditProjectDialog';
@@ -448,6 +445,8 @@ export default function CalendarPage() {
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
+
+
   const loadProjects = async () => {
     setIsLoading(true);
     try {
@@ -487,24 +486,14 @@ export default function CalendarPage() {
       if (error) throw error;
 
       if (data && Array.isArray(data)) {
-        const validProjects = data.filter((item): item is Project => {
-          if (!item) return false;
-          return typeof item.id === 'string' &&
-            typeof item.title === 'string' &&
-            (!item.client || typeof item.client.full_name === 'string') &&
-            typeof item.status === 'string' &&
-            typeof item.priority === 'string' &&
-            typeof item.start_date === 'string' &&
-            (item.end_date === null || typeof item.end_date === 'string') &&
-            typeof item.working_hours_start === 'string' &&
-            typeof item.working_hours_end === 'string' &&
-            typeof item.event_type === 'string' &&
-            typeof item.venue_address === 'string' &&
-            (item.venue_details === null || typeof item.venue_details === 'string') &&
-            typeof item.supervisors_required === 'number' &&
-            typeof item.crew_count === 'number' &&
-            typeof item.filled_positions === 'number' &&
-            typeof item.color === 'string';
+        const validProjects = data.map((item): Project => {
+          if (!item || typeof item !== 'object') {
+            throw new Error('Invalid project data');
+          }
+          if (!isProject(item)) {
+            throw new Error('Invalid project data');
+          }
+          return item;
         });
         setProjects(validProjects);
         if (validProjects.length !== data.length) {
@@ -604,22 +593,22 @@ export default function CalendarPage() {
             className="p-2 hover:bg-muted rounded-md"
             onClick={() => setDate(prev => subMonths(prev, 1))}
           >
-            <ChevronLeftIcon className="h-4 w-4" />
+            <ChevronLeft className="h-4 w-4" />
           </button>
           <button
             className="p-2 hover:bg-muted rounded-md"
             onClick={() => setDate(prev => addMonths(prev, 1))}
           >
-            <ChevronRightIcon className="h-4 w-4" />
+            <ChevronRight className="h-4 w-4" />
           </button>
           <Tabs value={view} onValueChange={(v) => setView(v as 'calendar' | 'list')}>
             <TabsList>
               <TabsTrigger value="calendar">
-                <CalendarIcon className="h-4 w-4 mr-2" />
+                <Calendar className="h-4 w-4 mr-2" />
                 Calendar
               </TabsTrigger>
               <TabsTrigger value="list">
-                <ListIcon className="h-4 w-4 mr-2" />
+                <List className="h-4 w-4 mr-2" />
                 List
               </TabsTrigger>
             </TabsList>

@@ -21,6 +21,22 @@ import {
 } from 'lucide-react';
 
 // Type definitions for candidate data
+interface Experience {
+  title: string;
+  company: string;
+  start_date: string;
+  end_date?: string;
+  description: string;
+}
+
+interface Education {
+  degree: string;
+  institution: string;
+  start_year: string;
+  end_year?: string;
+  description: string;
+}
+
 type Candidate = {
   id: string;
   full_name: string;
@@ -35,21 +51,9 @@ type Candidate = {
   github_url?: string;
   portfolio_url?: string;
   bio?: string;
-  experience?: Array<{
-    title: string;
-    company: string;
-    start_date: string;
-    end_date?: string;
-    description: string;
-  }>;
-  education?: Array<{
-    degree: string;
-    institution: string;
-    start_year: string;
-    end_year?: string;
-    description: string;
-  }>;
-  skills?: string[];
+  experience: Experience[];
+  education: Education[];
+  skills: string[];
 };
 
 function ProfileSkeleton() {
@@ -216,7 +220,7 @@ export default function CandidateProfile() {
               <h3 className="text-xl font-semibold mb-4">Work Experience</h3>
               {candidate.experience?.length > 0 ? (
                 <div className="space-y-6">
-                  {candidate.experience.map((exp: any, index: number) => (
+                  {candidate.experience.map((exp: Experience, index: number) => (
                     <div key={index} className="border-l-2 border-muted pl-4 pb-4">
                       <h4 className="font-semibold">{exp.title}</h4>
                       <p className="text-muted-foreground">{exp.company}</p>
@@ -251,7 +255,7 @@ export default function CandidateProfile() {
               <h3 className="text-xl font-semibold mb-4">Education</h3>
               {candidate.education?.length > 0 ? (
                 <div className="space-y-6">
-                  {candidate.education.map((edu: any, index: number) => (
+                  {candidate.education.map((edu: Education, index: number) => (
                     <div key={index} className="border-l-2 border-muted pl-4 pb-4">
                       <h4 className="font-semibold">{edu.degree}</h4>
                       <p className="text-muted-foreground">{edu.institution}</p>

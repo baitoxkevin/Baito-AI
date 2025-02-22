@@ -40,6 +40,14 @@ interface AdminPageProps {
 }
 
 export default function AdminPage({ isSuperAdmin }: AdminPageProps) {
+  // Only super admins can modify super admin status
+  const canModifySuperAdmin = isSuperAdmin;
+  
+  // Pass canModifySuperAdmin to EditUserDialog
+  const handleEditClick = (user: User) => {
+    setSelectedUser({...user, canModifySuperAdmin});
+    setEditDialogOpen(true);
+  };
   const [activeTab, setActiveTab] = useState('clients');
   const [searchQuery, setSearchQuery] = useState('');
   const [users, setUsers] = useState<User[]>([]);
@@ -74,10 +82,7 @@ export default function AdminPage({ isSuperAdmin }: AdminPageProps) {
     loadUsers();
   }, []);
 
-  const handleEditClick = (user: User) => {
-    setSelectedUser(user);
-    setEditDialogOpen(true);
-  };
+  // Removed duplicate handleEditClick function since it's defined above
 
   const filteredUsers = users.filter(user => {
     const matchesSearch = (
