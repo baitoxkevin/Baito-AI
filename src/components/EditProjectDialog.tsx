@@ -109,8 +109,6 @@ export default function EditProjectDialog({
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [loadingAssignments, setLoadingAssignments] = useState(false);
   const [supervisors, setSupervisors] = useState<Candidate[]>([]);
-  const [newClientDialogOpen, setNewClientDialogOpen] = useState(false);
-  const [newManagerDialogOpen, setNewManagerDialogOpen] = useState(false);
   const { toast } = useToast();
 
   const form = useForm<ProjectFormValues>({
@@ -476,7 +474,7 @@ export default function EditProjectDialog({
                           type="button"
                           variant="outline"
                           size="icon"
-                          onClick={() => setNewClientDialogOpen(true)}
+                          onClick={() => toast({ title: "Coming soon", description: "Adding new clients will be available in a future update" })}
                         >
                           <Plus className="h-4 w-4" />
                         </Button>
@@ -512,7 +510,7 @@ export default function EditProjectDialog({
                           type="button"
                           variant="outline"
                           size="icon"
-                          onClick={() => setNewManagerDialogOpen(true)}
+                          onClick={() => toast({ title: "Coming soon", description: "Adding new managers will be available in a future update" })}
                         >
                           <Plus className="h-4 w-4" />
                         </Button>
@@ -848,7 +846,7 @@ export default function EditProjectDialog({
               <div className="grid gap-4">
                 {Array.from({ length: form.watch('crew_count') }).map((_, index) => {
                   const assignment = crewAssignments.find(a => a.position_number === index + 1);
-                  const isSupervisorPosition = index < form.watch('supervisors_required');
+                  const isSupervisorPosition = index < (form.watch('supervisors_required') || 0);
                   const availableSupervisors = supervisors.filter(s => 
                     !crewAssignments.some(a => a.assigned_to === s.id && a.is_supervisor)
                   );

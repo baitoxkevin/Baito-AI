@@ -87,12 +87,8 @@ export default function NewProjectDialog({
 }: NewProjectDialogProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [customers, setCustomers] = useState<{ id: string; full_name: string; }[]>([]);
-  const [newClientDialogOpen, setNewClientDialogOpen] = useState(false);
-  const [newManagerDialogOpen, setNewManagerDialogOpen] = useState(false);
   const [managers, setManagers] = useState<{ id: string; full_name: string; }[]>([]);
   const { toast } = useToast();
-
-  const [activeTab, setActiveTab] = useState<'details' | 'find-time'>('details');
   const form = useForm<ProjectFormValues>({
     resolver: zodResolver(projectSchema),
     defaultValues: {
@@ -294,7 +290,7 @@ export default function NewProjectDialog({
                           type="button"
                           variant="outline"
                           size="icon"
-                          onClick={() => setNewClientDialogOpen(true)}
+                          onClick={() => toast({ title: "Coming soon", description: "Adding new clients will be available in a future update" })}
                         >
                           <Plus className="h-4 w-4" />
                         </Button>
@@ -330,7 +326,7 @@ export default function NewProjectDialog({
                           type="button"
                           variant="outline"
                           size="icon"
-                          onClick={() => setNewManagerDialogOpen(true)}
+                          onClick={() => toast({ title: "Coming soon", description: "Adding new managers will be available in a future update" })}
                         >
                           <Plus className="h-4 w-4" />
                         </Button>
