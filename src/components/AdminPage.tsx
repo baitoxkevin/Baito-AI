@@ -49,7 +49,7 @@ export default function AdminPage() {
     try {
       const { data, error } = await supabase
         .from('users')
-        .select('id, email, full_name, role, is_super_admin, company_name, contact_phone, created_at')
+        .select('id, email, full_name, role, company_name, contact_phone, created_at')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -94,15 +94,10 @@ export default function AdminPage() {
     }
   });
 
-  const getRoleBadgeColor = (role: string, isSuper: boolean = false) => {
-    if (isSuper) {
-      return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100';
-    }
+  const getRoleBadgeColor = (role: string) => {
     switch (role) {
-      case 'super_admin':
-        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100';
       case 'admin':
-        return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100';
+        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100';
       case 'manager':
         return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100';
       case 'staff':
@@ -205,19 +200,12 @@ export default function AdminPage() {
                         {user.contact_phone || '-'}
                       </TableCell>
                       <TableCell>
-                        <div className="flex gap-2">
-                          <Badge 
-                            variant="secondary"
-                            className={getRoleBadgeColor(user.role, user.is_super_admin)}
-                          >
-                            {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
-                          </Badge>
-                          {user.is_super_admin && (
-                            <Badge variant="outline" className="border-yellow-500 text-yellow-700">
-                              Super Admin
-                            </Badge>
-                          )}
-                        </div>
+                        <Badge 
+                          variant="secondary"
+                          className={getRoleBadgeColor(user.role)}
+                        >
+                          {user.role === 'admin' ? 'Super Admin' : user.role.charAt(0).toUpperCase() + user.role.slice(1)}
+                        </Badge>
                       </TableCell>
                       <TableCell>
                         <Button 
@@ -268,19 +256,12 @@ export default function AdminPage() {
                         {user.contact_phone || '-'}
                       </TableCell>
                       <TableCell>
-                        <div className="flex gap-2">
-                          <Badge 
-                            variant="secondary"
-                            className={getRoleBadgeColor(user.role, user.is_super_admin)}
-                          >
-                            {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
-                          </Badge>
-                          {user.is_super_admin && (
-                            <Badge variant="outline" className="border-yellow-500 text-yellow-700">
-                              Super Admin
-                            </Badge>
-                          )}
-                        </div>
+                        <Badge 
+                          variant="secondary"
+                          className={getRoleBadgeColor(user.role)}
+                        >
+                          {user.role === 'admin' ? 'Super Admin' : user.role.charAt(0).toUpperCase() + user.role.slice(1)}
+                        </Badge>
                       </TableCell>
                       <TableCell>
                         <Button 
@@ -331,19 +312,12 @@ export default function AdminPage() {
                         {user.contact_phone || '-'}
                       </TableCell>
                       <TableCell>
-                        <div className="flex gap-2">
-                          <Badge 
-                            variant="secondary"
-                            className={getRoleBadgeColor(user.role, user.is_super_admin)}
-                          >
-                            {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
-                          </Badge>
-                          {user.is_super_admin && (
-                            <Badge variant="outline" className="border-yellow-500 text-yellow-700">
-                              Super Admin
-                            </Badge>
-                          )}
-                        </div>
+                        <Badge 
+                          variant="secondary"
+                          className={getRoleBadgeColor(user.role)}
+                        >
+                          {user.role === 'admin' ? 'Super Admin' : user.role.charAt(0).toUpperCase() + user.role.slice(1)}
+                        </Badge>
                       </TableCell>
                       <TableCell>
                         <Button 

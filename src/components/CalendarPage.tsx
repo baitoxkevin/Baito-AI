@@ -488,13 +488,25 @@ export default function CalendarPage() {
 
       if (data && Array.isArray(data)) {
         const validProjects = data.filter((item): item is Project => {
-          const result = isProject(item);
-          if (!result) {
-            console.warn('Invalid project data:', item);
-          }
-          return result;
+          if (!item) return false;
+          return typeof item.id === 'string' &&
+            typeof item.title === 'string' &&
+            (!item.client || typeof item.client.full_name === 'string') &&
+            typeof item.status === 'string' &&
+            typeof item.priority === 'string' &&
+            typeof item.start_date === 'string' &&
+            (item.end_date === null || typeof item.end_date === 'string') &&
+            typeof item.working_hours_start === 'string' &&
+            typeof item.working_hours_end === 'string' &&
+            typeof item.event_type === 'string' &&
+            typeof item.venue_address === 'string' &&
+            (item.venue_details === null || typeof item.venue_details === 'string') &&
+            typeof item.supervisors_required === 'number' &&
+            typeof item.crew_count === 'number' &&
+            typeof item.filled_positions === 'number' &&
+            typeof item.color === 'string';
         });
-        setProjects(validProjects as Project[]);
+        setProjects(validProjects);
         if (validProjects.length !== data.length) {
           console.error('Some invalid project data received');
         }

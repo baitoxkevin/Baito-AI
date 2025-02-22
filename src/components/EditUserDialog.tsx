@@ -40,6 +40,7 @@ interface EditUserDialogProps {
     company_name?: string;
     contact_phone?: string;
     role: string;
+    is_super_admin?: boolean;
   };
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -94,6 +95,7 @@ export default function EditUserDialog({
           full_name: data.full_name,
           company_name: data.company_name || null,
           contact_phone: data.contact_phone || null,
+          is_super_admin: user.role === 'admin',
         })
         .eq('id', user.id);
 
