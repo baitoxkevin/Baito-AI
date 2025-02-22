@@ -1,5 +1,5 @@
 export type TaskStatus = 'backlog' | 'todo' | 'doing' | 'done';
-export type UserRole = 'admin' | 'manager' | 'client' | 'staff';
+export type UserRole = 'super_admin' | 'admin' | 'manager' | 'client' | 'staff';
 
 export interface Task {
   id: string;
