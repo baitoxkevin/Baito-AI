@@ -56,9 +56,7 @@ export const testConnection = async () => {
 
 // Add error handling for database connection
 supabase.auth.onAuthStateChange((event) => {
-  if (event === 'SIGNED_OUT') {
-    isConnected = false;
-  } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+  if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
     checkConnection();
   }
 });
