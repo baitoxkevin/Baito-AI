@@ -5,9 +5,11 @@ import { PROJECT_COLORS } from '@/lib/colors'
 
 const COLOR_VALUES = Object.entries(PROJECT_COLORS)
 
+import { ProjectColorValue } from '@/lib/colors';
+
 interface ColorPickerProps {
-  value: string
-  onChange: (color: string) => void
+  value: ProjectColorValue
+  onChange: (color: ProjectColorValue) => void
 }
 
 export const ColorPicker: React.FC<ColorPickerProps> = ({ value, onChange }) => {
