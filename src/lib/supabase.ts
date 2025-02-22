@@ -19,19 +19,16 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 });
 
 // Add connection state monitoring
-let isConnected = false;
 let reconnectAttempts = 0;
 const MAX_RECONNECT_ATTEMPTS = 5;
 
 const checkConnection = async () => {
   try {
-    const { data, error } = await supabase.from('candidates').select('count', { count: 'exact' });
+    const { error } = await supabase.from('candidates').select('count', { count: 'exact' });
     if (error) throw error;
-    isConnected = true;
     reconnectAttempts = 0;
     return true;
   } catch (error) {
-    isConnected = false;
     console.error('Supabase connection error:', error);
     return false;
   }

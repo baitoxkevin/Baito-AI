@@ -53,10 +53,15 @@ export const NotificationProvider = ({ children }: { children: React.ReactNode }
       const newNotification = payload.new;
       setNotifications(prev => [newNotification, ...prev]);
       
-      toast({
-        title: newNotification.title,
-        description: newNotification.message,
-      });
+      try {
+        toast({
+          title: newNotification.title,
+          description: newNotification.message,
+          variant: newNotification.type === 'mention' ? 'default' : 'destructive',
+        });
+      } catch (error) {
+        console.error('Error showing notification toast:', error);
+      }
     });
 
     return () => {
