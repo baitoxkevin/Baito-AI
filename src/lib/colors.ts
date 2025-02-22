@@ -13,7 +13,8 @@ export const PROJECT_COLORS = {
 } as const;
 
 // Verify that hex values match RGB values
-const verifyColors = {
+// Used for documentation and verification
+export const verifyColors = {
   red: { hex: '#DC2127', rgb: [220, 33, 39] },
   lightRed: { hex: '#FF887C', rgb: [255, 136, 124] },
   orange: { hex: '#FFB878', rgb: [255, 184, 120] },

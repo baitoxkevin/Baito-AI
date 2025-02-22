@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { ColorPicker } from '../components/ui/color-picker';
 import { PROJECT_COLORS } from '@/lib/colors';
 

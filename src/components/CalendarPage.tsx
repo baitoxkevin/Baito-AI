@@ -486,8 +486,12 @@ export default function CalendarPage() {
 
       if (error) throw error;
 
-      if (data && Array.isArray(data) && data.every(isProject)) {
-        setProjects(data);
+      if (data && Array.isArray(data)) {
+        const validProjects = data.filter(isProject);
+        setProjects(validProjects);
+        if (validProjects.length !== data.length) {
+          console.error('Some invalid project data received');
+        }
       } else {
         setProjects([]);
         console.error('Invalid project data received');
