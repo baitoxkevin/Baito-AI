@@ -94,9 +94,7 @@ export default function App() {
           <main className="flex-1 overflow-auto p-6">
             <Routes>
               <Route path="/login" element={<LoginPage />} />
-              <Route path="/" element={
-                window.location.pathname === '/' ? <Navigate to="/login" /> : <ProjectsPage />
-              } />
+              <Route path="/" element={<Navigate to="/login" />} />
               <Route path="/projects" element={<ProjectsPage />} />
               <Route path="/calendar" element={<CalendarPage />} />
               <Route path="/test-color-picker" element={<TestColorPicker />} />
