@@ -20,7 +20,6 @@ import { Toaster } from "@/components/ui/toaster";
 
 export default function App() {
   const [hasAdminAccess, setHasAdminAccess] = useState(false);
-  // Track super admin status for UI and permission control
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
@@ -34,7 +33,6 @@ export default function App() {
         }
         setHasAdminAccess(false);
         setIsSuperAdmin(false);
-        localStorage.removeItem('isSuperAdmin');
       } else {
         await checkAdminStatus();
       }
@@ -44,26 +42,30 @@ export default function App() {
   }, [navigate]);
 
   const checkAdminStatus = async () => {
-    const { data: { user: authUser } } = await supabase.auth.getUser();
-    if (authUser) {
-      const { data: userData } = await supabase
-        .from('users')
-        .select('role, is_super_admin')
-        .eq('id', authUser.id)
-        .single();
-      
-      const isAdmin = userData?.role === 'admin';
-      const superAdmin = userData?.is_super_admin === true;
-      
-      setHasAdminAccess(isAdmin || superAdmin);
-      setIsSuperAdmin(superAdmin);
-      
-      // Store super admin status for other components
-      if (superAdmin) {
-        localStorage.setItem('isSuperAdmin', 'true');
-      } else {
-        localStorage.removeItem('isSuperAdmin');
+    try {
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (authUser) {
+        const { data: userData, error } = await supabase
+          .from('users')
+          .select('role, is_super_admin')
+          .eq('id', authUser.id)
+          .single();
+
+        if (error) throw error;
+        
+        const isAdmin = userData?.role === 'admin';
+        const superAdmin = userData?.is_super_admin === true;
+        
+        setHasAdminAccess(isAdmin || superAdmin);
+        setIsSuperAdmin(superAdmin);
+
+        if (!isAdmin && !superAdmin && window.location.pathname === '/admin') {
+          navigate('/');
+        }
       }
+    } catch (error) {
+      console.error('Error checking admin status:', error);
+      navigate('/login');
     }
   };
 
