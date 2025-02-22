@@ -6,7 +6,6 @@ import {
   HoverCardContent,
   HoverCardTrigger,
 } from '../components/ui/hover-card';
-} from '../components/ui/hover-card';
 import { Button } from '../components/ui/button';
 import { format } from 'date-fns';
 
