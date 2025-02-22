@@ -57,6 +57,8 @@ export interface Project {
   venue_details: string | null;
   supervisors_required: number;
   color: string;
+  deleted_at?: string | null;
+  deleted_by?: string | null;
 }
 
 export function isProject(obj: any): obj is Project {
