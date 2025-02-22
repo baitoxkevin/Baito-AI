@@ -76,7 +76,7 @@ function ProfileSkeleton() {
 }
 
 export default function CandidateProfile() {
-  const { id } = useParams();
+  const { id } = useParams<{ id: string }>();
   const [candidate, setCandidate] = useState<Candidate | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

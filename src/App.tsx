@@ -22,7 +22,6 @@ export default function App() {
   const [hasAdminAccess, setHasAdminAccess] = useState(false);
   // Track super admin status for UI and permission control
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
-  const [showAdminUI, setShowAdminUI] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const activeTab = location.pathname.split('/')[1] || 'dashboard';
