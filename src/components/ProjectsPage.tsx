@@ -289,13 +289,23 @@ export default function ProjectsPage() {
                   <TableCell className="font-medium">{project.title}</TableCell>
                   <TableCell>{project.client?.full_name || 'N/A'}</TableCell>
                   <TableCell>
-                    <Badge 
-                      variant="secondary"
-                      className={statusColors[project.status]}
-                    >
-                      {project.status === "in-progress" ? "In Progress" : 
-                        project.status.charAt(0).toUpperCase() + project.status.slice(1)}
-                    </Badge>
+                    <div className="flex gap-2">
+                      <Badge 
+                        variant="secondary"
+                        className={statusColors[project.status]}
+                      >
+                        {project.status === "in-progress" ? "In Progress" : 
+                          project.status.charAt(0).toUpperCase() + project.status.slice(1)}
+                      </Badge>
+                      {project.deleted_at && (
+                        <Badge 
+                          variant="outline" 
+                          className="border-[#DC2127] text-[#DC2127]"
+                        >
+                          Deleted
+                        </Badge>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell>
                     <Badge 
