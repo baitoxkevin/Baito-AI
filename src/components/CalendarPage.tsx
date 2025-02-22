@@ -16,10 +16,10 @@ import {
   TabsTrigger,
 } from '@/components/ui/tabs';
 import {
-  ChevronLeftIcon,
-  ChevronRightIcon,
-  CalendarIcon,
-  ListIcon,
+  ChevronLeft as ChevronLeftIcon,
+  ChevronRight as ChevronRightIcon,
+  Calendar as CalendarIcon,
+  List as ListIcon,
   Plus,
   Clock,
   Users,

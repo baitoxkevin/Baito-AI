@@ -5,7 +5,7 @@ import { PROJECT_COLORS, ProjectColorValue } from '@/lib/colors';
 export function TestColorPicker() {
   const [color, setColor] = useState<ProjectColorValue>(PROJECT_COLORS.blue);
   
-  const handleColorChange = (newColor: string) => {
+  const handleColorChange = (newColor: ProjectColorValue) => {
     setColor(newColor);
   };
 
