@@ -1,4 +1,4 @@
-import { Routes, Route, useLocation, useNavigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { LoginPage } from '@/pages/LoginPage';
@@ -94,7 +94,9 @@ export default function App() {
           <main className="flex-1 overflow-auto p-6">
             <Routes>
               <Route path="/login" element={<LoginPage />} />
-              <Route path="/" element={<ProjectsPage />} />
+              <Route path="/" element={
+                window.location.pathname === '/' ? <Navigate to="/login" /> : <ProjectsPage />
+              } />
               <Route path="/projects" element={<ProjectsPage />} />
               <Route path="/calendar" element={<CalendarPage />} />
               <Route path="/test-color-picker" element={<TestColorPicker />} />
