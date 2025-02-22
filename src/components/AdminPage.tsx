@@ -35,7 +35,11 @@ type User = {
   created_at: string;
 };
 
-export default function AdminPage() {
+interface AdminPageProps {
+  isSuperAdmin: boolean;
+}
+
+export default function AdminPage({ isSuperAdmin }: AdminPageProps) {
   const [activeTab, setActiveTab] = useState('clients');
   const [searchQuery, setSearchQuery] = useState('');
   const [users, setUsers] = useState<User[]>([]);
@@ -49,7 +53,7 @@ export default function AdminPage() {
     try {
       const { data, error } = await supabase
         .from('users')
-        .select('id, email, full_name, role, company_name, contact_phone, created_at')
+        .select('id, email, full_name, role, is_super_admin, company_name, contact_phone, created_at')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -98,14 +102,6 @@ export default function AdminPage() {
     switch (role) {
       case 'admin':
         return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100';
-      case 'manager':
-        return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100';
-      case 'staff':
-        return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100';
-      case 'client':
-        return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-100';
-      default:
-        return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-100';
       case 'manager':
         return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100';
       case 'staff':

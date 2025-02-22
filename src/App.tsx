@@ -13,14 +13,16 @@ import CandidateProfile from '@/components/CandidateProfile';
 import EmailPage from '@/components/EmailPage';
 import DocumentsPage from '@/components/DocumentsPage';
 import AIAssistant from '@/components/AIAssistant';
-import { LogOutIcon } from 'lucide-react';
+import { LogOut as LogOutIcon } from 'lucide-react';
 import { NotificationProvider } from '@/contexts/NotificationContext';
 import { Button } from "@/components/ui/button";
 import { Toaster } from "@/components/ui/toaster";
 
 export default function App() {
   const [hasAdminAccess, setHasAdminAccess] = useState(false);
+  // Track super admin status for UI and permission control
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [showAdminUI, setShowAdminUI] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const activeTab = location.pathname.split('/')[1] || 'dashboard';
@@ -98,9 +100,9 @@ export default function App() {
               <Route path="/calendar" element={<CalendarPage />} />
               <Route path="/test-color-picker" element={<TestColorPicker />} />
               <Route path="/todo" element={<TodoPage />} />
-              {hasAdminAccess && <Route path="/admin" element={<AdminPage />} />}
+              {(hasAdminAccess || isSuperAdmin) && <Route path="/admin" element={<AdminPage isSuperAdmin={isSuperAdmin} />} />}
               <Route path="/candidates" element={<CandidatesPage />} />
-              <Route path="/candidates/:id" element={<CandidateProfile id={''} />} />
+              <Route path="/candidates/:id" element={<CandidateProfile />} />
               <Route path="/email" element={<EmailPage />} />
               <Route path="/documents" element={<DocumentsPage />} />
             </Routes>

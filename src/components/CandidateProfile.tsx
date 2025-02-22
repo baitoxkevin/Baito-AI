@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -12,21 +13,43 @@ import {
   Phone,
   MapPin,
   Clock,
-  Calendar,
-  Briefcase,
-  GraduationCap,
-  Award,
-  Globe,
   Github,
   Linkedin,
   ExternalLink,
-  Star,
   DollarSign,
   Brain
 } from 'lucide-react';
 
-type CandidateProfileProps = {
+// Type definitions for candidate data
+type Candidate = {
   id: string;
+  full_name: string;
+  email: string;
+  phone_number?: string;
+  profile_image_url?: string;
+  status: string;
+  timezone?: string;
+  preferred_locations?: string[];
+  hourly_rate: number;
+  linkedin_url?: string;
+  github_url?: string;
+  portfolio_url?: string;
+  bio?: string;
+  experience?: Array<{
+    title: string;
+    company: string;
+    start_date: string;
+    end_date?: string;
+    description: string;
+  }>;
+  education?: Array<{
+    degree: string;
+    institution: string;
+    start_year: string;
+    end_year?: string;
+    description: string;
+  }>;
+  skills?: string[];
 };
 
 function ProfileSkeleton() {
@@ -52,8 +75,9 @@ function ProfileSkeleton() {
   );
 }
 
-export default function CandidateProfile({ id }: CandidateProfileProps) {
-  const [candidate, setCandidate] = useState<any>(null);
+export default function CandidateProfile() {
+  const { id } = useParams();
+  const [candidate, setCandidate] = useState<Candidate | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isAnalysisOpen, setIsAnalysisOpen] = useState(false);
@@ -96,7 +120,7 @@ export default function CandidateProfile({ id }: CandidateProfileProps) {
           <div className="flex items-start gap-8">
             <Avatar className="h-32 w-32">
               <AvatarImage src={candidate.profile_image_url || undefined} alt={candidate.full_name} />
-              <AvatarFallback className="text-3xl">{candidate.full_name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
+              <AvatarFallback className="text-3xl">{candidate.full_name.split(' ').map((n: string) => n[0]).join('')}</AvatarFallback>
             </Avatar>
             
             <div className="flex-1 space-y-6">
@@ -110,7 +134,7 @@ export default function CandidateProfile({ id }: CandidateProfileProps) {
 
               <div className="flex items-center gap-3">
                 <Badge className="text-base px-4 py-1" variant={
-                  candidate.status === 'available' ? 'success' :
+                  candidate.status === 'available' ? 'secondary' :
                   candidate.status === 'unavailable' ? 'destructive' : 'default'
                 }>
                   {candidate.status}

@@ -30,7 +30,7 @@ const userSchema = z.object({
   full_name: z.string().min(1, 'Full name is required'),
   company_name: z.string().optional(),
   contact_phone: z.string().regex(/^\+[1-9]\d{1,14}$/, 'Invalid phone number format. Use format: +[country code][number]').optional().or(z.literal('')),
-  role: z.string(),
+  role: z.string().optional(),
   is_super_admin: z.boolean().optional(),
 });
 
