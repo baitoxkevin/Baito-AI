@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, differenceInDays, isSameMonth, isSameDay, addMonths, subMonths, isAfter, isBefore } from 'date-fns';
 import type { Project } from '@/lib/types';
 import { Card, CardContent } from '@/components/ui/card';
+import { getColorWithOpacity } from '@/lib/colors';
 import { Badge } from "@/components/ui/badge";
 import {
   Tooltip,
@@ -293,7 +294,7 @@ const CalendarView = ({
                                   <div 
                                     className="rounded-md border shadow h-full px-2 py-1 cursor-pointer hover:opacity-80 transition-opacity flex items-center overflow-hidden"
                                     style={{
-                                      backgroundColor: project.color + '33',
+                                      backgroundColor: getColorWithOpacity(project.color, 0.2),
                                       color: project.color,
                                       borderColor: project.color
                                     }}
@@ -417,7 +418,7 @@ const ListView = ({
                           <div 
                             className="rounded-xl border shadow h-full px-3 cursor-pointer hover:opacity-80 transition-opacity flex flex-col justify-center items-center text-center"
                             style={{
-                              backgroundColor: project.color + '33',
+                              backgroundColor: getColorWithOpacity(project.color, 0.2),
                               color: project.color,
                               borderColor: project.color
                             }}
