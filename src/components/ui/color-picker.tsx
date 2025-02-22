@@ -2,7 +2,7 @@ import * as React from 'react'
 import { Button } from "./button"
 import { Popover, PopoverContent, PopoverTrigger } from "./popover"
 
-export const PROJECT_COLORS = [
+const PROJECT_COLORS = [
   '#FF5733', '#33FF57', '#3357FF', '#FF33F5',
   '#33FFF5', '#F5FF33', '#FF3333', '#33FF33'
 ]

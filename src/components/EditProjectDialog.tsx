@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { format } from 'date-fns';
-import { CalendarIcon, Loader2Icon, UserPlus, X, Shield, Plus } from 'lucide-react';
+import { CalendarIcon, Loader2Icon, X, Shield, Plus } from 'lucide-react';
 import { ColorPicker } from "@/components/ui/color-picker";
 import { Button } from "@/components/ui/button";
 import {
