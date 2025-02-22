@@ -42,29 +42,37 @@ const priorityColors = {
   low: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100",
 } as const;
 
-type Project = {
+interface SupabaseProject {
   id: string;
   title: string;
   client: {
     full_name: string;
-  };
-  status: keyof typeof statusColors;
-  priority: keyof typeof priorityColors;
+  } | null;
+  client_id: string;
+  manager_id: string;
+  status: string;
+  priority: string;
   start_date: string;
   end_date: string | null;
   crew_count: number;
   filled_positions: number;
   created_at: string;
-  client_id: string;
-  manager_id: string;
   working_hours_start: string;
   working_hours_end: string;
   event_type: string;
   venue_address: string;
   venue_details: string | null;
   supervisors_required: number;
-  deleted_at?: string | null;
-  deleted_by?: string | null;
+  deleted_at: string | null;
+  deleted_by: string | null;
+}
+
+type Project = Omit<SupabaseProject, 'status' | 'priority'> & {
+  client: {
+    full_name: string;
+  };
+  status: keyof typeof statusColors;
+  priority: keyof typeof priorityColors;
 };
 
 export default function ProjectsPage() {
@@ -124,14 +132,22 @@ export default function ProjectsPage() {
       const { data, error } = await query;
 
       if (error) throw error;
-      const formattedProjects = (data || []).map(project => ({
-        ...project,
-        client: { 
-          full_name: project.client?.full_name || 'N/A'
-        },
-        status: project.status as keyof typeof statusColors,
-        priority: project.priority as keyof typeof priorityColors,
-      }));
+      const formattedProjects = (data || []).map((rawProject: any) => {
+        const project: SupabaseProject = {
+          ...rawProject,
+          client: rawProject.client || null,
+          deleted_at: rawProject.deleted_at || null,
+          deleted_by: rawProject.deleted_by || null
+        };
+        return {
+          ...project,
+          client: { 
+            full_name: project.client?.full_name || 'N/A'
+          },
+          status: project.status as keyof typeof statusColors,
+          priority: project.priority as keyof typeof priorityColors,
+        } as Project;
+      });
       setProjects(formattedProjects);
     } catch (error) {
       console.error('Error loading projects:', error);
