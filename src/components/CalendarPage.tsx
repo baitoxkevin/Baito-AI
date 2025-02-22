@@ -2,8 +2,7 @@ import { useState, useEffect } from 'react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, differenceInDays, isSameMonth, isSameDay, addMonths, subMonths, isAfter, isBefore } from 'date-fns';
 import { Card, CardContent } from '@/components/ui/card';
 import { getColorWithOpacity } from '@/lib/colors';
-import { Project } from '@/lib/types';
-import { Button } from '@/components/ui/button';
+import { Project, isProject } from '@/lib/types';
 import {
   Tooltip,
   TooltipContent,

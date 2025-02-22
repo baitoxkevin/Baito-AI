@@ -45,7 +45,7 @@ export default function AdminPage({ isSuperAdmin }: AdminPageProps) {
   
   // Pass canModifySuperAdmin to EditUserDialog
   const handleEditClick = (user: User) => {
-    setSelectedUser({...user, canModifySuperAdmin});
+    setSelectedUser(user);
     setEditDialogOpen(true);
   };
   const [activeTab, setActiveTab] = useState('clients');
