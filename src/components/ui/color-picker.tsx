@@ -1,4 +1,4 @@
-import { FC } from 'react'
+import * as React from 'react'
 import { Button } from "./button"
 import { Popover, PopoverContent, PopoverTrigger } from "./popover"
 
@@ -12,7 +12,7 @@ interface ColorPickerProps {
   onChange: (color: string) => void
 }
 
-export const ColorPicker: FC<ColorPickerProps> = ({ value, onChange }) => {
+export const ColorPicker: React.FC<ColorPickerProps> = ({ value, onChange }) => {
   return (
     <Popover>
       <PopoverTrigger asChild>

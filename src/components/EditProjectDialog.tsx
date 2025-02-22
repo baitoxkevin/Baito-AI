@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { format } from 'date-fns';
 import { CalendarIcon, Loader2Icon, UserPlus, X, Shield, Plus } from 'lucide-react';
+import { ColorPicker } from "@/components/ui/color-picker";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -529,10 +530,9 @@ export default function EditProjectDialog({
                   <FormItem>
                     <FormLabel>Project Color</FormLabel>
                     <FormControl>
-                      <Input
-                        type="color"
-                        {...field}
-                        className="h-10 w-20 p-1"
+                      <ColorPicker
+                        value={field.value}
+                        onChange={field.onChange}
                       />
                     </FormControl>
                     <FormMessage />
