@@ -1,6 +1,7 @@
-import { Routes, Route, useLocation } from 'react-router-dom';
+import { Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
+import { LoginPage } from '@/pages/LoginPage';
 import Sidebar from '@/components/Sidebar';
 import ProjectsPage from '@/components/ProjectsPage';
 import CalendarPage from '@/components/CalendarPage';
@@ -18,7 +19,18 @@ import { Button } from "@/components/ui/button";
 export default function App() {
   const [isAdmin, setIsAdmin] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
   const activeTab = location.pathname.split('/')[1] || 'dashboard';
+
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!session && window.location.pathname !== '/login') {
+        navigate('/login');
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [navigate]);
 
   useEffect(() => {
     const checkAdminStatus = async () => {
@@ -59,6 +71,7 @@ export default function App() {
 
           <main className="flex-1 overflow-auto p-6">
             <Routes>
+              <Route path="/login" element={<LoginPage />} />
               <Route path="/" element={<ProjectsPage />} />
               <Route path="/projects" element={<ProjectsPage />} />
               <Route path="/calendar" element={<CalendarPage />} />
