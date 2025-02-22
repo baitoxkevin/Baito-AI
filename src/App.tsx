@@ -16,6 +16,7 @@ import AIAssistant from '@/components/AIAssistant';
 import { LogOutIcon } from 'lucide-react';
 import { NotificationProvider } from '@/contexts/NotificationContext';
 import { Button } from "@/components/ui/button";
+import { Toaster } from "@/components/ui/toaster";
 
 export default function App() {
   const [isAdmin, setIsAdmin] = useState(false);
@@ -25,7 +26,7 @@ export default function App() {
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!session && window.location.pathname !== '/login' && window.location.pathname !== '/test-color-picker') {
+      if (!session && window.location.pathname !== '/login') {
         navigate('/login');
       }
     });
@@ -89,6 +90,7 @@ export default function App() {
       </div>
 
       <AIAssistant />
+      <Toaster />
         </NotificationProvider>
       </div>
     );

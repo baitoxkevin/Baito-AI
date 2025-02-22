@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, differenceInDays, isSameMonth, isSameDay, addMonths, subMonths, isAfter, isBefore } from 'date-fns';
+import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { getColorWithOpacity } from '@/lib/colors';
 import { Project, isProject } from '@/lib/types';
