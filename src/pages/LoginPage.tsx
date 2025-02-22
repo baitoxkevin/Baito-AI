@@ -32,7 +32,7 @@ export function LoginPage() {
           description: "Invalid email or password"
         })
       } else {
-        navigate('/dashboard')
+        navigate('/')
       }
     } catch (error) {
       toast({
