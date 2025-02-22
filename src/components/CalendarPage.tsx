@@ -447,7 +447,6 @@ export default function CalendarPage() {
   const [view, setView] = useState<'calendar' | 'list'>('calendar');
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
-  const { toast } = useToast();
 
   const loadProjects = async () => {
     setIsLoading(true);
@@ -488,7 +487,7 @@ export default function CalendarPage() {
       if (error) throw error;
 
       if (data && Array.isArray(data)) {
-        const validProjects = data.filter(isProject);
+        const validProjects = data.filter((item): item is Project => isProject(item));
         setProjects(validProjects);
         if (validProjects.length !== data.length) {
           console.error('Some invalid project data received');
