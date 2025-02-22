@@ -67,6 +67,7 @@
     "tabs": "link:@/components/ui/tabs",
     "tailwind-merge": "^3.0.1",
     "toast": "link:@/components/ui/toast",
+    "vite-plugin-node-polyfills": "^0.23.0",
     "zod": "^3.24.2"
   }
 }
