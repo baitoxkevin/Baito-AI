@@ -1,11 +1,9 @@
 import * as React from 'react'
 import { Button } from "./button"
 import { Popover, PopoverContent, PopoverTrigger } from "./popover"
+import { PROJECT_COLORS } from '@/lib/colors'
 
-const PROJECT_COLORS = [
-  '#FF5733', '#33FF57', '#3357FF', '#FF33F5',
-  '#33FFF5', '#F5FF33', '#FF3333', '#33FF33'
-]
+const COLOR_VALUES = Object.values(PROJECT_COLORS)
 
 interface ColorPickerProps {
   value: string
@@ -22,9 +20,9 @@ export const ColorPicker: React.FC<ColorPickerProps> = ({ value, onChange }) => 
           style={{ backgroundColor: value }}
         />
       </PopoverTrigger>
-      <PopoverContent className="w-[200px] p-2">
+      <PopoverContent className="w-[240px] p-2">
         <div className="grid grid-cols-4 gap-2">
-          {PROJECT_COLORS.map(color => (
+          {COLOR_VALUES.map(color => (
             <Button
               key={color}
               className="w-[30px] h-[30px] p-0"
