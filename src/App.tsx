@@ -19,7 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Toaster } from "@/components/ui/toaster";
 
 export default function App() {
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [hasAdminAccess, setHasAdminAccess] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const activeTab = location.pathname.split('/')[1] || 'dashboard';
@@ -40,11 +40,11 @@ export default function App() {
       if (authUser) {
         const { data: userData } = await supabase
           .from('users')
-          .select('role')
+          .select('role, is_super_admin')
           .eq('id', authUser.id)
           .single();
         
-        setIsAdmin(userData?.role === 'admin');
+        setHasAdminAccess(userData?.role === 'admin' || userData?.is_super_admin === true);
       }
     };
 
@@ -79,7 +79,7 @@ export default function App() {
               <Route path="/calendar" element={<CalendarPage />} />
               <Route path="/test-color-picker" element={<TestColorPicker />} />
               <Route path="/todo" element={<TodoPage />} />
-              {isAdmin && <Route path="/admin" element={<AdminPage />} />}
+              {hasAdminAccess && <Route path="/admin" element={<AdminPage />} />}
               <Route path="/candidates" element={<CandidatesPage />} />
               <Route path="/candidates/:id" element={<CandidateProfile id={''} />} />
               <Route path="/email" element={<EmailPage />} />
