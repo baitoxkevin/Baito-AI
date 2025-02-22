@@ -447,6 +447,7 @@ export default function CalendarPage() {
   const [view, setView] = useState<'calendar' | 'list'>('calendar');
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
+  const { toast } = useToast();
 
   const loadProjects = async () => {
     setIsLoading(true);

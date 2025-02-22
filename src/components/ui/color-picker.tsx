@@ -1,11 +1,9 @@
 import * as React from 'react'
 import { Button } from "./button"
 import { Popover, PopoverContent, PopoverTrigger } from "./popover"
-import { PROJECT_COLORS } from '@/lib/colors'
+import { PROJECT_COLORS, ProjectColorValue } from '@/lib/colors';
 
-const COLOR_VALUES = Object.entries(PROJECT_COLORS)
-
-import { ProjectColorValue } from '@/lib/colors';
+const COLOR_VALUES = Object.entries(PROJECT_COLORS);
 
 interface ColorPickerProps {
   value: ProjectColorValue
