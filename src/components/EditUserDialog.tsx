@@ -49,6 +49,7 @@ interface EditUserDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onUserUpdated: () => void;
+  isSuperAdmin?: boolean;
 }
 
 export default function EditUserDialog({
@@ -56,6 +57,7 @@ export default function EditUserDialog({
   open,
   onOpenChange,
   onUserUpdated,
+  isSuperAdmin = false,
 }: EditUserDialogProps) {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
@@ -75,15 +77,7 @@ export default function EditUserDialog({
   const onSubmit = async (data: UserFormValues) => {
     setIsLoading(true);
     try {
-      // Check if current user is super admin
-      const { data: { user: currentUser } } = await supabase.auth.getUser();
-      const { data: currentUserData } = await supabase
-        .from('users')
-        .select('is_super_admin')
-        .eq('id', currentUser?.id)
-        .single();
-
-      const isSuperAdmin = currentUserData?.is_super_admin === true;
+      // Use the isSuperAdmin prop passed from AdminPage
 
       // Check if email is being changed and if it's already in use
       if (data.email !== user.email) {

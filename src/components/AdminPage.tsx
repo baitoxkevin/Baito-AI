@@ -40,10 +40,6 @@ interface AdminPageProps {
 }
 
 export default function AdminPage({ isSuperAdmin }: AdminPageProps) {
-  // Only super admins can modify super admin status
-  const canModifySuperAdmin = isSuperAdmin;
-  
-  // Pass canModifySuperAdmin to EditUserDialog
   const handleEditClick = (user: User) => {
     setSelectedUser(user);
     setEditDialogOpen(true);
@@ -373,6 +369,7 @@ export default function AdminPage({ isSuperAdmin }: AdminPageProps) {
           open={editDialogOpen}
           onOpenChange={setEditDialogOpen}
           onUserUpdated={loadUsers}
+          isSuperAdmin={isSuperAdmin}
         />
       )}
     </div>
