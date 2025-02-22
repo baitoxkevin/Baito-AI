@@ -39,7 +39,7 @@ export interface Notification {
 export interface Project {
   id: string;
   title: string;
-  client: {
+  client?: {
     full_name: string;
   };
   client_id: string;
@@ -57,6 +57,30 @@ export interface Project {
   venue_details: string | null;
   supervisors_required: number;
   color: string;
+}
+
+export function isProject(obj: any): obj is Project {
+  return (
+    typeof obj === 'object' &&
+    obj !== null &&
+    typeof obj.id === 'string' &&
+    typeof obj.title === 'string' &&
+    typeof obj.client_id === 'string' &&
+    typeof obj.manager_id === 'string' &&
+    typeof obj.status === 'string' &&
+    typeof obj.priority === 'string' &&
+    typeof obj.start_date === 'string' &&
+    (obj.end_date === null || typeof obj.end_date === 'string') &&
+    typeof obj.working_hours_start === 'string' &&
+    typeof obj.working_hours_end === 'string' &&
+    typeof obj.event_type === 'string' &&
+    typeof obj.venue_address === 'string' &&
+    (obj.venue_details === null || typeof obj.venue_details === 'string') &&
+    typeof obj.supervisors_required === 'number' &&
+    typeof obj.crew_count === 'number' &&
+    typeof obj.filled_positions === 'number' &&
+    typeof obj.color === 'string'
+  );
 }
 
 export interface User {

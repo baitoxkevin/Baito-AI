@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, differenceInDays, isSameMonth, isSameDay, addMonths, subMonths, isAfter, isBefore } from 'date-fns';
-import type { Project } from '@/lib/types';
 import { Card, CardContent } from '@/components/ui/card';
 import { getColorWithOpacity } from '@/lib/colors';
+import { Project, isProject } from '@/lib/types';
 import { Badge } from "@/components/ui/badge";
 import {
   Tooltip,
@@ -40,28 +40,7 @@ const formatTimeString = (timeStr: string) => {
   return format(date, 'h:mm a');
 };
 
-type Project = {
-  id: string;
-  title: string;
-  client: {
-    full_name: string;
-  };
-  status: string;
-  priority: string;
-  start_date: string;
-  end_date: string | null;
-  client_id: string;
-  manager_id: string;
-  working_hours_start: string;
-  working_hours_end: string;
-  event_type: string;
-  venue_address: string;
-  venue_details: string | null;
-  supervisors_required: number;
-  crew_count: number;
-  filled_positions: number;
-  color: string;
-};
+// Using Project type from @/lib/types
 
 const projectsOverlap = (a: Project, b: Project) => {
   const aStart = new Date(a.start_date);
@@ -507,7 +486,7 @@ export default function CalendarPage() {
 
       if (error) throw error;
 
-      if (data && isProjectArray(data)) {
+      if (data && Array.isArray(data) && data.every(isProject)) {
         setProjects(data);
       } else {
         setProjects([]);
