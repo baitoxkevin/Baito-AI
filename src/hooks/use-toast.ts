@@ -44,7 +44,7 @@ export function useToast() {
       },
       toasts.map((t) => 
         React.createElement(
-          Toast as React.FC<any>,
+          Toast,
           {
             key: t.id,
             variant: t.variant,
@@ -57,8 +57,8 @@ export function useToast() {
             'div',
             { className: 'grid gap-1' },
             [
-              React.createElement(ToastTitle as React.FC<any>, { key: 'title' }, t.title),
-              React.createElement(ToastDescription as React.FC<any>, { key: 'desc' }, t.description)
+              React.createElement(ToastTitle, { key: 'title' }, t.title),
+              React.createElement(ToastDescription, { key: 'desc' }, t.description)
             ]
           )
         )
