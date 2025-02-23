@@ -32,7 +32,21 @@ export function LoginPage() {
           description: "Invalid email or password"
         })
       } else {
-        navigate('/')
+        // Check super admin status after login
+        const { data: { user: authUser } } = await supabase.auth.getUser()
+        if (authUser) {
+          const { data: userData } = await supabase
+            .from('users')
+            .select('role, is_super_admin')
+            .eq('id', authUser.id)
+            .single()
+          
+          if (userData?.is_super_admin) {
+            navigate('/admin')
+          } else {
+            navigate('/')
+          }
+        }
       }
     } catch (error) {
       toast({
@@ -50,7 +64,7 @@ export function LoginPage() {
       <Card className="w-[400px]">
         <CardHeader>
           <CardTitle>Welcome to BaitoAI</CardTitle>
-          <CardDescription>Internal access only</CardDescription>
+          <CardDescription>Internal access only - No Google OAuth required</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleLogin} className="space-y-4">
