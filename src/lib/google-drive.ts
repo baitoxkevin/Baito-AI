@@ -14,7 +14,6 @@ const SCOPES = 'https://www.googleapis.com/auth/drive.file';
 
 let tokenClient: Window['google']['accounts']['oauth2']['TokenClient'];
 let gisInited = false;
-let pickerInited = false;
 
 export async function initializeGoogleDrive(): Promise<void> {
   const script = document.createElement('script');
