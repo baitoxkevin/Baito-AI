@@ -1,7 +1,14 @@
 import { supabase } from './supabase';
 
-const CLIENT_ID = 'YOUR_GOOGLE_CLIENT_ID';
-const API_KEY = 'YOUR_GOOGLE_API_KEY';
+declare global {
+  interface Window {
+    google: any;
+    gapi: any;
+  }
+}
+
+const CLIENT_ID = process.env.VITE_GOOGLE_CLIENT_ID || '';
+const API_KEY = process.env.VITE_GOOGLE_API_KEY || '';
 const DISCOVERY_DOCS = ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'];
 const SCOPES = 'https://www.googleapis.com/auth/drive.file';
 
@@ -9,7 +16,7 @@ let tokenClient: google.accounts.oauth2.TokenClient;
 let pickerInited = false;
 let gisInited = false;
 
-export async function initializeGoogleDrive() {
+export async function initializeGoogleDrive(): Promise<void> {
   const script = document.createElement('script');
   script.src = 'https://apis.google.com/js/api.js';
   script.async = true;
@@ -18,15 +25,14 @@ export async function initializeGoogleDrive() {
 
   return new Promise<void>((resolve, reject) => {
     script.onload = () => {
-      gapi.load('client:picker', async () => {
+      window.gapi.load('client:picker', async () => {
         try {
-          await gapi.client.init({
+          await window.gapi.client.init({
             apiKey: API_KEY,
             discoveryDocs: DISCOVERY_DOCS,
           });
           
-          // Initialize the Google Identity Services client
-          tokenClient = google.accounts.oauth2.initTokenClient({
+          tokenClient = window.google.accounts.oauth2.initTokenClient({
             client_id: CLIENT_ID,
             scope: SCOPES,
             callback: '', // Will be set later
@@ -51,20 +57,21 @@ export async function authenticateGoogleDrive(): Promise<void> {
 
   return new Promise((resolve, reject) => {
     try {
-      // Request an access token
-      tokenClient.callback = async (response) => {
+      tokenClient.callback = async (response: { error?: any; access_token?: string; expires_in?: number }) => {
         if (response.error) {
           reject(response);
         }
         
-        // Store the token in Supabase
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error('Not authenticated');
+
         const { error } = await supabase
           .from('user_integrations')
           .upsert({
-            user_id: (await supabase.auth.getUser()).data.user?.id,
+            user_id: user.id,
             provider: 'google_drive',
             access_token: response.access_token,
-            expires_at: new Date(Date.now() + response.expires_in * 1000).toISOString(),
+            expires_at: new Date(Date.now() + (response.expires_in || 0) * 1000).toISOString(),
           });
 
         if (error) throw error;
@@ -139,7 +146,6 @@ async function getStoredAccessToken(): Promise<string> {
   if (error) throw error;
   if (!data) throw new Error('Google Drive not connected');
 
-  // Check if token is expired
   if (new Date(data.expires_at) <= new Date()) {
     throw new Error('Access token expired');
   }
