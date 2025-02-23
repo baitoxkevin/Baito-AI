@@ -57,6 +57,8 @@ type Document = {
   shared_with: string[];
   storage_path: string;
   owner_id: string;
+  document_type?: 'project_pl' | 'project_claim' | 'project_proposal' | 'briefing_deck';
+  project_id?: string;
 };
 
 // Document types from previous project implementation
