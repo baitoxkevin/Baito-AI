@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { initializeGoogleDrive, authenticateGoogleDrive } from '@/lib/google-drive';
+import { DOCUMENT_TYPES } from '@/types/documents';
 import {
   Table,
   TableBody,
@@ -18,8 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-} from "@/components/ui/card";
+
 import { Badge } from "@/components/ui/badge";
 import {
   Search,
@@ -59,12 +59,7 @@ type Document = {
 };
 
 // Document types from previous project implementation
-const DOCUMENT_TYPES = {
-  PROJECT_PL: 'project_pl',
-  PROJECT_CLAIM: 'project_claim',
-  PROJECT_PROPOSAL: 'project_proposal',
-  BRIEFING_DECK: 'briefing_deck'
-} as const;
+
 
 const formatFileSize = (bytes: number) => {
   const units = ['B', 'KB', 'MB', 'GB'];

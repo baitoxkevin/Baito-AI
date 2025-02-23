@@ -13,8 +13,8 @@ const DISCOVERY_DOCS = ['https://www.googleapis.com/discovery/v1/apis/drive/v3/r
 const SCOPES = 'https://www.googleapis.com/auth/drive.file';
 
 let tokenClient: Window['google']['accounts']['oauth2']['TokenClient'];
-let pickerInited = false;
 let gisInited = false;
+let pickerInited = false;
 
 export async function initializeGoogleDrive(): Promise<void> {
   const script = document.createElement('script');
@@ -39,7 +39,6 @@ export async function initializeGoogleDrive(): Promise<void> {
           });
           
           gisInited = true;
-          pickerInited = true;
           resolve();
         } catch (error) {
           reject(error);
