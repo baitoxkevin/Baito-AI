@@ -1,28 +1,13 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from '../types/database.types';
 
-// Type augmentation for Vite's env
-declare module '@supabase/supabase-js' {
-  interface Database {
-    public: {
-      Tables: {
-        users: {
-          Row: {
-            id: string;
-            email: string;
-            role: string;
-            is_super_admin: boolean;
-            raw_user_meta_data: {
-              is_super_admin: boolean;
-              full_name: string;
-              email_verified: boolean;
-            };
-            created_at: string;
-            updated_at: string;
-          };
-        };
-      };
-    };
+// Vite environment type declarations
+/// <reference types="vite/client" />
+
+declare global {
+  interface ImportMetaEnv {
+    readonly VITE_SUPABASE_URL: string;
+    readonly VITE_SUPABASE_ANON_KEY: string;
   }
 }
 
