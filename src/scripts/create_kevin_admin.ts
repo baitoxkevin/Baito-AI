@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
+import { User, UserMetadata } from '../types';
 
 async function setupKevinAdmin() {
   try {
