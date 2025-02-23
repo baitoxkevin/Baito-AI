@@ -79,8 +79,11 @@ function ProfileSkeleton() {
   );
 }
 
-export default function CandidateProfile() {
-  const { id } = useParams<{ id: string }>();
+interface CandidateProfileProps {
+  id: string;
+}
+
+export default function CandidateProfile({ id }: CandidateProfileProps) {
   const [candidate, setCandidate] = useState<Candidate | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
