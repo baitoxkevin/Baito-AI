@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { type ReactNode } from 'react';
 import { Toast, ToastTitle, ToastDescription } from '@/components/ui/toast';
 import { cn } from '@/lib/utils';
 
@@ -33,27 +34,35 @@ export function useToast() {
     }, duration);
   }, []);
 
-  const ToastContainer = React.memo(function ToastContainer() {
+  const ToastContainer: React.FC = React.memo(() => {
     if (toasts.length === 0) return null;
-    
-    return (
-      <div className="fixed top-0 right-0 z-50 flex flex-col gap-2 p-4 max-w-md">
-        {toasts.map((t) => (
-          <Toast
-            key={t.id}
-            variant={t.variant}
-            className={cn(
-              "transform transition-all duration-300",
-              t.visible ? "translate-x-0 opacity-100" : "translate-x-full opacity-0"
-            )}
-          >
-            <div className="grid gap-1">
-              <ToastTitle>{t.title}</ToastTitle>
-              <ToastDescription>{t.description}</ToastDescription>
-            </div>
-          </Toast>
-        ))}
-      </div>
+
+    return React.createElement(
+      'div',
+      {
+        className: 'fixed top-0 right-0 z-50 flex flex-col gap-2 p-4 max-w-md'
+      },
+      toasts.map((t) => 
+        React.createElement(
+          Toast,
+          {
+            key: t.id,
+            variant: t.variant,
+            className: cn(
+              'transform transition-all duration-300',
+              t.visible ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0'
+            )
+          },
+          React.createElement(
+            'div',
+            { className: 'grid gap-1' },
+            [
+              React.createElement(ToastTitle, { key: 'title' }, t.title),
+              React.createElement(ToastDescription, { key: 'desc' }, t.description)
+            ]
+          )
+        )
+      )
     );
   });
 
