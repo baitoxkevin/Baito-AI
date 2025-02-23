@@ -8,6 +8,7 @@ import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from '@/lib/supabase';
 import type { User, UserMetadata } from '@/types';
+import { cn } from '@/lib/utils';
 
 export function LoginPage() {
   const [email, setEmail] = useState<string>('');
