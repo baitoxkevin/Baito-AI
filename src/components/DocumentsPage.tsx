@@ -59,32 +59,13 @@ type Document = {
   owner_id: string;
 };
 
-const MOCK_DOCUMENTS: Document[] = [
-  {
-    id: '1',
-    name: 'Project Proposal.pdf',
-    type: 'pdf',
-    size: 1024576, // 1MB
-    folder: 'Projects',
-    created_at: '2025-02-14T10:00:00Z',
-    updated_at: '2025-02-14T10:00:00Z',
-    shared_with: [],
-    storage_path: '/documents/1.pdf',
-    owner_id: '1'
-  },
-  {
-    id: '2',
-    name: 'Event Schedule.xlsx',
-    type: 'xlsx',
-    size: 512000, // 500KB
-    folder: 'Events',
-    created_at: '2025-02-14T09:30:00Z',
-    updated_at: '2025-02-14T09:30:00Z',
-    shared_with: ['2', '3'],
-    storage_path: '/documents/2.xlsx',
-    owner_id: '1'
-  }
-];
+// Document types from previous project implementation
+const DOCUMENT_TYPES = {
+  PROJECT_PL: 'project_pl',
+  PROJECT_CLAIM: 'project_claim',
+  PROJECT_PROPOSAL: 'project_proposal',
+  BRIEFING_DECK: 'briefing_deck'
+} as const;
 
 const formatFileSize = (bytes: number) => {
   const units = ['B', 'KB', 'MB', 'GB'];
@@ -112,19 +93,55 @@ const getFileIcon = (type: string) => {
   }
 };
 
+async function loadDocuments() {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+
+  const { data, error } = await supabase
+    .from('documents')
+    .select('*')
+    .eq('owner_id', user.id);
+
+  if (error) throw error;
+  return data;
+}
 export default function DocumentsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedFolder, setSelectedFolder] = useState<string>("all");
-  const [documents] = useState<Document[]>(MOCK_DOCUMENTS);
+  const [documents, setDocuments] = useState<Document[]>([]);
+  
+  useEffect(() => {
+    loadDocuments()
+      .then(docs => setDocuments(docs || []))
+      .catch(error => {
+        console.error('Error loading documents:', error);
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to load documents"
+        });
+      });
+  }, []);
   const { user } = useUser();
   const { toast } = useToast();
 
   const handleGoogleDriveConnect = async () => {
-    // This would be replaced with actual Google Drive OAuth flow
-    toast({
-      title: "Google Drive",
-      description: "Connecting to Google Drive...",
-    });
+    try {
+      await initializeGoogleDrive();
+      await authenticateGoogleDrive();
+      await loadDocuments();
+      toast({
+        title: "Success",
+        description: "Connected to Google Drive successfully",
+      });
+    } catch (error) {
+      console.error('Error connecting to Google Drive:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to connect to Google Drive"
+      });
+    }
   };
 
   const filteredDocuments = documents.filter(doc => {
