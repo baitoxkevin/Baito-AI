@@ -12,7 +12,7 @@ const API_KEY = process.env.VITE_GOOGLE_API_KEY || '';
 const DISCOVERY_DOCS = ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'];
 const SCOPES = 'https://www.googleapis.com/auth/drive.file';
 
-let tokenClient: google.accounts.oauth2.TokenClient;
+let tokenClient: Window['google']['accounts']['oauth2']['TokenClient'];
 let pickerInited = false;
 let gisInited = false;
 
