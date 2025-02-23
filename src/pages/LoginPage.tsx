@@ -7,10 +7,10 @@ import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from '@/lib/supabase';
-import type { User } from '@/types';
 import { cn } from '@/lib/utils';
 
 export function LoginPage() {
+  // Login page is rendered outside main app container by default due to routing setup
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -19,36 +19,64 @@ export function LoginPage() {
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    
+    if (!email || !password) {
+      toast({
+        variant: "destructive",
+        title: "Validation Error",
+        description: "Please enter both email and password"
+      });
+      return;
+    }
+
     setIsLoading(true);
     
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email,
         password
       });
-      
-      if (error) {
+
+      if (authError) {
         toast({
           variant: "destructive",
-          title: "Authentication failed",
-          description: "Invalid email or password"
+          title: "Authentication Failed",
+          description: authError.message
         });
-      } else {
-        const { data: { user: authUser } } = await supabase.auth.getUser();
-        if (authUser) {
-          const { data: userData } = await supabase
-            .from('users')
-            .select('role, raw_user_meta_data')
-            .eq('id', authUser.id)
-            .single();
-          
-          if (userData?.raw_user_meta_data?.is_super_admin) {
-            navigate('/admin');
-          } else {
-            navigate('/');
-          }
-        }
+        return;
       }
+
+      if (!authData.user) {
+        toast({
+          variant: "destructive",
+          title: "Authentication Failed",
+          description: "User not found"
+        });
+        return;
+      }
+
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('role, raw_user_meta_data')
+        .eq('id', authData.user.id)
+        .single();
+
+      if (userError) {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to fetch user data"
+        });
+        return;
+      }
+
+      // Direct routing based on super admin status
+      if (userData?.raw_user_meta_data?.is_super_admin) {
+        navigate('/admin', { replace: true });
+      } else {
+        navigate('/', { replace: true });
+      }
+      
     } catch (error) {
       toast({
         variant: "destructive",
@@ -61,11 +89,13 @@ export function LoginPage() {
   };
 
   return (
-    <div className="flex h-screen items-center justify-center">
-      <Card className="w-[400px]">
-        <CardHeader>
-          <CardTitle>Welcome to BaitoAI</CardTitle>
-          <CardDescription>Internal access only - No Google OAuth required</CardDescription>
+    <div className="min-h-screen flex items-center justify-center bg-background">
+      <Card className="w-[400px] shadow-lg">
+        <CardHeader className="space-y-1">
+          <CardTitle className="text-2xl font-bold">Welcome to BaitoAI</CardTitle>
+          <CardDescription>
+            Internal access only - Please sign in with your credentials
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleLogin} className="space-y-4">
@@ -74,8 +104,13 @@ export function LoginPage() {
               <Input
                 id="email"
                 type="email"
+                placeholder="Enter your email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                className={cn(
+                  "w-full",
+                  !email && "border-destructive"
+                )}
                 required
               />
             </div>
@@ -84,12 +119,21 @@ export function LoginPage() {
               <Input
                 id="password"
                 type="password"
+                placeholder="Enter your password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                className={cn(
+                  "w-full",
+                  !password && "border-destructive"
+                )}
                 required
               />
             </div>
-            <Button type="submit" className="w-full" disabled={isLoading}>
+            <Button 
+              type="submit" 
+              className="w-full font-semibold"
+              disabled={isLoading || !email || !password}
+            >
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
