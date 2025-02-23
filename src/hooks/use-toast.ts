@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { type ReactNode } from 'react';
-import { Toast, ToastTitle, ToastDescription } from '@/components/ui/toast';
-import { cn } from '@/lib/utils';
+import { Toast, ToastTitle, ToastDescription } from '../components/ui/toast';
+import { cn } from '../lib/utils';
 
 interface ToastOptions {
   variant?: 'default' | 'destructive';

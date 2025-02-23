@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Button } from "../components/ui/button";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "../components/ui/card";
+import { Input } from "../components/ui/input";
+import { Label } from "../components/ui/label";
 import { Loader2 } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
-import { supabase } from '@/lib/supabase';
-import { cn } from '@/lib/utils';
+import { useToast } from "../hooks/use-toast";
+import { supabase } from '../lib/supabase';
+import { cn } from '../lib/utils';
 
 export function LoginPage() {
   // Login page is rendered outside main app container by default due to routing setup
