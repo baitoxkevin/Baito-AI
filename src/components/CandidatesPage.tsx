@@ -36,7 +36,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
-import CandidateProfile, { CandidateProfileProps } from './CandidateProfile';
+import CandidateProfile from './CandidateProfile';
 
 type Candidate = {
   id: string;

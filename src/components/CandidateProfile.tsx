@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -79,7 +78,7 @@ function ProfileSkeleton() {
   );
 }
 
-interface CandidateProfileProps {
+export interface CandidateProfileProps {
   id: string;
 }
 
