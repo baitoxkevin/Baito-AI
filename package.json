@@ -1,14 +1,15 @@
 {
   "dependencies": {
-    "@supabase/supabase-js": "^2.39.3",
+    "@supabase/supabase-js": "^2.48.1",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.0",
+    "dotenv": "^16.4.7",
     "lucide-react": "^0.330.0",
+    "node-fetch": "^3.3.2",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.22.1",
-    "tailwind-merge": "^2.2.1",
-    "typescript": "^5.7.3"
+    "tailwind-merge": "^2.2.1"
   },
   "devDependencies": {
     "@types/node": "^20.11.19",
@@ -19,13 +20,14 @@
     "autoprefixer": "^10.4.15",
     "postcss": "^8.4.31",
     "tailwindcss": "^3.3.0",
-    "typescript": "^5.3.3",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.3",
     "vite": "^5.1.0"
   },
   "name": "baito-ai",
   "version": "0.1.0",
   "private": "true",
-  "type": "commonjs",
+  "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",

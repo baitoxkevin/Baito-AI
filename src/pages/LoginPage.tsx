@@ -23,8 +23,8 @@ export function LoginPage() {
     if (!email || !password) {
       toast({
         variant: "destructive",
-        title: "Validation Error",
-        description: "Please enter both email and password"
+        title: "Invalid Input",
+        description: "Please fill in all required fields"
       });
       return;
     }
@@ -33,24 +33,15 @@ export function LoginPage() {
     
     try {
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-        email,
-        password
+        email: email.trim(),
+        password: password.trim()
       });
 
-      if (authError) {
+      if (authError || !authData.user) {
         toast({
           variant: "destructive",
-          title: "Authentication Failed",
-          description: authError.message
-        });
-        return;
-      }
-
-      if (!authData.user) {
-        toast({
-          variant: "destructive",
-          title: "Authentication Failed",
-          description: "User not found"
+          title: "Access Denied",
+          description: "Please verify your credentials"
         });
         return;
       }
@@ -64,8 +55,8 @@ export function LoginPage() {
       if (userError) {
         toast({
           variant: "destructive",
-          title: "Error",
-          description: "Failed to fetch user data"
+          title: "Access Denied",
+          description: "Please verify your credentials"
         });
         return;
       }
