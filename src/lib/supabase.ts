@@ -1,4 +1,12 @@
 import { createClient } from '@supabase/supabase-js';
+import type { Database } from '../types/database.types';
+
+declare global {
+  interface ImportMetaEnv {
+    VITE_SUPABASE_URL: string;
+    VITE_SUPABASE_ANON_KEY: string;
+  }
+}
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -7,7 +15,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase environment variables');
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
@@ -24,7 +32,7 @@ const MAX_RECONNECT_ATTEMPTS = 5;
 
 const checkConnection = async () => {
   try {
-    const { error } = await supabase.from('candidates').select('count', { count: 'exact' });
+    const { error } = await supabase.from('users').select('count', { count: 'exact' });
     if (error) throw error;
     reconnectAttempts = 0;
     return true;
