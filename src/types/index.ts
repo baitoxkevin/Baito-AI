@@ -9,10 +9,6 @@ export interface UserMetadata {
   email_verified: boolean;
 }
 
-export interface User {
-  id: string;
-  email: string;
-  role: string;
-  is_super_admin: boolean;
+export interface User extends Database['public']['Tables']['users']['Row'] {
   raw_user_meta_data: UserMetadata;
 }
