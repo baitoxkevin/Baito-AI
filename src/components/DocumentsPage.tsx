@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { initializeGoogleDrive, authenticateGoogleDrive } from '@/lib/google-drive';
-import { DOCUMENT_TYPES } from '@/types/documents';
 import {
   Table,
   TableBody,
@@ -57,8 +56,6 @@ type Document = {
   document_type?: 'project_pl' | 'project_claim' | 'project_proposal' | 'briefing_deck';
   project_id?: string;
 };
-
-// Document types from previous project implementation
 
 
 const formatFileSize = (bytes: number) => {
@@ -116,7 +113,6 @@ export default function DocumentsPage() {
         });
       });
   }, []);
-  const { user } = useUser();
   const { toast } = useToast();
 
   const handleGoogleDriveConnect = async () => {
