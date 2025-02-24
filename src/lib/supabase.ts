@@ -24,7 +24,9 @@ export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
-    detectSessionInUrl: true
+    detectSessionInUrl: true,
+    storageKey: 'baito-auth',
+    storage: window.localStorage
   },
   db: {
     schema: 'public'

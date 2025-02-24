@@ -17,6 +17,9 @@ const config = {
     host: true,
     port: 5173,
     strictPort: true,
+    hmr: {
+      overlay: true
+    }
   },
   build: {
     rollupOptions: {
