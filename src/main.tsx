@@ -8,10 +8,11 @@ import './index.css';
 const rootElement = document.getElementById('root');
 if (!rootElement) throw new Error('Failed to find root element');
 
-ReactDOM.createRoot(rootElement).render(
+const root = ReactDOM.createRoot(rootElement);
+root.render(
   <React.StrictMode>
     <BrowserRouter>
-      <Toaster position="top-right" richColors />
+      <Toaster position="top-right" richColors closeButton />
       <App />
     </BrowserRouter>
   </React.StrictMode>
