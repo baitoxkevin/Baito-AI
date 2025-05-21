@@ -1,0 +1,103 @@
+/* PayrollManager specific styles */
+
+.payroll-calendar-day {
+  position: relative;
+  padding: 0.5rem;
+  border-radius: 0.375rem;
+  transition: all 0.15s ease;
+}
+
+.payroll-calendar-day:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.payroll-calendar-day.is-weekend {
+  background-color: rgba(239, 68, 68, 0.05);
+}
+
+.payroll-calendar-day.has-data {
+  background-color: rgba(34, 197, 94, 0.1);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.payroll-summary-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.payroll-summary-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.payroll-amount-input {
+  font-variant-numeric: tabular-nums;
+}
+
+.payroll-table-row-weekend {
+  background-color: rgba(0, 0, 0, 0.02);
+}
+
+.payroll-table-row-today {
+  background-color: rgba(59, 130, 246, 0.05);
+  border-left: 3px solid rgb(59, 130, 246);
+}
+
+/* Animations */
+@keyframes payroll-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.payroll-fade-in {
+  animation: payroll-fade-in 0.3s ease-out;
+}
+
+/* Print styles */
+@media print {
+  .payroll-no-print {
+    display: none !important;
+  }
+  
+  .payroll-print-break {
+    page-break-after: always;
+  }
+  
+  .payroll-summary-card {
+    break-inside: avoid;
+  }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .payroll-table {
+    font-size: 0.875rem;
+  }
+  
+  .payroll-table-cell {
+    padding: 0.5rem 0.25rem;
+  }
+}
+
+/* Accessibility */
+.payroll-focus-visible:focus-visible {
+  outline: 2px solid rgb(59, 130, 246);
+  outline-offset: 2px;
+}
+
+.payroll-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}

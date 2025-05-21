@@ -1,0 +1,576 @@
+#root {
+  width: 100%;
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 0;
+  text-align: center;
+  min-height: 100vh;
+  display: flex;
+}
+
+/* Fullscreen loading spinner for page transitions */
+.route-transition-spinner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(255, 255, 255, 0.9);
+  z-index: 9999;
+}
+
+/* Focused override for the kanban card black outline effect */
+.kanban-focus-override {
+  outline: none !important;
+  outline-width: 0 !important;
+  outline-color: transparent !important;
+  outline-style: none !important;
+  outline-offset: 0 !important;
+  
+  /* Tailwind ring properties */
+  --tw-ring-offset-shadow: none !important;
+  --tw-ring-shadow: none !important;
+  --tw-ring-offset-width: 0 !important;
+  --tw-ring-offset-color: transparent !important;
+  --tw-ring-color: transparent !important;
+  --tw-ring-inset: none !important;
+  --tw-ring-opacity: 0 !important;
+  
+  /* Focus states */
+  &:focus, &:focus-visible, &:active {
+    outline: none !important;
+    box-shadow: none !important;
+    --tw-ring-offset-shadow: none !important;
+    --tw-ring-shadow: none !important;
+  }
+}
+
+/* Blue theme sample components */
+
+.theme-sample {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 20px;
+  padding: 20px;
+}
+
+.color-palette {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 20px;
+}
+
+.color-box {
+  height: 40px;
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  color: white;
+  font-weight: 500;
+}
+
+.color-box.light {
+  color: #1e3a5c;
+}
+
+/* Color palette */
+.color-50 { background-color: #f3f6fc; color: #1e3a5c; }
+.color-100 { background-color: #e5eef9; color: #1e3a5c; }
+.color-200 { background-color: #c6dbf1; color: #1e3a5c; }
+.color-300 { background-color: #94bde5; color: #1e3a5c; }
+.color-400 { background-color: #5b9bd5; color: white; }
+.color-500 { background-color: #367ec1; color: white; }
+.color-600 { background-color: #2a6eb6; color: white; }
+.color-700 { background-color: #205084; color: white; }
+.color-800 { background-color: #1e446e; color: white; }
+.color-900 { background-color: #1e3a5c; color: white; }
+.color-950 { background-color: #14263d; color: white; }
+
+/* Hide scrollbar but keep scrolling functionality */
+.no-scrollbar {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;  /* Chrome, Safari and Opera */
+}
+
+/* Calendar layout fixes */
+.rdp {
+  --rdp-cell-size: 36px !important;
+  --rdp-accent-color: #3b82f6 !important;
+  --rdp-background-color: #e2e8f0 !important;
+  margin: 0 auto !important;
+  padding: 0 !important;
+  padding-bottom: 0 !important;
+  width: 280px !important;
+  max-width: 280px !important;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  position: relative !important;
+}
+
+.rdp-months {
+  display: flex !important;
+  justify-content: center !important;
+  width: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.rdp-month {
+  width: 280px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.rdp-table {
+  width: 100% !important;
+  table-layout: fixed !important;
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+}
+
+.rdp-head_row, 
+.rdp-row {
+  display: flex !important;
+  justify-content: space-between !important;
+  width: 100% !important;
+}
+
+.rdp-cell {
+  width: 40px !important;
+  height: 40px !important;
+  text-align: center !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+}
+
+.rdp-head_cell {
+  width: 40px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  font-size: 10px !important;
+  text-align: center !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.5px !important;
+  font-weight: 600 !important;
+  color: #64748b !important;
+  height: 28px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.dark .rdp-head_cell {
+  color: #94a3b8 !important;
+}
+
+/* Fix calendar day cells alignment */
+.rdp-head_row {
+  height: 24px !important;
+  margin-bottom: 4px !important;
+  border-bottom: 1px solid rgba(203, 213, 225, 0.2) !important;
+  width: 100% !important;
+  display: flex !important; /* Match tr.flex behavior */
+  justify-content: space-between !important;
+  align-items: center !important;
+  padding: 0 !important;
+}
+
+.dark .rdp-head_row {
+  border-bottom: 1px solid rgba(30, 41, 59, 0.5) !important;
+}
+
+.rdp-caption {
+  margin-bottom: 8px !important;
+  margin-top: 4px !important;
+  padding: 4px 0 !important;
+  display: grid !important;
+  grid-template-columns: 36px 1fr 36px !important;
+  align-items: center !important;
+  height: 36px !important;
+  position: relative !important;
+  width: 100% !important;
+}
+
+.rdp-caption_label {
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  color: #334155 !important;
+  text-align: center !important;
+  grid-column: 2 !important;
+  grid-row: 1 !important;
+}
+
+/* Force the nav buttons to the sides */
+.rdp-nav_button:first-child {
+  grid-column: 1 !important;
+  grid-row: 1 !important;
+  margin-left: 4px !important;
+}
+
+.rdp-nav_button:last-child {
+  grid-column: 3 !important;
+  grid-row: 1 !important;
+  margin-right: 4px !important;
+}
+
+.dark .rdp-caption_label {
+  color: #e2e8f0 !important;
+}
+
+.rdp-nav {
+  grid-column: 1 / span 3 !important;
+  grid-row: 1 !important;
+  width: 100% !important;
+  display: grid !important;
+  grid-template-columns: 36px 1fr 36px !important;
+}
+
+.rdp-nav_button {
+  width: 28px !important;
+  height: 28px !important;
+  padding: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 6px !important;
+  color: #64748b !important;
+  background-color: transparent !important;
+  border: 1px solid #e2e8f0 !important;
+}
+
+.rdp-nav_button:hover {
+  background-color: rgba(226, 232, 240, 0.5) !important;
+}
+
+.dark .rdp-nav_button {
+  color: #94a3b8 !important;
+  background-color: transparent !important;
+  border: 1px solid #334155 !important;
+}
+
+.dark .rdp-nav_button:hover {
+  background-color: rgba(51, 65, 85, 0.3) !important;
+}
+
+.rdp-months {
+  padding: 0 !important;
+  width: 100% !important;
+}
+
+.rdp-month {
+  width: 100% !important;
+}
+
+.rdp-table {
+  width: 280px !important;
+  border-spacing: 0 !important;
+  margin: 0 auto !important;
+}
+
+.rdp-tbody {
+  width: 100% !important;
+}
+
+.rdp-row {
+  display: flex !important;
+  width: 100% !important;
+  justify-content: space-between !important;
+  padding: 0 !important;
+  margin: 2px 0 !important;
+}
+
+.rdp-cell {
+  width: 36px !important;
+  text-align: center !important;
+  padding: 2px !important;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+}
+
+.rdp-button {
+  width: 32px !important;
+  height: 32px !important;
+  padding: 0 !important;
+  margin: 0 auto !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 12px !important;
+  border-radius: 9999px !important;
+}
+
+/* Calendar container */
+.calendar-wrapper {
+  position: relative !important;
+  overflow: hidden !important;
+  width: 280px !important;
+  margin: 0 auto !important;
+  background-color: white !important;
+  padding: 8px 0 0 0 !important; /* Top padding only, no bottom padding */
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  box-sizing: border-box !important;
+}
+
+.dark .calendar-wrapper {
+  background-color: #1e293b !important;
+}
+
+/* Explicit centering of all calendar elements */
+.calendar-wrapper > div {
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  width: 100% !important;
+}
+
+/* Fix alignment issues with specific element */
+.calendar-wrapper .rdp,
+.calendar-wrapper .rdp-months {
+  width: 280px !important;
+  box-sizing: border-box !important;
+}
+
+.calendar-wrapper .rdp-month {
+  width: 100% !important;
+}
+
+.calendar-wrapper .rdp table {
+  width: 100% !important;
+  table-layout: fixed !important;
+}
+
+.calendar-wrapper thead,
+.calendar-wrapper .rdp-head_row {
+  width: 100% !important;
+  display: flex !important;
+  justify-content: space-between !important;
+  box-sizing: border-box !important;
+  padding: 0 !important;
+}
+
+.calendar-wrapper .rdp-row {
+  box-sizing: border-box !important;
+  padding: 0 !important;
+}
+
+/* Target the month caption specifically */
+.calendar-wrapper .rdp-caption {
+  width: 100% !important;
+  box-sizing: border-box !important;
+  justify-content: center !important;
+  padding-left: 16px !important;
+  padding-right: 16px !important;
+}
+
+/* Calendar styling - complete overhaul */
+
+/* Reset all calendar styles */
+.calendar-wrapper * {
+  box-sizing: border-box !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+
+/* Day highlighting */
+.rdp-day_today:not(.rdp-day_selected) {
+  background-color: rgba(59, 130, 246, 0.1) !important;
+  font-weight: bold !important;
+}
+
+/* Selected day styling */
+.rdp-day_selected {
+  background-color: #3b82f6 !important;
+  color: white !important;
+}
+
+.rdp-day_selected:hover {
+  background-color: #2563eb !important;
+  color: white !important;
+}
+
+/* Weekend days - using ISO standard where weekStartsOn=1 (Monday first) */
+.rdp-day[aria-label*="Saturday"],
+.rdp-day[aria-label*="Sunday"] {
+  color: #ef4444 !important;
+}
+
+.rdp-day_selected[aria-label*="Saturday"],
+.rdp-day_selected[aria-label*="Sunday"] {
+  color: white !important;
+}
+
+.dark .rdp-day[aria-label*="Saturday"],
+.dark .rdp-day[aria-label*="Sunday"] {
+  color: #f87171 !important;
+}
+
+.dark .rdp-day_selected[aria-label*="Saturday"],
+.dark .rdp-day_selected[aria-label*="Sunday"] {
+  color: white !important;
+}
+
+/* Ensure day headers are displayed correctly and exactly match cells beneath */
+.calendar-wrapper .rdp-head_cell {
+  font-size: 10px !important;
+  font-weight: 600 !important;
+  color: #64748b !important;
+  text-align: center !important;
+  padding: 0 !important;
+  width: calc(100% / 7) !important;
+  height: 24px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  position: relative !important;
+  letter-spacing: -0.2px !important;
+}
+
+/* Better approach for day names */
+.calendar-wrapper .rdp-head_cell {
+  position: relative !important;
+}
+
+.calendar-wrapper .rdp-head_cell > * {
+  font-size: 0 !important;
+  opacity: 0 !important;
+  position: absolute !important;
+}
+
+.calendar-wrapper .rdp-head_cell:nth-child(1)::before { content: "Mon" !important; }
+.calendar-wrapper .rdp-head_cell:nth-child(2)::before { content: "Tue" !important; }
+.calendar-wrapper .rdp-head_cell:nth-child(3)::before { content: "Wed" !important; }
+.calendar-wrapper .rdp-head_cell:nth-child(4)::before { content: "Thu" !important; }
+.calendar-wrapper .rdp-head_cell:nth-child(5)::before { content: "Fri" !important; }
+.calendar-wrapper .rdp-head_cell:nth-child(6)::before { content: "Sat" !important; }
+.calendar-wrapper .rdp-head_cell:nth-child(7)::before { content: "Sun" !important; }
+
+.calendar-wrapper .rdp-head_cell::before {
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  color: #64748b !important;
+  display: block !important;
+  letter-spacing: -0.2px !important;
+  position: static !important;
+  text-align: center !important;
+}
+
+/* Ensure both header and date cells have identical width and positioning */
+.calendar-wrapper .rdp-head_row,
+.calendar-wrapper .rdp tbody tr.flex {
+  display: flex !important;
+  width: 100% !important;
+  justify-content: space-between !important;
+}
+
+/* Apply equal width to all cells */
+.calendar-wrapper .rdp-head_cell,
+.calendar-wrapper .rdp-cell {
+  flex: 1 1 0 !important;
+}
+
+/* Enforce cell sizing to match exactly */
+.calendar-wrapper .rdp thead tr,
+.calendar-wrapper .rdp tbody tr {
+  display: flex !important;
+  width: 100% !important;
+}
+
+/* Remove spinner buttons from number inputs */
+input[type=number]::-webkit-inner-spin-button, 
+input[type=number]::-webkit-outer-spin-button { 
+  -webkit-appearance: none !important; 
+  margin: 0 !important; 
+}
+
+/* Firefox */
+input[type=number] {
+  -moz-appearance: textfield !important;
+}
+
+/* Staff Card Styles */
+.staff-card {
+  transition: all 0.2s ease-in-out !important;
+  border: 1px solid transparent !important;
+}
+
+.staff-card:hover {
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05) !important;
+}
+
+.staff-card.selected {
+  border-color: #3b82f6 !important;
+  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.3), 0 4px 8px rgba(0, 0, 0, 0.05) !important;
+  background-color: rgba(59, 130, 246, 0.05) !important;
+}
+
+.staff-avatar {
+  transition: all 0.2s ease-in-out !important;
+}
+
+.selected .staff-avatar {
+  border-color: #3b82f6 !important;
+  transform: scale(1.05) !important;
+}
+
+/* Staff summary badges */
+.day-badge {
+  background: linear-gradient(to right, #e2e8f0, #f1f5f9) !important;
+  border: 1px solid #cbd5e1 !important;
+  transition: all 0.2s ease !important;
+}
+
+.selected .day-badge {
+  background: linear-gradient(to right, #dbeafe, #eff6ff) !important;
+  border-color: #93c5fd !important;
+  color: #2563eb !important;
+}
+
+.dark .day-badge {
+  background: linear-gradient(to right, #334155, #475569) !important;
+  border-color: #1e293b !important;
+}
+
+.dark .selected .day-badge {
+  background: linear-gradient(to right, #1e3a8a, #1e40af) !important;
+  border-color: #3b82f6 !important;
+  color: #93c5fd !important;
+}
+
+/* Amount badge */
+.amount-badge {
+  background: linear-gradient(to right, #f3f4f6, #f9fafb) !important;
+  transition: all 0.2s ease !important;
+}
+
+.selected .amount-badge {
+  background: linear-gradient(to right, #ecfdf5, #d1fae5) !important;
+  color: #047857 !important;
+}
+
+.dark .amount-badge {
+  background: linear-gradient(to right, #374151, #4b5563) !important;
+}
+
+.dark .selected .amount-badge {
+  background: linear-gradient(to right, #064e3b, #065f46) !important;
+  color: #6ee7b7 !important;
+}
+
