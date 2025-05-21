@@ -1,0 +1,280 @@
+/* Gradient animations */
+@keyframes gradient-xy {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+.animate-gradient-xy {
+  animation: gradient-xy 15s ease infinite;
+  background-size: 400% 400%;
+}
+
+/* Glassmorphism effects enhancement */
+.glass-card {
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  background-color: rgba(255, 255, 255, 0.75);
+  border: 1px solid rgba(209, 213, 219, 0.3);
+}
+
+.dark .glass-card {
+  background-color: rgba(17, 24, 39, 0.75);
+  border: 1px solid rgba(75, 85, 99, 0.3);
+}
+
+/* Enhanced shadow effects */
+.glass-shadow {
+  box-shadow: 
+    0 8px 32px 0 rgba(31, 38, 135, 0.37),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+}
+
+/* Shimmer effect for buttons */
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.shimmer-button {
+  position: relative;
+  overflow: hidden;
+}
+
+.shimmer-button::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.3),
+    transparent
+  );
+  transform: translateX(-100%);
+  animation: shimmer 2s infinite;
+}
+
+/* Particle glow effect */
+.particle-glow {
+  box-shadow: 
+    0 0 5px rgba(147, 51, 234, 0.5),
+    0 0 10px rgba(147, 51, 234, 0.3),
+    0 0 15px rgba(147, 51, 234, 0.2);
+}
+
+/* Input focus effects */
+.form-input-enhanced {
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.form-input-enhanced:focus {
+  transform: translateY(-1px);
+  box-shadow: 
+    0 4px 12px rgba(147, 51, 234, 0.15),
+    0 0 0 3px rgba(147, 51, 234, 0.1);
+}
+
+/* Category icon hover effects */
+.category-icon-wrapper {
+  transition: all 0.3s ease;
+}
+
+.category-icon-wrapper:hover {
+  transform: scale(1.1) rotate(5deg);
+}
+
+/* Document dropzone enhancement */
+.dropzone-enhanced {
+  position: relative;
+  transition: all 0.3s ease;
+}
+
+.dropzone-enhanced::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  padding: 2px;
+  background: linear-gradient(135deg, #3b82f6, #9333ea, #ec4899);
+  -webkit-mask: 
+    linear-gradient(#fff 0 0) content-box, 
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.dropzone-enhanced:hover::before {
+  opacity: 1;
+}
+
+/* Dropzone drag over state */
+.dropzone-enhanced.drag-over {
+  transform: scale(1.02);
+  border-style: solid !important;
+  border-color: #9333ea !important;
+  background: linear-gradient(135deg, rgba(147, 51, 234, 0.05), rgba(59, 130, 246, 0.05)) !important;
+}
+
+.dropzone-enhanced.drag-over::before {
+  opacity: 1;
+  animation: gradient-xy 3s ease infinite;
+}
+
+/* Smooth loading animation */
+@keyframes smooth-pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+/* Bounce animation for upload icon */
+@keyframes bounce-upload {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-12px);
+  }
+}
+
+.upload-icon-bounce {
+  animation: bounce-upload 2s ease-in-out infinite;
+}
+
+/* Enhanced shimmer effect */
+@keyframes shimmer-full {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.animate-shimmer {
+  animation: shimmer-full 3s ease-in-out infinite;
+}
+
+.loading-smooth {
+  animation: smooth-pulse 1.5s ease-in-out infinite;
+}
+
+/* Dialog content animation */
+.dialog-content-enhanced {
+  animation: dialog-slide-in 0.3s ease-out;
+}
+
+@keyframes dialog-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Avatar ring animation */
+.avatar-ring {
+  position: relative;
+}
+
+.avatar-ring::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #3b82f6, #9333ea);
+  opacity: 0.3;
+  animation: rotate-ring 3s linear infinite;
+}
+
+@keyframes rotate-ring {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Floating particles background */
+.floating-particles {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.floating-particles::before {
+  content: '';
+  position: absolute;
+  width: 150%;
+  height: 150%;
+  background-image: radial-gradient(circle, rgba(147, 51, 234, 0.1) 1px, transparent 1px);
+  background-size: 50px 50px;
+  animation: float-particles 20s linear infinite;
+}
+
+@keyframes float-particles {
+  from {
+    transform: translate(-25%, -25%) rotate(0deg);
+  }
+  to {
+    transform: translate(-25%, -25%) rotate(360deg);
+  }
+}
+
+/* File preview cards */
+.file-preview-card {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.7));
+  border: 1px solid rgba(147, 51, 234, 0.1);
+  transition: all 0.3s ease;
+}
+
+.dark .file-preview-card {
+  background: linear-gradient(135deg, rgba(17, 24, 39, 0.9), rgba(17, 24, 39, 0.7));
+  border: 1px solid rgba(147, 51, 234, 0.2);
+}
+
+.file-preview-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(147, 51, 234, 0.15);
+  border-color: rgba(147, 51, 234, 0.3);
+}
+
+/* File type icons */
+.file-type-icon {
+  background: linear-gradient(135deg, #3b82f6, #9333ea);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Remove button animation */
+.remove-file-btn {
+  transition: all 0.2s ease;
+}
+
+.remove-file-btn:hover {
+  transform: scale(1.1) rotate(90deg);
+  background: rgba(239, 68, 68, 0.1);
+}
