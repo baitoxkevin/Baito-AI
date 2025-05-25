@@ -277,6 +277,8 @@ interface ListViewProps {
   onProjectSelect?: (id: string, selected: boolean) => void;
   onLoadMoreMonths?: (direction: 'past' | 'future', months: number) => void;
   monthsToShow?: number;
+  syncToDate?: boolean; // Force ListView to sync with parent's date
+  onMonthChange?: (newDate: Date) => void; // Notify parent when month changes
 }
 
 export default function ListView({
@@ -1747,7 +1749,7 @@ export default function ListView({
                 }}
                 className="bg-primary/10 text-primary px-3 py-1 rounded-md text-xs font-semibold cursor-pointer hover:bg-primary/20 transition-colors flex items-center"
               >
-                <span>{format(date, 'MMMM yyyy')}</span>
+                <span>{syncToDate ? format(date, 'MMMM yyyy') : visibleMonth}</span>
                 <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="ml-1">
                   <polyline points="6 9 12 15 18 9"></polyline>
                 </svg>
@@ -1763,7 +1765,7 @@ export default function ListView({
                       <button 
                         key={monthStr}
                         className={`w-full text-left px-2 py-1 text-xs hover:bg-gray-100 cursor-pointer rounded-sm ${
-                          format(date, 'MMMM yyyy') === monthStr ? 'bg-primary/10 font-medium' : ''
+                          visibleMonth === monthStr ? 'bg-primary/10 font-medium' : ''
                         }`}
                         onClick={(e) => {
                           e.stopPropagation();
