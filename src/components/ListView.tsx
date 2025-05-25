@@ -713,68 +713,6 @@ export default function ListView({
   }, []);
   
 
-  // Scroll to position today in the middle once rendered
-  useEffect(() => {
-    if (!containerRef.current || isDataLoading || scrollPositionRef.current !== 0) {
-      return; // Skip if still loading or restoring previous scroll position
-    }
-
-    try {
-      // Always scroll to the current month (today's month)
-      // This ensures the calendar button in list view shows the current month's projects
-      const today = new Date();
-      const currentMonth = format(today, 'MMMM yyyy');
-      
-      console.log(`Attempting to scroll to current month: ${currentMonth}`);
-      
-      // Find the month element and scroll to it
-      const monthElement = document.querySelector(`[data-month-marker="${currentMonth}"]`) as HTMLElement;
-      
-      if (monthElement && containerRef.current) {
-        const topPosition = monthElement.offsetTop;
-        console.log(`Found current month element at position: ${topPosition}`);
-        
-        // Update visible month state
-        setVisibleMonth(currentMonth);
-        
-        // Use a timeout to ensure the DOM is fully rendered
-        setTimeout(() => {
-          // Scroll to the month element
-          if (containerRef.current) {
-            containerRef.current.scrollTop = topPosition - 100; // Direct assignment for more reliability
-            console.log(`Scrolled to position: ${topPosition - 100}`);
-          }
-        }, 100);
-      } else {
-        console.warn(`Could not find month element for: ${currentMonth}`);
-        
-        // Fallback: try to find any month marker
-        const anyMonthElement = document.querySelector('[data-month-marker]') as HTMLElement;
-        if (anyMonthElement && containerRef.current) {
-          console.log(`Found fallback month element: ${anyMonthElement.getAttribute('data-month-marker')}`);
-          
-          const topPosition = anyMonthElement.offsetTop;
-          setVisibleMonth(anyMonthElement.getAttribute('data-month-marker') || '');
-          
-          setTimeout(() => {
-            if (containerRef.current) {
-              containerRef.current.scrollTop = topPosition - 100;
-            }
-          }, 100);
-        } else {
-          console.error('No month markers found in the document');
-        }
-      }
-      
-      // Mark as scrolled to today to prevent repeated scrolling
-      scrolledToTodayRef.current = true;
-      
-      // Clear any auto-scroll targets to ensure we always show the current month first
-      window.sessionStorage.removeItem('calendarAutoScrollTarget');
-    } catch (error) {
-      console.error('Error in scroll to today effect:', error);
-    }
-  }, [isDataLoading]);
   
   // Add scroll event listener to detect when we need to load more months
   useEffect(() => {
@@ -1079,50 +1017,54 @@ export default function ListView({
   
   // State to track the current visible month - always initialized from the date prop
   const [visibleMonth, setVisibleMonth] = useState<string>(format(date, 'MMMM yyyy'));
+  const [visibleYear, setVisibleYear] = useState<number>(date.getFullYear());
   
-  // Calculate current month even before scrolling
-  const initialVisibleMonth = useMemo(() => {
-    // Always use the current selected date's month/year
-    return format(date, 'MMMM yyyy');
-  }, [date]);
+  // Track if initial scroll has been done
+  const hasInitialScroll = useRef(false);
+  
+  // Scroll to a specific date
+  const scrollToDate = useCallback((targetDate: Date, behavior: ScrollBehavior = 'smooth') => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const targetMonthStr = format(targetDate, 'MMMM yyyy');
+    const monthElement = document.querySelector(`[data-month-marker="${targetMonthStr}"]`) as HTMLElement;
+    
+    if (monthElement) {
+      const topPosition = monthElement.offsetTop;
+      container.scrollTo({
+        top: topPosition - 100,
+        behavior
+      });
+    }
+  }, []);
   
   // Keep reference of previous date to avoid unnecessary scrolling
   const prevDateRef = useRef(date);
   
-  // Update visible month when date changes
+  // Sync with parent date when syncToDate is true
   useEffect(() => {
-    if (!date) return; // Safety check
-    
-    // Reset visible month to current date when date changes
-    setVisibleMonth(format(date, 'MMMM yyyy'));
-    
-    // Skip scroll if this is the initial render
-    if (prevDateRef.current && prevDateRef.current.getTime() !== date.getTime()) {
-      // Also reset the scroll to show the current month
-      if (containerRef.current) {
-        // Find the element for the current month
-        try {
-          const currentMonthMarker = document.querySelector(`[data-month-marker="${format(date, 'MMMM yyyy')}"]`);
-          
-          if (currentMonthMarker) {
-            // Save current scroll position first
-            scrollPositionRef.current = containerRef.current.scrollTop;
-            
-            // Scroll to the current month without animation to avoid jarring experience
-            containerRef.current.scrollTo({
-              top: (currentMonthMarker as HTMLElement).offsetTop - 100,
-              behavior: 'auto' // Changed from 'smooth' to prevent animation during data load
-            });
-          }
-        } catch (e) {
-          console.warn('Error finding month marker:', e);
-        }
-      }
+    if (syncToDate && date) {
+      // Use instant scroll for sync operations
+      scrollToDate(date, 'instant');
+      setVisibleMonth(format(date, 'MMMM yyyy'));
+      setVisibleYear(date.getFullYear());
     }
-    
-    // Update the previous date reference
-    prevDateRef.current = date;
-  }, [date]);
+  }, [date, syncToDate, scrollToDate]);
+
+  // Scroll to the current month on initial load
+  useEffect(() => {
+    if (!hasInitialScroll.current && dates.length > 0 && !syncToDate) {
+      hasInitialScroll.current = true;
+      // Small delay to ensure DOM is ready
+      setTimeout(() => {
+        const targetDate = date || new Date();
+        scrollToDate(targetDate);
+        setVisibleMonth(format(targetDate, 'MMMM yyyy'));
+        setVisibleYear(targetDate.getFullYear());
+      }, 100);
+    }
+  }, [dates, scrollToDate, date, syncToDate]);
   
   // Implement pinch-to-zoom functionality
   useEffect(() => {

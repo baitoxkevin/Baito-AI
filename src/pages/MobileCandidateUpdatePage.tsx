@@ -780,8 +780,20 @@ export default function MobileCandidateUpdatePage() {
   };
 
   const handleSaveChanges = async () => {
-    if (!validateForm()) return;
+    console.log('Save button clicked');
+    console.log('Current form data:', {
+      race: formData.race,
+      shirt_size: formData.shirt_size,
+      emergency_contact_relationship: formData.emergency_contact_relationship,
+      highest_education: formData.highest_education
+    });
     
+    if (!validateForm()) {
+      console.log('Validation failed');
+      return;
+    }
+    
+    console.log('Validation passed, showing confirmation dialog');
     // Show confirmation dialog
     setShowConfirmDialog(true);
   };
@@ -916,13 +928,21 @@ export default function MobileCandidateUpdatePage() {
         updated_at: new Date().toISOString()
       };
       
+      // Log the full update data
+      console.log('Full update data being sent to Supabase:', updateData);
+      
       // Update candidate
       const { error: updateError } = await supabase
         .from('candidates')
         .update(updateData)
         .eq('id', candidateId);
         
-      if (updateError) throw updateError;
+      if (updateError) {
+        console.error('Update error:', updateError);
+        throw updateError;
+      }
+      
+      console.log('Update successful');
       
       // Log activity
       await supabase
