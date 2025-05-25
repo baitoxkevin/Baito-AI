@@ -475,6 +475,18 @@ export async function approveExpenseClaim(
       .rpc('approve_expense_claim', { claim_id: claimId });
     
     if (error) throw error;
+    
+    // If approval was successful, sync to payroll
+    if (data?.success && data.data) {
+      const { syncExpenseClaimToPayroll } = await import('./expense-payroll-sync-service');
+      const syncResult = await syncExpenseClaimToPayroll(data.data);
+      
+      if (!syncResult.success) {
+        console.warn('Failed to sync expense claim to payroll:', syncResult.message);
+        // Don't fail the approval, just log the warning
+      }
+    }
+    
     return data || { success: false, message: 'No data returned from server' };
   } catch (error) {
     console.error('Error approving expense claim:', error);
@@ -495,6 +507,25 @@ export async function rejectExpenseClaim(
   reason: string
 ): Promise<{ success: boolean; message: string; data?: ExpenseClaim }> {
   try {
+    // First, get the claim details to check if it was previously approved
+    const { data: claim, error: fetchError } = await supabase
+      .from('expense_claims')
+      .select('*')
+      .eq('id', claimId)
+      .single();
+    
+    if (fetchError) throw fetchError;
+    
+    // If claim was approved, unsync from payroll before rejecting
+    if (claim && claim.status === 'approved') {
+      const { unsyncExpenseClaimFromPayroll } = await import('./expense-payroll-sync-service');
+      const unsyncResult = await unsyncExpenseClaimFromPayroll(claim);
+      
+      if (!unsyncResult.success) {
+        console.warn('Failed to unsync expense claim from payroll:', unsyncResult.message);
+      }
+    }
+    
     const { data, error } = await supabase
       .rpc('reject_expense_claim', { claim_id: claimId, reason });
     
@@ -525,7 +556,7 @@ export async function deleteExpenseClaim(claimId: string): Promise<{ success: bo
     // Check if this claim belongs to the current user
     const { data: claim, error: claimError } = await supabase
       .from('expense_claims')
-      .select('user_id, status')
+      .select('*')
       .eq('id', claimId)
       .single();
       
@@ -539,12 +570,18 @@ export async function deleteExpenseClaim(claimId: string): Promise<{ success: bo
       console.warn('User is deleting a claim they do not own');
     }
     
-    // Don't allow deleting approved claims
+    // If claim was approved, unsync from payroll before deleting
     if (claim && claim.status === 'approved') {
-      return { 
-        success: false, 
-        message: 'Cannot delete approved expense claims' 
-      };
+      const { unsyncExpenseClaimFromPayroll } = await import('./expense-payroll-sync-service');
+      const unsyncResult = await unsyncExpenseClaimFromPayroll(claim);
+      
+      if (!unsyncResult.success) {
+        console.warn('Failed to unsync expense claim from payroll:', unsyncResult.message);
+        return { 
+          success: false, 
+          message: 'Cannot delete approved expense claim: Failed to remove from payroll' 
+        };
+      }
     }
     
     // First get the receipts associated with this claim

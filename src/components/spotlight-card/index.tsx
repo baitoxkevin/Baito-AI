@@ -332,31 +332,70 @@ export function SpotlightCard({
         
         // Transform the data to match StaffingTab's expected structure
         const transformStaffData = (staffArray: any[]) => {
-          return staffArray.map(staff => ({
-            id: staff.candidate_id || staff.id,
-            name: staff.name || staff.full_name || 'Unknown',
-            photo: staff.photo || staff.profile_photo,
-            designation: staff.position || staff.designation || 'Crew',
-            status: staff.status || 'confirmed',
-            appliedDate: staff.applied_date ? new Date(staff.applied_date) : new Date(),
-            applyType: staff.apply_type || 'full',
-            // Ensure working dates are Date objects
-            workingDates: (staff.working_dates || []).map((d: any) => 
-              d instanceof Date ? d : new Date(d)
-            ),
-            // Ensure working dates with salary have proper Date objects
-            workingDatesWithSalary: (staff.working_dates_with_salary || []).map((item: any) => ({
-              ...item,
-              date: item.date instanceof Date ? item.date : new Date(item.date)
-            }))
-          }));
+          return staffArray.map(staff => {
+            // Extract the actual ID string from potential object structures
+            const rawId = staff.candidate_id || staff.id;
+            let actualId: string;
+            
+            if (typeof rawId === 'string') {
+              actualId = rawId;
+            } else if (rawId && typeof rawId === 'object') {
+              // Handle nested ID objects
+              actualId = rawId.id || rawId.candidate_id || (typeof staff.id === 'string' ? staff.id : '');
+            } else {
+              actualId = '';
+            }
+            
+            return {
+              id: actualId,
+              name: staff.name || staff.full_name || 'Unknown',
+              photo: staff.photo || staff.profile_photo,
+              designation: staff.position || staff.designation || 'Crew',
+              status: staff.status || 'confirmed',
+              appliedDate: staff.applied_date ? new Date(staff.applied_date) : new Date(),
+              applyType: staff.apply_type || 'full',
+              // Ensure working dates are Date objects
+              workingDates: (staff.working_dates || []).map((d: any) => 
+                d instanceof Date ? d : new Date(d)
+              ),
+              // Ensure working dates with salary have proper Date objects
+              workingDatesWithSalary: (staff.working_dates_with_salary || []).map((item: any) => ({
+                ...item,
+                date: item.date instanceof Date ? item.date : new Date(item.date)
+              }))
+            };
+          });
         };
         
         // If we have candidate IDs, fetch additional details from candidates table
         const allStaffIds = [
-          ...projectConfirmedStaff.map(s => s.candidate_id || s.id),
-          ...projectApplicants.map(a => a.candidate_id || a.id)
-        ].filter(Boolean);
+          ...projectConfirmedStaff.map(s => {
+            const id = s.candidate_id || s.id;
+            // Debug log to understand the structure
+            if (typeof id !== 'string' && id) {
+              console.warn('Non-string ID found in confirmed staff:', { id, type: typeof id, staff: s });
+            }
+            // Ensure we extract string ID from potential object
+            return typeof id === 'string' ? id : (id?.id || null);
+          }),
+          ...projectApplicants.map(a => {
+            const id = a.candidate_id || a.id;
+            // Debug log to understand the structure
+            if (typeof id !== 'string' && id) {
+              console.warn('Non-string ID found in applicants:', { 
+                id, 
+                type: typeof id, 
+                applicant: a,
+                // Log more details about the ID structure
+                idKeys: Object.keys(id || {}),
+                candidateId: a.candidate_id,
+                directId: a.id
+              });
+            }
+            // Ensure we extract string ID from potential object
+            return typeof id === 'string' ? id : (id?.id || null);
+          })
+        ].filter(id => id && typeof id === 'string');
         
         if (allStaffIds.length > 0) {
           try {
@@ -373,10 +412,13 @@ export function SpotlightCard({
             if (candidatesData && candidatesData.length > 0) {
             // Merge candidate details with staff data
             const enrichedConfirmedStaff = projectConfirmedStaff.map(staff => {
-              const candidate = candidatesData.find(c => c.id === (staff.candidate_id || staff.id));
+              const staffId = staff.candidate_id || staff.id;
+              const actualId = typeof staffId === 'string' ? staffId : (staffId?.id || null);
+              const candidate = candidatesData.find(c => c.id === actualId);
               return {
                 ...staff,
-                id: staff.candidate_id || staff.id,
+                id: actualId || (typeof staff.id === 'string' ? staff.id : ''), // Use the extracted string ID
+                candidate_id: actualId, // Keep the actual candidate ID
                 name: candidate?.full_name || staff.name || staff.full_name || 'Unknown',
                 photo: candidate?.profile_photo || staff.photo || staff.profile_photo,
                 email: candidate?.email,
@@ -386,10 +428,13 @@ export function SpotlightCard({
             });
             
             const enrichedApplicants = projectApplicants.map(applicant => {
-              const candidate = candidatesData.find(c => c.id === (applicant.candidate_id || applicant.id));
+              const applicantId = applicant.candidate_id || applicant.id;
+              const actualId = typeof applicantId === 'string' ? applicantId : (applicantId?.id || null);
+              const candidate = candidatesData.find(c => c.id === actualId);
               return {
                 ...applicant,
-                id: applicant.candidate_id || applicant.id,
+                id: actualId || (typeof applicant.id === 'string' ? applicant.id : ''), // Use the extracted string ID
+                candidate_id: actualId, // Keep the actual candidate ID
                 name: candidate?.full_name || applicant.name || applicant.full_name || 'Unknown',
                 photo: candidate?.profile_photo || applicant.photo || applicant.profile_photo,
                 email: candidate?.email,

@@ -255,6 +255,18 @@ export default function MobileCandidateUpdatePage() {
     console.log('Component rendered. isAuthenticated:', isAuthenticated, 'formData.race:', formData.race);
   });
   
+  // Workaround for Radix UI Select not updating properly
+  useEffect(() => {
+    if (isAuthenticated && formData.race) {
+      console.log('Race value exists, forcing update');
+      // Force the Select components to recognize the new value
+      const timer = setTimeout(() => {
+        setFormData(prev => ({ ...prev }));
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [isAuthenticated]);
+  
   const validateToken = async () => {
     if (!secureToken || !candidateId) return;
     
@@ -334,14 +346,16 @@ export default function MobileCandidateUpdatePage() {
         languages_spoken: candidateData.languages_spoken,
         field_of_study: candidateData.field_of_study
       });
-      console.log('Normalized values:', {
+      const normalizedData = {
         race: normalizeDropdownValue(candidateData.race, 'race'),
         emergency_contact_relationship: normalizeDropdownValue(candidateData.emergency_contact_relationship, 'relationship'),
         highest_education: normalizeDropdownValue(candidateData.highest_education, 'education'),
-        shirt_size: candidateData.shirt_size // Shirt size doesn't need normalization
-      });
+        shirt_size: candidateData.shirt_size || ''
+      };
       
-      setFormData({
+      console.log('Normalized values:', normalizedData);
+      
+      const newFormData = {
         full_name: candidateData.full_name || '',
         ic_number: candidateData.ic_number || '',
         email: candidateData.email || '',
@@ -349,10 +363,10 @@ export default function MobileCandidateUpdatePage() {
         date_of_birth: candidateData.date_of_birth || '',
         gender: candidateData.gender?.toLowerCase() || '',
         nationality: candidateData.nationality || 'Malaysian',
-        race: normalizeDropdownValue(candidateData.race, 'race'),
+        race: normalizedData.race,
         emergency_contact_name: candidateData.emergency_contact_name || '',
         emergency_contact_number: candidateData.emergency_contact_number || '',
-        emergency_contact_relationship: normalizeDropdownValue(candidateData.emergency_contact_relationship, 'relationship'),
+        emergency_contact_relationship: normalizedData.emergency_contact_relationship,
         profile_photo: candidateData.profile_photo || '',
         home_address: candidateData.home_address || '',
         business_address: candidateData.business_address || '',
@@ -361,17 +375,25 @@ export default function MobileCandidateUpdatePage() {
         bank_account_name: candidateData.bank_account_name || candidateData.full_name || '',
         bank_account_relationship: candidateData.bank_account_relationship || '',
         not_own_account: candidateData.bank_account_name !== candidateData.full_name,
-        highest_education: normalizeDropdownValue(candidateData.highest_education, 'education'),
+        highest_education: normalizedData.highest_education,
         field_of_study: candidateData.field_of_study || '',
         has_vehicle: candidateData.has_vehicle || false,
         vehicle_type: candidateData.vehicle_type || '',
         work_experience: candidateData.work_experience || '',
-        shirt_size: candidateData.shirt_size || '',
+        shirt_size: normalizedData.shirt_size,
         languages_spoken: candidateData.languages_spoken || '',
         passport_number: candidateData.passport_number || '',
         custom_fields: candidateData.custom_fields || {},
         pdpa_consent: candidateData.custom_fields?.pdpa_consent || false
+      };
+      
+      console.log('Setting form data in fetchCandidateData:', {
+        race: newFormData.race,
+        shirt_size: newFormData.shirt_size,
+        emergency_contact_relationship: newFormData.emergency_contact_relationship
       });
+      
+      setFormData(newFormData);
       
       if (candidateData.profile_photo) {
         setPhotoPreview(candidateData.profile_photo);
@@ -426,47 +448,63 @@ export default function MobileCandidateUpdatePage() {
       
       // IC verified successfully - load full candidate data
       const candidateData = validationResult.candidate_data;
+      console.log('Candidate data from validation:', candidateData);
       setCandidate(candidateData);
       setIsAuthenticated(true);
       
+      // We need to fetch the full candidate data as the validation might return limited fields
+      const { data: fullCandidateData, error: fetchError } = await supabase
+        .from('candidates')
+        .select('*')
+        .eq('id', candidateId)
+        .single();
+        
+      if (fetchError || !fullCandidateData) {
+        console.error('Error fetching full candidate data:', fetchError);
+        setAuthError('Failed to load candidate data');
+        return;
+      }
+      
+      console.log('Full candidate data from DB:', fullCandidateData);
+      
       // Initialize form with actual candidate data
       console.log('Setting form data after IC verification with:', {
-        race: normalizeDropdownValue(candidateData.race, 'race'),
-        shirt_size: candidateData.shirt_size,
-        emergency_contact_relationship: normalizeDropdownValue(candidateData.emergency_contact_relationship, 'relationship'),
-        highest_education: normalizeDropdownValue(candidateData.highest_education, 'education')
+        race: normalizeDropdownValue(fullCandidateData.race, 'race'),
+        shirt_size: fullCandidateData.shirt_size,
+        emergency_contact_relationship: normalizeDropdownValue(fullCandidateData.emergency_contact_relationship, 'relationship'),
+        highest_education: normalizeDropdownValue(fullCandidateData.highest_education, 'education')
       });
       
       const newFormData = {
-        full_name: candidateData.full_name || '',
-        ic_number: candidateData.ic_number || '',
-        email: candidateData.email || '',
-        phone_number: candidateData.phone_number || '',
-        date_of_birth: candidateData.date_of_birth || '',
-        gender: candidateData.gender?.toLowerCase() || '',
-        nationality: candidateData.nationality || 'Malaysian',
-        race: normalizeDropdownValue(candidateData.race, 'race'),
-        emergency_contact_name: candidateData.emergency_contact_name || '',
-        emergency_contact_number: candidateData.emergency_contact_number || '',
-        emergency_contact_relationship: normalizeDropdownValue(candidateData.emergency_contact_relationship, 'relationship'),
-        profile_photo: candidateData.profile_photo || '',
-        home_address: candidateData.home_address || '',
-        business_address: candidateData.business_address || '',
-        bank_name: candidateData.bank_name || '',
-        bank_account_number: candidateData.bank_account_number || '',
-        bank_account_name: candidateData.bank_account_name || candidateData.full_name || '',
-        bank_account_relationship: candidateData.bank_account_relationship || '',
-        not_own_account: candidateData.bank_account_name !== candidateData.full_name,
-        highest_education: normalizeDropdownValue(candidateData.highest_education, 'education'),
-        field_of_study: candidateData.field_of_study || '',
-        has_vehicle: candidateData.has_vehicle || false,
-        vehicle_type: candidateData.vehicle_type || '',
-        work_experience: candidateData.work_experience || '',
-        shirt_size: candidateData.shirt_size || '',
-        languages_spoken: candidateData.languages_spoken || '',
-        passport_number: candidateData.passport_number || '',
-        custom_fields: candidateData.custom_fields || {},
-        pdpa_consent: candidateData.custom_fields?.pdpa_consent || false
+        full_name: fullCandidateData.full_name || '',
+        ic_number: fullCandidateData.ic_number || '',
+        email: fullCandidateData.email || '',
+        phone_number: fullCandidateData.phone_number || '',
+        date_of_birth: fullCandidateData.date_of_birth || '',
+        gender: fullCandidateData.gender?.toLowerCase() || '',
+        nationality: fullCandidateData.nationality || 'Malaysian',
+        race: normalizeDropdownValue(fullCandidateData.race, 'race'),
+        emergency_contact_name: fullCandidateData.emergency_contact_name || '',
+        emergency_contact_number: fullCandidateData.emergency_contact_number || '',
+        emergency_contact_relationship: normalizeDropdownValue(fullCandidateData.emergency_contact_relationship, 'relationship'),
+        profile_photo: fullCandidateData.profile_photo || '',
+        home_address: fullCandidateData.home_address || '',
+        business_address: fullCandidateData.business_address || '',
+        bank_name: fullCandidateData.bank_name || '',
+        bank_account_number: fullCandidateData.bank_account_number || '',
+        bank_account_name: fullCandidateData.bank_account_name || fullCandidateData.full_name || '',
+        bank_account_relationship: fullCandidateData.bank_account_relationship || '',
+        not_own_account: fullCandidateData.bank_account_name !== fullCandidateData.full_name,
+        highest_education: normalizeDropdownValue(fullCandidateData.highest_education, 'education'),
+        field_of_study: fullCandidateData.field_of_study || '',
+        has_vehicle: fullCandidateData.has_vehicle || false,
+        vehicle_type: fullCandidateData.vehicle_type || '',
+        work_experience: fullCandidateData.work_experience || '',
+        shirt_size: fullCandidateData.shirt_size || '',
+        languages_spoken: fullCandidateData.languages_spoken || '',
+        passport_number: fullCandidateData.passport_number || '',
+        custom_fields: fullCandidateData.custom_fields || {},
+        pdpa_consent: fullCandidateData.custom_fields?.pdpa_consent || false
       };
       
       console.log('Setting form data with normalized values:', {
@@ -476,6 +514,11 @@ export default function MobileCandidateUpdatePage() {
       });
       
       setFormData(newFormData);
+      
+      if (fullCandidateData.profile_photo) {
+        setPhotoPreview(fullCandidateData.profile_photo);
+      }
+      
       setIsEditMode(true);
       setLoading(false);
     } catch (error) {
@@ -970,10 +1013,13 @@ export default function MobileCandidateUpdatePage() {
       
       setUpdateSuccess(true);
       
-      // Redirect after 2 seconds
+      // Show success message for 3 seconds then close
       setTimeout(() => {
-        window.location.href = '/candidate-update-success';
-      }, 2000);
+        toast({
+          title: 'Thank You!',
+          description: 'You can now close this window.',
+        });
+      }, 3000);
       
     } catch (error: any) {
       console.error('Error saving candidate:', error);
@@ -1667,7 +1713,7 @@ export default function MobileCandidateUpdatePage() {
                           <div>
                             <Label htmlFor="race" className="text-xs text-center block bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent font-semibold">Race</Label>
                             <Select
-                              value={formData.race}
+                              value={formData.race || undefined}
                               onValueChange={(value) => {
                                 console.log('Race changed to:', value);
                                 setFormData({...formData, race: value});
@@ -1688,7 +1734,7 @@ export default function MobileCandidateUpdatePage() {
                           <div>
                             <Label htmlFor="shirt_size" className="text-xs text-center block bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent font-semibold">Shirt Size</Label>
                             <Select
-                              value={formData.shirt_size}
+                              value={formData.shirt_size || undefined}
                               onValueChange={(value) => {
                                 console.log('Shirt size changed to:', value);
                                 setFormData({...formData, shirt_size: value});
@@ -2365,7 +2411,7 @@ Days Committed: [Number]`}
                                 <div>
                                   <Label htmlFor="emergency_contact_relationship" className="text-xs text-center block bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent font-semibold">Relationship</Label>
                                   <Select
-                                    value={formData.emergency_contact_relationship}
+                                    value={formData.emergency_contact_relationship || undefined}
                                     onValueChange={(value) => {
                                       console.log('Emergency relationship changed to:', value);
                                       setFormData({...formData, emergency_contact_relationship: value});
