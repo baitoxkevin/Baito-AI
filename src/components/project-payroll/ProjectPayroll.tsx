@@ -33,6 +33,7 @@ import { supabase } from "@/lib/supabase";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Label } from "@/components/ui/label";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   DollarSign,
   Eye,
@@ -48,7 +49,8 @@ import {
   TrendingUp,
   Check,
   Plus,
-  Calculator
+  Calculator,
+  Info
 } from "lucide-react";
 import type { Project } from '@/lib/types';
 import { DuitNowPaymentExport } from '@/components/duitnow-payment-export';
@@ -208,8 +210,30 @@ export default function ProjectPayroll({
   const [showPaymentSubmission, setShowPaymentSubmission] = useState(false);
   // Payment date selector state
   const [selectedPaymentDate, setSelectedPaymentDate] = useState<Date>(new Date());
+  // State for staff expense claims
+  const [staffExpenseClaims, setStaffExpenseClaims] = useState<Record<string, any[]>>({});
   
   // Remove the automatic focus effect to prevent selection issues
+
+  // Fetch expense claims for staff when dialog opens
+  useEffect(() => {
+    const fetchStaffExpenseClaims = async () => {
+      if (editingStaffId && project.id) {
+        try {
+          const { getStaffExpenseClaimsForProject } = await import('@/lib/expense-payroll-sync-service');
+          const claims = await getStaffExpenseClaimsForProject(editingStaffId, project.id);
+          setStaffExpenseClaims(prev => ({
+            ...prev,
+            [editingStaffId]: claims
+          }));
+        } catch (error) {
+          console.error('Error fetching staff expense claims:', error);
+        }
+      }
+    };
+    
+    fetchStaffExpenseClaims();
+  }, [editingStaffId, project.id]);
 
   // Calculate summaries
   const staffSummaries = useMemo(() => {
@@ -393,18 +417,10 @@ export default function ProjectPayroll({
       setTimeout(() => {
         const newInput = document.getElementById(`${staff.id}-${newColumn}-${newRowIndex}`) as HTMLInputElement;
         if (newInput) {
-          // Store current value
-          const currentValue = newInput.value;
-          const cursorPos = currentValue.length;
-          
           // Focus without selecting
-          newInput.focus();
+          newInput.focus({ preventScroll: true });
           
-          // Immediately set cursor position to prevent auto-select
-          // Use requestAnimationFrame to ensure it happens after browser's default behavior
-          requestAnimationFrame(() => {
-            newInput.setSelectionRange(cursorPos, cursorPos);
-          });
+          // Don't set selection - let onFocus handler manage it
         }
       }, 10);
     }
@@ -1003,6 +1019,11 @@ export default function ProjectPayroll({
                           <DollarSign className="w-4 h-4 text-purple-600" />
                           <span className="text-sm text-slate-600 dark:text-slate-400">
                             RM {summary.totalClaims.toLocaleString()} Claims
+                            {staffExpenseClaims[editingStaffId]?.length > 0 && (
+                              <span className="text-xs text-purple-500 ml-1">
+                                (incl. {staffExpenseClaims[editingStaffId].length} expense claim{staffExpenseClaims[editingStaffId].length > 1 ? 's' : ''})
+                              </span>
+                            )}
                           </span>
                         </div>
                       </div>
@@ -1022,26 +1043,26 @@ export default function ProjectPayroll({
                     <Table>
                       <TableHeader>
                         <TableRow className="border-b-2 border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
-                          <TableHead className="font-semibold text-slate-700 dark:text-slate-300 text-xs uppercase tracking-wider py-4 pl-6 w-[35%]">
+                          <TableHead className="font-semibold text-slate-700 dark:text-slate-300 text-xs uppercase tracking-wider py-4 pl-6 w-[29%]">
                             <div className="flex items-center gap-2">
                               <CalendarDays className="w-4 h-4 text-slate-500" />
                               Date
                             </div>
                           </TableHead>
-                          <TableHead className="font-semibold text-slate-700 dark:text-slate-300 text-xs uppercase tracking-wider text-center py-4 w-[14%]">
+                          <TableHead className="font-semibold text-slate-700 dark:text-slate-300 text-xs uppercase tracking-wider text-center py-4 w-[16%]">
                             <div className="flex items-center justify-center gap-2">
                               <DollarSign className="w-4 h-4 text-emerald-500" />
                               Basic
                             </div>
                           </TableHead>
-                          <TableHead className="font-semibold text-slate-700 dark:text-slate-300 text-xs uppercase tracking-wider text-center py-4 w-[14%]">
+                          <TableHead className="font-semibold text-slate-700 dark:text-slate-300 text-xs uppercase tracking-wider text-center py-4 w-[16%]">
                             <div className="flex items-center justify-center gap-2">
                               <Receipt className="w-4 h-4 text-purple-500" />
                               Claims
                             </div>
                           </TableHead>
                           <TableHead 
-                            className={`text-center py-4 w-[14%] cursor-pointer transition-colors ${showCommissionColumn ? 'text-amber-600 dark:text-amber-400 font-semibold' : 'text-slate-400 dark:text-slate-500'}`}
+                            className={`text-center py-4 w-[16%] cursor-pointer transition-colors ${showCommissionColumn ? 'text-amber-600 dark:text-amber-400 font-semibold' : 'text-slate-400 dark:text-slate-500'}`}
                             onClick={() => {
                               // Check if any staff member has commission values
                               const hasCommissionValues = staff.workingDatesWithSalary?.some(
@@ -1104,7 +1125,7 @@ export default function ProjectPayroll({
                                 animate={{ opacity: 1 }}
                                 transition={{ delay: index * 0.02 }}
                               >
-                                <TableCell className="py-3 pl-6 w-[35%]">
+                                <TableCell className="py-3 pl-6 w-[29%]">
                                   <div className="flex items-center gap-3">
                                     <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 rounded-lg flex items-center justify-center">
                                       <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400">
@@ -1121,7 +1142,7 @@ export default function ProjectPayroll({
                                     </div>
                                   </div>
                                 </TableCell>
-                                <TableCell className="p-2 w-[14%]">
+                                <TableCell className="p-2 w-[16%]">
                                   <div className="relative">
                                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none">RM</span>
                                     <input
@@ -1129,18 +1150,19 @@ export default function ProjectPayroll({
                                       type="text"
                                       inputMode="numeric"
                                       pattern="[0-9]*"
+                                      maxLength={4}
                                       value={dateEntry.basicSalary}
                                       onChange={(e) => {
                                         const input = e.target;
                                         const value = input.value;
                                         const cursorPosition = input.selectionStart;
                                         
-                                        // Only allow digits
-                                        const newValue = value.replace(/[^\d]/g, '');
+                                        // Only allow digits and limit to 4 characters
+                                        const newValue = value.replace(/[^\d]/g, '').slice(0, 4);
                                         
                                         // Calculate new cursor position
                                         const diff = value.length - newValue.length;
-                                        const newCursorPos = cursorPosition - diff;
+                                        const newCursorPos = Math.max(0, cursorPosition - diff);
                                         
                                         const updatedStaff = confirmedStaff.map(s => {
                                           if (s.id === staff.id) {
@@ -1163,6 +1185,18 @@ export default function ProjectPayroll({
                                           }
                                         }, 0);
                                       }}
+                                      onFocus={(e) => {
+                                        // Prevent auto-selection on focus
+                                        const input = e.target;
+                                        const value = input.value;
+                                        const length = value.length;
+                                        // Use requestAnimationFrame to ensure it happens after browser's default behavior
+                                        requestAnimationFrame(() => {
+                                          if (input === document.activeElement) {
+                                            input.setSelectionRange(length, length);
+                                          }
+                                        });
+                                      }}
                                       onKeyDown={(e) => handleKeyDown(e, index, 'basic', staff)}
                                       placeholder="0"
                                       className={`h-10 text-sm text-center font-semibold w-full pl-8 pr-2 rounded-lg border transition-all ${
@@ -1173,26 +1207,39 @@ export default function ProjectPayroll({
                                     />
                                   </div>
                                 </TableCell>
-                                <TableCell className="p-2 w-[14%]">
+                                <TableCell className="p-2 w-[16%]">
                                   <div className="relative">
                                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none">RM</span>
+                                    {parseAmount(dateEntry.claims) > 0 && (
+                                      <TooltipProvider>
+                                        <Tooltip>
+                                          <TooltipTrigger asChild>
+                                            <Info className="absolute right-2 top-1/2 -translate-y-1/2 h-3 w-3 text-purple-500 cursor-help" />
+                                          </TooltipTrigger>
+                                          <TooltipContent>
+                                            <p className="text-xs">May include expense claims</p>
+                                          </TooltipContent>
+                                        </Tooltip>
+                                      </TooltipProvider>
+                                    )}
                                     <input
                                       id={`${staff.id}-claims-${index}`}
                                       type="text"
                                       inputMode="numeric"
                                       pattern="[0-9]*"
+                                      maxLength={4}
                                       value={dateEntry.claims}
                                       onChange={(e) => {
                                         const input = e.target;
                                         const value = input.value;
                                         const cursorPosition = input.selectionStart;
                                         
-                                        // Only allow digits
-                                        const newValue = value.replace(/[^\d]/g, '');
+                                        // Only allow digits and limit to 4 characters
+                                        const newValue = value.replace(/[^\d]/g, '').slice(0, 4);
                                         
                                         // Calculate new cursor position
                                         const diff = value.length - newValue.length;
-                                        const newCursorPos = cursorPosition - diff;
+                                        const newCursorPos = Math.max(0, cursorPosition - diff);
                                         
                                         const updatedStaff = confirmedStaff.map(s => {
                                           if (s.id === staff.id) {
@@ -1215,6 +1262,18 @@ export default function ProjectPayroll({
                                           }
                                         }, 0);
                                       }}
+                                      onFocus={(e) => {
+                                        // Prevent auto-selection on focus
+                                        const input = e.target;
+                                        const value = input.value;
+                                        const length = value.length;
+                                        // Use requestAnimationFrame to ensure it happens after browser's default behavior
+                                        requestAnimationFrame(() => {
+                                          if (input === document.activeElement) {
+                                            input.setSelectionRange(length, length);
+                                          }
+                                        });
+                                      }}
                                       onKeyDown={(e) => handleKeyDown(e, index, 'claims', staff)}
                                       placeholder="0"
                                       className={`h-10 text-sm text-center font-semibold w-full pl-8 pr-2 rounded-lg border transition-all ${
@@ -1225,7 +1284,7 @@ export default function ProjectPayroll({
                                     />
                                   </div>
                                 </TableCell>
-                                <TableCell className="p-2 w-[14%]">
+                                <TableCell className="p-2 w-[16%]">
                                   {showCommissionColumn ? (
                                     <div className="relative">
                                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none">RM</span>
@@ -1234,18 +1293,19 @@ export default function ProjectPayroll({
                                         type="text"
                                         inputMode="numeric"
                                         pattern="[0-9]*"
+                                        maxLength={4}
                                         value={dateEntry.commission}
                                         onChange={(e) => {
                                           const input = e.target;
                                           const value = input.value;
                                           const cursorPosition = input.selectionStart;
                                           
-                                          // Only allow digits
-                                          const newValue = value.replace(/[^\d]/g, '');
+                                          // Only allow digits and limit to 4 characters
+                                          const newValue = value.replace(/[^\d]/g, '').slice(0, 4);
                                           
                                           // Calculate new cursor position
                                           const diff = value.length - newValue.length;
-                                          const newCursorPos = cursorPosition - diff;
+                                          const newCursorPos = Math.max(0, cursorPosition - diff);
                                           
                                           const updatedStaff = confirmedStaff.map(s => {
                                             if (s.id === staff.id) {
@@ -1267,6 +1327,18 @@ export default function ProjectPayroll({
                                               input.setSelectionRange(newCursorPos, newCursorPos);
                                             }
                                           }, 0);
+                                        }}
+                                        onFocus={(e) => {
+                                          // Prevent auto-selection on focus
+                                          const input = e.target;
+                                          const value = input.value;
+                                          const length = value.length;
+                                          // Use requestAnimationFrame to ensure it happens after browser's default behavior
+                                          requestAnimationFrame(() => {
+                                            if (input === document.activeElement) {
+                                              input.setSelectionRange(length, length);
+                                            }
+                                          });
                                         }}
                                         onKeyDown={(e) => handleKeyDown(e, index, 'commission', staff)}
                                         placeholder="0"
@@ -1298,11 +1370,16 @@ export default function ProjectPayroll({
                       </TableBody>
                       <tfoot>
                         <TableRow className="bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-900 border-t-2 border-slate-300 dark:border-slate-600">
-                          <TableCell colSpan={showCommissionColumn ? 4 : 3} className="py-4 pl-6">
+                          <TableCell colSpan={3} className="py-4 pl-6">
                             <div className="flex items-center justify-end gap-3">
                               <span className="text-sm font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Grand Total</span>
                             </div>
                           </TableCell>
+                          {!showCommissionColumn && (
+                            <TableCell className="py-4">
+                              {/* Empty cell to fill commission column space when hidden */}
+                            </TableCell>
+                          )}
                           <TableCell className="py-4 pr-6">
                             <div className="flex items-center justify-end">
                               <div className="bg-gradient-to-r from-emerald-500 to-green-500 text-white px-4 py-2 rounded-lg shadow-lg">
