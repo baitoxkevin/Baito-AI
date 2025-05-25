@@ -247,32 +247,128 @@ export interface Database {
         Row: {
           id: string
           full_name: string
-          email: string | null
+          ic_number: string | null
+          date_of_birth: string | null
           phone_number: string
-          address: string | null
+          gender: string | null
+          email: string | null
+          nationality: string | null
+          emergency_contact_name: string | null
+          emergency_contact_number: string | null
+          emergency_contact_relationship: string | null
+          bank_name: string | null
+          bank_account_number: string | null
+          bank_account_name: string | null
+          bank_account_relationship: string | null
+          not_own_account: boolean | null
+          highest_education: string | null
+          field_of_study: string | null
+          work_experience: string | null
+          has_vehicle: boolean | null
+          vehicle_type: string | null
+          is_banned: boolean | null
+          status: string | null
+          unique_id: string | null
+          profile_photo: string | null
+          full_body_photos: Json | null
+          half_body_photos: Json | null
+          address_business: Json | null
+          address_mailing: Json | null
+          home_address: string | null
+          business_address: string | null
+          shirt_size: string | null
+          languages_spoken: string | null
+          race: string | null
+          passport_number: string | null
           custom_fields: Json | null
           created_at: string
           updated_at: string
+          address: string | null
+          address_home: string | null
         }
         Insert: {
           id?: string
           full_name: string
-          email?: string | null
+          ic_number?: string | null
+          date_of_birth?: string | null
           phone_number: string
-          address?: string | null
+          gender?: string | null
+          email?: string | null
+          nationality?: string | null
+          emergency_contact_name?: string | null
+          emergency_contact_number?: string | null
+          emergency_contact_relationship?: string | null
+          bank_name?: string | null
+          bank_account_number?: string | null
+          bank_account_name?: string | null
+          bank_account_relationship?: string | null
+          not_own_account?: boolean | null
+          highest_education?: string | null
+          field_of_study?: string | null
+          work_experience?: string | null
+          has_vehicle?: boolean | null
+          vehicle_type?: string | null
+          is_banned?: boolean | null
+          status?: string | null
+          unique_id?: string | null
+          profile_photo?: string | null
+          full_body_photos?: Json | null
+          half_body_photos?: Json | null
+          address_business?: Json | null
+          address_mailing?: Json | null
+          home_address?: string | null
+          business_address?: string | null
+          shirt_size?: string | null
+          languages_spoken?: string | null
+          race?: string | null
+          passport_number?: string | null
           custom_fields?: Json | null
           created_at?: string
           updated_at?: string
+          address?: string | null
+          address_home?: string | null
         }
         Update: {
           id?: string
           full_name?: string
-          email?: string | null
+          ic_number?: string | null
+          date_of_birth?: string | null
           phone_number?: string
-          address?: string | null
+          gender?: string | null
+          email?: string | null
+          nationality?: string | null
+          emergency_contact_name?: string | null
+          emergency_contact_number?: string | null
+          emergency_contact_relationship?: string | null
+          bank_name?: string | null
+          bank_account_number?: string | null
+          bank_account_name?: string | null
+          bank_account_relationship?: string | null
+          not_own_account?: boolean | null
+          highest_education?: string | null
+          field_of_study?: string | null
+          work_experience?: string | null
+          has_vehicle?: boolean | null
+          vehicle_type?: string | null
+          is_banned?: boolean | null
+          status?: string | null
+          unique_id?: string | null
+          profile_photo?: string | null
+          full_body_photos?: Json | null
+          half_body_photos?: Json | null
+          address_business?: Json | null
+          address_mailing?: Json | null
+          home_address?: string | null
+          business_address?: string | null
+          shirt_size?: string | null
+          languages_spoken?: string | null
+          race?: string | null
+          passport_number?: string | null
           custom_fields?: Json | null
           created_at?: string
           updated_at?: string
+          address?: string | null
+          address_home?: string | null
         }
         Relationships: []
       }
@@ -384,6 +480,213 @@ export interface Database {
           uploaded_by?: string
           created_at?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      candidate_project_history: {
+        Row: {
+          id: string
+          candidate_id: string
+          project_id: string
+          user_id: string
+          completed_at: string | null
+          rating: number | null
+          comment: string | null
+          status: string | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          candidate_id: string
+          project_id: string
+          user_id: string
+          completed_at?: string | null
+          rating?: number | null
+          comment?: string | null
+          status?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          candidate_id?: string
+          project_id?: string
+          user_id?: string
+          completed_at?: string | null
+          rating?: number | null
+          comment?: string | null
+          status?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      gig_tasks: {
+        Row: {
+          id: string
+          gig_history_id: string | null
+          task_name: string
+          task_description: string | null
+          start_time: string | null
+          end_time: string | null
+          completed: boolean | null
+          completion_notes: string | null
+          created_at: string | null
+          description: string | null
+          status: string | null
+          priority: string | null
+          updated_at: string | null
+          title: string | null
+          due_date: string | null
+          assigned_to: string | null
+          assigned_by: string | null
+          assigned_at: string | null
+          column_id: string | null
+          board_id: string | null
+          position: number | null
+          labels: Json | null
+          estimated_hours: number | null
+          completed_at: string | null
+          project_id: string | null
+          metadata: Json | null
+        }
+        Insert: {
+          id?: string
+          gig_history_id?: string | null
+          task_name: string
+          task_description?: string | null
+          start_time?: string | null
+          end_time?: string | null
+          completed?: boolean | null
+          completion_notes?: string | null
+          created_at?: string | null
+          description?: string | null
+          status?: string | null
+          priority?: string | null
+          updated_at?: string | null
+          title?: string | null
+          due_date?: string | null
+          assigned_to?: string | null
+          assigned_by?: string | null
+          assigned_at?: string | null
+          column_id?: string | null
+          board_id?: string | null
+          position?: number | null
+          labels?: Json | null
+          estimated_hours?: number | null
+          completed_at?: string | null
+          project_id?: string | null
+          metadata?: Json | null
+        }
+        Update: {
+          id?: string
+          gig_history_id?: string | null
+          task_name?: string
+          task_description?: string | null
+          start_time?: string | null
+          end_time?: string | null
+          completed?: boolean | null
+          completion_notes?: string | null
+          created_at?: string | null
+          description?: string | null
+          status?: string | null
+          priority?: string | null
+          updated_at?: string | null
+          title?: string | null
+          due_date?: string | null
+          assigned_to?: string | null
+          assigned_by?: string | null
+          assigned_at?: string | null
+          column_id?: string | null
+          board_id?: string | null
+          position?: number | null
+          labels?: Json | null
+          estimated_hours?: number | null
+          completed_at?: string | null
+          project_id?: string | null
+          metadata?: Json | null
+        }
+        Relationships: []
+      }
+      candidate_blacklist: {
+        Row: {
+          id: string
+          candidate_id: string
+          user_id: string
+          reason: string | null
+          proof_files: Json | null
+          is_global: boolean | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          candidate_id: string
+          user_id: string
+          reason?: string | null
+          proof_files?: Json | null
+          is_global?: boolean | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          candidate_id?: string
+          user_id?: string
+          reason?: string | null
+          proof_files?: Json | null
+          is_global?: boolean | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      activity_logs: {
+        Row: {
+          id: string
+          project_id: string | null
+          user_id: string | null
+          user_name: string | null
+          activity_type: string | null
+          action: string | null
+          details: Json | null
+          timestamp: string | null
+          session_id: string | null
+          page_url: string | null
+          user_agent: string | null
+          created_at: string | null
+          description: string | null
+        }
+        Insert: {
+          id?: string
+          project_id?: string | null
+          user_id?: string | null
+          user_name?: string | null
+          activity_type?: string | null
+          action?: string | null
+          details?: Json | null
+          timestamp?: string | null
+          session_id?: string | null
+          page_url?: string | null
+          user_agent?: string | null
+          created_at?: string | null
+          description?: string | null
+        }
+        Update: {
+          id?: string
+          project_id?: string | null
+          user_id?: string | null
+          user_name?: string | null
+          activity_type?: string | null
+          action?: string | null
+          details?: Json | null
+          timestamp?: string | null
+          session_id?: string | null
+          page_url?: string | null
+          user_agent?: string | null
+          created_at?: string | null
+          description?: string | null
         }
         Relationships: []
       }

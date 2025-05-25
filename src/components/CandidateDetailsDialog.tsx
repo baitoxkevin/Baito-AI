@@ -18,7 +18,7 @@ import {
   ChevronRight, Flame, Target, Film, Zap, Milestone, 
   LucideIcon, CheckCircle2, CircleDashed, Pencil
 } from 'lucide-react';
-import { CandidateActionButton } from '../../CandidateActionButton';
+import { CandidateActionButton } from './CandidateActionButton';
 import CandidateProjectHistory from './CandidateProjectHistory';
 import NewCandidateDialog from './NewCandidateDialog';
 import { getCandidateMetrics } from '@/lib/candidate-history-service';
@@ -80,7 +80,16 @@ export function CandidateDetailsDialog({
           try {
             const fetchedMetrics = await getCandidateMetrics(candidate.id);
             if (fetchedMetrics) {
-              candidateMetrics = fetchedMetrics;
+              candidateMetrics = {
+                ...fetchedMetrics,
+                ratingBreakdown: {
+                  1: fetchedMetrics.ratingBreakdown[1] || 0,
+                  2: fetchedMetrics.ratingBreakdown[2] || 0,
+                  3: fetchedMetrics.ratingBreakdown[3] || 0,
+                  4: fetchedMetrics.ratingBreakdown[4] || 0,
+                  5: fetchedMetrics.ratingBreakdown[5] || 0
+                }
+              };
             }
           } catch (metricsError) {
             console.warn('Error loading metrics, using default values:', metricsError);
@@ -133,7 +142,7 @@ export function CandidateDetailsDialog({
     try {
       // Get base URL from current location
       const baseUrl = window.location.origin;
-      const updatePath = '/candidate-update/';
+      const updatePath = '/candidate-update-mobile/'; // Using mobile version
       
       // Call the Supabase function to generate a secure token and link
       const { data, error } = await supabase.rpc('generate_candidate_update_link', {
@@ -1245,14 +1254,40 @@ export function CandidateDetailsDialog({
                           <div className="flex justify-between mb-1 text-sm">
                             <span className="text-gray-600 dark:text-gray-300 font-medium">Progress to next tier</span>
                             <span className="text-gray-700 dark:text-gray-300">
-                              {candidate.loyalty_status.current_points || 0} / {candidate.loyalty_status.next_tier_threshold || 500} points
+                              {candidate.loyalty_status.current_points || 0} / {(() => {
+                              const tierThresholds = {
+                                bronze: 100,
+                                silver: 500,
+                                gold: 1000,
+                                platinum: 2500,
+                                diamond: 5000
+                              };
+                              const currentTier = candidate.loyalty_status.tier_level;
+                              const tiers = ['bronze', 'silver', 'gold', 'platinum', 'diamond'];
+                              const currentIndex = tiers.indexOf(currentTier);
+                              const nextTier = tiers[currentIndex + 1];
+                              return tierThresholds[nextTier as keyof typeof tierThresholds] || tierThresholds.diamond;
+                            })()} points
                             </span>
                           </div>
                           <div className="h-2 w-full bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
                             <div 
                               className="h-full bg-blue-500 dark:bg-blue-600"
                               style={{ 
-                                width: `${Math.min(100, ((candidate.loyalty_status.current_points || 0) / (candidate.loyalty_status.next_tier_threshold || 500)) * 100)}%` 
+                                width: `${Math.min(100, ((candidate.loyalty_status.current_points || 0) / (() => {
+                                const tierThresholds = {
+                                  bronze: 100,
+                                  silver: 500,
+                                  gold: 1000,
+                                  platinum: 2500,
+                                  diamond: 5000
+                                };
+                                const currentTier = candidate.loyalty_status.tier_level;
+                                const tiers = ['bronze', 'silver', 'gold', 'platinum', 'diamond'];
+                                const currentIndex = tiers.indexOf(currentTier);
+                                const nextTier = tiers[currentIndex + 1];
+                                return tierThresholds[nextTier as keyof typeof tierThresholds] || tierThresholds.diamond;
+                              })()) * 100)}%` 
                               }}
                             ></div>
                           </div>
@@ -2088,7 +2123,7 @@ export function CandidateDetailsDialog({
               </Button>
             </div>
             {updateLinkError && <p className="text-xs text-red-500 mt-1">{updateLinkError}</p>}
-            <p className="text-xs text-slate-500 mt-1">This secure link will expire in 24 hours. Share it with the candidate to let them update their information.</p>
+            <p className="text-xs text-slate-500 mt-1">This secure link will expire in 1 hour. Share it with the candidate to let them update their information.</p>
           </div>
         )}
         
@@ -2153,83 +2188,6 @@ export function CandidateDetailsDialog({
           isEditing={true}
         />
       )}
-    
-
-      {/* Update Link Modal - Rendered separately to avoid JSX syntax issues */}
-      {showUpdateLink ? (
-        <Dialog open={showUpdateLink} onOpenChange={setShowUpdateLink}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Candidate Update Link</DialogTitle>
-            </DialogHeader>
-            <div className="flex flex-col space-y-3 py-4">
-              <p className="text-sm text-gray-700 dark:text-gray-300">
-                Share this link with the candidate to let them update their profile information.
-              </p>
-              <div className="flex items-center space-x-2">
-                <div className="grid flex-1 gap-2">
-                  <div className="relative">
-                    <input
-                      className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                      value={updateLink}
-                      readOnly
-                    />
-                  </div>
-                </div>
-                <Button 
-                  size="sm" 
-                  className="px-3"
-                  onClick={() => {
-                    navigator.clipboard.writeText(updateLink);
-                    setCopied(true);
-                    setTimeout(() => setCopied(false), 2000);
-                    
-                    toast({
-                      title: "Link copied",
-                      description: "Update link copied to clipboard",
-                      variant: "success",
-                    });
-                  }}
-                >
-                  {copied ? (
-                    <CheckCircle className="h-4 w-4" />
-                  ) : (
-                    <Copy className="h-4 w-4" />
-                  )}
-                  <span className="sr-only">Copy</span>
-                </Button>
-              </div>
-              
-              <div className="bg-gray-50 dark:bg-gray-800 text-xs rounded p-2 text-gray-600 dark:text-gray-400">
-                <p>The candidate will need their IC number to authenticate when accessing this update link.</p>
-              </div>
-            </div>
-            <DialogFooter className="sm:justify-end">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowUpdateLink(false)}
-              >
-                Close
-              </Button>
-              <Button
-                size="sm"
-                onClick={() => {
-                  // Example code to email the link (would need backend integration)
-                  toast({
-                    title: "Email sent",
-                    description: "Update link has been emailed to the candidate",
-                    variant: "success",
-                  });
-                  setShowUpdateLink(false);
-                }}
-              >
-                Email Link
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      ) : null}
     </Dialog>
   );
 }

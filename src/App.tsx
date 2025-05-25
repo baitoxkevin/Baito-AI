@@ -10,6 +10,8 @@ import ReceiptScannerPage from './pages/ReceiptScannerPage';
 import TestPage from './pages/TestPage';
 import IntegratedStaffingPayrollDemo from './pages/IntegratedStaffingPayrollDemo';
 import PaymentQueueDemo from './pages/PaymentQueueDemo';
+import StaticCandidateUpdatePage from '@/pages/StaticCandidateUpdatePage';
+import MobileCandidateUpdatePage from '@/pages/MobileCandidateUpdatePage';
 import { renderCanvas } from '@/components/ui/canvas';
 import { SpotlightCommand } from './components/SpotlightCommand';
 
@@ -20,6 +22,18 @@ function App() {
   useEffect(() => {
     // Function to handle keydown events for the spacebar trigger
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't intercept spacebar if user is typing in an input field
+      const activeElement = document.activeElement;
+      const isTyping = activeElement && (
+        activeElement.tagName === 'INPUT' ||
+        activeElement.tagName === 'TEXTAREA' ||
+        activeElement.getAttribute('contenteditable') === 'true'
+      );
+      
+      if (isTyping) {
+        return; // Let the spacebar work normally in input fields
+      }
+      
       if (e.code === 'Space') {
         spacebarCount.current += 1;
         
@@ -70,8 +84,9 @@ function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/receipt-scanner" element={<ReceiptScannerPage />} />
           <Route path="/test-button" element={<TestPage />} />
-          {/* Routes for candidate pages were removed */}
-          <Route path="/candidate-update/:token" element={<Navigate to="/login" replace />} />
+          {/* Candidate update routes with secure token */}
+          <Route path="/candidate-update-static/:candidateId" element={<StaticCandidateUpdatePage />} />
+          <Route path="/candidate-update-mobile/:candidateId" element={<MobileCandidateUpdatePage />} />
           <Route path="/candidate-form/:token" element={<Navigate to="/login" replace />} />
           <Route path="/candidate/:token" element={<Navigate to="/login" replace />} />
           <Route 
@@ -107,16 +122,16 @@ function App() {
             path="/calendar/view"
             element={<MainAppLayout effectActive={effectActive} />}
           />
+          <Route
+            path="/calendar/dashboard"
+            element={<MainAppLayout effectActive={effectActive} />}
+          />
           <Route 
             path="/tools" 
             element={<MainAppLayout effectActive={effectActive} />} 
           />
           <Route 
             path="/invites" 
-            element={<MainAppLayout effectActive={effectActive} />} 
-          />
-          <Route 
-            path="/todo" 
             element={<MainAppLayout effectActive={effectActive} />} 
           />
           <Route 
@@ -133,6 +148,10 @@ function App() {
           />
           <Route 
             path="/settings" 
+            element={<MainAppLayout effectActive={effectActive} />} 
+          />
+          <Route 
+            path="/payments" 
             element={<MainAppLayout effectActive={effectActive} />} 
           />
           <Route path="/" element={<Navigate to="/dashboard" replace />} />

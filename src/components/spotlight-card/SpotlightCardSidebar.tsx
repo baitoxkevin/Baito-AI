@@ -55,10 +55,39 @@ export function SpotlightCardSidebar({
   const [tempBrandUrl, setTempBrandUrl] = React.useState('');
   const [logoError, setLogoError] = React.useState(false);
   const [activeOverviewTab, setActiveOverviewTab] = React.useState<'staffing' | 'details'>('staffing');
+  const [isDropdownOpen, setIsDropdownOpen] = React.useState(false);
+  const dropdownRef = React.useRef<HTMLDivElement>(null);
   
   // For testing purposes - use this URL for a sample logo (CORS-friendly image)
   const sampleLogoUrl = "https://placehold.co/300x150/2563EB/FFFFFF.png?text=Sample+Logo";
   const { toast } = useToast();
+  
+  // Close dropdown when clicking outside
+  React.useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    };
+    
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsDropdownOpen(false);
+      }
+    };
+    
+    if (isDropdownOpen) {
+      // Use both mousedown and click events for better compatibility
+      document.addEventListener('mousedown', handleClickOutside, true);
+      document.addEventListener('click', handleClickOutside, true);
+      document.addEventListener('keydown', handleEscape);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside, true);
+        document.removeEventListener('click', handleClickOutside, true);
+        document.removeEventListener('keydown', handleEscape);
+      };
+    }
+  }, [isDropdownOpen]);
   
   // Helper functions for badge colors
   const getStatusColor = (status?: string) => {
@@ -88,37 +117,33 @@ export function SpotlightCardSidebar({
   return (
     <div className="w-[280px] bg-white dark:bg-gray-900 p-4 overflow-hidden flex flex-col">
       <div className="flex justify-end">
-        <div className="relative">
+        <div className="relative" ref={dropdownRef}>
           <button 
             className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"
-            onClick={() => {
-              const dropdownEl = document.getElementById(`project-action-dropdown-${project.id}`);
-              if (dropdownEl) {
-                dropdownEl.classList.toggle('hidden');
-              }
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsDropdownOpen(!isDropdownOpen);
             }}
           >
             <MoreVertical className="h-5 w-5 text-gray-500" />
           </button>
           
           {/* Dropdown Menu */}
-          <div 
-            id={`project-action-dropdown-${project.id}`}
-            className="hidden absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5 z-30"
-          >
-            <div className="py-1" role="menu" aria-orientation="vertical">
+          {isDropdownOpen && (
+            <div className="absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5 z-30">
+              <div className="py-1" role="menu" aria-orientation="vertical">
               {/* Copy Project ID */}
               <button
                 className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
-                onClick={() => {
+                onClick={(e) => {
+                  e.stopPropagation();
                   navigator.clipboard.writeText(project.id);
                   toast({
                     title: "Project ID Copied",
                     description: `ID ${project.id} copied to clipboard`,
                     duration: 2000,
                   });
-                  const dropdownEl = document.getElementById(`project-action-dropdown-${project.id}`);
-                  if (dropdownEl) dropdownEl.classList.add('hidden');
+                  setIsDropdownOpen(false);
                 }}
               >
                 <Copy className="h-4 w-4" />
@@ -128,7 +153,8 @@ export function SpotlightCardSidebar({
               {/* Export to Excel */}
               <button
                 className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
-                onClick={() => {
+                onClick={(e) => {
+                  e.stopPropagation();
                   // Create a simple CSV content
                   const headers = ["Project ID", "Title", "Client", "Start Date", "End Date", "Status", "Location"];
                   const data = [
@@ -159,8 +185,7 @@ export function SpotlightCardSidebar({
                     description: "Project details exported to CSV",
                     duration: 2000,
                   });
-                  const dropdownEl = document.getElementById(`project-action-dropdown-${project.id}`);
-                  if (dropdownEl) dropdownEl.classList.add('hidden');
+                  setIsDropdownOpen(false);
                 }}
               >
                 <FileSpreadsheet className="h-4 w-4" />
@@ -170,14 +195,14 @@ export function SpotlightCardSidebar({
               {/* Generate Report */}
               <button
                 className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
-                onClick={() => {
+                onClick={(e) => {
+                  e.stopPropagation();
                   toast({
                     title: "Generating Report",
                     description: "Project report is being generated...",
                     duration: 2000,
                   });
-                  const dropdownEl = document.getElementById(`project-action-dropdown-${project.id}`);
-                  if (dropdownEl) dropdownEl.classList.add('hidden');
+                  setIsDropdownOpen(false);
                 }}
               >
                 <FileText className="h-4 w-4" />
@@ -187,7 +212,8 @@ export function SpotlightCardSidebar({
               {/* Share Project */}
               <button
                 className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
-                onClick={() => {
+                onClick={(e) => {
+                  e.stopPropagation();
                   const shareUrl = `${window.location.origin}/projects/${project.id}`;
                   navigator.clipboard.writeText(shareUrl);
                   toast({
@@ -195,8 +221,7 @@ export function SpotlightCardSidebar({
                     description: "Project URL copied to clipboard",
                     duration: 2000,
                   });
-                  const dropdownEl = document.getElementById(`project-action-dropdown-${project.id}`);
-                  if (dropdownEl) dropdownEl.classList.add('hidden');
+                  setIsDropdownOpen(false);
                 }}
               >
                 <Share2 className="h-4 w-4" />
@@ -206,14 +231,14 @@ export function SpotlightCardSidebar({
               {/* Duplicate Project */}
               <button
                 className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
-                onClick={() => {
+                onClick={(e) => {
+                  e.stopPropagation();
                   toast({
                     title: "Duplicating Project",
                     description: "Creating a copy of this project...",
                     duration: 2000,
                   });
-                  const dropdownEl = document.getElementById(`project-action-dropdown-${project.id}`);
-                  if (dropdownEl) dropdownEl.classList.add('hidden');
+                  setIsDropdownOpen(false);
                 }}
               >
                 <Copy className="h-4 w-4" />
@@ -225,22 +250,23 @@ export function SpotlightCardSidebar({
               {/* Archive Project - Destructive action */}
               <button
                 className="w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2"
-                onClick={() => {
+                onClick={(e) => {
+                  e.stopPropagation();
                   toast({
                     title: "Archive Project",
                     description: "Are you sure you want to archive this project?",
                     variant: "destructive",
                     duration: 2000,
                   });
-                  const dropdownEl = document.getElementById(`project-action-dropdown-${project.id}`);
-                  if (dropdownEl) dropdownEl.classList.add('hidden');
+                  setIsDropdownOpen(false);
                 }}
               >
                 <Archive className="h-4 w-4" />
                 Archive Project
               </button>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
       
@@ -302,6 +328,7 @@ export function SpotlightCardSidebar({
               className="absolute bottom-0 right-0 w-12 h-12 bg-white dark:bg-gray-700 rounded-full flex items-center justify-center shadow-md border-2 border-white dark:border-gray-600 z-20 translate-x-1/3 translate-y-0"
               whileHover={{ scale: 1.1 }}
               transition={{ type: "spring", stiffness: 400, damping: 17 }}
+              style={{ transformOrigin: "right bottom" }}
             >
               <span className="text-sm font-bold text-gray-500 dark:text-gray-300">
                 {(project.client as any)?.name?.charAt(0) || 'C'}

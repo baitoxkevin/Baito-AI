@@ -35,6 +35,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
+import { logUtils } from '@/lib/activity-logger';
 import { 
   Calendar as CalendarIcon,
   Building2,
@@ -145,37 +146,17 @@ export function PaymentSubmissionDialog({
   // Handle form submission
   const handleSubmit = async () => {
     try {
-      // Validate form
-      if (!companyName.trim()) {
-        toast({
-          title: "Missing Information",
-          description: "Please enter the company name",
-          variant: "destructive"
-        });
-        return;
-      }
-      
-      if (!companyRegistrationNumber.trim()) {
-        toast({
-          title: "Missing Information",
-          description: "Please enter the company registration number",
-          variant: "destructive"
-        });
-        return;
-      }
-      
-      if (!companyBankAccount.trim()) {
-        toast({
-          title: "Missing Information",
-          description: "Please enter the company bank account",
-          variant: "destructive"
-        });
-        return;
-      }
-      
       // Generate batch reference
       const tempBatchRef = generateBatchReference(projectId);
       setBatchReference(tempBatchRef);
+      
+      // Log payment submission initiation
+      logUtils.action('submit_payment', false, {
+        staff_count: staffPaymentSummaries.length,
+        total_amount: staffPaymentSummaries.reduce((sum, staff) => sum + staff.totalAmount, 0),
+        payment_date: effectivePaymentDate?.toISOString(),
+        project_id: projectId
+      });
       
       // Move to confirmation step
       setStep('confirm');
@@ -209,11 +190,7 @@ export function PaymentSubmissionDialog({
             phone: staff.phone
           }
         })),
-        {
-          name: companyName,
-          registrationNumber: companyRegistrationNumber,
-          bankAccount: companyBankAccount
-        },
+        null, // No company details
         paymentMethod,
         notes
       );
@@ -224,6 +201,16 @@ export function PaymentSubmissionDialog({
       
       // Store batch ID for success view
       setBatchId(result.batchId);
+      
+      // Log successful payment submission
+      logUtils.action('submit_payment', true, {
+        staff_count: staffPaymentSummaries.length,
+        total_amount: staffPaymentSummaries.reduce((sum, staff) => sum + staff.totalAmount, 0),
+        payment_date: effectivePaymentDate?.toISOString(),
+        project_id: projectId,
+        batch_id: result.batchId,
+        payment_method: paymentMethod
+      });
       
       // Trigger success callback if provided
       if (onSuccess) {
@@ -242,6 +229,14 @@ export function PaymentSubmissionDialog({
       console.error('Error submitting payment:', error);
       setSubmissionError(error.message || 'An unexpected error occurred');
       setStep('error');
+      
+      // Log failed payment submission
+      logUtils.action('submit_payment', false, {
+        staff_count: staffPaymentSummaries.length,
+        total_amount: staffPaymentSummaries.reduce((sum, staff) => sum + staff.totalAmount, 0),
+        project_id: projectId,
+        error_message: error.message || 'Unknown error'
+      });
       
       // Show error toast
       toast({
@@ -344,45 +339,15 @@ export function PaymentSubmissionDialog({
                     <Card className="shadow-sm">
                       <CardHeader className="pb-3">
                         <CardTitle className="text-base flex items-center gap-2">
-                          <Building className="h-4 w-4 text-blue-500" />
-                          Company Details
+                          <CalendarIcon className="h-4 w-4 text-blue-500" />
+                          Payment Details
                         </CardTitle>
                         <CardDescription>
-                          Enter the company details for this payment
+                          Set the payment date and optional notes
                         </CardDescription>
                       </CardHeader>
                       <CardContent className="space-y-4">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="company-name">Company Name</Label>
-                            <Input 
-                              id="company-name" 
-                              placeholder="Enter company name"
-                              value={companyName}
-                              onChange={(e) => setCompanyName(e.target.value)}
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="company-reg">Registration Number</Label>
-                            <Input 
-                              id="company-reg" 
-                              placeholder="Enter registration number"
-                              value={companyRegistrationNumber}
-                              onChange={(e) => setCompanyRegistrationNumber(e.target.value)}
-                            />
-                          </div>
-                        </div>
-                        
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="bank-account">Bank Account</Label>
-                            <Input 
-                              id="bank-account" 
-                              placeholder="Enter bank account number"
-                              value={companyBankAccount}
-                              onChange={(e) => setCompanyBankAccount(e.target.value)}
-                            />
-                          </div>
+                        <div className="grid grid-cols-1 gap-4">
                           <div className="space-y-2">
                             <Label htmlFor="payment-date">Payment Date</Label>
                             <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
@@ -553,17 +518,6 @@ export function PaymentSubmissionDialog({
                           </div>
                         </div>
                         
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400">Company</h3>
-                            <p className="text-base font-semibold">{companyName}</p>
-                            <p className="text-sm text-slate-600 dark:text-slate-400">{companyRegistrationNumber}</p>
-                          </div>
-                          <div>
-                            <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400">Bank Account</h3>
-                            <p className="text-base font-semibold">{companyBankAccount}</p>
-                          </div>
-                        </div>
                         
                         <div className="grid grid-cols-2 gap-4">
                           <div>
