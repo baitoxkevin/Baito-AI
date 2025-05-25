@@ -15,6 +15,7 @@ import { DocumentDropzoneFiles } from "@/components/ui/document-dropzone-files";
 import { ShimmerButton } from "@/components/ui/shimmer-button";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Upload, History, DollarSign, Users, Eye, ExternalLink, Link as LinkIcon } from "lucide-react";
+import { activityLogger, logUtils } from "@/lib/activity-logger";
 import { useAutosaveStaff } from "@/hooks/use-autosave-staff";
 import { useProjectStaff } from "@/hooks/use-project-staff";
 import { supabase } from "@/lib/supabase";
@@ -225,6 +226,11 @@ export function SpotlightCard({
   );
   const [activeTab, setActiveTab] = React.useState('schedule');
   const isScheduleTabActive = activeTab === 'schedule';
+  
+  // Simple tab change handler
+  const handleTabChange = React.useCallback((newTab: string) => {
+    setActiveTab(newTab);
+  }, []);
   const [localDocuments, setLocalDocuments] = React.useState(
     documents.length > 0 ? documents : dummyDocuments
   );
@@ -241,45 +247,72 @@ export function SpotlightCard({
   const [googleDriveName, setGoogleDriveName] = React.useState<string>('');
   const [googleDriveLinkError, setGoogleDriveLinkError] = React.useState<string>('');
   const [staffDetails, setStaffDetails] = React.useState<any[]>([]);
+  
+  // Track if payroll edit dialog is open
+  const [isPayrollEditDialogOpen, setIsPayrollEditDialogOpen] = React.useState(false);
   const [confirmedStaff, setConfirmedStaff] = React.useState<any[]>([]);
   const [applicants, setApplicants] = React.useState<any[]>([]);
   const [selectedStaffForBasic, setSelectedStaffForBasic] = React.useState<string[]>([]);
   const [tempBasicValue, setTempBasicValue] = React.useState("");
   
+  
   // Fetch project details including staff when component mounts or project changes
   React.useEffect(() => {
+    let isMounted = true;
+    
     const fetchProjectDetails = async () => {
       if (!project.id) return;
       
+      // Initialize activity logging for this project
+      activityLogger.setProjectId(project.id);
+      
       try {
-        // First fetch the complete project data including confirmed_staff and applicants
-        const { data: projectData, error: projectError } = await supabase
-          .from('projects')
-          .select('*')
-          .eq('id', project.id)
-          .single();
+        // Batch fetch all data in parallel for better performance
+        const [projectResult, expenseResult, documentsResult] = await Promise.allSettled([
+          // Fetch project data
+          supabase
+            .from('projects')
+            .select('*')
+            .eq('id', project.id)
+            .single(),
           
-        if (projectError) throw projectError;
+          // Fetch expense claims
+          fetchProjectExpenseClaimsWithFallback(project.id),
+          
+          // Fetch documents
+          getProjectDocuments(project.id)
+        ]);
         
-        // Fetch expense claims for this project - using fallback function
-        try {
-          const expenseClaimsData = await fetchProjectExpenseClaimsWithFallback(project.id);
-          setLocalExpenseClaims(expenseClaimsData);
-          console.log('Fetched expense claims:', expenseClaimsData.length);
-        } catch (error) {
-          console.error('Error fetching expense claims:', error);
-          // Use dummy data if fetch fails
+        // Check if component is still mounted before processing results
+        if (!isMounted) return;
+        
+        // Process project data
+        if (projectResult.status === 'rejected' || projectResult.value.error) {
+          const error = projectResult.status === 'rejected' ? projectResult.reason : projectResult.value.error;
+          console.error('Failed to fetch project data:', error);
+          throw new Error(`Failed to load project: ${error.message || 'Unknown error'}`);
+        }
+        
+        const projectData = projectResult.value.data;
+        if (!projectData) {
+          throw new Error('Project not found');
+        }
+        
+        // Process expense claims
+        if (expenseResult.status === 'fulfilled') {
+          setLocalExpenseClaims(expenseResult.value);
+          console.log('Fetched expense claims:', expenseResult.value.length);
+        } else {
+          console.error('Error fetching expense claims:', expenseResult.reason);
           setLocalExpenseClaims(dummyExpenseClaims);
         }
         
-        // Fetch documents for this project
-        try {
-          const documentsData = await getProjectDocuments(project.id);
-          setLocalDocuments(documentsData);
-          console.log('Fetched project documents:', documentsData.length);
-        } catch (error) {
-          console.error('Error fetching documents:', error);
-          // Use dummy data if fetch fails
+        // Process documents
+        if (documentsResult.status === 'fulfilled') {
+          setLocalDocuments(documentsResult.value);
+          console.log('Fetched project documents:', documentsResult.value.length);
+        } else {
+          console.error('Error fetching documents:', documentsResult.reason);
           setLocalDocuments(dummyDocuments);
         }
         
@@ -326,12 +359,18 @@ export function SpotlightCard({
         ].filter(Boolean);
         
         if (allStaffIds.length > 0) {
-          const { data: candidatesData, error: candidatesError } = await supabase
-            .from('candidates')
-            .select('id, full_name, profile_photo, email, phone_number, ic_number')
-            .in('id', allStaffIds);
+          try {
+            const { data: candidatesData, error: candidatesError } = await supabase
+              .from('candidates')
+              .select('id, full_name, profile_photo, email, phone_number, ic_number')
+              .in('id', allStaffIds);
+              
+            if (candidatesError) {
+              console.error('Failed to fetch candidate details:', candidatesError);
+              // Continue with partial data instead of throwing
+            }
             
-          if (!candidatesError && candidatesData) {
+            if (candidatesData && candidatesData.length > 0) {
             // Merge candidate details with staff data
             const enrichedConfirmedStaff = projectConfirmedStaff.map(staff => {
               const candidate = candidatesData.find(c => c.id === (staff.candidate_id || staff.id));
@@ -363,32 +402,54 @@ export function SpotlightCard({
             const transformedConfirmedStaff = transformStaffData(enrichedConfirmedStaff);
             const transformedApplicants = transformStaffData(enrichedApplicants);
             
-            setConfirmedStaff(transformedConfirmedStaff);
-            setApplicants(transformedApplicants);
-            setStaffDetails([...transformedConfirmedStaff, ...transformedApplicants]);
+            if (isMounted) {
+              setConfirmedStaff(transformedConfirmedStaff);
+              setApplicants(transformedApplicants);
+              setStaffDetails([...transformedConfirmedStaff, ...transformedApplicants]);
+            }
           } else {
             // If no candidate data, still transform what we have
+            if (isMounted) {
+              setConfirmedStaff(transformStaffData(projectConfirmedStaff));
+              setApplicants(transformStaffData(projectApplicants));
+              setStaffDetails([...transformStaffData(projectConfirmedStaff), ...transformStaffData(projectApplicants)]);
+            }
+          }
+          } catch (staffError) {
+            console.error('Error processing staff data:', staffError);
+            // Continue with basic staff data
+            if (isMounted) {
+              setConfirmedStaff(transformStaffData(projectConfirmedStaff));
+              setApplicants(transformStaffData(projectApplicants));
+              setStaffDetails([...transformStaffData(projectConfirmedStaff), ...transformStaffData(projectApplicants)]);
+            }
+          }
+        } else {
+          // If no IDs at all, just transform empty arrays
+          if (isMounted) {
             setConfirmedStaff(transformStaffData(projectConfirmedStaff));
             setApplicants(transformStaffData(projectApplicants));
             setStaffDetails([...transformStaffData(projectConfirmedStaff), ...transformStaffData(projectApplicants)]);
           }
-        } else {
-          // If no IDs at all, just transform empty arrays
-          setConfirmedStaff(transformStaffData(projectConfirmedStaff));
-          setApplicants(transformStaffData(projectApplicants));
-          setStaffDetails([...transformStaffData(projectConfirmedStaff), ...transformStaffData(projectApplicants)]);
         }
       } catch (error) {
         console.error('Error fetching project details:', error);
-        toast({
-          title: "Error",
-          description: "Failed to load staff details",
-          variant: "destructive"
-        });
+        if (isMounted) {
+          toast({
+            title: "Error",
+            description: "Failed to load staff details",
+            variant: "destructive"
+          });
+        }
       }
     };
     
     fetchProjectDetails();
+    
+    // Cleanup function
+    return () => {
+      isMounted = false;
+    };
   }, [project.id, toast]);
 
   const handleMouseMove = (event: React.MouseEvent<HTMLDivElement>) => {
@@ -413,6 +474,9 @@ export function SpotlightCard({
         description: "Removing expense claim and associated receipts...",
       });
       
+      // Find the claim being deleted for logging
+      const claimToDelete = localExpenseClaims.find(claim => claim.id === claimId);
+      
       // Update local state immediately for better UX
       setLocalExpenseClaims(prev => prev.filter(claim => claim.id !== claimId));
       
@@ -426,6 +490,13 @@ export function SpotlightCard({
       const result = await deleteExpenseClaim(claimId);
       
       if (result.success) {
+        // Log successful expense claim deletion
+        logUtils.action('delete_expense_claim', true, {
+          claim_title: claimToDelete?.title || 'Unknown Claim',
+          claim_amount: claimToDelete?.amount || 0,
+          claim_id: claimId
+        });
+        
         toast({
           title: "Success",
           description: result.message || "Expense claim deleted successfully",
@@ -436,6 +507,13 @@ export function SpotlightCard({
         if (claim) {
           setLocalExpenseClaims(prev => [...prev, claim]);
         }
+        
+        // Log failed expense claim deletion
+        logUtils.action('delete_expense_claim', false, {
+          claim_title: claimToDelete?.title || 'Unknown Claim',
+          claim_id: claimId,
+          error_message: result.message || 'Unknown error'
+        });
         
         toast({
           title: "Error",
@@ -490,6 +568,16 @@ export function SpotlightCard({
           receipts: result.receipts || []
         };
         setLocalExpenseClaims([newClaim, ...localExpenseClaims]);
+        
+        // Log successful expense claim creation
+        logUtils.action('create_expense_claim', true, {
+          claim_title: data.title,
+          claim_amount: parseFloat(data.amount),
+          claim_category: data.category,
+          receipts_count: result.receipts?.length || 0,
+          claim_id: result.claim.id
+        });
+        
         toast({
           title: "Success",
           description: "Expense claim created successfully",
@@ -506,6 +594,14 @@ export function SpotlightCard({
       }
     } catch (error) {
       console.error('Failed to create expense claim:', error);
+      
+      // Log failed expense claim creation
+      logUtils.action('create_expense_claim', false, {
+        claim_title: data.title,
+        claim_amount: parseFloat(data.amount),
+        error_message: error instanceof Error ? error.message : 'Unknown error'
+      });
+      
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Failed to create expense claim",
@@ -514,12 +610,21 @@ export function SpotlightCard({
     }
   };
 
+  // Simple expand/minimize handlers without excessive logging
+  const handleExpand = React.useCallback(() => {
+    setIsMinimized(false);
+  }, []);
+
+  const handleMinimize = React.useCallback(() => {
+    setIsMinimized(true);
+  }, []);
+
   // Render minimized view
   if (isMinimized) {
     return (
       <SpotlightCardMinimized
         project={project}
-        onClick={() => setIsMinimized(false)}
+        onClick={handleExpand}
         onMouseMove={handleMouseMove}
         mousePosition={mousePosition}
       />
@@ -536,7 +641,7 @@ export function SpotlightCard({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.3 }}
-          onClick={() => setIsMinimized(true)}
+          onClick={handleMinimize}
         >
           <motion.div
             className="w-full max-w-7xl h-[90vh] max-h-[900px] relative"
@@ -562,16 +667,28 @@ export function SpotlightCard({
                   staffCount={staffDetails.length}
                   claimsCount={localExpenseClaims.length}
                   activeTab={activeTab}
-                  onTabChange={setActiveTab}
+                  onTabChange={handleTabChange}
                 />
                 
                 {/* Main Content Area */}
                 <div 
+                  ref={(el) => {
+                    // Auto-focus the main content area when it mounts
+                    if (el && !isMinimized) {
+                      // Use a small delay to ensure the element is fully rendered
+                      setTimeout(() => el.focus(), 100);
+                    }
+                  }}
                   className="flex-1 bg-gray-50 dark:bg-gray-900 pt-14 px-6 pb-0 overflow-hidden flex flex-col relative outline-none"
                   tabIndex={0}
                   onKeyDown={(e) => {
                     // Left and right arrow keys for navigation
                     if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+                      // Don't change tabs if payroll edit dialog is open
+                      if (isPayrollEditDialogOpen) {
+                        return;
+                      }
+                      
                       const tabs = [
                         'schedule',
                         'staffing',
@@ -591,8 +708,22 @@ export function SpotlightCard({
                         newIndex = (currentIndex + 1) % tabs.length;
                       }
                       
-                      setActiveTab(tabs[newIndex]);
+                      handleTabChange(tabs[newIndex]);
                       e.preventDefault();
+                    }
+                  }}
+                  onClick={(e) => {
+                    // Only focus if we're not clicking on an input, textarea, or button
+                    const target = e.target as HTMLElement;
+                    const isInteractiveElement = 
+                      target.tagName === 'INPUT' || 
+                      target.tagName === 'TEXTAREA' || 
+                      target.tagName === 'BUTTON' ||
+                      target.tagName === 'SELECT' ||
+                      target.closest('input, textarea, button, select');
+                    
+                    if (!isInteractiveElement && e.currentTarget) {
+                      e.currentTarget.focus();
                     }
                   }}
                 >
@@ -611,7 +742,7 @@ export function SpotlightCard({
                         ];
                         const currentIndex = tabs.findIndex(tab => tab.value === activeTab);
                         const prevIndex = (currentIndex - 1 + tabs.length) % tabs.length;
-                        setActiveTab(tabs[prevIndex].value);
+                        handleTabChange(tabs[prevIndex].value);
                       }}
                       aria-label="Previous tab"
                     >
@@ -620,7 +751,7 @@ export function SpotlightCard({
                     
                     <SpotlightCardDropdown
                       activeTab={activeTab}
-                      onTabChange={setActiveTab}
+                      onTabChange={handleTabChange}
                       className="w-auto"
                     />
                     
@@ -637,7 +768,7 @@ export function SpotlightCard({
                         ];
                         const currentIndex = tabs.findIndex(tab => tab.value === activeTab);
                         const nextIndex = (currentIndex + 1) % tabs.length;
-                        setActiveTab(tabs[nextIndex].value);
+                        handleTabChange(tabs[nextIndex].value);
                       }}
                       aria-label="Next tab"
                     >
@@ -658,6 +789,13 @@ export function SpotlightCard({
                           setDocumentsView={setDocumentsView}
                           onShowUploadDialog={() => setShowUploadDialog(true)}
                           onDocumentDelete={(docId) => {
+                            // Find the document being deleted for logging
+                            const deletedDoc = localDocuments.find(doc => doc.id === docId);
+                            logUtils.action('delete_document', true, {
+                              document_name: deletedDoc?.file_name || 'Unknown Document',
+                              document_type: deletedDoc?.type || 'unknown',
+                              document_category: deletedDoc?.category || 'unknown'
+                            });
                             // Update local documents state by filtering out the deleted document
                             setLocalDocuments(prev => prev.filter(doc => doc.id !== docId));
                           }}
@@ -671,6 +809,31 @@ export function SpotlightCard({
                           confirmedStaff={confirmedStaff}
                           setConfirmedStaff={(newConfirmedStaff) => {
                             console.log('Setting new confirmed staff:', newConfirmedStaff);
+                            
+                            // Log staff changes
+                            const oldStaffIds = confirmedStaff.map(s => s.id);
+                            const newStaffIds = newConfirmedStaff.map(s => s.id);
+                            
+                            // Find added staff
+                            const addedStaff = newConfirmedStaff.filter(s => !oldStaffIds.includes(s.id));
+                            addedStaff.forEach(staff => {
+                              logUtils.action('add_staff', true, {
+                                staff_name: staff.name,
+                                staff_position: staff.designation,
+                                staff_id: staff.id
+                              }, project.id);
+                            });
+                            
+                            // Find removed staff
+                            const removedStaff = confirmedStaff.filter(s => !newStaffIds.includes(s.id));
+                            removedStaff.forEach(staff => {
+                              logUtils.action('remove_staff', true, {
+                                staff_name: staff.name,
+                                staff_position: staff.designation,
+                                staff_id: staff.id
+                              }, project.id);
+                            });
+                            
                             setConfirmedStaff(newConfirmedStaff);
                             
                             // Update the project in the database
@@ -750,6 +913,14 @@ export function SpotlightCard({
                               console.error('Staff member not found:', staffId);
                               return;
                             }
+                            
+                            // Log staff removal
+                            logUtils.action('remove_staff', true, {
+                              staff_name: staffMember.name,
+                              staff_position: staffMember.designation,
+                              staff_id: staffId,
+                              moved_to: 'applicants'
+                            }, project.id);
                             
                             // Create a new applicant from the removed staff
                             const newApplicant = {
@@ -856,6 +1027,7 @@ export function SpotlightCard({
                         setConfirmedStaff={setConfirmedStaff}
                         projectStartDate={new Date(project.start_date)}
                         projectEndDate={project.end_date ? new Date(project.end_date) : new Date(project.start_date)}
+                        onEditDialogOpenChange={setIsPayrollEditDialogOpen}
                       />
                     )}
                       
@@ -1077,9 +1249,23 @@ export function SpotlightCard({
                         );
                         
                         successfulUploads.push(uploadedDoc);
+                        
+                        // Log successful upload
+                        logUtils.action('upload_document', true, {
+                          document_name: file.name,
+                          document_type: file.type,
+                          document_size: file.size,
+                          document_category: fileCategory
+                        });
                       } catch (error) {
                         console.error(`Error uploading ${file.name}:`, error);
                         failedUploads.push(file.name);
+                        
+                        // Log failed upload
+                        logUtils.action('upload_document', false, {
+                          document_name: file.name,
+                          error_message: error instanceof Error ? error.message : 'Unknown error'
+                        });
                       }
                     }
                     
@@ -1181,6 +1367,15 @@ export function SpotlightCard({
                     
                     setLocalDocuments([enhancedLink, ...localDocuments]);
                     
+                    // Log successful Google Drive link addition
+                    logUtils.action('upload_document', true, {
+                      document_name: linkName,
+                      document_type: documentType,
+                      document_category: fileCategory,
+                      is_external_link: true,
+                      external_url: googleDriveLink
+                    });
+                    
                     toast({
                       title: "Link Added",
                       description: "Google Drive link added successfully.",
@@ -1188,6 +1383,15 @@ export function SpotlightCard({
                     });
                   } catch (error) {
                     console.error('Error adding Google Drive link:', error);
+                    
+                    // Log failed Google Drive link addition
+                    logUtils.action('upload_document', false, {
+                      document_name: googleDriveName || 'Google Drive Link',
+                      document_type: 'google_drive',
+                      is_external_link: true,
+                      error_message: error instanceof Error ? error.message : 'Unknown error'
+                    });
+                    
                     toast({
                       title: "Error",
                       description: "Failed to add Google Drive link. Please try again.",
@@ -1243,8 +1447,43 @@ function ScheduleTabContent({ project, confirmedStaff }: { project: Project, con
       endDate={project.end_date ? new Date(project.end_date) : new Date(project.start_date)}
       confirmedStaff={staffToDisplay}
       location={project.venue_address}
-      onLocationEdit={(newLocation) => {
+      onLocationEdit={async (newLocation) => {
         console.log('Location updated:', newLocation);
+        
+        const oldLocation = project.venue_address;
+        
+        // Log the location change
+        logUtils.dataChange('venue_address', oldLocation, newLocation, {
+          project_id: project.id,
+          project_title: project.title
+        });
+        
+        // Update the project in database
+        try {
+          const { error } = await supabase
+            .from('projects')
+            .update({ venue_address: newLocation })
+            .eq('id', project.id);
+            
+          if (error) throw error;
+          
+          // Update local project state if available
+          if (onProjectUpdated) {
+            onProjectUpdated({ ...project, venue_address: newLocation });
+          }
+          
+          toast({
+            title: "Location Updated",
+            description: "Project location has been updated successfully.",
+          });
+        } catch (error) {
+          console.error('Error updating location:', error);
+          toast({
+            title: "Error",
+            description: "Failed to update project location",
+            variant: "destructive"
+          });
+        }
       }}
       projectId={project.id}
     />

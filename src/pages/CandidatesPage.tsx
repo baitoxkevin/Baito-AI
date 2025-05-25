@@ -195,7 +195,8 @@ export default function CandidatesPage() {
     try {
       // Generate the secure URL using the correct function
       const { data: url, error } = await supabase.rpc('generate_candidate_update_link', {
-        p_candidate_id: candidate.id
+        p_candidate_id: candidate.id,
+        p_base_url: `${window.location.origin}/candidate-update-mobile/`
       });
       
       if (error) {
@@ -207,9 +208,8 @@ export default function CandidatesPage() {
         throw new Error('No URL was generated');
       }
       
-      // The URL is already formatted correctly from the RPC
-      // Make sure it uses the current origin in case the base_url in the function is different
-      const secureUrl = url.replace(/http:\/\/localhost:5173/, window.location.origin);
+      // URL is already complete with the correct origin
+      const secureUrl = url;
       
       // Copy to clipboard
       await navigator.clipboard.writeText(secureUrl);
@@ -515,9 +515,9 @@ export default function CandidatesPage() {
                           </div>
 
                           {/* Name and ID */}
-                          <div className="flex flex-col">
-                            <span className="font-medium text-slate-900 dark:text-white">{candidate.full_name}</span>
-                            <span className="text-xs text-slate-500 dark:text-slate-400">
+                          <div className="flex flex-col text-left">
+                            <span className="font-medium text-slate-900 dark:text-white text-left">{candidate.full_name}</span>
+                            <span className="text-xs text-slate-500 dark:text-slate-400 text-left">
                               {/* Format IC numbers consistently */}
                               {candidate.ic_number ?
                                 formatIcNumber(candidate.ic_number) :

@@ -47,6 +47,11 @@ export default function SettingsPage() {
     canAccessExpenseClaims: false,
     testResult: null
   });
+
+  // Admin states
+  const [currentUserRole, setCurrentUserRole] = useState<string>('staff');
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [adminLoading, setAdminLoading] = useState(false);
   
   // Secondary sections state
   const [activeTab, setActiveTab] = useState("candidates");
@@ -66,9 +71,6 @@ export default function SettingsPage() {
   // Current user state for permission checks
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isUserLoading, setIsUserLoading] = useState(true);
-  
-  // Check if current user is a super admin
-  const isSuperAdmin = currentUser?.is_super_admin === true;
 
   // Load companies data
   const loadCompanies = async () => {
@@ -205,8 +207,34 @@ export default function SettingsPage() {
       loadUsers();
     } else if (activeTab === "auth") {
       checkAuth();
+    } else if (activeTab === "admin") {
+      loadCurrentUserRole();
     }
   }, [activeTab]);
+
+  // Load current user role
+  const loadCurrentUserRole = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: userData } = await supabase
+          .from('users')
+          .select('role, is_super_admin')
+          .eq('id', user.id)
+          .single();
+        
+        if (userData) {
+          setCurrentUserRole(userData.role || 'staff');
+          setIsSuperAdmin(userData.is_super_admin || false);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading user role:', error);
+      // Set defaults on error
+      setCurrentUserRole('staff');
+      setIsSuperAdmin(false);
+    }
+  };
 
   // Handle company deletion - restricted to super_admin only
   const handleDeleteCompany = async (id: string) => {
@@ -616,10 +644,11 @@ export default function SettingsPage() {
           <h3 className="text-lg font-medium mb-4">Other Settings</h3>
           
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="candidates">Candidates</TabsTrigger>
               <TabsTrigger value="staff">Staff Management</TabsTrigger>
               <TabsTrigger value="auth">Auth Check</TabsTrigger>
+              <TabsTrigger value="admin">Admin</TabsTrigger>
             </TabsList>
           
           {/* Candidates Tab */}
@@ -937,6 +966,120 @@ export default function SettingsPage() {
                   )}
                 </>
               )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Admin Tab */}
+        <TabsContent value="admin" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <ShieldAlert className="h-5 w-5" />
+                Admin Controls
+              </CardTitle>
+              <CardDescription>
+                Manage admin permissions and roles (for testing purposes)
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label htmlFor="admin-role">Make User Admin</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Toggle admin role to access Payments page
+                  </p>
+                </div>
+                <Switch
+                  id="admin-role"
+                  checked={currentUserRole === 'admin'}
+                  onCheckedChange={async (checked) => {
+                    setAdminLoading(true);
+                    try {
+                      const { data: { user } } = await supabase.auth.getUser();
+                      if (user) {
+                        const { error } = await supabase
+                          .from('users')
+                          .update({ role: checked ? 'admin' : 'staff' })
+                          .eq('id', user.id);
+                        
+                        if (error) throw error;
+                        
+                        setCurrentUserRole(checked ? 'admin' : 'staff');
+                        
+                        toast({
+                          title: 'Role Updated',
+                          description: `User role changed to ${checked ? 'admin' : 'staff'}. Please refresh the page to see sidebar changes.`,
+                        });
+                      }
+                    } catch (error) {
+                      console.error('Error updating role:', error);
+                      toast({
+                        title: 'Error',
+                        description: 'Failed to update user role',
+                        variant: 'destructive'
+                      });
+                    } finally {
+                      setAdminLoading(false);
+                    }
+                  }}
+                  disabled={adminLoading}
+                />
+              </div>
+              
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label htmlFor="super-admin">Super Admin</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Grant super admin privileges
+                  </p>
+                </div>
+                <Switch
+                  id="super-admin"
+                  checked={isSuperAdmin}
+                  onCheckedChange={async (checked) => {
+                    setAdminLoading(true);
+                    try {
+                      const { data: { user } } = await supabase.auth.getUser();
+                      if (user) {
+                        const { error } = await supabase
+                          .from('users')
+                          .update({ is_super_admin: checked })
+                          .eq('id', user.id);
+                        
+                        if (error) throw error;
+                        
+                        setIsSuperAdmin(checked);
+                        
+                        toast({
+                          title: 'Super Admin Updated',
+                          description: `Super admin status ${checked ? 'granted' : 'revoked'}. Please refresh the page to see changes.`,
+                        });
+                      }
+                    } catch (error) {
+                      console.error('Error updating super admin:', error);
+                      toast({
+                        title: 'Error',
+                        description: 'Failed to update super admin status',
+                        variant: 'destructive'
+                      });
+                    } finally {
+                      setAdminLoading(false);
+                    }
+                  }}
+                  disabled={adminLoading}
+                />
+              </div>
+              
+              <div className="pt-4 border-t">
+                <p className="text-sm text-muted-foreground">
+                  Current role: <span className="font-medium">{currentUserRole}</span>
+                  {isSuperAdmin && <span className="text-blue-600 ml-2">(Super Admin)</span>}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Admin users can access the Payments page to view and export payment submissions from projects.
+                </p>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

@@ -498,7 +498,7 @@ export function formatDuitNowCsvData(
     const paymentDetails2 = item.payment_details?.total_days ? `${item.payment_details.total_days} days worked` : '';
     
     // Format bank account ID based on bank code
-    let beneficiaryId = item.bank_account_number ? item.bank_account_number.replace(/\s+/g, '') : '';
+    const beneficiaryId = item.bank_account_number ? item.bank_account_number.replace(/\s+/g, '') : '';
     
     // Check if bank code is available, otherwise use a placeholder
     const bankCode = item.bank_code || (includeStaffWithoutBankDetails ? 'MISSING' : '');

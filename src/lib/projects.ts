@@ -169,15 +169,16 @@ export async function fetchProjectsByMonth(year: number, month: number): Promise
     // If not using dummy data, proceed with supabase query - ENHANCED TO FETCH MORE DATA
     console.log("Using real Supabase data");
     
-    // Calculate expanded date range (±12 months from the requested month)
-    const expandedStartDate = new Date(normalizedYear, normalizedMonth - 12, 1);
-    const expandedEndDate = new Date(normalizedYear, normalizedMonth + 12 + 1, 0); // Last day of month+12
+    // Calculate expanded date range (±1 month for performance)
+    // This still captures projects that span into the requested month
+    const expandedStartDate = new Date(normalizedYear, normalizedMonth - 1, 1);
+    const expandedEndDate = new Date(normalizedYear, normalizedMonth + 1 + 1, 0); // Last day of month+1
     
     // Format expanded dates
     const expandedStartStr = expandedStartDate.toISOString();
     const expandedEndStr = expandedEndDate.toISOString();
     
-    console.log(`Using full year expanded date range (±12 months) for Supabase query: ${expandedStartStr} to ${expandedEndStr}`);
+    console.log(`Using optimized date range (±1 month) for Supabase query: ${expandedStartStr} to ${expandedEndStr}`);
     
     // Use simple select without complex joins to avoid schema cache issues
     const { data, error } = await supabase
@@ -319,7 +320,7 @@ export async function updateProject(id: string, projectData: Partial<Project>): 
     });
 
     // Process confirmed_staff and applicants to ensure they're properly stored
-    let processedData = { ...projectData };
+    const processedData = { ...projectData };
     
     // Format dates in workingDates for confirmed_staff if needed
     if (processedData.confirmed_staff) {

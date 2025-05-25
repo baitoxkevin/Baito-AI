@@ -9,9 +9,10 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { Calculator, Calendar as CalendarIcon, Clock, FileSpreadsheet, FileText, MessageSquare, Settings, Share2, Upload, Download, PenTool as Tool, Loader2, Database, Receipt, DollarSign, BarChart3 } from 'lucide-react';
+import { useEnhancedToast } from '@/hooks/use-enhanced-toast';
+import { ToastAction } from '@/components/ui/enhanced-toast';
+import { Calculator, Calendar as CalendarIcon, Clock, FileSpreadsheet, FileText, MessageSquare, Upload, Download, Loader2, Database, Receipt, DollarSign, BarChart3, Bell } from 'lucide-react';
 import DataExtractionTool from '@/components/DataExtractionTool';
 import ReceiptOCRTool, { ReceiptData } from '@/components/ReceiptOCRTool';
 import { CandidateTextImportTool } from '@/components/CandidateTextImportTool';
@@ -121,7 +122,234 @@ const tools = [
     description: 'Test expense claims approval (Admin Mode)',
     component: 'expense-debug',
   },
+  {
+    icon: <Bell className="h-6 w-6 text-purple-600" />,
+    title: 'Toast Notifications Demo',
+    description: 'Preview and test beautiful toast notifications',
+    component: 'toast-demo',
+  },
 ];
+
+function ToastDemo() {
+  const enhancedToast = useEnhancedToast();
+  
+  const showSuccessToast = () => {
+    enhancedToast.success({
+      title: "Success! 🎉",
+      description: "Your changes have been saved successfully.",
+      action: (
+        <ToastAction altText="Undo action" onClick={() => console.log("Undo clicked")}>
+          Undo
+        </ToastAction>
+      ),
+    });
+  };
+
+  const showErrorToast = () => {
+    enhancedToast.error({
+      title: "Error occurred",
+      description: "Something went wrong. Please try again later.",
+      duration: 7000,
+    });
+  };
+
+  const showWarningToast = () => {
+    enhancedToast.warning({
+      title: "Warning ⚠️",
+      description: "This action cannot be undone. Please proceed with caution.",
+      pauseOnHover: true,
+    });
+  };
+
+  const showInfoToast = () => {
+    enhancedToast.info({
+      title: "New feature available",
+      description: "Check out our new dashboard analytics!",
+      action: (
+        <ToastAction altText="Learn more about the feature" onClick={() => console.log("Learn more clicked")}>
+          Learn More
+        </ToastAction>
+      ),
+    });
+  };
+
+  const showLoadingToast = () => {
+    const toastId = enhancedToast.loading({
+      title: "Processing...",
+      description: "Please wait while we process your request.",
+    });
+
+    // Simulate async operation
+    setTimeout(() => {
+      toastId.update({
+        variant: "success",
+        title: "Process completed!",
+        description: "Your request has been processed successfully.",
+      });
+    }, 3000);
+  };
+
+  const showPromiseToast = async () => {
+    const myPromise = new Promise((resolve) => {
+      setTimeout(() => resolve({ name: "Project Alpha" }), 2000);
+    });
+
+    await enhancedToast.promise(myPromise, {
+      loading: {
+        title: "Creating project...",
+        description: "Setting up your new project",
+      },
+      success: (data: any) => ({
+        title: `Project "${data.name}" created!`,
+        description: "You can now start adding team members.",
+      }),
+      error: (err: any) => ({
+        title: "Failed to create project",
+        description: err?.message || "Please check your connection and try again.",
+      }),
+    });
+  };
+
+  const showMultipleToasts = () => {
+    enhancedToast.success({ title: "First notification", description: "This is toast #1" });
+    setTimeout(() => {
+      enhancedToast.info({ title: "Second notification", description: "This is toast #2" });
+    }, 500);
+    setTimeout(() => {
+      enhancedToast.warning({ title: "Third notification", description: "This is toast #3" });
+    }, 1000);
+  };
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h3 className="text-lg font-semibold mb-2">Beautiful Toast Notifications</h3>
+        <p className="text-muted-foreground mb-6">
+          Our enhanced toast system features smooth animations, gradient backgrounds, 
+          progress indicators, and interactive actions.
+        </p>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Success Toast</CardTitle>
+            <CardDescription>Shows a success message with action</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button onClick={showSuccessToast} className="w-full" variant="outline">
+              Show Success
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Error Toast</CardTitle>
+            <CardDescription>Displays error with longer duration</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button onClick={showErrorToast} className="w-full" variant="outline">
+              Show Error
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Warning Toast</CardTitle>
+            <CardDescription>Warning that pauses on hover</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button onClick={showWarningToast} className="w-full" variant="outline">
+              Show Warning
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Info Toast</CardTitle>
+            <CardDescription>Informational with action button</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button onClick={showInfoToast} className="w-full" variant="outline">
+              Show Info
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Loading Toast</CardTitle>
+            <CardDescription>Updates from loading to success</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button onClick={showLoadingToast} className="w-full" variant="outline">
+              Show Loading
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Promise Toast</CardTitle>
+            <CardDescription>Handles async operations</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button onClick={showPromiseToast} className="w-full" variant="outline">
+              Show Promise
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Multiple Toasts</CardTitle>
+            <CardDescription>Stack multiple notifications</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button onClick={showMultipleToasts} className="w-full" variant="outline">
+              Show Multiple
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Dismiss All</CardTitle>
+            <CardDescription>Clear all active toasts</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button 
+              onClick={() => enhancedToast.dismissAll()} 
+              className="w-full" 
+              variant="outline"
+            >
+              Dismiss All
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card className="bg-muted/50">
+        <CardHeader>
+          <CardTitle>Toast Features</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2 text-sm">
+          <p>✨ Beautiful gradient backgrounds with glassmorphism effect</p>
+          <p>🎯 Icon animations with scale and rotation effects</p>
+          <p>📊 Progress bar showing auto-dismiss countdown</p>
+          <p>🖱️ Pause on hover functionality</p>
+          <p>🎬 Smooth entrance and exit animations</p>
+          <p>📚 Stack support for multiple notifications</p>
+          <p>🔄 Update toast content dynamically</p>
+          <p>⚡ Promise-based toasts for async operations</p>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
 
 function GoogleSlidesScraper({ onDataExtracted }: { onDataExtracted: (data: ScrapedData[]) => void }) {
   const [isLoading, setIsLoading] = useState(false);
@@ -605,7 +833,12 @@ export default function ToolsPage() {
                   />
                 )}
                 {activeComponent === 'expense-debug' && (
-                  <ExpenseClaimsDebug />
+                  <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-md">
+                    <p className="text-yellow-600">Expense Claims Debug component is not yet implemented</p>
+                  </div>
+                )}
+                {activeComponent === 'toast-demo' && (
+                  <ToastDemo />
                 )}
                 {activeComponent === 'resume' && (
                   <CandidateTextImportTool />

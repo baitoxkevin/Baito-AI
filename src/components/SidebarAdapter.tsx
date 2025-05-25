@@ -2,17 +2,16 @@ import React, { useState, useCallback, useEffect } from "react";
 import { Sidebar, SidebarBody, SidebarLink } from "@/components/ui/sidebar";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
-  LayoutDashboard,
   Settings,
   LogOut,
   Calendar as CalendarIcon,
   Users,
-  ListTodo,
   UserPlus,
   FolderKanban,
   PenTool as Tool,
   Zap,
-  DollarSign
+  DollarSign,
+  CreditCard
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { supabase } from '@/lib/supabase';
@@ -217,14 +216,38 @@ interface SidebarAdapterProps {
 export function SidebarAdapter({ children }: SidebarAdapterProps) {
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [userRole, setUserRole] = useState<string>('staff');
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Set mounted to true after initial render
+  // Set mounted to true after initial render and fetch user role
   useEffect(() => {
     setMounted(true);
+    fetchUserRole();
   }, []);
+
+  // Fetch user role
+  const fetchUserRole = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: userData } = await supabase
+          .from('users')
+          .select('role, is_super_admin')
+          .eq('id', user.id)
+          .single();
+        
+        if (userData) {
+          setUserRole(userData.role || 'staff');
+          setIsSuperAdmin(userData.is_super_admin || false);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching user role:', error);
+    }
+  };
 
   // Handle navigation
   const handleNavigation = useCallback((path: string) => {
@@ -263,23 +286,11 @@ export function SidebarAdapter({ children }: SidebarAdapterProps) {
     return null;
   }
 
+  // Check if user can access admin features
+  const canAccessPayments = userRole === 'admin' || isSuperAdmin;
+
   // Define navigation links
   const links = [
-    {
-      label: "Dashboard",
-      href: "/dashboard",
-      icon: <LayoutDashboard className="sidebar-link-icon" />,
-      onClick: (e) => {
-        e.preventDefault();
-        handleNavigation("/dashboard");
-      },
-      className: cn(
-        "sidebar-link",
-        location.pathname === "/dashboard" && "bg-muted"
-      ),
-      "aria-label": "Go to Dashboard",
-      "aria-current": location.pathname === "/dashboard" ? "page" : undefined
-    },
     {
       label: "Projects",
       href: "/projects",
@@ -296,11 +307,11 @@ export function SidebarAdapter({ children }: SidebarAdapterProps) {
     },
     {
       label: "Calendar",
-      href: "/calendar",
+      href: "/calendar/list",
       icon: <CalendarIcon className="sidebar-link-icon" />,
       onClick: (e) => {
         e.preventDefault();
-        handleNavigation("/calendar");
+        handleNavigation("/calendar/list");
       },
       className: cn(
         "sidebar-link",
@@ -323,20 +334,6 @@ export function SidebarAdapter({ children }: SidebarAdapterProps) {
       "aria-current": location.pathname === "/candidates" ? "page" : undefined,
     },
     {
-      label: "To-Do List",
-      href: "/todo",
-      icon: <ListTodo className="sidebar-link-icon" />,
-      onClick: (e) => {
-        e.preventDefault();
-        handleNavigation("/todo");
-      },
-      className: cn(
-        "sidebar-link",
-        location.pathname === "/todo" && "bg-muted"
-      ),
-      "aria-current": location.pathname === "/todo" ? "page" : undefined,
-    },
-    {
       label: "Tools",
       href: "/tools",
       icon: <Tool className="sidebar-link-icon" />,
@@ -350,6 +347,20 @@ export function SidebarAdapter({ children }: SidebarAdapterProps) {
       ),
       "aria-current": location.pathname === "/tools" ? "page" : undefined,
     },
+    ...(canAccessPayments ? [{
+      label: "Payments",
+      href: "/payments",
+      icon: <CreditCard className="sidebar-link-icon" />,
+      onClick: (e) => {
+        e.preventDefault();
+        handleNavigation("/payments");
+      },
+      className: cn(
+        "sidebar-link",
+        location.pathname === "/payments" && "bg-muted"
+      ),
+      "aria-current": location.pathname === "/payments" ? "page" : undefined,
+    }] : []),
     {
       label: "Settings",
       href: "/settings",
@@ -363,20 +374,6 @@ export function SidebarAdapter({ children }: SidebarAdapterProps) {
         location.pathname === "/settings" && "bg-muted"
       ),
       "aria-current": location.pathname === "/settings" ? "page" : undefined,
-    },
-    {
-      label: "Staff & Payroll Demo",
-      href: "/staffing-payroll-demo",
-      icon: <DollarSign className="sidebar-link-icon" />,
-      onClick: (e) => {
-        e.preventDefault();
-        handleNavigation("/staffing-payroll-demo");
-      },
-      className: cn(
-        "sidebar-link",
-        location.pathname === "/staffing-payroll-demo" && "bg-muted"
-      ),
-      "aria-current": location.pathname === "/staffing-payroll-demo" ? "page" : undefined,
     },
   ];
 

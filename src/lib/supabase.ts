@@ -10,13 +10,33 @@ if (!supabaseUrl || !supabaseAnonKey) {
   );
 }
 
-console.log('Initializing Supabase client with URL:', supabaseUrl);
-
 export const supabase = createClient<Database>(
   supabaseUrl,
   supabaseAnonKey,
-  { db: { schema: 'public' } }
+  { 
+    db: { schema: 'public' },
+    auth: {
+      persistSession: true,
+      detectSessionInUrl: false,
+      autoRefreshToken: true,
+      storageKey: 'baito-auth',
+      storage: window.localStorage
+    },
+    global: {
+      headers: {
+        'x-client-info': 'baito-app/1.0.0'
+      }
+    },
+    realtime: {
+      params: {
+        eventsPerSecond: 10
+      }
+    }
+  }
 );
+
+// Helper type for RPC calls
+export type SupabaseRPC<T = any> = { data: T | null; error: any };
 
 // Function to execute a SQL migration directly
 export const applyMigration = async (sql: string) => {
@@ -25,13 +45,11 @@ export const applyMigration = async (sql: string) => {
     const { error } = await supabase.rpc('exec_sql', { sql });
     
     if (error) {
-      console.error('Migration failed:', error);
       return { success: false, error };
     }
     
     return { success: true, error: null };
   } catch (error) {
-    console.error('Error applying migration:', error);
     return { success: false, error };
   }
 };

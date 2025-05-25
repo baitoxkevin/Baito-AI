@@ -93,7 +93,6 @@ export default function CandidateProjectHistory({
           .select(`
             id,
             project_id,
-            project:projects(title),
             completed_at,
             rating,
             comment,
@@ -113,11 +112,20 @@ export default function CandidateProjectHistory({
         if (historyError) throw historyError;
         
         // Format history data
-        const formattedHistory = historyData.map((entry, index) => ({
+        // Fetch project titles separately
+        const projectIds = [...new Set(historyData.map(h => h.project_id))];
+        const { data: projectsData } = await supabase
+          .from('projects')
+          .select('id, title')
+          .in('id', projectIds);
+        
+        const projectMap = new Map(projectsData?.map(p => [p.id, p.title]) || []);
+        
+        const formattedHistory = historyData.map((entry: any, index) => ({
           id: `${entry.id}-${index}`, // Ensure unique keys by appending index
           original_id: entry.id, // Keep original ID for database operations
           project_id: entry.project_id,
-          project_title: entry.project?.title || 'Unknown Project',
+          project_title: projectMap.get(entry.project_id) || 'Unknown Project',
           completed_at: entry.completed_at,
           rating: entry.rating,
           comment: entry.comment,

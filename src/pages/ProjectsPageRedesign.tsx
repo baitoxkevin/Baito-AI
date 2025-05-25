@@ -299,6 +299,23 @@ export default function ProjectsPageRedesign() {
     return filteredProjects.find(project => isFeatureWorthy(project)) || null;
   }, [filteredProjects]);
   
+  // Calculate today's projects count
+  const todaysProjectsCount = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Reset to start of day
+    
+    return currentMonthProjects.filter(project => {
+      const startDate = new Date(project.start_date);
+      const endDate = project.end_date ? new Date(project.end_date) : startDate;
+      
+      // Reset times for accurate date comparison
+      startDate.setHours(0, 0, 0, 0);
+      endDate.setHours(23, 59, 59, 999);
+      
+      return today >= startDate && today <= endDate;
+    }).length;
+  }, [currentMonthProjects]);
+  
   // Group projects by the selected grouping method
   const groupedProjects = useMemo(() => {
     // Filter out the featured project from the groups
@@ -445,17 +462,7 @@ export default function ProjectsPageRedesign() {
                   </div>
                   
                   <div className="flex-grow flex flex-col justify-center items-center">
-                    {/* Get today's date */}
-                    {(() => {
-                      const today = new Date();
-                      // Filter projects that include today's date
-                      const todaysProjects = currentMonthProjects.filter(project => {
-                        const startDate = new Date(project.start_date);
-                        const endDate = project.end_date ? new Date(project.end_date) : startDate;
-                        return today >= startDate && today <= endDate;
-                      });
-                      return <div className="text-4xl font-bold text-white">{todaysProjects.length}</div>
-                    })()}
+                    <div className="text-4xl font-bold text-white">{todaysProjectsCount}</div>
                   </div>
                   
                   {/* Decorative circle */}

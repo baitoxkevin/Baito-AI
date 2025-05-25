@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -138,6 +138,7 @@ export interface DuitNowPaymentExportProps {
   projectName: string;
   staffPayrollEntries: StaffPaymentEntry[];
   paymentDate: Date;
+  onSuccess?: () => void;
 }
 
 export function DuitNowPaymentExport({
@@ -146,7 +147,8 @@ export function DuitNowPaymentExport({
   projectId,
   projectName,
   staffPayrollEntries,
-  paymentDate
+  paymentDate,
+  onSuccess
 }: DuitNowPaymentExportProps) {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
@@ -173,13 +175,17 @@ export function DuitNowPaymentExport({
     }
   }, [open, projectId]);
   
+  // Memoize staff entries to prevent infinite re-renders
+  const memoizedStaffEntries = useMemo(() => staffPayrollEntries, [staffPayrollEntries.length, JSON.stringify(staffPayrollEntries)]);
+  
   // Effect to load staff details
   useEffect(() => {
     const loadStaffDetails = async () => {
+      console.log('DuitNow Export loading staff details:', memoizedStaffEntries.length);
       setIsLoading(true);
       try {
         // Create initial staff payment details from provided entries
-        const initialDetails = await Promise.all(staffPayrollEntries.map(async (entry) => {
+        const initialDetails = await Promise.all(memoizedStaffEntries.map(async (entry) => {
           // Attempt to fetch additional staff details from database
           let bankCode = entry.bankCode;
           let accountNumber = entry.accountNumber;
@@ -244,10 +250,10 @@ export function DuitNowPaymentExport({
       }
     };
     
-    if (open && staffPayrollEntries.length > 0) {
+    if (open && memoizedStaffEntries.length > 0) {
       loadStaffDetails();
     }
-  }, [open, staffPayrollEntries, toast]);
+  }, [open, memoizedStaffEntries, toast]);
   
   // Calculate staff with missing bank details
   const staffWithMissingDetails = useMemo(() => {
@@ -378,7 +384,7 @@ export function DuitNowPaymentExport({
       const paymentDetails2 = staff.workingSummary?.totalDays ? `${staff.workingSummary.totalDays} days worked` : '';
       
       // Format bank account ID based on bank code
-      let beneficiaryId = staff.accountNumber ? staff.accountNumber.replace(/\s+/g, '') : '';
+      const beneficiaryId = staff.accountNumber ? staff.accountNumber.replace(/\s+/g, '') : '';
       
       // Check if bank code is available, otherwise use a placeholder
       const bankCode = staff.bankCode || (includeAllStaff ? 'MISSING' : '');
@@ -428,6 +434,14 @@ export function DuitNowPaymentExport({
         title: "CSV Generated",
         description: `Generated ${staffPaymentDetails.filter(s => s.selected).length} payment entries`,
       });
+      
+      // Call onSuccess callback if provided
+      if (onSuccess) {
+        onSuccess();
+      }
+      
+      // Close the dialog
+      onOpenChange(false);
     } catch (error) {
       console.error('Error generating CSV:', error);
       toast({

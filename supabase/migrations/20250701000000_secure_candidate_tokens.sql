@@ -18,11 +18,11 @@ CREATE TABLE IF NOT EXISTS candidate_verification_tokens (
 CREATE INDEX IF NOT EXISTS idx_candidate_verification_tokens_token ON candidate_verification_tokens(token);
 CREATE INDEX IF NOT EXISTS idx_candidate_verification_tokens_candidate_id ON candidate_verification_tokens(candidate_id);
 
--- Function to generate a secure token with 24-hour expiration
+-- Function to generate a secure token with 1-hour expiration
 CREATE OR REPLACE FUNCTION generate_candidate_verification_token(
   p_candidate_id UUID,
   p_created_by UUID DEFAULT NULL,
-  p_expiration_hours INTEGER DEFAULT 24
+  p_expiration_hours INTEGER DEFAULT 1
 )
 RETURNS TEXT
 LANGUAGE plpgsql
@@ -168,8 +168,8 @@ AS $$
 DECLARE
   v_token TEXT;
 BEGIN
-  -- Generate token
-  v_token := generate_candidate_verification_token(p_candidate_id, auth.uid(), 24);
+  -- Generate token (defaults to 1 hour)
+  v_token := generate_candidate_verification_token(p_candidate_id, auth.uid());
   
   -- Return full URL
   RETURN p_base_url || p_candidate_id || '?secure_token=' || v_token;

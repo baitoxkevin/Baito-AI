@@ -233,11 +233,11 @@ export default function CalendarPage() {
       // Always show loading state for initial load
       setIsLoading(true);
       
-      // ALWAYS set a wider months range on initial load to show more projects
-      // especially for the current month (May) which might not have projects
-      const initialMonthsRange = { start: -12, end: 12 }; // Show 12 months before/after (full two-year range)
+      // Start with a smaller range for faster initial load
+      // List view will load more as needed when scrolling
+      const initialMonthsRange = { start: -2, end: 2 }; // Show 2 months before/after initially
       setLoadedMonthsRange(initialMonthsRange);
-      setViewMonthsCount(25); // Current month + 12 past + 12 future
+      setViewMonthsCount(5); // Current month + 2 past + 2 future
       
       // Track the earliest month with projects for auto-scrolling
       let earliestMonthWithProjects = null;
@@ -245,39 +245,19 @@ export default function CalendarPage() {
       
       // Delay loading slightly to ensure state updates
       setTimeout(() => {
-        // Special handling for initial load to fetch a wider range of projects
+        // Special handling for initial load - load only nearby months for faster initial render
         if (view === 'list') {
-          // For list view, load multiple months in parallel
-          // Increased range to ±6 months to ensure we capture more history
+          // For list view, load only essential months initially
+          // ListView will handle loading more months as user scrolls
           Promise.all([
             // Load current month
             getProjectsByMonth(date.getMonth(), date.getFullYear()),
-            // Load previous months (expanded range to full year)
+            // Load 2 previous months for context
             getProjectsByMonth(date.getMonth() - 1, date.getFullYear()),
             getProjectsByMonth(date.getMonth() - 2, date.getFullYear()),
-            getProjectsByMonth(date.getMonth() - 3, date.getFullYear()),
-            getProjectsByMonth(date.getMonth() - 4, date.getFullYear()),
-            getProjectsByMonth(date.getMonth() - 5, date.getFullYear()),
-            getProjectsByMonth(date.getMonth() - 6, date.getFullYear()),
-            getProjectsByMonth(date.getMonth() - 7, date.getFullYear()),
-            getProjectsByMonth(date.getMonth() - 8, date.getFullYear()),
-            getProjectsByMonth(date.getMonth() - 9, date.getFullYear()),
-            getProjectsByMonth(date.getMonth() - 10, date.getFullYear()),
-            getProjectsByMonth(date.getMonth() - 11, date.getFullYear()),
-            getProjectsByMonth(date.getMonth() - 12, date.getFullYear()),
-            // Load future months (expanded to ±12 months - full year)
+            // Load 2 future months for upcoming projects
             getProjectsByMonth(date.getMonth() + 1, date.getFullYear()),
-            getProjectsByMonth(date.getMonth() + 2, date.getFullYear()),
-            getProjectsByMonth(date.getMonth() + 3, date.getFullYear()),
-            getProjectsByMonth(date.getMonth() + 4, date.getFullYear()),
-            getProjectsByMonth(date.getMonth() + 5, date.getFullYear()),
-            getProjectsByMonth(date.getMonth() + 6, date.getFullYear()),
-            getProjectsByMonth(date.getMonth() + 7, date.getFullYear()),
-            getProjectsByMonth(date.getMonth() + 8, date.getFullYear()),
-            getProjectsByMonth(date.getMonth() + 9, date.getFullYear()),
-            getProjectsByMonth(date.getMonth() + 10, date.getFullYear()),
-            getProjectsByMonth(date.getMonth() + 11, date.getFullYear()),
-            getProjectsByMonth(date.getMonth() + 12, date.getFullYear())
+            getProjectsByMonth(date.getMonth() + 2, date.getFullYear())
           ]).then(results => {
             // Combine all projects, removing duplicates
             const allProjects = [];
@@ -287,9 +267,10 @@ export default function CalendarPage() {
             results.forEach((monthProjects, index) => {
               if (monthProjects.length > 0) {
                 // Calculate the month index relative to current month
+                // Index mapping: 0=current, 1=-1month, 2=-2months, 3=+1month, 4=+2months
                 const monthOffset = index === 0 ? 0 : 
-                                    index <= 7 ? -(index) : // Previous months indices 1-7
-                                    (index - 7); // Future months indices 8-10
+                                    index <= 2 ? -(index) : // Previous months indices 1-2
+                                    (index - 2); // Future months indices 3-4
                                     
                 // Track earliest month with projects (most negative offset)
                 if (earliestMonthWithProjects === null || monthOffset < earliestMonthWithProjects) {
@@ -397,11 +378,12 @@ export default function CalendarPage() {
       // Initialize with current projects (even if empty)
       setExtendedProjects(projects);
       
-      // Set a wider months range for list view to improve initial data display
-      if (view === 'list') {
-        setLoadedMonthsRange({ start: -12, end: 12 });
-        setViewMonthsCount(25); // Current month + 12 past + 12 future
-      } else {
+      // Keep the initial smaller range - ListView will load more as needed
+      // This avoids overriding our optimization from the initial load
+      if (view === 'list' && loadedMonthsRange.start === -2 && loadedMonthsRange.end === 2) {
+        // Keep the optimized initial range
+        console.log("Keeping optimized initial month range for list view");
+      } else if (view === 'calendar') {
         // For calendar view, use smaller range
         setLoadedMonthsRange({ start: -3, end: 3 }); // Increased to ±3 months
       }
@@ -1137,31 +1119,35 @@ export default function CalendarPage() {
       // Update the range
       newRange.start -= availableMonths;
       
-      // Load the data for the newly added months
+      // Load the data for the newly added months in parallel
+      const loadPromises = [];
       for (let i = 1; i <= availableMonths; i++) {
         const monthToLoad = loadedMonthsRange.start - i;
         const targetDate = addMonths(date, monthToLoad);
         const targetMonth = targetDate.getMonth();
         const targetYear = targetDate.getFullYear();
         
-        setIsLoading(true);
-        try {
-          console.log(`Loading past month: ${targetMonth}/${targetYear}`);
-          const pastMonthData = await getProjectsByMonth(targetMonth, targetYear);
-          
-          // Add these projects to our extended list, avoiding duplicates
-          if (pastMonthData.length > 0) {
-            setExtendedProjects(prev => {
-              const existingIds = new Set(prev.map(p => p.id));
-              const newProjects = pastMonthData.filter(p => !existingIds.has(p.id));
-              return [...newProjects, ...prev];
-            });
-          }
-        } catch (error) {
-          console.error(`Error loading past months: ${error}`);
-        } finally {
-          setIsLoading(false);
+        console.log(`Queuing past month: ${targetMonth}/${targetYear}`);
+        loadPromises.push(getProjectsByMonth(targetMonth, targetYear));
+      }
+      
+      try {
+        // Load all months in parallel
+        const results = await Promise.all(loadPromises);
+        
+        // Combine all results
+        const allNewProjects = results.flat();
+        
+        // Add these projects to our extended list, avoiding duplicates
+        if (allNewProjects.length > 0) {
+          setExtendedProjects(prev => {
+            const existingIds = new Set(prev.map(p => p.id));
+            const newProjects = allNewProjects.filter(p => !existingIds.has(p.id));
+            return [...newProjects, ...prev];
+          });
         }
+      } catch (error) {
+        console.error(`Error loading past months: ${error}`);
       }
     } else {
       // Don't allow going too far into the future
@@ -1177,7 +1163,8 @@ export default function CalendarPage() {
       // Update the range
       newRange.end += availableMonths;
       
-      // Load the data for the newly added months
+      // Load the data for the newly added months in parallel
+      const loadPromises = [];
       for (let i = 1; i <= availableMonths; i++) {
         const monthToLoad = loadedMonthsRange.end + i;
         const targetDate = addMonths(date, monthToLoad);
@@ -1190,24 +1177,27 @@ export default function CalendarPage() {
           continue;
         }
         
-        setIsLoading(true);
-        try {
-          console.log(`Loading future month: ${targetMonth}/${targetYear}`);
-          const futureMonthData = await getProjectsByMonth(targetMonth, targetYear);
-          
-          // Add these projects to our extended list, avoiding duplicates
-          if (futureMonthData.length > 0) {
-            setExtendedProjects(prev => {
-              const existingIds = new Set(prev.map(p => p.id));
-              const newProjects = futureMonthData.filter(p => !existingIds.has(p.id));
-              return [...prev, ...newProjects];
-            });
-          }
-        } catch (error) {
-          console.error(`Error loading future months: ${error}`);
-        } finally {
-          setIsLoading(false);
+        console.log(`Queuing future month: ${targetMonth}/${targetYear}`);
+        loadPromises.push(getProjectsByMonth(targetMonth, targetYear));
+      }
+      
+      try {
+        // Load all months in parallel
+        const results = await Promise.all(loadPromises);
+        
+        // Combine all results
+        const allNewProjects = results.flat();
+        
+        // Add these projects to our extended list, avoiding duplicates
+        if (allNewProjects.length > 0) {
+          setExtendedProjects(prev => {
+            const existingIds = new Set(prev.map(p => p.id));
+            const newProjects = allNewProjects.filter(p => !existingIds.has(p.id));
+            return [...prev, ...newProjects];
+          });
         }
+      } catch (error) {
+        console.error(`Error loading future months: ${error}`);
       }
     }
     

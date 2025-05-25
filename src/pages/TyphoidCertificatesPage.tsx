@@ -55,8 +55,12 @@ export default function TyphoidCertificatesPage() {
       if (error) throw error;
 
       if (data) {
-        setCandidates(data);
-        setFilteredCandidates(data);
+        const typedCandidates: Candidate[] = data.map(item => ({
+          ...item,
+          custom_fields: (item.custom_fields as any) || {}
+        }));
+        setCandidates(typedCandidates);
+        setFilteredCandidates(typedCandidates);
       }
     } catch (error) {
       console.error('Error fetching candidates:', error);

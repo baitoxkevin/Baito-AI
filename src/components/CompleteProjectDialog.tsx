@@ -21,7 +21,8 @@ import {
   ArrowLeft,
   ArrowRight,
   Ban,
-  Search
+  Search,
+  User
 } from 'lucide-react';
 import { Project } from '@/lib/types';
 import { cn } from '@/lib/utils';

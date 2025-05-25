@@ -28,6 +28,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -43,6 +44,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   PayrollManagerProps,
@@ -71,6 +73,7 @@ import {
 } from './utils';
 import {
   CalendarDays,
+  CalendarIcon as CalendarPicker,
   Pencil,
   DollarSign,
   Calendar as CalendarIcon,
@@ -274,6 +277,9 @@ export default function PayrollManager({
   // DuitNow Payment Export dialog state
   const [showDuitNowExport, setShowDuitNowExport] = useState(false);
   
+  // Payment date selector state
+  const [selectedPaymentDate, setSelectedPaymentDate] = useState<Date>(new Date());
+  
   // Adding debug logging for dialog state changes
   useEffect(() => {
     console.log('DuitNow Export dialog state changed:', showDuitNowExport);
@@ -320,7 +326,7 @@ export default function PayrollManager({
         return staff;
       }
 
-      let workingDatesWithSalary = staff.workingDatesWithSalary || [];
+      const workingDatesWithSalary = staff.workingDatesWithSalary || [];
       
       // Check if every workingDate has a corresponding workingDatesWithSalary entry
       const needsUpdate = staff.workingDates.some(workingDate => {
@@ -665,10 +671,22 @@ export default function PayrollManager({
       return;
     }
     
-    // Prepare payroll data for export
+    // Get only selected staff that haven't been pushed yet
+    const selectedStaffMembers = confirmedStaff.filter(staff => staff.selected && staff.paymentStatus !== 'pushed');
+    
+    if (selectedStaffMembers.length === 0) {
+      toast({
+        title: "No Staff Selected",
+        description: "Please select at least one unpushed staff member for payment",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    // Prepare payroll data for export with only selected staff
     const payrollData: PayrollData = {
       projectId: effectiveProjectId,
-      staffPayroll: confirmedStaff.map(staff => {
+      staffPayroll: selectedStaffMembers.map(staff => {
         const staffName = staff.name || 'Unknown Staff';
         return {
           staffId: staff.id,
@@ -687,12 +705,39 @@ export default function PayrollManager({
           workingDatesWithSalary: staff.workingDatesWithSalary || []
         };
       }),
-      totalAmount: projectSummary.totalAmount,
-      paymentDate: new Date()
+      totalAmount: selectedStaffMembers.reduce((sum, staff) => {
+        const summary = staffSummaries.find(s => s.name === (staff.name || 'Unknown Staff'));
+        return sum + (summary?.totalAmount || 0);
+      }, 0),
+      paymentDate: selectedPaymentDate
     };
     
     // Open the DuitNow payment export dialog
     setShowDuitNowExport(true);
+  };
+  
+  // Handle successful payment push
+  const handlePaymentPushed = () => {
+    // Mark selected staff as pushed with the payment date
+    const updatedStaff = confirmedStaff.map(staff => {
+      if (staff.selected && staff.paymentStatus !== 'pushed') {
+        return {
+          ...staff,
+          paymentStatus: 'pushed' as const,
+          paymentDate: selectedPaymentDate,
+          selected: false // Deselect after pushing
+        };
+      }
+      return staff;
+    });
+    
+    setConfirmedStaff(updatedStaff);
+    
+    toast({
+      title: "Payment Pushed",
+      description: `Payment successfully pushed for ${updatedStaff.filter(s => s.paymentStatus === 'pushed' && s.paymentDate?.getTime() === selectedPaymentDate.getTime()).length} staff members`,
+      variant: "default"
+    });
   };
 
   // Render staff summary card with enhanced readability
@@ -783,45 +828,78 @@ export default function PayrollManager({
               {/* Keyboard Instructions Removed */}
               
               {/* NEW: Direct Action Button Bar */}
-              <div className="mb-6 p-4 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/10 dark:to-purple-900/10 rounded-lg border border-blue-100 dark:border-blue-800 flex justify-between items-center">
-                <div>
-                  <h3 className="font-bold text-blue-800 dark:text-blue-300">Bulk Actions</h3>
-                  <p className="text-sm text-blue-600 dark:text-blue-400">Apply changes to multiple staff members at once</p>
+              <div className="mb-6 p-4 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/10 dark:to-purple-900/10 rounded-lg border border-blue-100 dark:border-blue-800">
+                <div className="flex justify-between items-start mb-4">
+                  <div>
+                    <h3 className="font-bold text-blue-800 dark:text-blue-300">Bulk Actions</h3>
+                    <p className="text-sm text-blue-600 dark:text-blue-400">Apply changes to multiple staff members at once</p>
+                  </div>
+                  <div className="flex gap-3">
+                    <Button
+                      onClick={() => {
+                        console.log("New Set Basic Salary button clicked!");
+                        // Set default selections
+                        setSelectedStaffForBasic(confirmedStaff.map(s => s.id));
+                        // Force open the dialog
+                        setTimeout(() => {
+                          setIsSetBasicDialogOpen(true);
+                        }, 0);
+                      }}
+                      className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold shadow-md hover:shadow-lg"
+                    >
+                      <DollarSign className="w-4 h-4 mr-2" />
+                      Set Basic Salary
+                    </Button>
+                    <Button
+                      onClick={savePayroll}
+                      className="save-payroll-button bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-md hover:shadow-lg"
+                    >
+                      <Save className="w-4 h-4 mr-2" />
+                      Save Changes
+                    </Button>
+                  </div>
                 </div>
-                <div className="flex gap-3">
+                
+                {/* Payment Section */}
+                <div className="border-t border-blue-200 dark:border-blue-700 pt-4 flex justify-between items-center">
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2">
+                      <Label className="text-sm font-medium text-blue-700 dark:text-blue-300">Payment Date:</Label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button variant="outline" className="w-[150px] justify-start text-left font-normal">
+                            <CalendarPicker className="mr-2 h-4 w-4" />
+                            {format(selectedPaymentDate, "MMM d, yyyy")}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <CalendarComponent
+                            mode="single"
+                            selected={selectedPaymentDate}
+                            onSelect={(date) => date && setSelectedPaymentDate(date)}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                    <div className="text-xs text-blue-600 dark:text-blue-400">
+                      Selected: {confirmedStaff.filter(s => s.selected && s.paymentStatus !== 'pushed').length} staff ready for payment
+                    </div>
+                  </div>
                   <Button
                     onClick={() => {
-                      console.log("New Set Basic Salary button clicked!");
-                      // Set default selections
-                      setSelectedStaffForBasic(confirmedStaff.map(s => s.id));
-                      // Force open the dialog
-                      setTimeout(() => {
-                        setIsSetBasicDialogOpen(true);
-                      }, 0);
-                    }}
-                    className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold shadow-md hover:shadow-lg"
-                  >
-                    <DollarSign className="w-4 h-4 mr-2" />
-                    Set Basic Salary
-                  </Button>
-                  <Button
-                    onClick={() => {
-                      console.log("DuitNow Payment button clicked");
+                      console.log("Push Payment button clicked");
                       handleExportDuitNowPayment();
                       console.log("showDuitNowExport set to:", true);
                     }}
                     className="bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-md hover:shadow-lg"
-                    disabled={projectSummary.totalAmount <= 0}
+                    disabled={
+                      projectSummary.totalAmount <= 0 || 
+                      confirmedStaff.filter(s => s.selected && s.paymentStatus !== 'pushed').length === 0
+                    }
                   >
                     <FileText className="w-4 h-4 mr-2" />
-                    DuitNow Payment
-                  </Button>
-                  <Button
-                    onClick={savePayroll}
-                    className="save-payroll-button bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-md hover:shadow-lg"
-                  >
-                    <Save className="w-4 h-4 mr-2" />
-                    Save Changes
+                    Push Payment
                   </Button>
                 </div>
               </div>
@@ -830,7 +908,21 @@ export default function PayrollManager({
                 <TableHeader>
                   <TableRow>
                     <TableHead className="font-bold cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800" onClick={() => handleSort('staff')}>
-                      Staff
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          checked={confirmedStaff.length > 0 && confirmedStaff.filter(s => s.paymentStatus !== 'pushed').every(s => s.selected)}
+                          onCheckedChange={(checked) => {
+                            const updatedStaff = confirmedStaff.map(s => {
+                              // Only allow selection of staff that haven't been pushed
+                              if (s.paymentStatus === 'pushed') return s;
+                              return { ...s, selected: !!checked };
+                            });
+                            setConfirmedStaff(updatedStaff);
+                          }}
+                          className="mr-2"
+                        />
+                        Staff
+                      </div>
                     </TableHead>
                     <TableHead className="font-bold text-center cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800" onClick={() => handleSort('position')}>
                       Position
@@ -844,6 +936,7 @@ export default function PayrollManager({
                     <TableHead className="font-bold text-center cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800" onClick={() => handleSort('totalAmount')}>
                       Total Amount
                     </TableHead>
+                    <TableHead className="font-bold text-center">Payment Status</TableHead>
                     <TableHead className="font-bold text-center">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -857,6 +950,21 @@ export default function PayrollManager({
                       <TableRow key={staff.id}>
                         <TableCell className="font-medium">
                           <div className="flex items-center space-x-2">
+                            <Checkbox
+                              checked={staff.selected || false}
+                              disabled={staff.paymentStatus === 'pushed'}
+                              onCheckedChange={(checked) => {
+                                if (staff.paymentStatus === 'pushed') return;
+                                const updatedStaff = confirmedStaff.map(s => {
+                                  if (s.id === staff.id) {
+                                    return { ...s, selected: !!checked };
+                                  }
+                                  return s;
+                                });
+                                setConfirmedStaff(updatedStaff);
+                              }}
+                              className="mr-2"
+                            />
                             <Avatar className="h-7 w-7">
                               {staff.photo ? (
                                 <AvatarImage src={staff.photo} alt={staff.name || 'Staff'} />
@@ -866,7 +974,9 @@ export default function PayrollManager({
                                 </AvatarFallback>
                               )}
                             </Avatar>
-                            <span>{staff.name || 'Unknown'}</span>
+                            <span className={staff.paymentStatus === 'pushed' ? 'text-gray-500' : ''}>
+                              {staff.name || 'Unknown'}
+                            </span>
                           </div>
                         </TableCell>
                         <TableCell className="text-center">{staff.designation || '-'}</TableCell>
@@ -876,6 +986,24 @@ export default function PayrollManager({
                           <Badge className="bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 border-0">
                             RM {summary.totalAmount.toLocaleString()}
                           </Badge>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {staff.paymentStatus === 'pushed' ? (
+                            <div className="flex flex-col items-center gap-1">
+                              <Badge className="bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 border-0">
+                                Pushed
+                              </Badge>
+                              {staff.paymentDate && (
+                                <span className="text-xs text-gray-500">
+                                  {format(staff.paymentDate, "MMM d, yyyy")}
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <Badge className="bg-gray-100 dark:bg-gray-900/40 text-gray-700 dark:text-gray-300 border-0">
+                              Pending
+                            </Badge>
+                          )}
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-1">
@@ -1538,7 +1666,7 @@ export default function PayrollManager({
         onOpenChange={setShowDuitNowExport}
         projectId={effectiveProjectId}
         projectName="Project Name" // You may need to pass the actual project name
-        staffPayrollEntries={confirmedStaff.map(staff => {
+        staffPayrollEntries={confirmedStaff.filter(staff => staff.selected && staff.paymentStatus !== 'pushed').map(staff => {
           const staffName = staff.name || 'Unknown Staff';
           return {
             staffId: staff.id,
@@ -1548,7 +1676,8 @@ export default function PayrollManager({
             workingDatesWithSalary: staff.workingDatesWithSalary || []
           };
         })}
-        paymentDate={new Date()}
+        paymentDate={selectedPaymentDate}
+        onSuccess={handlePaymentPushed}
       />
     </div>
   );

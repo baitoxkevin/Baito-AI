@@ -39,7 +39,7 @@ export function CandidateActionButton({
     try {
       // Use secure token generation if requested
       if (useSecureToken) {
-        const { data: secureUrl, error } = await supabase.rpc("generate_secure_candidate_token", {
+        const { data: secureUrl, error } = await supabase.rpc("generate_candidate_verification_token", {
           p_candidate_id: candidateId
         });
 
@@ -62,7 +62,7 @@ export function CandidateActionButton({
         const lastFour = cleanIC.slice(-4);
         // Using window.location.origin to get the base URL dynamically
         const baseUrl = window.location.origin;
-        return `${baseUrl}/candidate-update/${candidateId}?code=${lastFour}`;
+        return `${baseUrl}/candidate-update-mobile/${candidateId}?code=${lastFour}`;
       }
 
       // Otherwise use the database function to generate the URL

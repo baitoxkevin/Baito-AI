@@ -12,11 +12,11 @@ import CalendarPage from '@/pages/CalendarPage';
 import ToolsPage from '@/pages/ToolsPage';
 import ProjectsPageRedesign from '@/pages/ProjectsPageRedesign';
 import InvitesPage from '@/pages/InvitesPage';
-import TodoPage from '@/pages/TodoPage';
 import CandidatesPage from '@/pages/CandidatesPage';
 import SettingsPage from '@/pages/SettingsPage';
 import TeamManagementPage from '@/pages/TeamManagementPage';
 import ProjectDetailPage from '@/pages/ProjectDetailPage';
+import PaymentsPage from '@/pages/PaymentsPage';
 
 interface MainAppLayoutProps {
   effectActive: boolean;
@@ -38,11 +38,11 @@ const MainAppLayout = ({ effectActive }: MainAppLayoutProps) => {
     if (pathname.startsWith('/projects')) return 'projects';
     if (pathname.startsWith('/calendar')) return 'calendar';
     if (pathname.startsWith('/candidates')) return 'candidates';
-    if (pathname.startsWith('/todo')) return 'todo';
     if (pathname.startsWith('/tools')) return 'tools';
     if (pathname.startsWith('/settings')) return 'settings';
     if (pathname.startsWith('/team')) return 'team';
     if (pathname.startsWith('/invites')) return 'invites';
+    if (pathname.startsWith('/payments')) return 'payments';
     
     return 'dashboard'; // default
   };
@@ -148,11 +148,6 @@ const MainAppLayout = ({ effectActive }: MainAppLayoutProps) => {
               <InvitesPage />
             </div>
           )}
-          {activeView === 'todo' && (
-            <div style={{ height: '100%' }}>
-              <TodoPage />
-            </div>
-          )}
           {activeView === 'candidates' && (
             <div style={{ height: '100%' }}>
               <CandidatesPage />
@@ -166,6 +161,11 @@ const MainAppLayout = ({ effectActive }: MainAppLayoutProps) => {
           {activeView === 'team' && (
             <div style={{ height: '100%' }}>
               <TeamManagementPage />
+            </div>
+          )}
+          {activeView === 'payments' && (
+            <div style={{ height: '100%' }}>
+              <PaymentsPage />
             </div>
           )}
           {activeView === 'project-detail' && projectId && (

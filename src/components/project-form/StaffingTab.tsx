@@ -35,7 +35,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getStatusBadgeStyle } from './ProjectFormUtils';
 import { useToast, toast as toastFn } from "@/hooks/use-toast";
 import { WorkingDatePicker, WorkingDateWithSalary } from "@/components/ui/working-date-picker";
-import { UserPlus, X, UserCheck, CalendarDays, AlertCircle, Menu, Check, ClockIcon, Calendar, CheckCircle, Users } from "lucide-react";
+import { UserPlus, X, UserCheck, CalendarDays, AlertCircle, GripVertical, Check, ClockIcon, Calendar, CheckCircle, Users } from "lucide-react";
 import { checkStaffScheduleConflicts, getProjectStaffConflicts } from "@/lib/staff-scheduling-validator";
 import { format } from "date-fns";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
@@ -43,6 +43,25 @@ import { ConflictAlert, ConflictSummary } from "@/components/ui/conflict-alert";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
 import { AddCandidateRedesigned } from "./AddCandidateRedesigned";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import {
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 interface StaffMember {
   id: string;
@@ -85,7 +104,179 @@ interface ScheduleConflict {
   projectTitle: string;
 }
 
-// Regular Applicant Row component removed as it's now inline in the main component
+// Helper function to get initials from name
+const getInitials = (name: string) => {
+  return name
+    .split(' ')
+    .map(word => word[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2);
+};
+
+// Sortable Staff Row Component
+interface SortableStaffRowProps {
+  staff: StaffMember;
+  index: number;
+  editingPositionId: string | null;
+  setEditingPositionId: (id: string | null) => void;
+  onUpdatePosition: (staffId: string, position: string) => void;
+  onWorkingDatesClick: (staff: StaffMember) => void;
+  onRemoveStaff: (staffId: string) => void;
+  conflicts?: ScheduleConflict[];
+}
+
+const SortableStaffRow: React.FC<SortableStaffRowProps> = ({
+  staff,
+  index,
+  editingPositionId,
+  setEditingPositionId,
+  onUpdatePosition,
+  onWorkingDatesClick,
+  onRemoveStaff,
+  conflicts
+}) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: staff.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <TableRow 
+      ref={setNodeRef} 
+      style={style}
+      className={cn(
+        "hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-all duration-200",
+        isDragging && "shadow-lg bg-slate-50 dark:bg-slate-800"
+      )}
+    >
+      <TableCell className="py-2 pr-0 pl-2">
+        <button
+          className="cursor-grab active:cursor-grabbing touch-none p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded"
+          {...attributes}
+          {...listeners}
+        >
+          <GripVertical className="h-4 w-4 text-slate-400" />
+        </button>
+      </TableCell>
+      <TableCell className="font-medium py-2">
+        <div className="flex items-center space-x-2 pl-3">
+          <Avatar className="h-7 w-7 border border-white dark:border-slate-700 shadow-sm">
+            {staff.photo && typeof staff.photo === 'string' && staff.photo.startsWith('http') ? (
+              <AvatarImage src={staff.photo} alt={staff.name} />
+            ) : (
+              <AvatarFallback className="bg-gradient-to-br from-indigo-500 to-purple-500 text-white text-xs font-semibold">
+                {getInitials(staff.name)}
+              </AvatarFallback>
+            )}
+          </Avatar>
+          <span className="font-medium text-slate-900 dark:text-slate-100">{staff.name}</span>
+        </div>
+      </TableCell>
+      <TableCell className="text-center font-medium text-indigo-600 dark:text-indigo-400">
+        <Select
+          value={staff.designation || 'Crew'}
+          onValueChange={(value) => onUpdatePosition(staff.id, value)}
+        >
+          <SelectTrigger className="w-[120px] h-8 text-sm border-0 bg-transparent hover:bg-indigo-50 dark:hover:bg-indigo-900/20 text-center [&>svg]:hidden">
+            <span className="w-full text-center">{staff.designation || 'Crew'}</span>
+          </SelectTrigger>
+          <SelectContent align="center">
+            <SelectItem value="Crew">Crew</SelectItem>
+            <SelectItem value="Supervisor">Supervisor</SelectItem>
+            <SelectItem value="Lead">Lead</SelectItem>
+            <SelectItem value="BA">BA</SelectItem>
+            <SelectItem value="Promoter">Promoter</SelectItem>
+          </SelectContent>
+        </Select>
+      </TableCell>
+      <TableCell className="text-center">
+        <div className="flex items-center justify-center gap-2">
+          <Badge className="bg-gradient-to-r from-emerald-500 to-teal-500 text-white px-3 py-1 font-medium shadow-sm">
+            <CheckCircle className="w-3 h-3 mr-1" />
+            Confirmed
+          </Badge>
+          {conflicts && conflicts.length > 0 && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="text-rose-500 dark:text-rose-400 animate-pulse">
+                    <AlertCircle className="h-4 w-4" />
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent className="w-64">
+                  <p className="font-semibold text-rose-600">⚠️ Scheduling Conflicts</p>
+                  <p className="text-sm mt-1">This staff member has conflicts with other projects</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+        </div>
+      </TableCell>
+      <TableCell className="text-center">
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div 
+                onClick={() => onWorkingDatesClick(staff)}
+                className="inline-flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 p-2 rounded-lg border border-blue-200 dark:border-blue-700 cursor-pointer hover:scale-105 transition-transform duration-200"
+              >
+                <div className="relative">
+                  <CalendarDays className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                  {staff.workingDatesWithSalary && staff.workingDatesWithSalary.length > 0 && (
+                    <div className="absolute -top-2 -right-2 flex h-5 w-5 items-center justify-center rounded-full bg-white dark:bg-slate-800 border-2 border-blue-500 dark:border-blue-400">
+                      <span className="text-[10px] font-bold text-blue-700 dark:text-blue-300">
+                        {staff.workingDatesWithSalary.length}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent>
+              {staff.workingDatesWithSalary && staff.workingDatesWithSalary.length > 0 
+                ? <p>{staff.workingDatesWithSalary.length} working day{staff.workingDatesWithSalary.length !== 1 ? 's' : ''} - Click to edit</p>
+                : <p>Set working schedule for this staff member</p>
+              }
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      </TableCell>
+      <TableCell className="text-center">
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={async (e) => {
+                  e.stopPropagation();
+                  await onRemoveStaff(staff.id);
+                }}
+                className="h-8 w-8 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/20"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Move back to applicants list</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      </TableCell>
+    </TableRow>
+  );
+};
 
 const StaffingTab = ({
   confirmedStaff: confirmedStaffProp = [],
@@ -135,6 +326,73 @@ const StaffingTab = ({
     designation?: string;
     photo?: string;
   }>>([]);
+  
+  // Drag and drop sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+  
+  // Handle drag end
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    
+    if (!over || active.id === over.id) {
+      return;
+    }
+    
+    const oldIndex = confirmedStaff.findIndex((staff) => staff.id === active.id);
+    const newIndex = confirmedStaff.findIndex((staff) => staff.id === over.id);
+    
+    if (oldIndex === -1 || newIndex === -1) {
+      return;
+    }
+    
+    const newConfirmedStaff = arrayMove(confirmedStaff, oldIndex, newIndex);
+    setConfirmedStaff(newConfirmedStaff);
+    
+    // Update database if projectId is provided
+    if (projectId) {
+      try {
+        const { error } = await supabase
+          .from('projects')
+          .update({
+            staff: newConfirmedStaff.map((staff, index) => ({
+              candidate_id: staff.id,
+              name: staff.name,
+              photo: staff.photo,
+              position: staff.designation,
+              status: staff.status,
+              working_dates: staff.workingDates,
+              working_dates_with_salary: staff.workingDatesWithSalary,
+              order: index // Save the order
+            }))
+          })
+          .eq('id', projectId);
+          
+        if (error) throw error;
+        
+        toast({
+          title: "Staff order updated",
+          description: "The staff order has been saved",
+          variant: "default"
+        });
+      } catch (error) {
+        console.error('[StaffingTab] Error updating staff order:', error);
+        toast({
+          title: "Error",
+          description: "Failed to save staff order",
+          variant: "destructive"
+        });
+      }
+    }
+  };
   
   // Standalone implementation for adding applicants
   const effectiveHandleAddApplicant = async (applicant: StaffMember) => {
@@ -878,163 +1136,59 @@ const StaffingTab = ({
         </div>
         {confirmedStaff.length > 0 ? (
           <div className="bg-white dark:bg-slate-900/60 rounded-xl shadow-xl overflow-hidden backdrop-blur-sm border border-slate-200/50 dark:border-slate-700/50">
-            <Table>
-              <TableHeader className="bg-gradient-to-r from-indigo-50 via-purple-50 to-pink-50 dark:from-indigo-950/30 dark:via-purple-950/30 dark:to-pink-950/30">
-                <TableRow className="border-b-2 border-indigo-100 dark:border-indigo-800">
-                  <TableHead className="font-bold w-[35%] text-slate-700 dark:text-slate-300 pl-6">Staff</TableHead>
-                  <TableHead className="font-bold text-center w-[15%] text-slate-700 dark:text-slate-300">Position</TableHead>
-                  <TableHead className="font-bold text-center w-[15%] text-slate-700 dark:text-slate-300">Status</TableHead>
-                  <TableHead className="font-bold text-center w-[15%] text-slate-700 dark:text-slate-300">Schedule</TableHead>
-                  <TableHead className="font-bold text-center w-[20%] text-slate-700 dark:text-slate-300">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {confirmedStaff.map(staff => {
-                  const hasConflicts = staffConflicts[staff.id]?.conflicts?.length > 0;
-                  const workingDaysCount = staff.workingDatesWithSalary?.length || 0;
-                  return (
-                    <TableRow key={staff.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-all duration-200">
-                      <TableCell className="font-medium py-2">
-                        <div className="flex items-center space-x-2 pl-3">
-                          <Avatar className="h-7 w-7 border border-white dark:border-slate-700 shadow-sm">
-                            {staff.photo && typeof staff.photo === 'string' && staff.photo.startsWith('http') ? (
-                              <AvatarImage src={staff.photo} alt={staff.name} />
-                            ) : (
-                              <AvatarFallback className="bg-gradient-to-br from-indigo-500 to-purple-500 text-white text-xs font-semibold">
-                                {getInitials(staff.name)}
-                              </AvatarFallback>
-                            )}
-                          </Avatar>
-                          <span className="font-medium text-slate-900 dark:text-slate-100">{staff.name}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-center font-medium text-indigo-600 dark:text-indigo-400">
-                        <Select
-                          value={staff.designation || 'Crew'}
-                          onValueChange={(value) => {
+            <DndContext 
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <Table>
+                <TableHeader className="bg-gradient-to-r from-indigo-50 via-purple-50 to-pink-50 dark:from-indigo-950/30 dark:via-purple-950/30 dark:to-pink-950/30">
+                  <TableRow className="border-b-2 border-indigo-100 dark:border-indigo-800">
+                    <TableHead className="font-bold w-[5%] text-slate-700 dark:text-slate-300"></TableHead>
+                    <TableHead className="font-bold w-[30%] text-slate-700 dark:text-slate-300 pl-6">Staff</TableHead>
+                    <TableHead className="font-bold text-center w-[15%] text-slate-700 dark:text-slate-300">Position</TableHead>
+                    <TableHead className="font-bold text-center w-[15%] text-slate-700 dark:text-slate-300">Status</TableHead>
+                    <TableHead className="font-bold text-center w-[15%] text-slate-700 dark:text-slate-300">Schedule</TableHead>
+                    <TableHead className="font-bold text-center w-[20%] text-slate-700 dark:text-slate-300">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <SortableContext 
+                    items={confirmedStaff.map(s => s.id)}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    {confirmedStaff.map((staff, index) => {
+                      const hasConflicts = staffConflicts[staff.id]?.conflicts?.length > 0;
+                      const workingDaysCount = staff.workingDatesWithSalary?.length || 0;
+                      return (
+                        <SortableStaffRow
+                          key={staff.id}
+                          staff={staff}
+                          index={index}
+                          editingPositionId={editingPositionId}
+                          setEditingPositionId={setEditingPositionId}
+                          onUpdatePosition={(staffId, position) => {
                             const updatedStaff = confirmedStaff.map(s => 
-                              s.id === staff.id ? { ...s, designation: value } : s
+                              s.id === staffId ? { ...s, designation: position } : s
                             );
                             setConfirmedStaff(updatedStaff);
                             toast({
                               title: "Position updated",
-                              description: `Changed position to ${value}`,
+                              description: `Changed position to ${position}`,
                               variant: "default",
                               duration: 2000
                             });
                           }}
-                        >
-                          <SelectTrigger className="w-[120px] h-8 text-sm border-0 bg-transparent hover:bg-indigo-50 dark:hover:bg-indigo-900/20 text-center [&>svg]:hidden">
-                            <span className="w-full text-center">{staff.designation || 'Crew'}</span>
-                          </SelectTrigger>
-                          <SelectContent align="center">
-                            <SelectItem value="Crew">Crew</SelectItem>
-                            <SelectItem value="Supervisor">Supervisor</SelectItem>
-                            <SelectItem value="Lead">Lead</SelectItem>
-                            <SelectItem value="BA">BA</SelectItem>
-                            <SelectItem value="Promoter">Promoter</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <div className="flex items-center justify-center gap-2">
-                          <Badge className="bg-gradient-to-r from-emerald-500 to-teal-500 text-white px-3 py-1 font-medium shadow-sm">
-                            <CheckCircle className="w-3 h-3 mr-1" />
-                            Confirmed
-                          </Badge>
-                          {hasConflicts && (
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <div className="text-rose-500 dark:text-rose-400 animate-pulse">
-                                    <AlertCircle className="h-4 w-4" />
-                                  </div>
-                                </TooltipTrigger>
-                                <TooltipContent className="w-64">
-                                  <p className="font-semibold text-rose-600">⚠️ Scheduling Conflicts</p>
-                                  <p className="text-sm mt-1">This staff member has conflicts with other projects</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <div 
-                                onClick={() => handleStaffWorkingDates(staff)}
-                                className="inline-flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 p-2 rounded-lg border border-blue-200 dark:border-blue-700 cursor-pointer hover:scale-105 transition-transform duration-200"
-                              >
-                                <div className="relative">
-                                  <CalendarDays className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                                  {workingDaysCount > 0 && (
-                                    <div className="absolute -top-2 -right-2 flex h-5 w-5 items-center justify-center rounded-full bg-white dark:bg-slate-800 border-2 border-blue-500 dark:border-blue-400">
-                                      <span className="text-[10px] font-bold text-blue-700 dark:text-blue-300">
-                                        {workingDaysCount}
-                                      </span>
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              {workingDaysCount > 0 
-                                ? <p>{workingDaysCount} working day{workingDaysCount !== 1 ? 's' : ''} - Click to edit</p>
-                                : <p>Set working schedule for this staff member</p>
-                              }
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <div className="flex items-center gap-2 justify-center">
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={async (e) => {
-                                    e.stopPropagation();
-                                    
-                                    // Always use the standalone implementation
-                                    await effectiveHandleRemoveStaff(staff.id);
-                                  }}
-                                  className="h-8 w-8 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/20"
-                                >
-                                  <X className="h-4 w-4" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>Move back to applicants list</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
-                                >
-                                  <Menu className="h-4 w-4" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>More Options</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+                          onWorkingDatesClick={handleStaffWorkingDates}
+                          onRemoveStaff={effectiveHandleRemoveStaff}
+                          conflicts={staffConflicts[staff.id]?.conflicts}
+                        />
+                      );
+                    })}
+                  </SortableContext>
+                </TableBody>
+              </Table>
+            </DndContext>
           </div>
         ) : (
           <div className="bg-white dark:bg-slate-900/60 rounded-xl shadow-lg p-10 text-center border border-slate-200/50 dark:border-slate-700/50">

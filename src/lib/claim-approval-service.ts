@@ -161,7 +161,7 @@ async function addClaimToPayroll(claim: any): Promise<void> {
     }
 
     // Get existing working dates with salary
-    let workingDatesWithSalary = projectStaff.working_dates_with_salary || [];
+    const workingDatesWithSalary = projectStaff.working_dates_with_salary || [];
 
     // Add expense claim amounts to the appropriate dates
     for (const receipt of claim.receipts || []) {

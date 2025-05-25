@@ -267,7 +267,8 @@ const CalendarView = React.forwardRef<HTMLDivElement, CalendarViewProps>(({
       
       // Apply different styles based on scroll position
       // When scrolled past 50%, show month name to the right instead of above
-      monthIndicators.forEach((indicator, i) => {
+      monthIndicators.forEach((element, i) => {
+        const indicator = element as HTMLElement;
         const tooltipTrigger = indicator.closest('[role="button"]');
         const isFirstInView = indicator.classList.contains('first-in-view');
         
@@ -401,6 +402,7 @@ const CalendarView = React.forwardRef<HTMLDivElement, CalendarViewProps>(({
       row: number;
       eventColor: string;
       zIndex: number;
+      customColor?: string;
     }[] = [];
     
     // Process multi-day projects
@@ -724,7 +726,7 @@ const CalendarView = React.forwardRef<HTMLDivElement, CalendarViewProps>(({
         <div className="grid grid-cols-7 gap-0.5 sm:gap-1 grid-rows-[auto_repeat(6,120px)] mt-0 pb-8 relative" 
              style={{ height: '780px', paddingBottom: '60px' }}>
           {/* Add styles for project bars to ensure they don't overlap date numbers */}
-          <style jsx global>{`
+          <style>{`
             /* Ensure date display area has consistent spacing */
             .date-display {
               height: 30px !important;
@@ -1128,8 +1130,8 @@ const CalendarView = React.forwardRef<HTMLDivElement, CalendarViewProps>(({
                             }}
                             onClick={(e) => {
                               e.stopPropagation();
-                              if (dayProjects.length > 0) {
-                                handleDayClick(day, dayProjects);
+                              if (dayProjects.length > 0 && onDateClick) {
+                                onDateClick(day, dayProjects);
                               }
                             }}
                           >

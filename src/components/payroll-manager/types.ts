@@ -5,6 +5,9 @@ export interface StaffMember {
   photo?: string;
   workingDates?: Date[];
   workingDatesWithSalary?: WorkingDateWithSalary[];
+  paymentStatus?: 'pending' | 'pushed' | 'paid';
+  paymentDate?: Date;
+  selected?: boolean;
 }
 
 export interface WorkingDateWithSalary {

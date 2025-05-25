@@ -2,6 +2,28 @@ import { supabase } from './supabase';
 import { getAvatarUrl } from './avatar-service';
 import type { UserProfile } from './types';
 
+// Connection health check
+let isConnectionHealthy = true;
+let lastHealthCheck = 0;
+
+async function checkConnectionHealth() {
+  const now = Date.now();
+  // Only check every 30 seconds
+  if (now - lastHealthCheck < 30000) {
+    return isConnectionHealthy;
+  }
+  
+  lastHealthCheck = now;
+  try {
+    const { error } = await supabase.from('users').select('id').limit(1);
+    isConnectionHealthy = !error;
+  } catch {
+    isConnectionHealthy = false;
+  }
+  
+  return isConnectionHealthy;
+}
+
 /**
  * Sign in a user with email and password
  * @param email User's email
@@ -17,32 +39,60 @@ export async function signIn(email: string, password: string) {
   // Normalize email
   email = email.toLowerCase().trim();
 
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
+  // Create a timeout promise (reduced to 10 seconds)
+  const timeoutPromise = new Promise((_, reject) => {
+    setTimeout(() => reject(new Error('Login timeout. Please check your connection and try again.')), 10000);
   });
 
-  if (error) {
-    console.error('Auth error details:', error);
-    
-    if (error.message?.includes('Email not confirmed')) {
-      throw new Error('Please verify your email before signing in');
-    } else if (error.message?.includes('Invalid login credentials')) {
-      throw new Error('The email or password you entered is incorrect');
-    } else if (error.status === 400) {
-      throw new Error('Invalid login attempt. Please check your credentials and try again.');
-    } else if (error.status === 429) {
-      throw new Error('Too many login attempts. Please try again later.');
+  try {
+    // Race the auth request against the timeout
+    const { data, error } = await Promise.race([
+      supabase.auth.signInWithPassword({
+        email,
+        password,
+      }),
+      timeoutPromise
+    ]) as Awaited<ReturnType<typeof supabase.auth.signInWithPassword>>;
+
+    if (error) {
+      console.error('Auth error details:', error);
+      
+      if (error.message?.includes('Email not confirmed')) {
+        throw new Error('Please verify your email before signing in');
+      } else if (error.message?.includes('Invalid login credentials')) {
+        throw new Error('The email or password you entered is incorrect');
+      } else if (error.status === 400) {
+        throw new Error('Invalid login attempt. Please check your credentials and try again.');
+      } else if (error.status === 429) {
+        throw new Error('Too many login attempts. Please try again later.');
+      }
+      throw error;
+    }
+
+    // Profile check with timeout - but don't block login
+    if (data.user) {
+      // Fire and forget profile check/creation
+      checkOrCreateProfile(data.user.id, email).catch(err => {
+        console.error('Profile creation error (non-blocking):', err);
+      });
+    }
+
+    return data;
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('timeout')) {
+      throw error;
     }
     throw error;
   }
+}
 
-  // Check if user exists in users table
-  if (data.user) {
+// Helper function to check/create profile asynchronously
+async function checkOrCreateProfile(userId: string, email: string) {
+  try {
     const { data: profile, error: profileError } = await supabase
       .from('users')
-      .select('*')
-      .eq('id', data.user.id)
+      .select('id')
+      .eq('id', userId)
       .single();
 
     if (profileError || !profile) {
@@ -50,11 +100,11 @@ export async function signIn(email: string, password: string) {
       const username = email.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '_');
       const avatarSeed = Math.random().toString(36).substring(2, 12);
       
-      const { error: insertError } = await supabase
+      await supabase
         .from('users')
         .insert([{
-          id: data.user.id,
-          email: data.user.email,
+          id: userId,
+          email: email,
           username,
           full_name: '',
           role: 'staff',
@@ -63,15 +113,10 @@ export async function signIn(email: string, password: string) {
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         }]);
-
-      if (insertError) {
-        console.error('Error creating user profile:', insertError);
-        throw new Error('Failed to create user profile');
-      }
     }
+  } catch (error) {
+    console.error('Error in profile check/creation:', error);
   }
-
-  return data;
 }
 
 /**
