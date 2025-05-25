@@ -866,6 +866,15 @@ export default function MobileCandidateUpdatePage() {
         ? formData.vehicle_type.split(',').map((v: string) => v.trim()).filter((v: string) => v)
         : [];
       
+      // Debug: Log what we're saving
+      console.log('Saving to database:', {
+        race: formData.race,
+        shirt_size: formData.shirt_size,
+        emergency_contact_relationship: formData.emergency_contact_relationship,
+        highest_education: formData.highest_education,
+        languages_spoken: languagesArray.join(',')
+      });
+      
       // Prepare update data
       const updateData = {
         full_name: formData.full_name,

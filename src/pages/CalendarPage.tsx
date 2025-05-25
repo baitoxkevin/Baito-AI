@@ -1585,6 +1585,11 @@ export default function CalendarPage() {
                 onProjectSelect={toggleProjectSelection}
                 onLoadMoreMonths={handleLoadMoreMonths}
                 monthsToShow={viewMonthsCount}
+                syncToDate={true}
+                onMonthChange={(newDate) => {
+                  console.log('ListView month changed to:', format(newDate, 'MMMM yyyy'));
+                  setDate(newDate);
+                }}
               />
             )}
           </div>
