@@ -250,6 +250,11 @@ export default function MobileCandidateUpdatePage() {
     });
   }, [formData.race, formData.shirt_size, formData.emergency_contact_relationship, formData.highest_education]);
   
+  // Debug: Log when component renders
+  useEffect(() => {
+    console.log('Component rendered. isAuthenticated:', isAuthenticated, 'formData.race:', formData.race);
+  });
+  
   const validateToken = async () => {
     if (!secureToken || !candidateId) return;
     
@@ -432,7 +437,7 @@ export default function MobileCandidateUpdatePage() {
         highest_education: normalizeDropdownValue(candidateData.highest_education, 'education')
       });
       
-      setFormData({
+      const newFormData = {
         full_name: candidateData.full_name || '',
         ic_number: candidateData.ic_number || '',
         email: candidateData.email || '',
@@ -462,16 +467,17 @@ export default function MobileCandidateUpdatePage() {
         passport_number: candidateData.passport_number || '',
         custom_fields: candidateData.custom_fields || {},
         pdpa_consent: candidateData.custom_fields?.pdpa_consent || false
+      };
+      
+      console.log('Setting form data with normalized values:', {
+        race: newFormData.race,
+        shirt_size: newFormData.shirt_size,
+        emergency_contact_relationship: newFormData.emergency_contact_relationship
       });
       
+      setFormData(newFormData);
       setIsEditMode(true);
       setLoading(false);
-      
-      // Force a re-render to ensure Select components update
-      setTimeout(() => {
-        console.log('Forcing re-render with form data');
-        setFormData(prev => ({ ...prev }));
-      }, 100);
     } catch (error) {
       console.error('Error verifying IC:', error);
       setAuthError('Verification failed. Please try again.');
@@ -1661,9 +1667,11 @@ export default function MobileCandidateUpdatePage() {
                           <div>
                             <Label htmlFor="race" className="text-xs text-center block bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent font-semibold">Race</Label>
                             <Select
-                              key={`race-${formData.race}`}
-                              value={formData.race || ''}
-                              onValueChange={(value) => setFormData({...formData, race: value})}
+                              value={formData.race}
+                              onValueChange={(value) => {
+                                console.log('Race changed to:', value);
+                                setFormData({...formData, race: value});
+                              }}
                             >
                               <CenteredSelectTrigger id="race" className="mt-1">
                                 <SelectValue placeholder="Select race" />
@@ -1680,9 +1688,11 @@ export default function MobileCandidateUpdatePage() {
                           <div>
                             <Label htmlFor="shirt_size" className="text-xs text-center block bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent font-semibold">Shirt Size</Label>
                             <Select
-                              key={`shirt_size-${formData.shirt_size}`}
-                              value={formData.shirt_size || ''}
-                              onValueChange={(value) => setFormData({...formData, shirt_size: value})}
+                              value={formData.shirt_size}
+                              onValueChange={(value) => {
+                                console.log('Shirt size changed to:', value);
+                                setFormData({...formData, shirt_size: value});
+                              }}
                             >
                               <CenteredSelectTrigger id="shirt_size" className="mt-1">
                                 <SelectValue placeholder="Select size" />
@@ -2355,9 +2365,11 @@ Days Committed: [Number]`}
                                 <div>
                                   <Label htmlFor="emergency_contact_relationship" className="text-xs text-center block bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent font-semibold">Relationship</Label>
                                   <Select
-                                    key={`emergency_contact_relationship-${formData.emergency_contact_relationship}`}
-                                    value={formData.emergency_contact_relationship || ''}
-                                    onValueChange={(value) => setFormData({...formData, emergency_contact_relationship: value})}
+                                    value={formData.emergency_contact_relationship}
+                                    onValueChange={(value) => {
+                                      console.log('Emergency relationship changed to:', value);
+                                      setFormData({...formData, emergency_contact_relationship: value});
+                                    }}
                                   >
                                     <CenteredSelectTrigger id="emergency_contact_relationship" className="mt-1">
                                       <SelectValue placeholder="Select relationship" />

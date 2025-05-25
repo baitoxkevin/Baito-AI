@@ -233,11 +233,11 @@ export default function CalendarPage() {
       // Always show loading state for initial load
       setIsLoading(true);
       
-      // Start with a smaller range for faster initial load
+      // Start with just current month for instant load
       // List view will load more as needed when scrolling
-      const initialMonthsRange = { start: -2, end: 2 }; // Show 2 months before/after initially
+      const initialMonthsRange = { start: 0, end: 0 }; // Just current month initially
       setLoadedMonthsRange(initialMonthsRange);
-      setViewMonthsCount(5); // Current month + 2 past + 2 future
+      setViewMonthsCount(1); // Just current month for instant display
       
       // Track the earliest month with projects for auto-scrolling
       let earliestMonthWithProjects = null;
@@ -247,50 +247,27 @@ export default function CalendarPage() {
       setTimeout(() => {
         // Special handling for initial load - load only nearby months for faster initial render
         if (view === 'list') {
-          // For list view, load only essential months initially
+          // For list view, load just current month for instant display
           // ListView will handle loading more months as user scrolls
-          Promise.all([
-            // Load current month
-            getProjectsByMonth(date.getMonth(), date.getFullYear()),
-            // Load 2 previous months for context
-            getProjectsByMonth(date.getMonth() - 1, date.getFullYear()),
-            getProjectsByMonth(date.getMonth() - 2, date.getFullYear()),
-            // Load 2 future months for upcoming projects
-            getProjectsByMonth(date.getMonth() + 1, date.getFullYear()),
-            getProjectsByMonth(date.getMonth() + 2, date.getFullYear())
-          ]).then(results => {
+          getProjectsByMonth(date.getMonth(), date.getFullYear()).then(currentMonthProjects => {
+            // Just load current month initially
+            const results = [currentMonthProjects];
             // Combine all projects, removing duplicates
             const allProjects = [];
             const projectIds = new Set();
             
-            // Track the earliest and most recent month with projects
-            results.forEach((monthProjects, index) => {
-              if (monthProjects.length > 0) {
-                // Calculate the month index relative to current month
-                // Index mapping: 0=current, 1=-1month, 2=-2months, 3=+1month, 4=+2months
-                const monthOffset = index === 0 ? 0 : 
-                                    index <= 2 ? -(index) : // Previous months indices 1-2
-                                    (index - 2); // Future months indices 3-4
-                                    
-                // Track earliest month with projects (most negative offset)
-                if (earliestMonthWithProjects === null || monthOffset < earliestMonthWithProjects) {
-                  earliestMonthWithProjects = monthOffset;
+            // For single month load, just add all projects
+            if (currentMonthProjects.length > 0) {
+              earliestMonthWithProjects = 0;
+              latestMonthWithProjects = 0;
+              
+              currentMonthProjects.forEach(project => {
+                if (!projectIds.has(project.id)) {
+                  projectIds.add(project.id);
+                  allProjects.push(project);
                 }
-                
-                // Track latest month with projects (most positive offset)
-                if (latestMonthWithProjects === null || monthOffset > latestMonthWithProjects) {
-                  latestMonthWithProjects = monthOffset;
-                }
-                
-                // Add all projects from this month, avoiding duplicates
-                monthProjects.forEach(project => {
-                  if (!projectIds.has(project.id)) {
-                    projectIds.add(project.id);
-                    allProjects.push(project);
-                  }
-                });
-              }
-            });
+              });
+            }
             
             console.log(`Loaded ${allProjects.length} projects from ${results.length} months`);
             console.log(`Earliest month with projects: ${earliestMonthWithProjects}, Latest: ${latestMonthWithProjects}`);
