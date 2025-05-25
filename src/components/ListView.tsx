@@ -291,6 +291,8 @@ export default function ListView({
   onProjectSelect,
   onLoadMoreMonths,
   monthsToShow = 3, // Default to showing 3 months (current + 1 past + 1 future)
+  syncToDate = false,
+  onMonthChange,
 }: ListViewProps) {
   // Safety check for required props
   if (!date) {
