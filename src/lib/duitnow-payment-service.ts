@@ -90,9 +90,10 @@ export function getBankCodeFromName(bankName: string): string {
  * @param paymentBatch The payment batch data to export
  * @returns An Excel workbook with the payment data formatted for DuitNow ECP
  */
-export function createDuitNowExcelTemplate(paymentBatch: DuitNowPaymentBatch): XLSX.WorkBook {
+export async function createDuitNowExcelTemplate(paymentBatch: DuitNowPaymentBatch): Promise<ExcelJS.Workbook> {
   // Create a new workbook
-  const wb = XLSX.utils.book_new();
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet('DuitNow Payment');
   
   // Format the payment date
   const formattedPaymentDate = format(paymentBatch.paymentDate, 'dd/MM/yyyy');
@@ -117,6 +118,11 @@ export function createDuitNowExcelTemplate(paymentBatch: DuitNowPaymentBatch): X
     ['']
   ];
   
+  // Add header data
+  headerData.forEach(row => {
+    ws.addRow(row);
+  });
+  
   // Column headers for payment details
   const columnHeaders = [
     'No.',
@@ -130,39 +136,35 @@ export function createDuitNowExcelTemplate(paymentBatch: DuitNowPaymentBatch): X
     'Phone Number'
   ];
   
+  ws.addRow(columnHeaders);
+  
   // Prepare data rows
-  const dataRows = paymentBatch.recipients.map((recipient, index) => [
-    index + 1,
-    recipient.name,
-    recipient.bankCode,
-    recipient.bankAccountNumber,
-    recipient.amount.toFixed(2),
-    recipient.reference || '',
-    recipient.description || '',
-    recipient.email || '',
-    recipient.phone || ''
-  ]);
-  
-  // Combine all rows
-  const allRows = [...headerData, columnHeaders, ...dataRows];
-  
-  // Create worksheet and add to workbook
-  const ws = XLSX.utils.aoa_to_sheet(allRows);
-  XLSX.utils.book_append_sheet(wb, ws, 'DuitNow Payment');
+  paymentBatch.recipients.forEach((recipient, index) => {
+    ws.addRow([
+      index + 1,
+      recipient.name,
+      recipient.bankCode,
+      recipient.bankAccountNumber,
+      recipient.amount.toFixed(2),
+      recipient.reference || '',
+      recipient.description || '',
+      recipient.email || '',
+      recipient.phone || ''
+    ]);
+  });
   
   // Set column widths
-  const wscols = [
-    { wch: 6 },   // No.
-    { wch: 30 },  // Recipient Name
-    { wch: 12 },  // Bank Code
-    { wch: 20 },  // Account Number
-    { wch: 12 },  // Amount
-    { wch: 20 },  // Reference
-    { wch: 30 },  // Description
-    { wch: 25 },  // Email
-    { wch: 15 }   // Phone
+  ws.columns = [
+    { width: 6 },   // No.
+    { width: 30 },  // Recipient Name
+    { width: 12 },  // Bank Code
+    { width: 20 },  // Account Number
+    { width: 12 },  // Amount
+    { width: 20 },  // Reference
+    { width: 30 },  // Description
+    { width: 25 },  // Email
+    { width: 15 }   // Phone
   ];
-  ws['!cols'] = wscols;
   
   return wb;
 }
@@ -171,18 +173,18 @@ export function createDuitNowExcelTemplate(paymentBatch: DuitNowPaymentBatch): X
  * Exports the payment batch as an Excel file and triggers download
  * @param paymentBatch The payment batch to export
  */
-export function exportDuitNowPaymentFile(paymentBatch: DuitNowPaymentBatch): void {
-  const wb = createDuitNowExcelTemplate(paymentBatch);
+export async function exportDuitNowPaymentFile(paymentBatch: DuitNowPaymentBatch): Promise<void> {
+  const wb = await createDuitNowExcelTemplate(paymentBatch);
   
   // Format date for filename
   const dateStr = format(new Date(), 'yyyyMMdd_HHmmss');
   const filename = `DuitNow_Payment_${paymentBatch.batchId}_${dateStr}.xlsx`;
   
-  // Convert workbook to binary string
-  const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+  // Convert workbook to binary
+  const buffer = await wb.xlsx.writeBuffer();
   
   // Create blob and save file
-  const blob = new Blob([wbout], { type: 'application/octet-stream' });
+  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
   saveAs(blob, filename);
 }
 
@@ -192,8 +194,27 @@ export function exportDuitNowPaymentFile(paymentBatch: DuitNowPaymentBatch): voi
  * @param defaultBankCode The default bank code to use if not specified for a staff member
  * @returns Array of payment recipients formatted for DuitNow ECP
  */
+interface StaffPayrollEntry {
+  id?: string;
+  staffId?: string;
+  name?: string;
+  staffName?: string;
+  bankCode?: string;
+  bankName?: string;
+  bankAccountNumber?: string;
+  accountNumber?: string;
+  email?: string;
+  phone?: string;
+  phoneNumber?: string;
+  workingSummary?: {
+    totalAmount?: number;
+    totalBasicSalary?: number;
+    totalDays?: number;
+  };
+}
+
 export function convertStaffToPaymentRecipients(
-  staffPayrollEntries: unknown[], 
+  staffPayrollEntries: StaffPayrollEntry[], 
   defaultBankCode: string = BankCodes.MAYBANK
 ): PaymentRecipient[] {
   return staffPayrollEntries
@@ -213,7 +234,7 @@ export function convertStaffToPaymentRecipients(
       const amount = staff.workingSummary?.totalAmount || 0;
       
       return {
-        id: staff.staffId || staff.id,
+        id: staff.staffId || staff.id || '',
         name: staff.staffName || staff.name || 'Unknown Staff',
         bankAccountNumber: staff.bankAccountNumber || staff.accountNumber || '',
         bankCode,
@@ -237,7 +258,7 @@ export function convertStaffToPaymentRecipients(
 export function createDuitNowPaymentBatch(
   projectId: string,
   projectName: string,
-  staffPayrollEntries: unknown[],
+  staffPayrollEntries: StaffPayrollEntry[],
   companyDetails: {
     name: string;
     registrationNumber: string;
