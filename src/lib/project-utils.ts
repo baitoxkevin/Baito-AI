@@ -48,13 +48,23 @@ export const groupProjects = (
   const groups: Record<string, Project[]> = {};
   
   if (groupType === 'status') {
-    // Group by status (capitalize first letter)
+    // Group by status (normalize and capitalize)
     projects.forEach(project => {
-      const status = project.status.charAt(0).toUpperCase() + project.status.slice(1).toLowerCase();
-      if (!groups[status]) {
-        groups[status] = [];
+      // Normalize status: replace underscores with hyphens and capitalize
+      let normalizedStatus = project.status.replace(/_/g, '-');
+      const status = normalizedStatus.charAt(0).toUpperCase() + normalizedStatus.slice(1).toLowerCase();
+      
+      // Handle special cases
+      if (status === 'Scheduled' || status === 'Planning') {
+        // Group scheduled and planning into Pending
+        groups['Pending'] = groups['Pending'] || [];
+        groups['Pending'].push(project);
+      } else {
+        if (!groups[status]) {
+          groups[status] = [];
+        }
+        groups[status].push(project);
       }
-      groups[status].push(project);
     });
     
     // Sort by status priority

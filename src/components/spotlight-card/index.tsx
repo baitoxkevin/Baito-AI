@@ -32,7 +32,6 @@ import { SpotlightCardSidebar } from './SpotlightCardSidebar';
 import { SpotlightCardTabs } from './SpotlightCardTabs';
 import { SpotlightCardDropdown } from './SpotlightCardDropdown';
 import { SpotlightCardSegmentedControl } from './SpotlightCardSegmentedControl';
-import { SpotlightCardOverview } from './SpotlightCardOverview';
 import { CompactHistory } from './history-options/CompactHistory';
 import { ProjectStatsTabCard } from './ProjectStatsCard';
 
@@ -221,9 +220,7 @@ export function SpotlightCard({
   const [showClaimDetailsDialog, setShowClaimDetailsDialog] = React.useState(false);
   const [selectedClaimId, setSelectedClaimId] = React.useState<string | null>(null);
   const [isRemovingClaim, setIsRemovingClaim] = React.useState(false);
-  const [localExpenseClaims, setLocalExpenseClaims] = React.useState(
-    expenseClaims.length > 0 ? expenseClaims : dummyExpenseClaims
-  );
+  const [localExpenseClaims, setLocalExpenseClaims] = React.useState(expenseClaims || []);
   const [activeTab, setActiveTab] = React.useState('schedule');
   const isScheduleTabActive = activeTab === 'schedule';
   
@@ -231,6 +228,20 @@ export function SpotlightCard({
   const handleTabChange = React.useCallback((newTab: string) => {
     setActiveTab(newTab);
   }, []);
+  
+  // Manual refresh function for expense claims
+  const refreshExpenseClaims = React.useCallback(async () => {
+    try {
+      // console.log('Manually refreshing expense claims for project:', project.id);
+      const updatedClaims = await fetchProjectExpenseClaimsWithFallback(project.id);
+      // console.log('Manual refresh found claims:', updatedClaims);
+      setLocalExpenseClaims(updatedClaims);
+      return updatedClaims;
+    } catch (error) {
+      console.error('Error refreshing expense claims:', error);
+      return [];
+    }
+  }, [project.id]);
   const [localDocuments, setLocalDocuments] = React.useState(
     documents.length > 0 ? documents : dummyDocuments
   );
@@ -300,17 +311,19 @@ export function SpotlightCard({
         
         // Process expense claims
         if (expenseResult.status === 'fulfilled') {
+          // console.log('Initial expense claims fetch successful:', expenseResult.value.length);
+          // console.log('Expense claims data:', expenseResult.value);
           setLocalExpenseClaims(expenseResult.value);
-          console.log('Fetched expense claims:', expenseResult.value.length);
         } else {
           console.error('Error fetching expense claims:', expenseResult.reason);
-          setLocalExpenseClaims(dummyExpenseClaims);
+          // Don't fall back to dummy data - keep it empty
+          setLocalExpenseClaims([]);
         }
         
         // Process documents
         if (documentsResult.status === 'fulfilled') {
           setLocalDocuments(documentsResult.value);
-          console.log('Fetched project documents:', documentsResult.value.length);
+          // console.log('Fetched project documents:', documentsResult.value.length);
         } else {
           console.error('Error fetching documents:', documentsResult.reason);
           setLocalDocuments(dummyDocuments);
@@ -320,12 +333,12 @@ export function SpotlightCard({
         const projectConfirmedStaff = projectData?.confirmed_staff || [];
         const projectApplicants = projectData?.applicants || [];
         
-        console.log('Fetched project data:', {
-          confirmedStaff: projectConfirmedStaff,
-          applicants: projectApplicants,
-          confirmedStaffCount: projectConfirmedStaff.length,
-          applicantsCount: projectApplicants.length
-        });
+        // console.log('Fetched project data:', {
+        //   confirmedStaff: projectConfirmedStaff,
+        //   applicants: projectApplicants,
+        //   confirmedStaffCount: projectConfirmedStaff.length,
+        //   applicantsCount: projectApplicants.length
+        // });
         
         // Set the combined staff for other components that expect staffDetails
         setStaffDetails([...projectConfirmedStaff, ...projectApplicants]);
@@ -354,6 +367,11 @@ export function SpotlightCard({
               status: staff.status || 'confirmed',
               appliedDate: staff.applied_date ? new Date(staff.applied_date) : new Date(),
               applyType: staff.apply_type || 'full',
+              // Include bank details
+              bank_name: staff.bank_name,
+              bank_account_number: staff.bank_account_number,
+              email: staff.email,
+              phone_number: staff.phone_number,
               // Ensure working dates are Date objects
               workingDates: (staff.working_dates || []).map((d: any) => 
                 d instanceof Date ? d : new Date(d)
@@ -362,7 +380,11 @@ export function SpotlightCard({
               workingDatesWithSalary: (staff.working_dates_with_salary || []).map((item: any) => ({
                 ...item,
                 date: item.date instanceof Date ? item.date : new Date(item.date)
-              }))
+              })),
+              // Preserve payment status
+              paymentStatus: staff.paymentStatus,
+              paymentDate: staff.paymentDate ? new Date(staff.paymentDate) : undefined,
+              paymentBatchId: staff.paymentBatchId
             };
           });
         };
@@ -373,7 +395,7 @@ export function SpotlightCard({
             const id = s.candidate_id || s.id;
             // Debug log to understand the structure
             if (typeof id !== 'string' && id) {
-              console.warn('Non-string ID found in confirmed staff:', { id, type: typeof id, staff: s });
+              // console.warn('Non-string ID found in confirmed staff:', { id, type: typeof id, staff: s });
             }
             // Ensure we extract string ID from potential object
             return typeof id === 'string' ? id : (id?.id || null);
@@ -382,15 +404,15 @@ export function SpotlightCard({
             const id = a.candidate_id || a.id;
             // Debug log to understand the structure
             if (typeof id !== 'string' && id) {
-              console.warn('Non-string ID found in applicants:', { 
-                id, 
-                type: typeof id, 
-                applicant: a,
-                // Log more details about the ID structure
-                idKeys: Object.keys(id || {}),
-                candidateId: a.candidate_id,
-                directId: a.id
-              });
+              // console.warn('Non-string ID found in applicants:', { 
+              //   id, 
+              //   type: typeof id, 
+              //   applicant: a,
+              //   // Log more details about the ID structure
+              //   idKeys: Object.keys(id || {}),
+              //   candidateId: a.candidate_id,
+              //   directId: a.id
+              // });
             }
             // Ensure we extract string ID from potential object
             return typeof id === 'string' ? id : (id?.id || null);
@@ -401,7 +423,7 @@ export function SpotlightCard({
           try {
             const { data: candidatesData, error: candidatesError } = await supabase
               .from('candidates')
-              .select('id, full_name, profile_photo, email, phone_number, ic_number')
+              .select('id, full_name, profile_photo, email, phone_number, ic_number, bank_name, bank_account_number')
               .in('id', allStaffIds);
               
             if (candidatesError) {
@@ -423,7 +445,12 @@ export function SpotlightCard({
                 photo: candidate?.profile_photo || staff.photo || staff.profile_photo,
                 email: candidate?.email,
                 phone_number: candidate?.phone_number,
-                status: 'confirmed'
+                bank_name: candidate?.bank_name || staff.bank_name,
+                bank_account_number: candidate?.bank_account_number || staff.bank_account_number,
+                status: 'confirmed',
+                paymentStatus: staff.paymentStatus,
+                paymentDate: staff.paymentDate,
+                paymentBatchId: staff.paymentBatchId
               };
             });
             
@@ -439,6 +466,8 @@ export function SpotlightCard({
                 photo: candidate?.profile_photo || applicant.photo || applicant.profile_photo,
                 email: candidate?.email,
                 phone_number: candidate?.phone_number,
+                bank_name: candidate?.bank_name || applicant.bank_name,
+                bank_account_number: candidate?.bank_account_number || applicant.bank_account_number,
                 status: applicant.status || 'pending'
               };
             });
@@ -585,25 +614,39 @@ export function SpotlightCard({
   };
 
   const handleCreateExpenseClaim = async (data: any) => {
-    console.log('SpotlightCard: Creating expense claim', data);
+    // console.log('SpotlightCard: Creating expense claim', data);
+    // console.log('Project ID:', project.id);
+    // console.log('Project object:', project);
+    
     try {
       const user = await getUser();
       if (!user) throw new Error('User not found');
       
+      // console.log('Current user:', user.id, user.email);
+      
       // Transform the data from ExpenseClaimFormWithDragDrop format
-      const claimData = {
+      const claimData: any = {
         title: data.title,
         description: data.description,
         project_id: project.id,
-        user_id: data.is_own_claim ? user.id : data.staff_id || user.id,
-        submitted_by: user.id,
+        submitted_by: data.is_own_claim ? 'Self' : 'On behalf',
         amount: parseFloat(data.amount),
         status: 'pending' as const,
         category: data.category,
-        expense_date: data.expense_date,
-        reference_number: data.receipt_number,
+        expense_date: data.expense_date instanceof Date ? data.expense_date.toISOString() : data.expense_date,
+        receipt_number: data.receipt_number,  // Changed from reference_number
         receipts: [] // Documents will be handled separately
       };
+      
+      // Set user_id or staff_id based on claim type
+      if (data.is_own_claim) {
+        claimData.user_id = user.id;
+      } else {
+        claimData.staff_id = data.staff_id;
+        // Don't set user_id for staff claims
+      }
+      
+      // console.log('Claim data to be created:', claimData);
       
       const result = await createExpenseClaimWithReceipts(claimData, data.documents || []);
       
@@ -631,8 +674,18 @@ export function SpotlightCard({
         
         // Refresh expense claims from database
         try {
-          const updatedClaims = await fetchProjectExpenseClaims(project.id);
+          // console.log('Refreshing expense claims after creation...');
+          const updatedClaims = await fetchProjectExpenseClaimsWithFallback(project.id);
+          // console.log('Updated claims after creation:', updatedClaims);
           setLocalExpenseClaims(updatedClaims);
+          
+          // Also try a direct query to debug
+          const { data: directQuery, error: directError } = await supabase
+            .from('expense_claims')
+            .select('*')
+            .eq('project_id', project.id);
+          
+          // console.log('Direct query result:', directQuery, 'error:', directError);
         } catch (error) {
           console.error('Error refreshing expense claims:', error);
         }
@@ -672,6 +725,7 @@ export function SpotlightCard({
         onClick={handleExpand}
         onMouseMove={handleMouseMove}
         mousePosition={mousePosition}
+        expenseClaims={localExpenseClaims}
       />
     );
   }
@@ -823,9 +877,6 @@ export function SpotlightCard({
                   
                   {/* Tab Content */}
                   <div className="flex-1 overflow-auto">
-{/* Overview tab removed */}
-                    
-                    
                     {activeTab === 'documents' && (
                       <div className="bg-white dark:bg-slate-800 rounded-lg p-6 h-full flex flex-col">
                         <SpotlightCardDocuments
@@ -853,7 +904,7 @@ export function SpotlightCard({
                         <StaffingTab
                           confirmedStaff={confirmedStaff}
                           setConfirmedStaff={(newConfirmedStaff) => {
-                            console.log('Setting new confirmed staff:', newConfirmedStaff);
+                            // console.log('Setting new confirmed staff:', newConfirmedStaff);
                             
                             // Log staff changes
                             const oldStaffIds = confirmedStaff.map(s => s.id);
@@ -884,6 +935,7 @@ export function SpotlightCard({
                             // Update the project in the database
                             const updateProject = async () => {
                               try {
+                                // Use optimistic locking with updated_at timestamp
                                 const { error } = await supabase
                                   .from('projects')
                                   .update({ 
@@ -894,8 +946,12 @@ export function SpotlightCard({
                                       position: staff.designation,
                                       status: staff.status,
                                       working_dates: staff.workingDates,
-                                      working_dates_with_salary: staff.workingDatesWithSalary
-                                    }))
+                                      working_dates_with_salary: staff.workingDatesWithSalary,
+                                      paymentStatus: staff.paymentStatus,
+                                      paymentDate: staff.paymentDate,
+                                      paymentBatchId: staff.paymentBatchId
+                                    })),
+                                    updated_at: new Date().toISOString()
                                   })
                                   .eq('id', project.id);
                                   
@@ -914,7 +970,7 @@ export function SpotlightCard({
                           }}
                           applicants={applicants}
                           setApplicants={(newApplicants) => {
-                            console.log('Setting new applicants:', newApplicants);
+                            // console.log('Setting new applicants:', newApplicants);
                             setApplicants(newApplicants);
                             
                             // Update the project in the database
@@ -950,7 +1006,7 @@ export function SpotlightCard({
                           showAddStaffForm={false}
                           setShowAddStaffForm={() => {}}
                           handleRemoveStaff={(staffId) => {
-                            console.log('Removing staff:', staffId);
+                            // console.log('Removing staff:', staffId);
                             
                             // Find the staff member being removed
                             const staffMember = confirmedStaff.find(s => s.id === staffId);
@@ -1073,6 +1129,10 @@ export function SpotlightCard({
                         projectStartDate={new Date(project.start_date)}
                         projectEndDate={project.end_date ? new Date(project.end_date) : new Date(project.start_date)}
                         onEditDialogOpenChange={setIsPayrollEditDialogOpen}
+                        onProjectUpdate={(updatedProject) => {
+                          // Update the local project state
+                          setProject(updatedProject);
+                        }}
                       />
                     )}
                       
@@ -1088,6 +1148,7 @@ export function SpotlightCard({
                           }}
                           onRemoveClaim={handleRemoveClaim}
                           isRemovingClaim={isRemovingClaim}
+                          onRefresh={refreshExpenseClaims}
                         />
                       </div>
                     )}
@@ -1124,7 +1185,7 @@ export function SpotlightCard({
         onOpenChange={setShowExpenseClaimForm}
         onSubmit={handleCreateExpenseClaim}
         projectId={project.id}
-        confirmedStaff={project.project_staff || []}
+        confirmedStaff={confirmedStaff}
       />
       
       {/* Expense Claim Details Dialog */}
@@ -1493,7 +1554,7 @@ function ScheduleTabContent({ project, confirmedStaff }: { project: Project, con
       confirmedStaff={staffToDisplay}
       location={project.venue_address}
       onLocationEdit={async (newLocation) => {
-        console.log('Location updated:', newLocation);
+        // console.log('Location updated:', newLocation);
         
         const oldLocation = project.venue_address;
         

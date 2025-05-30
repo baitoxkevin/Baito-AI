@@ -44,6 +44,7 @@ interface SpotlightCardExpensesProps {
   onShowClaimDetails: (claimId: string) => void;
   onRemoveClaim?: (claimId: string) => void;
   isRemovingClaim?: boolean;
+  onRefresh?: () => Promise<any[]>;
 }
 
 // Helper function to render category icon with appropriate styling
@@ -64,7 +65,8 @@ export function SpotlightCardExpenses({
   onShowExpenseClaimForm,
   onShowClaimDetails,
   onRemoveClaim,
-  isRemovingClaim = false
+  isRemovingClaim = false,
+  onRefresh
 }: SpotlightCardExpensesProps) {
   return (
     <div className="w-full h-full flex flex-col">
@@ -77,13 +79,80 @@ export function SpotlightCardExpenses({
           </Badge>
         </h3>
         
-        <Button
-          className="flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-pink-500 text-white font-semibold rounded-md px-4 py-2 hover:opacity-90 transition"
-          onClick={onShowExpenseClaimForm}
-        >
-          <Plus className="h-4 w-4" />
-          <span>Add Claim</span>
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={async () => {
+              try {
+                // console.log('=== MANUAL EXPENSE CLAIMS DEBUG ===');
+                // console.log('Project ID:', project.id);
+                
+                // Import required modules
+                const { supabase } = await import('@/lib/supabase');
+                const { fetchProjectExpenseClaimsWithFallback } = await import('@/lib/expense-claim-service-fallback');
+                
+                // Test 1: Direct query
+                // console.log('Test 1: Direct query to expense_claims table...');
+                const { data: directData, error: directError } = await supabase
+                  .from('expense_claims')
+                  .select('*')
+                  .eq('project_id', project.id);
+                
+                // console.log('Direct query result:', {
+                //   data: directData,
+                //   error: directError,
+                //   count: directData?.length || 0
+                // });
+                
+                // Test 2: Using the service function
+                // console.log('\nTest 2: Using fetchProjectExpenseClaimsWithFallback...');
+                const claims = await fetchProjectExpenseClaimsWithFallback(project.id);
+                // console.log('Service function result:', {
+                //   claims: claims,
+                //   count: claims.length
+                // });
+                
+                // Test 3: Check all expense claims (no project filter)
+                // console.log('\nTest 3: Query all expense claims (no project filter)...');
+                const { data: allClaims, error: allError } = await supabase
+                  .from('expense_claims')
+                  .select('*')
+                  .limit(10);
+                
+                // console.log('All claims result:', {
+                //   data: allClaims,
+                //   error: allError,
+                //   count: allClaims?.length || 0
+                // });
+                
+                // Test 4: If onRefresh is provided, call it
+                if (onRefresh) {
+                  // console.log('\nTest 4: Calling onRefresh callback...');
+                  const refreshedClaims = await onRefresh();
+                  // console.log('onRefresh result:', {
+                  //   claims: refreshedClaims,
+                  //   count: refreshedClaims.length
+                  // });
+                }
+                
+                // console.log('=== END DEBUG ===');
+              } catch (error) {
+                console.error('Manual refresh error:', error);
+              }
+            }}
+            title="Debug: Test expense claims query"
+          >
+            <Loader2 className="h-4 w-4" />
+          </Button>
+          <Button
+            className="flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-pink-500 text-white font-semibold rounded-md px-4 py-2 hover:opacity-90 transition"
+            onClick={onShowExpenseClaimForm}
+          >
+            <Plus className="h-4 w-4" />
+            <span>Add Claim</span>
+          </Button>
+        </div>
       </div>
       
       {/* Claims Table */}
@@ -220,21 +289,6 @@ export function SpotlightCardExpenses({
             </div>
           )}
           
-          {/* Budget Summary */}
-          <div className="mt-auto border-t border-gray-200 dark:border-gray-700 pt-4 flex flex-col sm:flex-row justify-between items-center">
-            <div className="text-gray-800 dark:text-gray-200 font-semibold text-sm">
-              Budget: <span className="text-indigo-600 dark:text-indigo-400">RM 5,000.00</span>
-            </div>
-            <div className="text-gray-800 dark:text-gray-200 text-sm mt-2 sm:mt-0">
-              <span>Spent: <span className="font-semibold text-indigo-600 dark:text-indigo-400">
-                RM {expenseClaims.reduce((sum, claim) => sum + (claim.amount || 0), 0).toFixed(2)}
-              </span></span>
-              <span className="mx-2">|</span>
-              <span>Remaining: <span className="font-semibold text-indigo-600 dark:text-indigo-400">
-                RM {(5000 - expenseClaims.reduce((sum, claim) => sum + (claim.amount || 0), 0)).toFixed(2)}
-              </span></span>
-            </div>
-          </div>
     </div>
   );
 }

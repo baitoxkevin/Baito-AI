@@ -166,10 +166,10 @@ export function useProjectsByMonthOptimized() {
   const { getData, isLoading, invalidateCache, prefetch } = useCache<Project[], [number]>(
     'projectsByMonth', 
     async (month: number) => {
-      console.log(`Fetching projects for month ${month}`);
+      // console.log(`Fetching projects for month ${month}`);
       try {
         const result = await fetchProjectsByMonthOptimized(month);
-        console.log(`Successfully fetched ${result.length} projects for month ${month}`);
+        // console.log(`Successfully fetched ${result.length} projects for month ${month}`);
         return result;
       } catch (err) {
         console.error(`Error fetching projects for month ${month}:`, err);

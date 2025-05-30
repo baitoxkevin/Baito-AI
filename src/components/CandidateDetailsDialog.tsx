@@ -2185,7 +2185,6 @@ export function CandidateDetailsDialog({
             // When dialog closes, we'll just update the state without showing a toast
           }}
           initialData={candidate}
-          isEditing={true}
         />
       )}
     </Dialog>

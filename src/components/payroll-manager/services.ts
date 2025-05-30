@@ -141,7 +141,7 @@ export async function saveProjectPayroll(payrollData: PayrollData): Promise<{ su
           
           // If that failed with a column error, try with staff_id
           if (staffError && staffError.code === '42703' && staffError.message?.includes('staff_id')) {
-            console.log('Trying with alternate column name...');
+            // console.log('Trying with alternate column name...');
             const { error: retry } = await supabase
               .from('project_staff')
               .update({
@@ -165,7 +165,7 @@ export async function saveProjectPayroll(payrollData: PayrollData): Promise<{ su
         if (staffError) {
           // If we got a column not found error, try with staff_id instead (column name might be different)
           if (staffError.code === '42703' && staffError.message?.includes('staff_id')) {
-            console.log('Trying alternative column name for staff ID...');
+            // console.log('Trying alternative column name for staff ID...');
             // Try with candidate_id (another common column name in the DB)
             const { error: retryError } = await supabase
               .from('project_staff')

@@ -245,13 +245,20 @@ export async function createExpenseClaim(claim: Omit<ExpenseClaim, 'total_amount
       description: claim.description || null,
       receipt_number: claim.receipt_number,
       total_amount: claim.amount || 0,
-      user_id: claim.user_id,
       expense_date: claim.expense_date,
       category: claim.category,
       submitted_at: claim.submitted_at || new Date().toISOString(),
       submitted_by: claim.submitted_by || 'Self',
       status: 'pending'
     };
+    
+    // Handle user_id vs staff_id
+    if (claim.user_id) {
+      claimData.user_id = claim.user_id;
+    }
+    if (claim.staff_id) {
+      claimData.staff_id = claim.staff_id;
+    }
     
     // Only add project_id if it's a valid UUID
     if (claim.project_id && claim.project_id !== 'undefined') {
@@ -319,9 +326,13 @@ export async function createExpenseClaimWithReceipts(
   claim: Omit<ExpenseClaim, 'total_amount' | 'status' | 'receipt_number'>,
   receiptFiles: File[]
 ): Promise<{ claim: ExpenseClaim; receipts: any[] }> {
+  console.log('createExpenseClaimWithReceipts called with claim:', claim, 'files:', receiptFiles?.length || 0);
+  
   try {
     // First create the expense claim
     const createdClaim = await createExpenseClaim(claim);
+    
+    console.log('Created expense claim result:', createdClaim);
     
     if (!createdClaim.id) {
       throw new Error('Failed to create expense claim - no ID returned');
@@ -331,6 +342,7 @@ export async function createExpenseClaimWithReceipts(
     let uploadedReceipts = [];
     if (receiptFiles && receiptFiles.length > 0) {
       uploadedReceipts = await uploadMultipleReceipts(createdClaim.id, receiptFiles);
+      console.log('Uploaded receipts:', uploadedReceipts);
     }
     
     return {

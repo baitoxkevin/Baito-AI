@@ -56,7 +56,7 @@ export function CustomSaveExample() {
   const [savedData, setSavedData] = useState<PayrollData | null>(null);
 
   const handleCustomSave = async (payrollData: PayrollData) => {
-    console.log('Custom save handler called with:', payrollData);
+    // console.log('Custom save handler called with:', payrollData);
     
     // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 1000));

@@ -25,7 +25,7 @@ export default function PayrollDebug() {
   
   // Function to log debug information
   const logDebug = (message, data) => {
-    console.log(message, data);
+    // console.log(message, data);
     setDebugLogs(prevLogs => [
       { timestamp: new Date().toLocaleTimeString(), message, data: JSON.stringify(data) },
       ...prevLogs
@@ -108,9 +108,9 @@ export default function PayrollDebug() {
           <div className="mb-4">
             <h3 className="text-sm font-medium mb-2">Alternative Implementation 2:</h3>
             <Button onClick={() => {
-              console.log("Direct implementation clicked");
+              // console.log("Direct implementation clicked");
               setIsSetBasicDialogOpen(prev => {
-                console.log("State updater called, previous value:", prev);
+                // console.log("State updater called, previous value:", prev);
                 return true;
               });
             }}>

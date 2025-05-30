@@ -58,7 +58,7 @@ async function doesClientsTableExist(): Promise<boolean> {
  */
 export async function getProjectById(id: string, includeDocuments: boolean = false): Promise<Project | null> {
   try {
-    console.log(`Getting project details for ID: ${id}`);
+    // console.log(`Getting project details for ID: ${id}`);
     
     if (!id) {
       console.error('Invalid project ID provided');
@@ -92,7 +92,7 @@ export async function getProjectById(id: string, includeDocuments: boolean = fal
     }
 
     if (!data) {
-      console.log('No project found with ID:', id);
+      // console.log('No project found with ID:', id);
       return null;
     }
 
@@ -116,7 +116,7 @@ export async function getProjectById(id: string, includeDocuments: boolean = fal
               try {
                 return new Date(date);
               } catch (e) {
-                console.warn('Invalid date string in confirmed_staff workingDates:', date);
+                // console.warn('Invalid date string in confirmed_staff workingDates:', date);
                 return date; // Keep original if parsing fails
               }
             }
@@ -144,7 +144,7 @@ export async function getProjectById(id: string, includeDocuments: boolean = fal
               try {
                 return new Date(date);
               } catch (e) {
-                console.warn('Invalid date string in applicants workingDates:', date);
+                // console.warn('Invalid date string in applicants workingDates:', date);
                 return date; // Keep original if parsing fails
               }
             }
@@ -159,10 +159,10 @@ export async function getProjectById(id: string, includeDocuments: boolean = fal
     }
 
     // Log staff data for debugging
-    console.log(`Project ${id} staff data:`, {
-      confirmed_staff_count: processedData.confirmed_staff.length,
-      applicants_count: processedData.applicants.length
-    });
+    // console.log(`Project ${id} staff data:`, {
+    //   confirmed_staff_count: processedData.confirmed_staff.length,
+    //   applicants_count: processedData.applicants.length
+    // });
     
     // Fetch client data separately if client_id exists
     if (data.client_id) {

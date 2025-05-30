@@ -97,7 +97,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     const isPublicRoute = window.location.pathname.includes('/candidate-update/');
     
     if (isPublicRoute) {
-      console.log('Public route detected - skipping authentication');
+      // console.log('Public route detected - skipping authentication');
       setIsLoadingUser(false);
       return;
     }
@@ -114,7 +114,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         const errorMessage = String(error);
         if (errorMessage.includes('AuthSessionMissingError') ||
             errorMessage.includes('Auth session missing')) {
-          console.log('No authentication session found - user not logged in');
+          // console.log('No authentication session found - user not logged in');
           setCurrentUser(null);
         }
         // Don't show toast for candidate-update routes or auth session missing errors
@@ -139,7 +139,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     const isPublicRoute = window.location.pathname.includes('/candidate-update/');
     
     if (isPublicRoute) {
-      console.log('Public route detected - skipping projects loading');
+      // console.log('Public route detected - skipping projects loading');
       return;
     }
     

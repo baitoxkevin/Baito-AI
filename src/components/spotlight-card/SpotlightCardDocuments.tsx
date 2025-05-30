@@ -389,7 +389,7 @@ export function SpotlightCardDocuments({
                     side="right"
                     onAction={(type, id) => {
                       if (type === 'download') handleDownload(doc);
-                      if (type === 'view') console.log('View document details', id);
+                      // if (type === 'view') console.log('View document details', id);
                     }}
                   >
                     <span className="hover:text-blue-600 hover:underline truncate inline-block max-w-[200px]">
@@ -492,7 +492,7 @@ export function SpotlightCardDocuments({
                     side="right"
                     onAction={(type, id) => {
                       if (type === 'download') handleDownload(doc);
-                      if (type === 'view') console.log('View document details', id);
+                      // if (type === 'view') console.log('View document details', id);
                     }}
                   >
                     <p className="font-medium text-sm truncate w-full hover:text-blue-600 hover:underline">

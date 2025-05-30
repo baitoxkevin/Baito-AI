@@ -59,7 +59,6 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuLabel
 } from "@/components/ui/dropdown-menu";
-import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
 import { MetricCard } from '@/components/ui/metric-card';
 import { ProjectCard3D } from '@/components/ui/project-card-3d';
 // Removed EnhancedProjectCard - using SpotlightCard for all projects
@@ -113,7 +112,7 @@ export default function ProjectsPageRedesign() {
       
       // If no projects are returned, it might be a connection issue
       if (fetchedProjects.length === 0) {
-        console.warn('No projects returned from database, check connection');
+        // console.warn('No projects returned from database, check connection');
       }
       
       // Prefetch adjacent months for smoother navigation
@@ -257,24 +256,26 @@ export default function ProjectsPageRedesign() {
       searchQuery,
       activeFilter === 'all' ? {} : { status: [activeFilter] }
     );
-    console.log(`Month ${activeMonth}: Found ${currentMonthProjects.length} projects, filtered to ${filtered.length}`);
+    // console.log(`Month ${activeMonth}: Found ${currentMonthProjects.length} projects, filtered to ${filtered.length}`);
     return filtered;
   }, [currentMonthProjects, searchQuery, activeFilter, activeMonth]);
   
   // Get project metrics
   const metrics = useMemo(() => {
-    const activeProjects = filteredProjects.filter(p => 
-      ['in-progress', 'new', 'pending'].includes(p.status.toLowerCase())
-    );
+    const activeProjects = filteredProjects.filter(p => {
+      const normalizedStatus = p.status.toLowerCase().replace(/_/g, '-');
+      return ['in-progress', 'new', 'pending', 'scheduled', 'planning'].includes(normalizedStatus);
+    });
     
     const completedProjects = filteredProjects.filter(p => 
       p.status.toLowerCase() === 'completed'
     );
     
-    const delayedProjects = filteredProjects.filter(p => 
-      ['in-progress', 'pending'].includes(p.status.toLowerCase()) && 
-      (p as any).is_delayed === true
-    );
+    const delayedProjects = filteredProjects.filter(p => {
+      const normalizedStatus = p.status.toLowerCase().replace(/_/g, '-');
+      return ['in-progress', 'pending'].includes(normalizedStatus) && 
+        (p as any).is_delayed === true;
+    });
     
     // Calculate team utilization if available
     let teamUtilization = "N/A";
@@ -294,10 +295,40 @@ export default function ProjectsPageRedesign() {
     };
   }, [filteredProjects]);
   
-  // Find a featured project
-  const featuredProject = useMemo(() => {
-    return filteredProjects.find(project => isFeatureWorthy(project)) || null;
-  }, [filteredProjects]);
+  // Get current user id from storage (assuming test_user for now)
+  const currentUserId = useMemo(() => {
+    const storedUser = localStorage.getItem('test_user');
+    if (storedUser) {
+      try {
+        return JSON.parse(storedUser).user.id;
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  }, []);
+
+  // Find user's projects (where user is manager, client, or collaborator)
+  const myProjects = useMemo(() => {
+    if (!currentUserId) return [];
+    
+    return filteredProjects.filter(project => {
+      // Check if user is the manager
+      if (project.manager_id === currentUserId) return true;
+      
+      // Check if user is the client
+      if (project.client_id === currentUserId) return true;
+      
+      // Check if user is in confirmed staff
+      if (project.confirmed_staff && Array.isArray(project.confirmed_staff)) {
+        return project.confirmed_staff.some((staff: any) => 
+          staff.candidate_id === currentUserId || staff.id === currentUserId
+        );
+      }
+      
+      return false;
+    });
+  }, [filteredProjects, currentUserId]);
   
   // Calculate today's projects count
   const todaysProjectsCount = useMemo(() => {
@@ -318,17 +349,16 @@ export default function ProjectsPageRedesign() {
   
   // Group projects by the selected grouping method
   const groupedProjects = useMemo(() => {
-    // Filter out the featured project from the groups
-    const projectsWithoutFeatured = featuredProject 
-      ? filteredProjects.filter(p => p.id !== featuredProject.id)
-      : filteredProjects;
+    // Filter out user's projects from the general groups
+    const myProjectIds = new Set(myProjects.map(p => p.id));
+    const projectsWithoutMine = filteredProjects.filter(p => !myProjectIds.has(p.id));
       
     return groupProjects(
       // Sort projects within each group
-      sortProjects(projectsWithoutFeatured, sortBy as any),
+      sortProjects(projectsWithoutMine, sortBy as any),
       groupBy
     );
-  }, [filteredProjects, featuredProject, groupBy, sortBy]);
+  }, [filteredProjects, myProjects, groupBy, sortBy]);
   
   // Helper function to render the appropriate icon for group headers
   const renderGroupIcon = (groupName: string) => {
@@ -678,21 +708,30 @@ export default function ProjectsPageRedesign() {
             </div>
           ) : (
             <>
-              {/* Featured project */}
-              {featuredProject && (
-                <section className="mb-4" ref={featuredSectionRef}>
-                  <h2 className="text-sm font-semibold mb-2 flex items-center">
-                    <Sparkles className="h-4 w-4 text-amber-500 mr-1.5" />
-                    Featured Project
+              {/* My Projects */}
+              {myProjects.length > 0 && (
+                <section className="mb-6" ref={featuredSectionRef}>
+                  <h2 className="text-lg font-semibold mb-4 flex items-center">
+                    <Users className="h-5 w-5 text-blue-500 mr-2" />
+                    My Projects
+                    <Badge className="ml-2 bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200">
+                      {myProjects.length}
+                    </Badge>
                   </h2>
                   
-                  <SpotlightCard 
-                    project={featuredProject}
-                    onProjectUpdated={handleProjectsUpdated}
-                    onViewDetails={handleViewDetails}
-                    tasks={featuredProject.tasks || []}
-                    documents={featuredProject.documents || []}
-                  />
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                    {myProjects.map((project) => (
+                      <SpotlightCard 
+                        key={project.id}
+                        project={project}
+                        onProjectUpdated={handleProjectsUpdated}
+                        onViewDetails={handleViewDetails}
+                        tasks={project.tasks || []}
+                        documents={project.documents || []}
+                        expenseClaims={project.expense_claims || []}
+                      />
+                    ))}
+                  </div>
                 </section>
               )}
               
@@ -758,33 +797,6 @@ export default function ProjectsPageRedesign() {
         </div>
       </div>
       
-      {/* Pagination footer (visible only if enough projects) */}
-      {totalProjects > 12 && (
-        <div className="border-t bg-white/50 backdrop-blur-sm dark:bg-slate-900/50 p-4">
-          <div className="max-w-6xl mx-auto flex items-center justify-between">
-            <p className="text-sm text-slate-500">
-              Showing {Math.min(12, totalProjects)} of {totalProjects} projects
-            </p>
-            
-            <Pagination>
-              <PaginationContent>
-                <PaginationItem>
-                  <PaginationPrevious href="#" />
-                </PaginationItem>
-                <PaginationItem>
-                  <PaginationLink href="#" isActive>1</PaginationLink>
-                </PaginationItem>
-                <PaginationItem>
-                  <PaginationLink href="#">2</PaginationLink>
-                </PaginationItem>
-                <PaginationItem>
-                  <PaginationNext href="#" />
-                </PaginationItem>
-              </PaginationContent>
-            </Pagination>
-          </div>
-        </div>
-      )}
       
       {/* Project creation dialog */}
       <NewProjectDialog

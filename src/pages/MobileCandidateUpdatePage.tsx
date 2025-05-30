@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { supabase } from '@/lib/supabase';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { supabase } from '../lib/supabase';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
+import { Label } from '../components/ui/label';
+import { Input } from '../components/ui/input';
+import { Button } from '../components/ui/button';
+import { Alert, AlertDescription, AlertTitle } from '../components/ui/alert';
 import {
   Dialog,
   DialogContent,
@@ -13,14 +13,14 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
-import { ShimmerButton } from '@/components/ui/shimmer-button';
-import { RainbowButton } from '@/components/ui/rainbow-button';
-import { TextAnimate } from '@/components/ui/text-animate';
-import { AnimatedGradientText } from '@/components/ui/animated-gradient-text';
-import { SparklesText } from '@/components/ui/sparkles-text';
-import { MagicCard } from '@/components/ui/magic-card';
-import { ShineButton } from '@/components/ui/shine-border';
+} from '../components/ui/dialog';
+import { ShimmerButton } from '../components/ui/shimmer-button';
+import { RainbowButton } from '../components/ui/rainbow-button';
+import { TextAnimate } from '../components/ui/text-animate';
+import { AnimatedGradientText } from '../components/ui/animated-gradient-text';
+import { SparklesText } from '../components/ui/sparkles-text';
+import { MagicCard } from '../components/ui/magic-card';
+import { ShineButton } from '../components/ui/shine-border';
 import { 
   UserPlus, 
   AlertCircle, 
@@ -53,10 +53,10 @@ import {
   GraduationCap,
   Car
 } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
+import { useToast } from '../hooks/use-toast';
+import { LoadingSpinner } from '../components/ui/loading-spinner';
+import { Avatar, AvatarFallback, AvatarImage } from '../components/ui/avatar';
+import { Badge } from '../components/ui/badge';
 import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import * as SelectPrimitive from '@radix-ui/react-select';

@@ -352,7 +352,12 @@ export function HoverPreview({
                           </AvatarFallback>
                         )}
                       </Avatar>
-                      <span className="text-sm font-medium">{data.submitted_by_name || data.user_name || 'Unknown'}</span>
+                      <div>
+                        <span className="text-sm font-medium">{data.submitted_by_name || data.user_name || 'Unknown'}</span>
+                        {data.submitted_by === 'On behalf' && data.staff_name && (
+                          <p className="text-xs text-gray-500">For: {data.staff_name}</p>
+                        )}
+                      </div>
                     </div>
                   </div>
                   <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-3">

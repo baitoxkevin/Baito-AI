@@ -36,6 +36,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 import { logUtils } from '@/lib/activity-logger';
+import { supabase } from '@/lib/supabase';
 import { 
   Calendar as CalendarIcon,
   Building2,
@@ -146,8 +147,16 @@ export function PaymentSubmissionDialog({
   // Handle form submission
   const handleSubmit = async () => {
     try {
-      // Generate batch reference
-      const tempBatchRef = generateBatchReference(projectId);
+      // Fetch existing batch references for this project
+      const { data: existingBatches } = await supabase
+        .from('payment_batches')
+        .select('batch_reference')
+        .eq('project_id', projectId);
+      
+      const existingReferences = existingBatches?.map(b => b.batch_reference) || [];
+      
+      // Generate batch reference using project name
+      const tempBatchRef = generateBatchReference(projectName, existingReferences);
       setBatchReference(tempBatchRef);
       
       // Log payment submission initiation
@@ -170,6 +179,13 @@ export function PaymentSubmissionDialog({
   // Handle actual payment submission to API
   const handleConfirmSubmission = async () => {
     try {
+      // Validate bank details before submission
+      if (staffWithMissingBankDetails.length > 0) {
+        setSubmissionError(`Cannot proceed: ${staffWithMissingBankDetails.length} staff member(s) have missing bank details`);
+        setStep('error');
+        return;
+      }
+      
       setStep('processing');
       
       // Submit payment batch
@@ -190,7 +206,11 @@ export function PaymentSubmissionDialog({
             phone: staff.phone
           }
         })),
-        null, // No company details
+        {
+          name: companyName || 'N/A',
+          registrationNumber: companyRegistrationNumber || 'N/A',
+          bankAccount: companyBankAccount || 'N/A'
+        },
         paymentMethod,
         notes
       );
@@ -734,7 +754,7 @@ export function PaymentSubmissionDialog({
               <Button 
                 className="bg-blue-600 hover:bg-blue-700"
                 onClick={handleSubmit}
-                disabled={!companyName || !companyRegistrationNumber || !companyBankAccount}
+                disabled={false}
               >
                 Continue
               </Button>

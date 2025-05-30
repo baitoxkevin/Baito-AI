@@ -203,6 +203,8 @@ export interface Project {
   supervisors_required: number;
   color: string;
   logo_url?: string;
+  brand_logo?: string;
+  budget?: number;
   deleted_at?: string;
   deleted_by?: string;
   created_at: string;

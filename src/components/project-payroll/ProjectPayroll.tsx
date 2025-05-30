@@ -50,7 +50,8 @@ import {
   Check,
   Plus,
   Calculator,
-  Info
+  Info,
+  AlertCircle
 } from "lucide-react";
 import type { Project } from '@/lib/types';
 import { DuitNowPaymentExport } from '@/components/duitnow-payment-export';
@@ -76,6 +77,20 @@ interface StaffMember {
   workingDatesWithSalary?: WorkingDateWithSalary[];
   paymentStatus?: 'pending' | 'pushed' | 'paid';
   paymentDate?: Date;
+  bank_name?: string;
+  bank_account_number?: string;
+  email?: string;
+  phone_number?: string;
+  // Alternative field names that might be used
+  bankCode?: string;
+  bankAccountNumber?: string;
+  phone?: string;
+  candidate?: {
+    bank_name?: string;
+    bank_account_number?: string;
+    email?: string;
+    phone_number?: string;
+  };
 }
 
 interface StaffWorkingSummary {
@@ -95,6 +110,7 @@ interface ProjectPayrollProps {
   projectStartDate?: Date;
   projectEndDate?: Date;
   onEditDialogOpenChange?: (open: boolean) => void;
+  onProjectUpdate?: (project: Project) => void;
 }
 
 // Helper functions
@@ -190,8 +206,11 @@ export default function ProjectPayroll({
   confirmedStaff,
   setConfirmedStaff,
   loadingStaff = false,
-  onEditDialogOpenChange
+  onEditDialogOpenChange,
+  onProjectUpdate
 }: ProjectPayrollProps) {
+  // Debug log to see initial confirmed staff structure (commented out to reduce console noise)
+  // console.log('Initial confirmedStaff data:', confirmedStaff);
   const [editingStaffId, setEditingStaffId] = useState<string | null>(null);
   const [sortColumn, setSortColumn] = useState<'staff' | 'position' | 'days' | 'perDay' | 'totalAmount'>('totalAmount');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
@@ -212,6 +231,53 @@ export default function ProjectPayroll({
   const [selectedPaymentDate, setSelectedPaymentDate] = useState<Date>(new Date());
   // State for staff expense claims
   const [staffExpenseClaims, setStaffExpenseClaims] = useState<Record<string, any[]>>({});
+  // Budget editing state
+  const [isEditingBudget, setIsEditingBudget] = useState(false);
+  const [tempBudget, setTempBudget] = useState('');
+  
+  // Handle budget save
+  const handleBudgetSave = async () => {
+    try {
+      const budgetValue = parseFloat(tempBudget);
+      
+      if (isNaN(budgetValue) || budgetValue < 0) {
+        toast({
+          title: "Invalid Budget",
+          description: "Please enter a valid budget amount",
+          variant: "destructive",
+        });
+        setTempBudget(project.budget?.toString() || '0');
+        setIsEditingBudget(false);
+        return;
+      }
+
+      const { error } = await supabase
+        .from('projects')
+        .update({ budget: budgetValue })
+        .eq('id', project.id);
+
+      if (error) throw error;
+
+      // Update local state
+      if (onProjectUpdate) {
+        onProjectUpdate({ ...project, budget: budgetValue });
+      }
+
+      toast({
+        title: "Budget Updated",
+        description: `Budget set to RM ${budgetValue.toFixed(2)}`,
+      });
+
+      setIsEditingBudget(false);
+    } catch (error) {
+      console.error('Error updating budget:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update budget",
+        variant: "destructive",
+      });
+    }
+  };
   
   // Remove the automatic focus effect to prevent selection issues
 
@@ -443,13 +509,24 @@ export default function ProjectPayroll({
     const totalCommission = staffSummaries.reduce((sum, staff) => sum + staff.totalCommission, 0);
     const totalAmount = totalBasicSalary + totalClaims + totalCommission;
     
+    // Calculate unpushed totals
+    const unpushedStaff = confirmedStaff.filter(s => s.paymentStatus !== 'pushed');
+    const unpushedSummaries = staffSummaries.filter(summary => {
+      const staff = confirmedStaff.find(s => s.name === summary.name);
+      return staff && staff.paymentStatus !== 'pushed';
+    });
+    
+    const unpushedTotalAmount = unpushedSummaries.reduce((sum, staff) => sum + staff.totalAmount, 0);
+    
     return {
       totalStaff: confirmedStaff.length,
       totalDays,
       totalBasicSalary,
       totalClaims,
       totalCommission,
-      totalAmount
+      totalAmount,
+      unpushedStaffCount: unpushedStaff.length,
+      unpushedTotalAmount
     };
   }, [staffSummaries, confirmedStaff]);
 
@@ -598,32 +675,76 @@ export default function ProjectPayroll({
   };
   
   // Handle successful payment push
-  const handlePaymentPushed = (batchId: string) => {
+  const handlePaymentPushed = async (batchId: string) => {
     // Mark selected staff as pushed with the payment date
     const updatedStaff = confirmedStaff.map(staff => {
       if (selectedStaff.includes(staff.id) && staff.paymentStatus !== 'pushed') {
         return {
           ...staff,
           paymentStatus: 'pushed' as const,
-          paymentDate: selectedPaymentDate
+          paymentDate: selectedPaymentDate,
+          paymentBatchId: batchId
         };
       }
       return staff;
     });
     
-    setConfirmedStaff(updatedStaff);
+    // Update the project in the database with the new staff status first
+    try {
+      const { error } = await supabase
+        .from('projects')
+        .update({
+          confirmed_staff: updatedStaff.map(staff => ({
+            candidate_id: staff.id,
+            name: staff.name,
+            photo: staff.photo,
+            position: staff.designation,
+            status: staff.status,
+            working_dates: staff.workingDates,
+            working_dates_with_salary: staff.workingDatesWithSalary,
+            paymentStatus: staff.paymentStatus,
+            paymentDate: staff.paymentDate,
+            paymentBatchId: staff.paymentBatchId,
+            bank_name: staff.bank_name || staff.candidate?.bank_name || staff.bankCode || '',
+            bank_account_number: staff.bank_account_number || staff.candidate?.bank_account_number || staff.bankAccountNumber || ''
+          }))
+        })
+        .eq('id', project.id);
+        
+      if (error) {
+        console.error('Error updating project staff payment status:', error);
+        toast({
+          title: "Error",
+          description: "Failed to update payment status. Please try again.",
+          variant: "destructive"
+        });
+        // Don't update local state if database update failed
+        return;
+      }
+      
+      // Only update local state after successful database update
+      setConfirmedStaff(updatedStaff);
+    } catch (error) {
+      console.error('Error updating project:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update payment status. Please try again.",
+        variant: "destructive"
+      });
+      return;
+    }
     
-    // Clear selection of pushed staff
-    setSelectedStaff(selectedStaff.filter(id => {
-      const staff = confirmedStaff.find(s => s.id === id);
-      return staff && staff.paymentStatus === 'pushed';
-    }));
+    // Clear selection
+    setSelectedStaff([]);
     
     toast({
       title: "Payment Pushed",
       description: `Payment successfully pushed for ${updatedStaff.filter(s => s.paymentStatus === 'pushed' && s.paymentDate?.getTime() === selectedPaymentDate.getTime()).length} staff members`,
       variant: "default"
     });
+    
+    // Close the payment submission dialog
+    setShowPaymentSubmission(false);
   };
 
   // Handle export to DuitNow payment file
@@ -779,6 +900,11 @@ export default function ProjectPayroll({
           <div className="flex flex-col items-center text-center">
             <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">Total Amount</p>
             <p className="text-base font-bold text-emerald-700 dark:text-emerald-400">RM {projectSummary.totalAmount.toLocaleString()}</p>
+            {projectSummary.unpushedStaffCount < projectSummary.totalStaff && (
+              <p className="text-[10px] text-emerald-600 dark:text-emerald-500 mt-1">
+                Pending: RM {projectSummary.unpushedTotalAmount.toLocaleString()}
+              </p>
+            )}
           </div>
         </div>
       </div>
@@ -882,6 +1008,92 @@ export default function ProjectPayroll({
                             {format(staff.paymentDate, "MMM d, yyyy")}
                           </span>
                         )}
+                        {staff.paymentBatchId && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-xs text-red-600 hover:text-red-700 p-1 h-auto"
+                            onClick={async () => {
+                              if (confirm('Are you sure you want to undo this payment? It will be removed from the payment queue.')) {
+                                try {
+                                  // First, delete the payment batch
+                                  const { error: deleteError } = await supabase
+                                    .from('payment_batches')
+                                    .delete()
+                                    .eq('id', staff.paymentBatchId);
+                                    
+                                  if (deleteError) {
+                                    console.error('Error deleting payment batch:', deleteError);
+                                    toast({
+                                      title: "Error",
+                                      description: "Failed to undo payment. Please try again.",
+                                      variant: "destructive"
+                                    });
+                                    return;
+                                  }
+                                  
+                                  // Update staff to remove payment status
+                                  const updatedStaff = confirmedStaff.map(s => {
+                                    if (s.id === staff.id) {
+                                      // Remove payment-related fields
+                                      const { paymentStatus, paymentDate, paymentBatchId, ...cleanStaff } = s;
+                                      return cleanStaff;
+                                    }
+                                    return s;
+                                  });
+                                  
+                                  // Update in database
+                                  const { error: updateError } = await supabase
+                                    .from('projects')
+                                    .update({
+                                      confirmed_staff: updatedStaff.map(s => ({
+                                        candidate_id: s.id,
+                                        name: s.name,
+                                        photo: s.photo,
+                                        position: s.designation,
+                                        status: s.status,
+                                        working_dates: s.workingDates,
+                                        working_dates_with_salary: s.workingDatesWithSalary,
+                                        paymentStatus: s.paymentStatus,
+                                        paymentDate: s.paymentDate,
+                                        paymentBatchId: s.paymentBatchId,
+                                        bank_name: s.bank_name || s.candidate?.bank_name || s.bankCode || '',
+                                        bank_account_number: s.bank_account_number || s.candidate?.bank_account_number || s.bankAccountNumber || ''
+                                      }))
+                                    })
+                                    .eq('id', project.id);
+                                    
+                                  if (updateError) {
+                                    console.error('Error updating project:', updateError);
+                                    toast({
+                                      title: "Error",
+                                      description: "Failed to update project. Please try again.",
+                                      variant: "destructive"
+                                    });
+                                    return;
+                                  }
+                                  
+                                  // Update local state
+                                  setConfirmedStaff(updatedStaff);
+                                  
+                                  toast({
+                                    title: "Payment Undone",
+                                    description: "The payment has been removed from the queue",
+                                  });
+                                } catch (error) {
+                                  console.error('Error undoing payment:', error);
+                                  toast({
+                                    title: "Error",
+                                    description: "Failed to undo payment",
+                                    variant: "destructive"
+                                  });
+                                }
+                              }
+                            }}
+                          >
+                            Undo
+                          </Button>
+                        )}
                       </div>
                     ) : (
                       <Badge className="bg-gray-100 dark:bg-gray-900/40 text-gray-700 dark:text-gray-300 border-0">
@@ -926,21 +1138,55 @@ export default function ProjectPayroll({
         </Table>
       </div>
         
-      {/* Budget Summary */}
-      <div className="mt-auto border-t border-gray-200 dark:border-gray-700 pt-4 flex flex-col sm:flex-row justify-between items-center">
-        <div className="text-gray-800 dark:text-gray-200 font-semibold text-sm">
-          Budget: <span className="text-indigo-600 dark:text-indigo-400">RM 20,000.00</span>
+      {/* Budget Summary - Temporarily hidden until budget column is added to database */}
+      {false && (
+        <div className="mt-auto border-t border-gray-200 dark:border-gray-700 pt-4 flex flex-col sm:flex-row justify-between items-center">
+          <div className="text-gray-800 dark:text-gray-200 font-semibold text-sm flex items-center gap-2">
+            Budget: 
+            {isEditingBudget ? (
+              <div className="flex items-center gap-2">
+                <span className="text-indigo-600 dark:text-indigo-400">RM</span>
+                <Input
+                  type="number"
+                  value={tempBudget}
+                  onChange={(e) => setTempBudget(e.target.value)}
+                  onBlur={handleBudgetSave}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      handleBudgetSave();
+                    } else if (e.key === 'Escape') {
+                      setTempBudget(project.budget?.toString() || '0');
+                      setIsEditingBudget(false);
+                    }
+                  }}
+                  className="w-32 h-7 text-sm"
+                  autoFocus
+                />
+              </div>
+            ) : (
+              <button
+                onClick={() => {
+                  setIsEditingBudget(true);
+                  setTempBudget(project.budget?.toString() || '0');
+                }}
+                className="text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 px-2 py-0.5 rounded-md transition-colors flex items-center gap-1"
+              >
+                RM {(project.budget || 0).toLocaleString()}
+                <Pencil className="h-3 w-3 opacity-50" />
+              </button>
+            )}
+          </div>
+          <div className="text-gray-800 dark:text-gray-200 text-sm mt-2 sm:mt-0">
+            <span>Spent: <span className="font-semibold text-indigo-600 dark:text-indigo-400">
+              RM {projectSummary.totalAmount.toLocaleString()}
+            </span></span>
+            <span className="mx-2">|</span>
+            <span>Remaining: <span className={`font-semibold ${(project.budget || 0) - projectSummary.totalAmount >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+              RM {((project.budget || 0) - projectSummary.totalAmount).toLocaleString()}
+            </span></span>
+          </div>
         </div>
-        <div className="text-gray-800 dark:text-gray-200 text-sm mt-2 sm:mt-0">
-          <span>Spent: <span className="font-semibold text-indigo-600 dark:text-indigo-400">
-            RM {projectSummary.totalAmount.toLocaleString()}
-          </span></span>
-          <span className="mx-2">|</span>
-          <span>Remaining: <span className="font-semibold text-indigo-600 dark:text-indigo-400">
-            RM {(20000 - projectSummary.totalAmount).toLocaleString()}
-          </span></span>
-        </div>
-      </div>
+      )}
 
       {/* Individual Staff Details Dialog */}
       <Dialog open={editingStaffId !== null} onOpenChange={(open) => {
@@ -1152,6 +1398,7 @@ export default function ProjectPayroll({
                                       pattern="[0-9]*"
                                       maxLength={4}
                                       value={dateEntry.basicSalary}
+                                      disabled={staff.paymentStatus === 'pushed'}
                                       onChange={(e) => {
                                         const input = e.target;
                                         const value = input.value;
@@ -1200,7 +1447,9 @@ export default function ProjectPayroll({
                                       onKeyDown={(e) => handleKeyDown(e, index, 'basic', staff)}
                                       placeholder="0"
                                       className={`h-10 text-sm text-center font-semibold w-full pl-8 pr-2 rounded-lg border transition-all ${
-                                        focusedCell?.rowIndex === index && focusedCell.column === 'basic' 
+                                        staff.paymentStatus === 'pushed' 
+                                          ? 'bg-gray-100 dark:bg-gray-800 cursor-not-allowed opacity-60'
+                                          : focusedCell?.rowIndex === index && focusedCell.column === 'basic' 
                                           ? 'ring-2 ring-emerald-500 dark:ring-emerald-400 border-emerald-300 dark:border-emerald-600 bg-emerald-50 dark:bg-emerald-900/20' 
                                           : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 bg-white dark:bg-slate-900'
                                       }`}
@@ -1229,6 +1478,7 @@ export default function ProjectPayroll({
                                       pattern="[0-9]*"
                                       maxLength={4}
                                       value={dateEntry.claims}
+                                      disabled={staff.paymentStatus === 'pushed'}
                                       onChange={(e) => {
                                         const input = e.target;
                                         const value = input.value;
@@ -1277,7 +1527,9 @@ export default function ProjectPayroll({
                                       onKeyDown={(e) => handleKeyDown(e, index, 'claims', staff)}
                                       placeholder="0"
                                       className={`h-10 text-sm text-center font-semibold w-full pl-8 pr-2 rounded-lg border transition-all ${
-                                        focusedCell?.rowIndex === index && focusedCell.column === 'claims' 
+                                        staff.paymentStatus === 'pushed' 
+                                          ? 'bg-gray-100 dark:bg-gray-800 cursor-not-allowed opacity-60'
+                                          : focusedCell?.rowIndex === index && focusedCell.column === 'claims' 
                                           ? 'ring-2 ring-purple-500 dark:ring-purple-400 border-purple-300 dark:border-purple-600 bg-purple-50 dark:bg-purple-900/20' 
                                           : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 bg-white dark:bg-slate-900'
                                       }`}
@@ -1295,6 +1547,7 @@ export default function ProjectPayroll({
                                         pattern="[0-9]*"
                                         maxLength={4}
                                         value={dateEntry.commission}
+                                        disabled={staff.paymentStatus === 'pushed'}
                                         onChange={(e) => {
                                           const input = e.target;
                                           const value = input.value;
@@ -1343,7 +1596,9 @@ export default function ProjectPayroll({
                                         onKeyDown={(e) => handleKeyDown(e, index, 'commission', staff)}
                                         placeholder="0"
                                         className={`h-10 text-sm text-center font-semibold w-full pl-8 pr-2 rounded-lg border transition-all ${
-                                          focusedCell?.rowIndex === index && focusedCell.column === 'commission' 
+                                          staff.paymentStatus === 'pushed' 
+                                            ? 'bg-gray-100 dark:bg-gray-800 cursor-not-allowed opacity-60'
+                                            : focusedCell?.rowIndex === index && focusedCell.column === 'commission' 
                                             ? 'ring-2 ring-amber-500 dark:ring-amber-400 border-amber-300 dark:border-amber-600 bg-amber-50 dark:bg-amber-900/20' 
                                             : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 bg-white dark:bg-slate-900'
                                         }`}
@@ -1395,6 +1650,12 @@ export default function ProjectPayroll({
                   </div>
                 </div>
                 <DialogFooter className="p-4 flex-shrink-0 border-t border-slate-200 dark:border-slate-700">
+                  {staff.paymentStatus === 'pushed' && (
+                    <div className="text-sm text-amber-600 dark:text-amber-400 flex items-center gap-2 mr-auto">
+                      <AlertCircle className="h-4 w-4" />
+                      <span>This payment has been pushed and cannot be edited</span>
+                    </div>
+                  )}
                   <Button
                     onClick={async () => {
                       try {
@@ -1434,7 +1695,7 @@ export default function ProjectPayroll({
                       }
                     }}
                     className="dialog-save-button bg-gradient-to-r from-indigo-600 to-purple-600 text-white"
-                    disabled={isSaving}
+                    disabled={isSaving || staff.paymentStatus === 'pushed'}
                   >
                     {isSaving ? (
                       <>
@@ -1621,11 +1882,51 @@ export default function ProjectPayroll({
           })
           .map(summary => {
             const staff = confirmedStaff.find(s => s.name === summary.name);
+            
+            // Debug logging to see staff data structure (commented out to reduce console noise)
+            // console.log('Staff data for payment submission:', {
+            //   staffId: staff?.id,
+            //   staffName: staff?.name,
+            //   directBankName: staff?.bank_name,
+            //   directAccountNumber: staff?.bank_account_number,
+            //   candidateBankName: staff?.candidate?.bank_name,
+            //   candidateAccountNumber: staff?.candidate?.bank_account_number,
+            //   bankCodeField: staff?.bankCode,
+            //   bankAccountNumberField: staff?.bankAccountNumber,
+            //   allKeys: staff ? Object.keys(staff) : [],
+            //   fullStaffObject: staff
+            // });
+            
+            // Try multiple field names for bank details
+            const bankName = staff?.bank_name || 
+                           staff?.bankName || 
+                           staff?.bank_code || 
+                           staff?.bankCode || 
+                           staff?.candidate?.bank_name || 
+                           staff?.candidate?.bankName || 
+                           '';
+                           
+            const accountNumber = staff?.bank_account_number || 
+                                staff?.bankAccountNumber || 
+                                staff?.account_number || 
+                                staff?.accountNumber || 
+                                staff?.candidate?.bank_account_number || 
+                                staff?.candidate?.bankAccountNumber || 
+                                '';
+            
+            // console.log('Extracted bank details:', {
+            //   staffName: staff?.name,
+            //   bankName,
+            //   accountNumber
+            // });
+            
             return {
               staffId: staff?.id || '',
               staffName: summary.name,
               amount: summary.totalAmount,
               totalDays: summary.totalDays,
+              bankCode: bankName,
+              bankAccountNumber: accountNumber,
               workingDates: staff?.workingDatesWithSalary?.map(wdws => 
                 typeof wdws.date === 'string' ? wdws.date : wdws.date.toISOString()
               ),
@@ -1633,7 +1934,9 @@ export default function ProjectPayroll({
                 basicSalary: summary.totalBasicSalary,
                 claims: summary.totalClaims,
                 commission: summary.totalCommission
-              }
+              },
+              email: staff?.email || staff?.candidate?.email || '',
+              phone: staff?.phone || staff?.phone_number || staff?.candidate?.phone_number || ''
             };
           })
         }

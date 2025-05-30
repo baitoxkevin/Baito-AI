@@ -151,7 +151,7 @@ export function useProjectsByMonth() {
     (month: number, year?: number) => {
       // If year is not provided, use current year
       const currentYear = year || new Date().getFullYear();
-      console.log(`Fetching projects for ${currentYear}/${month}`);
+      // console.log(`Fetching projects for ${currentYear}/${month}`);
       return fetchProjectsByMonth(currentYear, month);
     }
   );
@@ -159,7 +159,7 @@ export function useProjectsByMonth() {
   // Get projects by month - with enhanced error handling and retry mechanism
   const getProjectsByMonth = async (month: number, year?: number) => {
     try {
-      console.log(`Getting projects for month ${month}, year ${year || new Date().getFullYear()}`);
+      // console.log(`Getting projects for month ${month}, year ${year || new Date().getFullYear()}`);
       
       // Track attempt for retries if needed
       let attempts = 0;
@@ -172,14 +172,14 @@ export function useProjectsByMonth() {
           
           // Log success information (only detailed on first attempt)
           if (attempts === 0) {
-            console.log(`Successfully fetched ${data.length} projects for ${month}/${year || new Date().getFullYear()}`);
+            // console.log(`Successfully fetched ${data.length} projects for ${month}/${year || new Date().getFullYear()}`);
           } else {
-            console.log(`Retry #${attempts} successful, got ${data.length} projects`);
+            // console.log(`Retry #${attempts} successful, got ${data.length} projects`);
           }
           
           // If we get empty data on first attempt, try once with cache invalidation
           if (data.length === 0 && attempts === 0) {
-            console.log('No projects returned from cache, invalidating and retrying');
+            // console.log('No projects returned from cache, invalidating and retrying');
             invalidateCache(month, year);
             attempts++;
             continue;
