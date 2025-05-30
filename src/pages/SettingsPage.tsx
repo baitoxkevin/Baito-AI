@@ -40,7 +40,7 @@ export default function SettingsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   
   // Auth check state
-  const [authStatus, setAuthStatus] = useState<any>({
+  const [authStatus, setAuthStatus] = useState<unknown>({
     loading: true,
     user: null,
     session: null,

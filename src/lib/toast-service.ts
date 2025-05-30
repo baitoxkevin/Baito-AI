@@ -105,7 +105,7 @@ export const toastService = {
     }: {
       loading?: string;
       success?: string | ((data: T) => string);
-      error?: string | ((error: any) => string);
+      error?: string | ((error: unknown) => string);
     } = {}
   ) => {
     const toastId = toast({

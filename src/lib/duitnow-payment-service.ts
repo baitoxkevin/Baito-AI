@@ -193,7 +193,7 @@ export function exportDuitNowPaymentFile(paymentBatch: DuitNowPaymentBatch): voi
  * @returns Array of payment recipients formatted for DuitNow ECP
  */
 export function convertStaffToPaymentRecipients(
-  staffPayrollEntries: any[], 
+  staffPayrollEntries: unknown[], 
   defaultBankCode: string = BankCodes.MAYBANK
 ): PaymentRecipient[] {
   return staffPayrollEntries
@@ -237,7 +237,7 @@ export function convertStaffToPaymentRecipients(
 export function createDuitNowPaymentBatch(
   projectId: string,
   projectName: string,
-  staffPayrollEntries: any[],
+  staffPayrollEntries: unknown[],
   companyDetails: {
     name: string;
     registrationNumber: string;

@@ -50,7 +50,7 @@ export async function checkStaffScheduleConflicts(
         console.log("RPC conflict check results:", data);
         
         // Format the conflicts into our return structure
-        const conflicts = data.map((conflict: any) => ({
+        const conflicts = data.map((conflict: unknown) => ({
           date: parseISO(conflict.date),
           projectId: conflict.project_id,
           projectTitle: conflict.project_title || 'Unknown Project'

@@ -152,7 +152,7 @@ export default function PaymentsPage() {
           let staffCount = batch.staff_count || 0;
           
           if (batch.payments && Array.isArray(batch.payments)) {
-            totalAmount = batch.payments.reduce((sum: number, payment: any) => sum + (payment.amount || 0), 0);
+            totalAmount = batch.payments.reduce((sum: number, payment: unknown) => sum + (payment.amount || 0), 0);
             staffCount = batch.payments.length;
           }
           
@@ -306,8 +306,8 @@ export default function PaymentsPage() {
   const sortedPayments = [...paymentBatches].sort((a, b) => {
     if (sortConfig.direction === null) return 0;
     
-    let aValue: any;
-    let bValue: any;
+    let aValue: unknown;
+    let bValue: unknown;
     
     switch (sortConfig.key) {
       case 'project':
@@ -440,7 +440,7 @@ export default function PaymentsPage() {
               // Convert payments data to payment items format
               setPaymentItems(prev => ({
                 ...prev,
-                [batchId]: batch.payments.map((p: any, idx: number) => ({
+                [batchId]: batch.payments.map((p: unknown, idx: number) => ({
                   id: `${batchId}-${idx}`,
                   staff_id: p.staff_id,
                   staff_name: p.staff_name,
@@ -1059,7 +1059,7 @@ export default function PaymentsPage() {
                                               if (projectError) throw projectError;
                                               
                                               if (project?.confirmed_staff) {
-                                                const updatedStaff = project.confirmed_staff.map((staff: any) => {
+                                                const updatedStaff = project.confirmed_staff.map((staff: unknown) => {
                                                   // Remove payment-related fields if this was their payment batch
                                                   if (staff.paymentBatchId === payment.id) {
                                                     const { paymentStatus, paymentDate, paymentBatchId, ...cleanStaff } = staff;
@@ -1209,7 +1209,7 @@ export default function PaymentsPage() {
                                               <tbody>
                                                 {paymentItems[payment.id]?.map((item, idx) => {
                                                   // Parse payment details from the original data
-                                                  const paymentData = payment.payments?.find((p: any) => p.staff_id === item.staff_id);
+                                                  const paymentData = payment.payments?.find((p: unknown) => p.staff_id === item.staff_id);
                                                   const workingDays = paymentData?.total_days || paymentData?.working_dates?.length || 0;
                                                   const payrollDetails = paymentData?.payroll_details || {};
                                                   const basicSalary = payrollDetails.basicSalary || 0;

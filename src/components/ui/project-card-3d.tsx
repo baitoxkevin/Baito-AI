@@ -36,9 +36,9 @@ interface ProjectCard3DProps {
   project: Project;
   onProjectUpdated: () => void;
   onViewDetails?: (project: Project) => void;
-  tasks?: any[];
-  documents?: any[];
-  expenseClaims?: any[];
+  tasks?: unknown[];
+  documents?: unknown[];
+  expenseClaims?: unknown[];
 }
 
 export function ProjectCard3D({ 
@@ -77,7 +77,7 @@ export function ProjectCard3D({
   
   // Calculate budget used (if available)
   const expenseTotal = expenseClaims.reduce((sum, claim) => sum + (claim.amount || 0), 0);
-  const budget = (project as any).budget || 0;
+  const budget = (project as unknown).budget || 0;
   const budgetUsedPercentage = budget > 0 ? Math.min(100, Math.round((expenseTotal / budget) * 100)) : 0;
   
   // Handle mouse move for spotlight effect
@@ -200,7 +200,7 @@ export function ProjectCard3D({
                       {/* Square logo - Project/event/brand logo */}
                       <div className="h-16 w-16 rounded-xl border-2 border-white/20 bg-white/90 dark:bg-slate-800/90 backdrop-blur-md flex items-center justify-center overflow-hidden shadow-lg">
                         <img
-                          src={(project as any).logo_url || 'https://placehold.co/80x80/EEE/999?text=Brand'}
+                          src={(project as unknown).logo_url || 'https://placehold.co/80x80/EEE/999?text=Brand'}
                           alt={`${project.title} logo`}
                           className="w-full h-full object-contain p-2"
                           onError={(e) => {
@@ -213,12 +213,12 @@ export function ProjectCard3D({
                         <div className="h-6 w-6 rounded-full overflow-hidden flex items-center justify-center bg-gray-50 dark:bg-gray-900">
                           <img
                             src={project.client_id && project.client ? 
-                              ((project.client as any).logo_url || 'https://placehold.co/60x60/EEE/999?text=C')
+                              ((project.client as unknown).logo_url || 'https://placehold.co/60x60/EEE/999?text=C')
                               : 
                               'https://placehold.co/60x60/EEE/999?text=C'
                             }
                             alt={project.client_id && project.client ?
-                              `${(project.client as any).company_name || (project.client as any).name || 'Client'} logo`
+                              `${(project.client as unknown).company_name || (project.client as unknown).name || 'Client'} logo`
                               :
                               'Client logo'
                             }
@@ -238,7 +238,7 @@ export function ProjectCard3D({
                         <div className="flex items-center text-slate-600 dark:text-slate-400 mb-2">
                           <Building className="h-3.5 w-3.5 mr-1 opacity-70" />
                           <span className="text-xs truncate">
-                            {(project.client as any).name || (project.client as any).company_name}
+                            {(project.client as unknown).name || (project.client as unknown).company_name}
                           </span>
                         </div>
                       )}
@@ -316,7 +316,7 @@ export function ProjectCard3D({
                       {/* Square logo - Project/event/brand logo */}
                       <div className="h-20 w-20 rounded-xl border-2 border-white/20 bg-white/90 dark:bg-slate-800/90 backdrop-blur-md flex items-center justify-center overflow-hidden shadow-lg">
                         <img
-                          src={(project as any).logo_url || 'https://placehold.co/80x80/EEE/999?text=Brand'}
+                          src={(project as unknown).logo_url || 'https://placehold.co/80x80/EEE/999?text=Brand'}
                           alt={`${project.title} logo`}
                           className="w-full h-full object-contain p-2"
                           onError={(e) => {
@@ -329,12 +329,12 @@ export function ProjectCard3D({
                         <div className="h-10 w-10 rounded-full overflow-hidden flex items-center justify-center bg-gray-50 dark:bg-gray-900">
                           <img
                             src={project.client_id && project.client ? 
-                              ((project.client as any).logo_url || 'https://placehold.co/60x60/EEE/999?text=C')
+                              ((project.client as unknown).logo_url || 'https://placehold.co/60x60/EEE/999?text=C')
                               : 
                               'https://placehold.co/60x60/EEE/999?text=C'
                             }
                             alt={project.client_id && project.client ?
-                              `${(project.client as any).company_name || (project.client as any).name || 'Client'} logo`
+                              `${(project.client as unknown).company_name || (project.client as unknown).name || 'Client'} logo`
                               :
                               'Client logo'
                             }
@@ -380,7 +380,7 @@ export function ProjectCard3D({
                       <div className="flex items-center justify-center text-slate-600 dark:text-slate-400 mt-1">
                         <Building className="h-4 w-4 mr-1.5 opacity-70" />
                         <span className="text-sm">
-                          {(project.client as any).name || (project.client as any).company_name}
+                          {(project.client as unknown).name || (project.client as unknown).company_name}
                         </span>
                       </div>
                     )}

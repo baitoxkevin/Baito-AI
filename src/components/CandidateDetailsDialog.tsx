@@ -1,24 +1,24 @@
 import { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
+// import { Separator } from '@/components/ui/separator';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import { format, differenceInYears } from 'date-fns';
 import { 
   User, Phone, Mail, MapPin, Briefcase, Star, Calendar, CreditCard, 
-  Languages, Activity, Award, Shield, Clock, Car, AlertCircle,
+  Activity, Award, Shield, Clock, AlertCircle,
   Copy, CheckCircle, HistoryIcon, Building, FileText, Ban, X,
   Wallet, DollarSign, Receipt, BanknoteIcon, CalendarDays, 
   Coffee, CheckSquare, ArrowUpDown, CalendarClock, Users2,
-  Sparkles, HeartPulse, GraduationCap, Gem, BarChart, Link,
-  ChevronRight, Flame, Target, Film, Zap, Milestone, 
+  Sparkles, GraduationCap, BarChart, Link,
+  Flame, Film, Zap, 
   LucideIcon, CheckCircle2, CircleDashed, Pencil
 } from 'lucide-react';
-import { CandidateActionButton } from './CandidateActionButton';
+// import { CandidateActionButton } from './CandidateActionButton';
 import CandidateProjectHistory from './CandidateProjectHistory';
 import NewCandidateDialog from './NewCandidateDialog';
 import { getCandidateMetrics } from '@/lib/candidate-history-service';
@@ -40,7 +40,7 @@ export function CandidateDetailsDialog({
 }: CandidateDetailsDialogProps) {
   const [activeTab, setActiveTab] = useState('basic');
   const [copied, setCopied] = useState(false);
-  const [metrics, setMetrics] = useState<any>(null);
+  const [metrics, setMetrics] = useState<unknown>(null);
   const [isBlacklistedStatus, setIsBlacklistedStatus] = useState(false);
   const [loading, setLoading] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -185,7 +185,7 @@ export function CandidateDetailsDialog({
   };
   
   // Format address object to string with improved flexibility
-  const formatAddress = (address: any): string => {
+  const formatAddress = (address: unknown): string => {
     if (!address) return 'No address provided';
     
     if (typeof address === 'string') return address;
@@ -279,7 +279,7 @@ export function CandidateDetailsDialog({
     icon: Icon, 
     title, 
     value, 
-    color = "bg-blue-500", // Keep parameter for backward compatibility
+    color: _color = "bg-blue-500", // Keep parameter for backward compatibility
     className 
   }: InfoCardProps) => {
     return (
@@ -307,7 +307,7 @@ export function CandidateDetailsDialog({
     value, 
     maxValue = 100,
     suffix = "",
-    color = "from-blue-500 to-indigo-600" // Keep parameter for backward compatibility
+    color: _color = "from-blue-500 to-indigo-600" // Keep parameter for backward compatibility
   }: {
     icon: LucideIcon;
     title: string;
@@ -797,7 +797,7 @@ export function CandidateDetailsDialog({
                               } else if (Array.isArray(candidate.custom_fields?.spoken_languages)) {
                                 languages = candidate.custom_fields?.spoken_languages;
                               } else if (Array.isArray(candidate.custom_fields?.language_proficiency)) {
-                                languages = candidate.custom_fields?.language_proficiency.map((l: any) => 
+                                languages = candidate.custom_fields?.language_proficiency.map((l: unknown) => 
                                   typeof l === 'object' ? l.language : l);
                               } else if (typeof candidate.custom_fields?.languages === 'string') {
                                 // Handle comma-separated string
@@ -1549,7 +1549,7 @@ export function CandidateDetailsDialog({
                           } else if (Array.isArray(candidate.custom_fields?.spoken_languages)) {
                             languages = candidate.custom_fields?.spoken_languages;
                           } else if (Array.isArray(candidate.custom_fields?.language_proficiency)) {
-                            languages = candidate.custom_fields?.language_proficiency.map((l: any) => 
+                            languages = candidate.custom_fields?.language_proficiency.map((l: unknown) => 
                               typeof l === 'object' ? l.language : l);
                           } else if (typeof candidate.custom_fields?.languages === 'string') {
                             // Handle comma-separated string

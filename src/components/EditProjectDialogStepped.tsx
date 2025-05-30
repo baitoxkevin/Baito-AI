@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -57,7 +57,7 @@ const formSchema = z.object({
 type FormData = z.infer<typeof formSchema>;
 
 interface EditProjectDialogSteppedProps {
-  project: any;
+  project: unknown;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onProjectUpdated?: () => void;
@@ -77,7 +77,7 @@ export function EditProjectDialogStepped({ project, open, onOpenChange, onProjec
   const [currentStep, setCurrentStep] = useState<Step>('project-info');
   const [completedSteps, setCompletedSteps] = useState<Set<Step>>(new Set());
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [companies, setCompanies] = useState<any[]>([]);
+  const [companies, setCompanies] = useState<Array<{id: string; name?: string; company_name?: string; logo_url?: string}>>([]);
   const { toast } = useToast();
 
   const form = useForm<FormData>({
@@ -113,13 +113,7 @@ export function EditProjectDialogStepped({ project, open, onOpenChange, onProjec
     },
   });
 
-  useEffect(() => {
-    if (open) {
-      fetchCompanies();
-    }
-  }, [open]);
-
-  const fetchCompanies = async () => {
+  const fetchCompanies = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('companies')
@@ -136,7 +130,13 @@ export function EditProjectDialogStepped({ project, open, onOpenChange, onProjec
         variant: 'destructive',
       });
     }
-  };
+  }, [toast]);
+
+  useEffect(() => {
+    if (open) {
+      fetchCompanies();
+    }
+  }, [open, fetchCompanies]);
 
   useEffect(() => {
     if (project) {
@@ -231,7 +231,7 @@ export function EditProjectDialogStepped({ project, open, onOpenChange, onProjec
     try {
       setIsSubmitting(true);
 
-      const updateData: any = {
+      const updateData: Record<string, unknown> = {
         ...data,
         start_date: format(data.start_date, 'yyyy-MM-dd'),
         end_date: data.end_date ? format(data.end_date, 'yyyy-MM-dd') : null,
@@ -912,7 +912,7 @@ export function EditProjectDialogStepped({ project, open, onOpenChange, onProjec
             </DialogHeader>
             
             <nav className="space-y-2">
-              {steps.map((step, index) => {
+              {steps.map((step) => {
                 const Icon = step.icon;
                 const isActive = currentStep === step.id;
                 const isCompleted = completedSteps.has(step.id);

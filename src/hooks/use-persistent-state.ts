@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 
 // Global state storage
-const globalStateStore: Record<string, any> = {};
+const globalStateStore: Record<string, unknown> = {};
 
 /**
  * Hook to maintain state persistence even when component unmounts temporarily

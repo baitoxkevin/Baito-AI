@@ -53,7 +53,7 @@ export function SpotlightCardSidebar({
   onTabChange = () => {}
 }: SpotlightCardSidebarProps) {
   
-  const [brandLogoUrl, setBrandLogoUrl] = React.useState<string | null>((project as any).brand_logo || null);
+  const [brandLogoUrl, setBrandLogoUrl] = React.useState<string | null>((project as unknown).brand_logo || null);
   const [isEditingBrandLogo, setIsEditingBrandLogo] = React.useState(false);
   const [tempBrandUrl, setTempBrandUrl] = React.useState('');
   const [logoError, setLogoError] = React.useState(false);
@@ -73,7 +73,7 @@ export function SpotlightCardSidebar({
   React.useEffect(() => {
     setCurrentProject(project);
     // Also update the brand logo URL from the new project data
-    setBrandLogoUrl((project as any).brand_logo || null);
+    setBrandLogoUrl((project as unknown).brand_logo || null);
     setLogoError(false); // Reset logo error state
   }, [project]);
   
@@ -127,8 +127,8 @@ export function SpotlightCardSidebar({
       } catch (error) {
         console.error('Error fetching customer info:', error);
         // Set fallback name from project client if available
-        if ((project as any).client?.name) {
-          setCustomerName((project as any).client.name);
+        if ((project as unknown).client?.name) {
+          setCustomerName((project as unknown).client.name);
         }
       }
     };
@@ -139,7 +139,7 @@ export function SpotlightCardSidebar({
   const handleProjectUpdate = (updatedProject: Project) => {
     setCurrentProject(updatedProject);
     // Update brand logo from the updated project
-    setBrandLogoUrl((updatedProject as any).brand_logo || null);
+    setBrandLogoUrl((updatedProject as unknown).brand_logo || null);
     setLogoError(false); // Reset logo error state
     // You might want to propagate this update to parent component
     // if (onProjectUpdated) onProjectUpdated(updatedProject);
@@ -258,7 +258,7 @@ export function SpotlightCardSidebar({
                   const data = [
                     project.id,
                     project.title,
-                    (project.client as any)?.name || '',
+                    (project.client as unknown)?.name || '',
                     project.start_date,
                     project.end_date || '',
                     project.status,
@@ -437,7 +437,7 @@ export function SpotlightCardSidebar({
                 />
               ) : (
                 <span className="text-sm font-bold text-gray-500 dark:text-gray-300">
-                  {customerName?.charAt(0) || (project.client as any)?.name?.charAt(0) || 'C'}
+                  {customerName?.charAt(0) || (project.client as unknown)?.name?.charAt(0) || 'C'}
                 </span>
               )}
             </motion.div>
@@ -639,7 +639,7 @@ export function SpotlightCardSidebar({
             {currentProject.title}
           </h2>
           <p className="text-gray-500 dark:text-gray-400 text-sm">
-            {(currentProject.client as any)?.name ? `@ ${(currentProject.client as any)?.name}` : ''}
+            {(currentProject.client as unknown)?.name ? `@ ${(currentProject.client as unknown)?.name}` : ''}
           </p>
         </div>
       </div>

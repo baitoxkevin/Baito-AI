@@ -10,7 +10,7 @@ import {
 import {
   Form,
   FormControl,
-  FormDescription,
+  // FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -89,12 +89,19 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
+interface StaffMember {
+  id: string;
+  candidate_id: string;
+  name?: string;
+  [key: string]: unknown;
+}
+
 interface ExpenseClaimFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSubmit: (values: FormValues) => Promise<void>;
   projectId: string;
-  confirmedStaff?: any[]; // Pass the confirmed staff array from parent
+  confirmedStaff?: StaffMember[]; // Pass the confirmed staff array from parent
 }
 
 // Animated particles component
@@ -190,7 +197,12 @@ const GlassCard = ({ children, className = "" }: { children: React.ReactNode; cl
 };
 
 // Enhanced button with animation
-const AnimatedButton = ({ children, className = "", ...props }: any) => {
+interface AnimatedButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  children: React.ReactNode;
+  className?: string;
+}
+
+const AnimatedButton = ({ children, className = "", ...props }: AnimatedButtonProps) => {
   return (
     <motion.div
       whileHover={{ scale: 1.02 }}
@@ -218,7 +230,7 @@ export function ExpenseClaimFormWithDragDrop({
   open,
   onOpenChange,
   onSubmit,
-  projectId,
+  projectId: _projectId,
   confirmedStaff = []
 }: ExpenseClaimFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -245,7 +257,7 @@ export function ExpenseClaimFormWithDragDrop({
       form.reset();
       onOpenChange(false);
     } catch (error) {
-      console.error('Failed to submit expense claim:', error);
+      // console.error('Failed to submit expense claim:', error);
     } finally {
       setIsSubmitting(false);
     }

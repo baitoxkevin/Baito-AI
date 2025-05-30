@@ -39,7 +39,7 @@ const getInitials = (name: string): string => {
 
 interface SpotlightCardExpensesProps {
   project: Project;
-  expenseClaims: any[];
+  expenseClaims: unknown[];
   onShowExpenseClaimForm: () => void;
   onShowClaimDetails: (claimId: string) => void;
   onRemoveClaim?: (claimId: string) => void;

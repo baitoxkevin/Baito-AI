@@ -79,10 +79,10 @@ export function EditProjectDetailsDialog({
     resolver: zodResolver(editProjectSchema),
     defaultValues: {
       title: project.title,
-      status: project.status as any,
-      priority: project.priority as any,
+      status: project.status as unknown,
+      priority: project.priority as unknown,
       event_type: project.event_type || '',
-      description: (project as any).description || '',
+      description: (project as unknown).description || '',
       venue_address: project.venue_address,
       venue_details: project.venue_details || '',
       start_date: new Date(project.start_date),

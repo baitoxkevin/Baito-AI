@@ -7,13 +7,13 @@ import { Label } from '@/components/ui/label'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { useToast } from '@/hooks/use-toast'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { User, Briefcase, FileText, AlertCircle, UserPlus, Edit, Mail, Phone, Sparkles } from 'lucide-react'
+import { User, FileText, AlertCircle, UserPlus, Edit, Mail, Phone, Sparkles } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { ProfileUpload } from '@/components/ui/profile-upload'
 import { extractCandidateInfo, createCandidate, CandidateInfo } from '@/lib/candidate-import-service'
 
 interface CandidateTextImportToolProps {
-  onOpenNewCandidateDialog?: (candidateData: any) => void;
+  onOpenNewCandidateDialog?: (candidateData: unknown) => void;
 }
 
 export function CandidateTextImportTool({ onOpenNewCandidateDialog }: CandidateTextImportToolProps = {}) {

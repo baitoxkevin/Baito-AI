@@ -93,7 +93,7 @@ export function IntegratedStaffingPayroll({
           designation: staff.position || 'Crew',
           position: staff.position,
           photo: staff.candidate?.profile_photo,
-          status: (staff.status as any) || 'confirmed',
+          status: (staff.status as unknown) || 'confirmed',
           workingDates: (staff.working_dates || []).map(d => new Date(d)),
           workingDatesWithSalary: (staff.working_dates_with_salary || []).map(item => ({
             date: new Date(item.date),

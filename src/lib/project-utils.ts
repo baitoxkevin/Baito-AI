@@ -20,7 +20,7 @@ export const isFeatureWorthy = (project: Project): boolean => {
   const isUpcoming = isAfter(startDate, new Date()) && 
                     isBefore(startDate, addDays(new Date(), 7));
   
-  const isMarkedAsFeatured = (project as any).featured === true;
+  const isMarkedAsFeatured = (project as unknown).featured === true;
   
   return isMarkedAsFeatured || 
          (isHighPriority && (isLargeCrew || isUpcoming));
@@ -51,7 +51,7 @@ export const groupProjects = (
     // Group by status (normalize and capitalize)
     projects.forEach(project => {
       // Normalize status: replace underscores with hyphens and capitalize
-      let normalizedStatus = project.status.replace(/_/g, '-');
+      const normalizedStatus = project.status.replace(/_/g, '-');
       const status = normalizedStatus.charAt(0).toUpperCase() + normalizedStatus.slice(1).toLowerCase();
       
       // Handle special cases
@@ -101,8 +101,8 @@ export const groupProjects = (
       let clientName = 'No Client';
       
       if (project.client) {
-        clientName = (project.client as any).name || 
-                     (project.client as any).company_name || 
+        clientName = (project.client as unknown).name || 
+                     (project.client as unknown).company_name || 
                      'Unnamed Client';
       }
       
@@ -298,8 +298,8 @@ export const filterProjects = (
       const matchesTitle = project.title.toLowerCase().includes(term);
       const matchesVenue = project.venue_address.toLowerCase().includes(term);
       const matchesClient = project.client && 
-        ((project.client as any).name?.toLowerCase().includes(term) || 
-         (project.client as any).company_name?.toLowerCase().includes(term));
+        ((project.client as unknown).name?.toLowerCase().includes(term) || 
+         (project.client as unknown).company_name?.toLowerCase().includes(term));
          
       // If no matches, skip this project
       if (!(matchesTitle || matchesVenue || matchesClient)) {
@@ -323,8 +323,8 @@ export const filterProjects = (
     
     // Client filter
     if (filters.client && filters.client.length > 0) {
-      const clientName = (project.client as any)?.name || 
-                        (project.client as any)?.company_name || 
+      const clientName = (project.client as unknown)?.name || 
+                        (project.client as unknown)?.company_name || 
                         'No Client';
       if (!filters.client.some(c => c === clientName)) {
         return false;

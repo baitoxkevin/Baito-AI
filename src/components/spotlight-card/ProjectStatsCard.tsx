@@ -52,7 +52,7 @@ export function ProjectStatsTabCard({ staffCount, tasksCount, claimsCount }: Pro
                   ? 'text-purple-600 dark:text-purple-400 relative'
                   : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
               }`}
-              onClick={() => setActiveTab(tab.id as any)}
+              onClick={() => setActiveTab(tab.id as unknown)}
             >
               {activeTab === tab.id && (
                 <motion.div 

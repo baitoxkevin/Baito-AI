@@ -12,7 +12,7 @@ interface Cache<T> {
 const DEFAULT_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
 // Global cache store for sharing between hooks
-const globalCache: Record<string, any> = {};
+const globalCache: Record<string, unknown> = {};
 
 /**
  * Generic cache hook for API data

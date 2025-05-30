@@ -139,7 +139,7 @@ export function useCalendarCache() {
             const clientMap = clientsData.reduce((map, client) => {
               map[client.id] = client;
               return map;
-            }, {} as Record<string, any>);
+            }, {} as Record<string, unknown>);
             
             // Add client data to projects
             filteredProjects.forEach(project => {
@@ -148,8 +148,8 @@ export function useCalendarCache() {
               }
             });
           }
-        } catch (error) {
-          // console.warn('Error fetching client data:', error);
+        } catch {
+          // console.warn('Error fetching client data');
         }
       }
       
@@ -166,7 +166,7 @@ export function useCalendarCache() {
             const managerMap = managersData.reduce((map, manager) => {
               map[manager.id] = manager;
               return map;
-            }, {} as Record<string, any>);
+            }, {} as Record<string, unknown>);
             
             // Add manager data to projects
             filteredProjects.forEach(project => {
@@ -175,8 +175,8 @@ export function useCalendarCache() {
               }
             });
           }
-        } catch (error) {
-          // console.warn('Error fetching manager data:', error);
+        } catch {
+          // console.warn('Error fetching manager data');
         }
       }
       

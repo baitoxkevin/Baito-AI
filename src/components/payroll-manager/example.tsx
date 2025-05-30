@@ -170,7 +170,7 @@ export function PayrollPageExample() {
   // In a real app, you might get this from route params or API
   const projectId = 'standalone-project-123';
   const [isLoading, setIsLoading] = useState(true);
-  const [projectData, setProjectData] = useState<any>(null);
+  const [projectData, setProjectData] = useState<unknown>(null);
 
   React.useEffect(() => {
     // Simulate loading project data

@@ -213,7 +213,7 @@ export function NewProjectDialog({
 
   const handleNext = async () => {
     const fieldsToValidate = getFieldsForStep(currentStep);
-    const isValid = await form.trigger(fieldsToValidate as any);
+    const isValid = await form.trigger(fieldsToValidate as unknown);
     
     if (isValid) {
       setValidationErrors([]);

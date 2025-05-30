@@ -163,7 +163,7 @@ export async function checkCandidatePublicLink(linkToken: string) {
 export async function logCandidateActivity(
   candidateId: string,
   action: string,
-  details: Record<string, any>
+  details: Record<string, unknown>
 ) {
   try {
     await supabase

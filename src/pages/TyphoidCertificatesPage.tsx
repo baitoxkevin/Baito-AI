@@ -57,7 +57,7 @@ export default function TyphoidCertificatesPage() {
       if (data) {
         const typedCandidates: Candidate[] = data.map(item => ({
           ...item,
-          custom_fields: (item.custom_fields as any) || {}
+          custom_fields: (item.custom_fields as unknown) || {}
         }));
         setCandidates(typedCandidates);
         setFilteredCandidates(typedCandidates);

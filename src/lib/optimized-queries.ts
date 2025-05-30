@@ -32,7 +32,7 @@ const eventColors = {
 };
 
 // Helper function to add color to project data
-function addProjectColor(project: any): Project {
+function addProjectColor(project: unknown): Project {
   return {
     ...project,
     color: project.color || (project.event_type ? eventColors[project.event_type] || eventColors.default : eventColors.default),
@@ -77,7 +77,7 @@ export async function fetchProjectsOptimized(): Promise<Project[]> {
           const clientMap = clientsData.reduce((map, client) => {
             map[client.id] = client;
             return map;
-          }, {} as Record<string, any>);
+          }, {} as Record<string, unknown>);
           
           // Add client data to projects
           projects.forEach(project => {
@@ -104,7 +104,7 @@ export async function fetchProjectsOptimized(): Promise<Project[]> {
           const managerMap = managersData.reduce((map, manager) => {
             map[manager.id] = manager;
             return map;
-          }, {} as Record<string, any>);
+          }, {} as Record<string, unknown>);
           
           // Add manager data to projects
           projects.forEach(project => {
@@ -234,7 +234,7 @@ export async function fetchProjectsByMonthOptimized(month: number): Promise<Proj
             const clientMap = clientsData.reduce((map, client) => {
               map[client.id] = client;
               return map;
-            }, {} as Record<string, any>);
+            }, {} as Record<string, unknown>);
             
             // Add client data to projects
             projects.forEach(project => {
@@ -261,7 +261,7 @@ export async function fetchProjectsByMonthOptimized(month: number): Promise<Proj
             const managerMap = managersData.reduce((map, manager) => {
               map[manager.id] = manager;
               return map;
-            }, {} as Record<string, any>);
+            }, {} as Record<string, unknown>);
             
             // Add manager data to projects
             projects.forEach(project => {

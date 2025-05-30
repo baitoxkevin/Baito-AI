@@ -126,10 +126,10 @@ export async function approveExpenseClaim(claimId: string): Promise<void> {
 /**
  * Add approved claim to staff payroll based on receipt date
  */
-async function addClaimToPayroll(claim: any): Promise<void> {
+async function addClaimToPayroll(claim: unknown): Promise<void> {
   try {
     // Get the project staff record for this user
-    let projectStaff: any;
+    let projectStaff: unknown;
     const { data: staffData, error: staffError } = await supabase
       .from('project_staff')
       .select('*')
@@ -169,7 +169,7 @@ async function addClaimToPayroll(claim: any): Promise<void> {
       if (!receiptDate) continue;
 
       // Find or create entry for this date
-      let dateEntry = workingDatesWithSalary.find((entry: any) => entry.date === receiptDate);
+      let dateEntry = workingDatesWithSalary.find((entry: unknown) => entry.date === receiptDate);
       
       if (!dateEntry) {
         dateEntry = {
@@ -187,7 +187,7 @@ async function addClaimToPayroll(claim: any): Promise<void> {
     }
 
     // Sort dates to maintain consistency
-    workingDatesWithSalary.sort((a: any, b: any) => 
+    workingDatesWithSalary.sort((a: unknown, b: unknown) => 
       new Date(a.date).getTime() - new Date(b.date).getTime()
     );
 
@@ -223,7 +223,7 @@ async function addClaimToPayroll(claim: any): Promise<void> {
 /**
  * Add approved claim to unpaid claims for non-staff users
  */
-async function addToUnpaidClaims(claim: any): Promise<void> {
+async function addToUnpaidClaims(claim: unknown): Promise<void> {
   try {
     const { error } = await supabase
       .from('unpaid_claims')

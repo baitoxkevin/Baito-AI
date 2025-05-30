@@ -11,7 +11,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Calendar, Clock, Users, MapPin, Trash2, Check } from 'lucide-react';
+import { Calendar, Clock, Users, MapPin, Trash2 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
@@ -33,7 +33,7 @@ const ProjectTooltip = ({ project, onDelete, isSelected = false, onSelect }: Pro
     if (onDelete) {
       try {
         onDelete(project);
-      } catch (error) {
+      } catch (_error) {
         toast({
           title: "Error",
           description: "Failed to delete project. Please try again.",
@@ -43,7 +43,7 @@ const ProjectTooltip = ({ project, onDelete, isSelected = false, onSelect }: Pro
     }
   };
   
-  const handleSelect = (e: React.MouseEvent) => {
+  const _handleSelect = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (onSelect) {
       onSelect(project.id, !isSelected);
@@ -130,7 +130,7 @@ const ProjectCard = ({
   isSelected = false,
   onSelect,
   selectionMode = false,
-  zoomLevel = 1, // Default to normal zoom if not provided
+  zoomLevel: _zoomLevel = 1, // Default to normal zoom if not provided
 }: ProjectCardProps) => {
   const startDate = new Date(project.start_date);
   const endDate = project.end_date ? new Date(project.end_date) : startDate;
@@ -292,11 +292,45 @@ export default function ListView({
   onLoadMoreMonths,
   monthsToShow = 3, // Default to showing 3 months (current + 1 past + 1 future)
   syncToDate = false,
-  onMonthChange,
+  onMonthChange: _onMonthChange,
 }: ListViewProps) {
+  // Declare all hooks before any conditional returns
+  const scrollPositionRef = useRef<number>(0);
+  const [isDataLoading, setIsDataLoading] = useState(true);
+  const datesInfoRef = useRef({ lastMemoKey: '', calculationCount: 0 });
+  const containerRef = useRef<HTMLDivElement>(null);
+  const projectCardsRef = useRef<Map<string, HTMLDivElement>>(new Map());
+  const lastProjectsRef = useRef<Project[]>([]);
+  const dragScrollTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const isDraggingRef = useRef(false);
+  const dragStartYRef = useRef(0);
+  const scrollingSpeedRef = useRef(0);
+  const [selectedMonthRange, setSelectedMonthRange] = useState({ start: '', end: '' });
+  const [newProjectDialogOpen, setNewProjectDialogOpen] = useState(false);
+  const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
+  const [localProjects, setLocalProjects] = useState<Project[]>(projects);
+  const processCountRef = useRef(0);
+  const [zoomLevel, setZoomLevel] = useState(1);
+  const [initialPinchDistance, setInitialPinchDistance] = useState<number | null>(null);
+  const [initialZoom, setInitialZoom] = useState<number>(1);
+  const [visibleTopPosition, setVisibleTopPosition] = useState<number | null>(null);
+  const isLoadingMoreRef = useRef(false);
+  const scrolledToTodayRef = useRef(false);
+  const reachedBeginningRef = useRef(false);
+  const reachedEndRef = useRef(false);
+  const disableTopLoadingRef = useRef(false);
+  const disableBottomLoadingRef = useRef(false);
+  const [visibleMonth, setVisibleMonth] = useState<string>('');
+  const [visibleYear, setVisibleYear] = useState<number>(new Date().getFullYear());
+  const hasInitialScroll = useRef(false);
+  const prevDateRef = useRef(date);
+  const monthPositionsRef = useRef<Map<string, number>>(new Map());
+  const [showFloatingMonth, setShowFloatingMonth] = useState(false);
+  const floatingMonthTimeoutRef = useRef<number | null>(null);
+
   // Safety check for required props
   if (!date) {
-    console.error('ListView: date prop is required but was not provided');
+    // console.error('ListView: date prop is required but was not provided');
     return (
       <div className="p-4 bg-red-50 border border-red-200 rounded-md">
         <p className="text-red-600">Error: date prop is required</p>
@@ -305,7 +339,7 @@ export default function ListView({
   }
   
   if (!Array.isArray(projects)) {
-    console.error('ListView: projects prop must be an array');
+    // console.error('ListView: projects prop must be an array');
     return (
       <div className="p-4 bg-red-50 border border-red-200 rounded-md">
         <p className="text-red-600">Error: invalid projects data</p>
@@ -329,21 +363,12 @@ export default function ListView({
     return key;
   }, [date.getFullYear(), date.getMonth(), pastMonths, futureMonths]); // More stable dependency array
     
-  // Store scroll position to preserve it during data loads
-  const scrollPositionRef = useRef<number>(0);
-    
-  // Add a loading state to control when to show content
-  const [isDataLoading, setIsDataLoading] = useState(true);
-  
   // Save scroll position before data loads
   useEffect(() => {
     if (containerRef.current) {
       scrollPositionRef.current = containerRef.current.scrollTop;
     }
   }, [memoKey]);
-    
-  // Memoized dates calculation with key to prevent unnecessary recalculations
-  const datesInfoRef = useRef({ lastMemoKey: '', calculationCount: 0 });
   
   const dates = useMemo(() => {
     // Only log if memo key changed (avoid console spam)
@@ -352,13 +377,13 @@ export default function ListView({
       datesInfoRef.current.lastMemoKey = memoKey;
       
       // Log with calculation count to track how often this runs
-      console.log(`Calculating dates [#${datesInfoRef.current.calculationCount}] for: ${memoKey}`);
+      // console.log(`Calculating dates [#${datesInfoRef.current.calculationCount}] for: ${memoKey}`);
     }
     
     try {
       // Guard against invalid date
       if (!date || !(date instanceof Date) || isNaN(date.getTime())) {
-        console.error('Invalid date provided to ListView:', date);
+        // console.error('Invalid date provided to ListView:', date);
         // Default to current date if invalid
         const currentDate = new Date();
         
@@ -368,7 +393,7 @@ export default function ListView({
         // Calculate end date (adding future months)
         const endDate = endOfMonth(addMonths(currentDate, futureMonths));
         
-        console.warn('Using current date as fallback for ListView date calculation');
+        // console.warn('Using current date as fallback for ListView date calculation');
         return eachDayOfInterval({ start: startDate, end: endDate });
       }
       
@@ -381,14 +406,14 @@ export default function ListView({
       // Safety check to ensure we're not generating a ridiculously large date range
       const dayDiff = differenceInDays(endDate, startDate);
       if (dayDiff > 366 * 3) { // More than 3 years
-        console.warn(`Date range too large (${dayDiff} days). Limiting to 3 years.`);
+        // console.warn(`Date range too large (${dayDiff} days). Limiting to 3 years.`);
         const limitedEndDate = addMonths(startDate, 36); // 3 years total
         return eachDayOfInterval({ start: startDate, end: limitedEndDate });
       }
       
       return eachDayOfInterval({ start: startDate, end: endDate });
     } catch (error) {
-      console.error('Error calculating date range for ListView:', error);
+      // console.error('Error calculating date range for ListView:', error);
       // Fall back to current month with reduced range
       const currentDate = new Date();
       const startDate = startOfMonth(addMonths(currentDate, -1));
@@ -398,13 +423,13 @@ export default function ListView({
   }, [memoKey, date, pastMonths, futureMonths]); // Include all dependencies explicitly
   
   // Find today's date index for scrolling
-  const todayIndex = useMemo(() => {
+  useMemo(() => {
     // Use current date from system - explicitly use the correct date object
     const today = new Date();
     
     // Make sure we have valid dates to search
     if (!dates || !Array.isArray(dates) || dates.length === 0) {
-      console.warn('No valid dates array to find today\'s index');
+      // console.warn('No valid dates array to find today\'s index');
       return -1;
     }
     
@@ -417,14 +442,14 @@ export default function ListView({
     );
     
     if (index === -1) {
-      console.log(`Today's date (${today.toISOString()}) not found in available dates range`);
+      // console.log(`Today's date (${today.toISOString()}) not found in available dates range`);
     }
     
     return index;
   }, [dates]);
 
   // Track render counts to minimize logging
-  const processCountRef = useRef(0);
+  // processCountRef already declared at top
   
   // Process projects to determine columns without overlaps
   const processedProjects = useMemo(() => {
@@ -434,7 +459,7 @@ export default function ListView({
     
     // Check for valid date
     if (!date || !(date instanceof Date) || isNaN(date.getTime())) {
-      console.error('Invalid date provided to processedProjects in ListView:', date);
+      // console.error('Invalid date provided to processedProjects in ListView:', date);
       return { projectsByDate: new Map(), maxColumn: 0, projectColumns: new Map() };
     }
     
@@ -674,35 +699,28 @@ export default function ListView({
   // Calculate width based on number of columns and zoom level
   // Scale factor: 1 = 100% (max), 0.5 = 50% (min), we don't allow zooming in beyond 100%
   // Persist zoom level in localStorage to prevent reset during re-renders
-  const [zoomLevel, setZoomLevel] = useState(() => {
-    try {
-      // Default to 50% zoom (0.5) as specified
-      localStorage.setItem('calendar_list_zoom_level', '0.5');
-      return 0.5;
-    } catch (e) {
-      // Default to 0.5 (50%) if anything goes wrong
-      return 0.5;
-    }
-  });
-  const [initialPinchDistance, setInitialPinchDistance] = useState<number | null>(null);
-  const [initialZoom, setInitialZoom] = useState<number>(zoomLevel); // Use the loaded zoom level
+  // Note: zoomLevel state is already declared earlier in the component
+  
+  // These states are also already declared earlier
+  // const [initialPinchDistance, setInitialPinchDistance] = useState<number | null>(null);
+  // const [initialZoom, setInitialZoom] = useState<number>(zoomLevel);
   // Track current visible position for zoom operations
-  const [visibleTopPosition, setVisibleTopPosition] = useState<number | null>(null);
+  // const [visibleTopPosition, setVisibleTopPosition] = useState<number | null>(null); // Already declared earlier
   const columnWidth = 95 * zoomLevel; // Width for each project column, adjusted by zoom
   const minContentWidth = Math.max(300, (processedProjects.maxColumn + 1) * columnWidth + 40); // Adjusted for zoom
   
   // Ref for container scrolling
-  const containerRef = useRef<HTMLDivElement>(null);
+  // const containerRef = useRef<HTMLDivElement>(null); - already declared at top
   
   // Track if we're loading more data with refs instead of state to avoid re-renders
-  const isLoadingMoreRef = useRef(false);
-  const scrolledToTodayRef = useRef(false);
+  // const isLoadingMoreRef = useRef(false); // Already declared earlier
+  // const scrolledToTodayRef = useRef(false); // Already declared earlier
   
   // Additional refs for scroll loading control
-  const reachedBeginningRef = useRef(false);
-  const reachedEndRef = useRef(false);
-  const disableTopLoadingRef = useRef(false);
-  const disableBottomLoadingRef = useRef(false);
+  // const reachedBeginningRef = useRef(false); // Already declared earlier
+  // const reachedEndRef = useRef(false); // Already declared earlier
+  // const disableTopLoadingRef = useRef(false); // Already declared earlier
+  // const disableBottomLoadingRef = useRef(false); // Already declared earlier
   
   // Initialize flags - always start with loading enabled
   useEffect(() => {
@@ -1017,12 +1035,12 @@ export default function ListView({
     if (futureMonths === 1) reachedEndRef.current = false;
   }, [onLoadMoreMonths, pastMonths, futureMonths]);
   
-  // State to track the current visible month - always initialized from the date prop
-  const [visibleMonth, setVisibleMonth] = useState<string>(format(date, 'MMMM yyyy'));
-  const [visibleYear, setVisibleYear] = useState<number>(date.getFullYear());
+  // State to track the current visible month - already declared earlier
+  // const [visibleMonth, setVisibleMonth] = useState<string>(format(date, 'MMMM yyyy'));
+  // const [visibleYear, setVisibleYear] = useState<number>(date.getFullYear());
   
-  // Track if initial scroll has been done
-  const hasInitialScroll = useRef(false);
+  // Track if initial scroll has been done - already declared earlier
+  // const hasInitialScroll = useRef(false);
   
   // Scroll to a specific date
   const scrollToDate = useCallback((targetDate: Date, behavior: ScrollBehavior = 'smooth') => {
@@ -1042,7 +1060,7 @@ export default function ListView({
   }, []);
   
   // Keep reference of previous date to avoid unnecessary scrolling
-  const prevDateRef = useRef(date);
+  // const prevDateRef = useRef(date); // Commented out - already declared at line 326
   
   // Sync with parent date when syncToDate is true
   useEffect(() => {
@@ -1155,7 +1173,7 @@ export default function ListView({
   }, [zoomLevel, initialPinchDistance, initialZoom]);
   
   // Ref for storing month positions for better performance
-  const monthPositionsRef = useRef<Map<string, number>>(new Map());
+  // const monthPositionsRef = useRef<Map<string, number>>(new Map()); // Commented out - already declared at line 327
   
   // Add a scroll handler to detect which month is visible
   useEffect(() => {
@@ -1475,8 +1493,8 @@ export default function ListView({
   }, [projects, processedProjects]);
 
   // State for floating month indicator
-  const [showFloatingMonth, setShowFloatingMonth] = useState(false);
-  const floatingMonthTimeoutRef = useRef<number | null>(null);
+  // const [showFloatingMonth, setShowFloatingMonth] = useState(false); // Commented out - already declared at line 328
+  // const floatingMonthTimeoutRef = useRef<number | null>(null); // Commented out - already declared at line 329
   
   // Function to show floating month indicator with auto-hide timer
   const showFloatingMonthIndicator = () => {

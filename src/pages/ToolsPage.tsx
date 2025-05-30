@@ -199,11 +199,11 @@ function ToastDemo() {
         title: "Creating project...",
         description: "Setting up your new project",
       },
-      success: (data: any) => ({
+      success: (data: unknown) => ({
         title: `Project "${data.name}" created!`,
         description: "You can now start adding team members.",
       }),
-      error: (err: any) => ({
+      error: (err: unknown) => ({
         title: "Failed to create project",
         description: err?.message || "Please check your connection and try again.",
       }),
@@ -699,7 +699,7 @@ export default function ToolsPage() {
   const [activeComponent, setActiveComponent] = useState<string | null>(null);
   const [scrapedData, setScrapedData] = useState<ScrapedData[]>([]);
   const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
-  const [selectedProject, setSelectedProject] = useState<any>(null);
+  const [selectedProject, setSelectedProject] = useState<unknown>(null);
   const [projectStaff, setProjectStaff] = useState<any[]>([]);
   const [projects, setProjects] = useState<any[]>([]);
   const { toast } = useToast();

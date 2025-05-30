@@ -26,7 +26,7 @@ interface CandidateActionButtonProps {
 export function CandidateActionButton({
   candidateId,
   candidateIc,
-  candidateName,
+  candidateName: _candidateName,
   className = "",
   showDropdown = false
 }: CandidateActionButtonProps) {

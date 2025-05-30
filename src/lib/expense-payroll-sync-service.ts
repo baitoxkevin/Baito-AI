@@ -50,7 +50,7 @@ export async function syncExpenseClaimToPayroll(expenseClaim: ExpenseClaim): Pro
 
     // Find the staff member in confirmed staff
     const confirmedStaff = project.confirmed_staff || [];
-    const staffIndex = confirmedStaff.findIndex((staff: any) => 
+    const staffIndex = confirmedStaff.findIndex((staff: unknown) => 
       staff.candidate_id === staffId || staff.id === staffId
     );
 
@@ -77,7 +77,7 @@ export async function syncExpenseClaimToPayroll(expenseClaim: ExpenseClaim): Pro
     const remainder = totalAmount - (amountPerDay * workingDatesWithSalary.length);
 
     // Update each working date with the distributed expense claim
-    const updatedWorkingDates = workingDatesWithSalary.map((dateEntry: any, index: number) => {
+    const updatedWorkingDates = workingDatesWithSalary.map((dateEntry: unknown, index: number) => {
       const currentClaims = parseFloat(dateEntry.claims || '0');
       // Add remainder to the first day to ensure total matches
       const additionalAmount = index === 0 ? amountPerDay + remainder : amountPerDay;
@@ -163,7 +163,7 @@ export async function unsyncExpenseClaimFromPayroll(expenseClaim: ExpenseClaim):
     }
 
     const confirmedStaff = project.confirmed_staff || [];
-    const staffIndex = confirmedStaff.findIndex((staff: any) => 
+    const staffIndex = confirmedStaff.findIndex((staff: unknown) => 
       staff.candidate_id === staffId || staff.id === staffId
     );
 
@@ -190,7 +190,7 @@ export async function unsyncExpenseClaimFromPayroll(expenseClaim: ExpenseClaim):
     const remainder = totalAmount - (amountPerDay * workingDatesWithSalary.length);
 
     // Update each working date by removing the distributed expense claim
-    const updatedWorkingDates = workingDatesWithSalary.map((dateEntry: any, index: number) => {
+    const updatedWorkingDates = workingDatesWithSalary.map((dateEntry: unknown, index: number) => {
       const currentClaims = parseFloat(dateEntry.claims || '0');
       const amountToRemove = index === 0 ? amountPerDay + remainder : amountPerDay;
       const newClaimsAmount = Math.max(0, currentClaims - amountToRemove);

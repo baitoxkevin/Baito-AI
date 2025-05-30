@@ -86,15 +86,15 @@ export interface User {
   username?: string;
   created_at: string;
   updated_at: string;
-  raw_user_meta_data?: Record<string, any>;
-  raw_app_meta_data?: Record<string, any>;
+  raw_user_meta_data?: Record<string, unknown>;
+  raw_app_meta_data?: Record<string, unknown>;
 }
 
 export interface UserProfile extends User {
   username: string;
   avatar_seed?: string;
   last_login?: string;
-  preferences?: Record<string, any>;
+  preferences?: Record<string, unknown>;
 }
 
 export interface Candidate {
@@ -123,17 +123,17 @@ export interface Candidate {
   status?: string;
   unique_id?: string;
   profile_photo?: string;
-  full_body_photos?: any;
-  half_body_photos?: any;
-  address_business?: any;
-  address_mailing?: any;
+  full_body_photos?: unknown;
+  half_body_photos?: unknown;
+  address_business?: unknown;
+  address_mailing?: unknown;
   home_address?: string;
   business_address?: string;
   shirt_size?: string;
   languages_spoken?: string;
   race?: string;
   passport_number?: string;
-  custom_fields?: any;
+  custom_fields?: unknown;
   created_at: string;
   updated_at: string;
   address?: string;

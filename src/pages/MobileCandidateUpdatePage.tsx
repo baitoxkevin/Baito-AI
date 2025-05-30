@@ -192,11 +192,11 @@ export default function MobileCandidateUpdatePage() {
   const [searchParams] = useSearchParams();
   const secureToken = searchParams.get('secure_token');
   
-  const [candidate, setCandidate] = useState<any>(null);
+  const [candidate, setCandidate] = useState<unknown>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
-  const [formData, setFormData] = useState<any>({
+  const [formData, setFormData] = useState<unknown>({
     ic_number: '',
     race: ''
   });
@@ -1021,7 +1021,7 @@ export default function MobileCandidateUpdatePage() {
         });
       }, 3000);
       
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error saving candidate:', error);
       toast({
         title: 'Error',

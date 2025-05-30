@@ -202,8 +202,8 @@ interface SpotlightCardProps {
   project: Project;
   onProjectUpdated?: (updatedProject: Project) => void;
   onViewDetails?: (project: Project) => void;
-  documents: any[];
-  expenseClaims: any[];
+  documents: unknown[];
+  expenseClaims: unknown[];
 }
 
 export function SpotlightCard({ 
@@ -344,7 +344,7 @@ export function SpotlightCard({
         setStaffDetails([...projectConfirmedStaff, ...projectApplicants]);
         
         // Transform the data to match StaffingTab's expected structure
-        const transformStaffData = (staffArray: any[]) => {
+        const transformStaffData = (staffArray: unknown[]) => {
           return staffArray.map(staff => {
             // Extract the actual ID string from potential object structures
             const rawId = staff.candidate_id || staff.id;
@@ -373,11 +373,11 @@ export function SpotlightCard({
               email: staff.email,
               phone_number: staff.phone_number,
               // Ensure working dates are Date objects
-              workingDates: (staff.working_dates || []).map((d: any) => 
+              workingDates: (staff.working_dates || []).map((d: unknown) => 
                 d instanceof Date ? d : new Date(d)
               ),
               // Ensure working dates with salary have proper Date objects
-              workingDatesWithSalary: (staff.working_dates_with_salary || []).map((item: any) => ({
+              workingDatesWithSalary: (staff.working_dates_with_salary || []).map((item: unknown) => ({
                 ...item,
                 date: item.date instanceof Date ? item.date : new Date(item.date)
               })),
@@ -613,7 +613,7 @@ export function SpotlightCard({
     }
   };
 
-  const handleCreateExpenseClaim = async (data: any) => {
+  const handleCreateExpenseClaim = async (data: unknown) => {
     // console.log('SpotlightCard: Creating expense claim', data);
     // console.log('Project ID:', project.id);
     // console.log('Project object:', project);
@@ -1541,7 +1541,7 @@ export function SpotlightCard({
 }
 
 // Separate component for Schedule tab to improve performance
-function ScheduleTabContent({ project, confirmedStaff }: { project: Project, confirmedStaff: any[] }) {
+function ScheduleTabContent({ project, confirmedStaff }: { project: Project, confirmedStaff: unknown[] }) {
   const { staffDetails } = useProjectStaff(project.id, true);
   
   // Use optimized staff data if available, fall back to passed-in data

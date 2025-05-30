@@ -76,7 +76,7 @@ export interface StaffPaymentSummary {
   amount: number;
   totalDays?: number;
   workingDates?: string[];
-  payrollDetails?: Record<string, any>;
+  payrollDetails?: Record<string, unknown>;
 }
 
 export interface PaymentSubmissionDialogProps {

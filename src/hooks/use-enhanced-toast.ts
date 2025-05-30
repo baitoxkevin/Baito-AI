@@ -16,13 +16,14 @@ type ToasterToast = ToastProps & {
   createdAt?: Date; // Track when the toast was created
 };
 
-const actionTypes = {
-  ADD_TOAST: 'ADD_TOAST',
-  UPDATE_TOAST: 'UPDATE_TOAST',
-  DISMISS_TOAST: 'DISMISS_TOAST',
-  REMOVE_TOAST: 'REMOVE_TOAST',
-  DISMISS_ALL: 'DISMISS_ALL',
-} as const;
+// Action types are now defined inline in the reducer
+// const actionTypes = {
+//   ADD_TOAST: 'ADD_TOAST',
+//   UPDATE_TOAST: 'UPDATE_TOAST',
+//   DISMISS_TOAST: 'DISMISS_TOAST',
+//   REMOVE_TOAST: 'REMOVE_TOAST',
+//   DISMISS_ALL: 'DISMISS_ALL',
+// } as const;
 
 let count = 0;
 
@@ -256,7 +257,7 @@ function useEnhancedToast() {
       }: {
         loading: Omit<ToastOptions, 'variant' | 'loading'>;
         success: (data: T) => Omit<ToastOptions, 'variant'>;
-        error: (err: any) => Omit<ToastOptions, 'variant'>;
+        error: (err: unknown) => Omit<ToastOptions, 'variant'>;
       }
     ): Promise<T> => {
       const toastId = toast({ ...loading, loading: true }).id;

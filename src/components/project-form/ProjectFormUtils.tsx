@@ -4,10 +4,10 @@ import { format } from "date-fns";
 /**
  * Compares two arrays for equality, handles date objects properly
  */
-export const arraysAreEqual = (arr1: any[], arr2: any[]) => {
+export const arraysAreEqual = (arr1: unknown[], arr2: unknown[]) => {
   if (arr1.length !== arr2.length) return false;
   
-  const processArrayForComparison = (arr: any[]) => {
+  const processArrayForComparison = (arr: unknown[]) => {
     return arr.map(item => {
       if (item instanceof Date) {
         return format(item, 'yyyy-MM-dd');
@@ -35,7 +35,7 @@ export const arraysAreEqual = (arr1: any[], arr2: any[]) => {
 /**
  * Converts date objects to ISO strings in an array of objects
  */
-export const convertDatesToStrings = (staff: any[]) => {
+export const convertDatesToStrings = (staff: unknown[]) => {
   return staff.map(member => {
     const processedMember = { ...member };
     
@@ -48,7 +48,7 @@ export const convertDatesToStrings = (staff: any[]) => {
     
     // Handle workingDatesWithSalary
     if (processedMember.workingDatesWithSalary) {
-      processedMember.workingDatesWithSalary = processedMember.workingDatesWithSalary.map((entry: any) => ({
+      processedMember.workingDatesWithSalary = processedMember.workingDatesWithSalary.map((entry: unknown) => ({
         ...entry,
         date: entry.date instanceof Date ? format(entry.date, 'yyyy-MM-dd') : entry.date
       }));
@@ -61,13 +61,13 @@ export const convertDatesToStrings = (staff: any[]) => {
 /**
  * Prepares staff data for saving to backend
  */
-export const prepareStaffForSaving = (staffArray: any[]) => {
+export const prepareStaffForSaving = (staffArray: unknown[]) => {
   return staffArray.map(member => {
     const processedMember = { ...member };
     
     // Convert date objects to formatted strings for backend
     if (Array.isArray(processedMember.workingDates)) {
-      processedMember.workingDates = processedMember.workingDates.map((date: any) => {
+      processedMember.workingDates = processedMember.workingDates.map((date: unknown) => {
         if (date instanceof Date) {
           return format(date, 'yyyy-MM-dd');
         }
@@ -80,7 +80,7 @@ export const prepareStaffForSaving = (staffArray: any[]) => {
     
     // Handle workingDatesWithSalary
     if (Array.isArray(processedMember.workingDatesWithSalary)) {
-      processedMember.workingDatesWithSalary = processedMember.workingDatesWithSalary.map((entry: any) => ({
+      processedMember.workingDatesWithSalary = processedMember.workingDatesWithSalary.map((entry: unknown) => ({
         ...entry,
         date: entry.date instanceof Date ? format(entry.date, 'yyyy-MM-dd') : entry.date,
         basicSalary: parseFloat(entry.basicSalary) || 0,
@@ -99,7 +99,7 @@ export const prepareStaffForSaving = (staffArray: any[]) => {
 /**
  * Converts string dates to Date objects in staff array
  */
-export const convertStringsToDates = (staff: any[]) => {
+export const convertStringsToDates = (staff: unknown[]) => {
   return staff.map(member => {
     const processedMember = { ...member };
     
@@ -117,7 +117,7 @@ export const convertStringsToDates = (staff: any[]) => {
     
     // Handle workingDatesWithSalary
     if (processedMember.workingDatesWithSalary) {
-      processedMember.workingDatesWithSalary = processedMember.workingDatesWithSalary.map((entry: any) => {
+      processedMember.workingDatesWithSalary = processedMember.workingDatesWithSalary.map((entry: unknown) => {
         try {
           return {
             ...entry,

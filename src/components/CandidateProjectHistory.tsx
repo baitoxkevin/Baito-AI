@@ -3,20 +3,20 @@ import { format } from 'date-fns';
 import {
   Star,
   Clock,
-  ThumbsUp,
-  ThumbsDown,
+  // ThumbsUp,
+  // ThumbsDown,
   Ban,
   AlertCircle,
   Upload,
-  Trash2,
+  // Trash2,
   X
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+// import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
+// import { Badge } from '@/components/ui/badge';
+// import { Separator } from '@/components/ui/separator';
 import {
   Dialog,
   DialogContent,
@@ -25,7 +25,7 @@ import {
   DialogFooter,
   DialogDescription,
 } from '@/components/ui/dialog';
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+// import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabase';
 import type { Candidate } from '@/lib/types';
@@ -121,7 +121,7 @@ export default function CandidateProjectHistory({
         
         const projectMap = new Map(projectsData?.map(p => [p.id, p.title]) || []);
         
-        const formattedHistory = historyData.map((entry: any, index) => ({
+        const formattedHistory = historyData.map((entry: unknown, index) => ({
           id: `${entry.id}-${index}`, // Ensure unique keys by appending index
           original_id: entry.id, // Keep original ID for database operations
           project_id: entry.project_id,

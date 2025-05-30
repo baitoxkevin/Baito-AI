@@ -172,7 +172,7 @@ export function WavesBackground({
       const xStart = (width - xGap * totalLines) / 2
       const yStart = (height - yGap * totalPoints) / 2
       for (let i = 0; i <= totalLines; i++) {
-        const pts: any[] = []
+        const pts: unknown[] = []
         for (let j = 0; j <= totalPoints; j++) {
           pts.push({
             x: xStart + xGap * i,
@@ -190,7 +190,7 @@ export function WavesBackground({
       const mouse = mouseRef.current
       const noise = noiseRef.current
       lines.forEach((pts) => {
-        pts.forEach((p: any) => {
+        pts.forEach((p: unknown) => {
           const move =
             noise.perlin2(
               (p.x + time * waveSpeedX) * 0.002,
@@ -229,7 +229,7 @@ export function WavesBackground({
       })
     }
 
-    function moved(point: any, withCursor = true) {
+    function moved(point: unknown, withCursor = true) {
       const x = point.x + point.wave.x + (withCursor ? point.cursor.x : 0)
       const y = point.y + point.wave.y + (withCursor ? point.cursor.y : 0)
       return { x: Math.round(x * 10) / 10, y: Math.round(y * 10) / 10 }
@@ -246,7 +246,7 @@ export function WavesBackground({
       linesRef.current.forEach((points) => {
         let p1 = moved(points[0], false)
         ctx.moveTo(p1.x, p1.y)
-        points.forEach((p: any, idx: number) => {
+        points.forEach((p: unknown, idx: number) => {
           const isLast = idx === points.length - 1
           p1 = moved(p, !isLast)
           const p2 = moved(

@@ -4,7 +4,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
+  // DialogFooter,
   DialogDescription,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -24,18 +24,18 @@ import { supabase } from '@/lib/supabase';
 import { 
   CheckCircle, 
   Building, 
-  FileText, 
+  // FileText, 
   Home, 
   CreditCard, 
   User, 
-  UserCheck, 
-  Car, 
-  Languages, 
+  // UserCheck, 
+  // Car, 
+  // Languages, 
   Camera, 
   Upload, 
   Link, 
   Copy,
-  Share2,
+  // Share2,
   ShieldAlert,
   Lock,
   X,
@@ -43,7 +43,7 @@ import {
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { ProfileUpload } from '@/components/ui/profile-upload';
 import { Switch } from '@/components/ui/switch';
-import { Separator } from '@/components/ui/separator';
+// import { Separator } from '@/components/ui/separator';
 import { 
   Tooltip,
   TooltipContent,
@@ -80,14 +80,14 @@ export default function EditCandidateDialog({
   // Additional state for photo uploads
   const [fullBodyPhotos, setFullBodyPhotos] = useState<string[]>([]);
   const [halfBodyPhotos, setHalfBodyPhotos] = useState<string[]>([]);
-  const [photoValidation, setPhotoValidation] = useState({
+  const [photoValidation, _setPhotoValidation] = useState({
     profilePhoto: true,
     fullBodyPhotos: true,
     halfBodyPhotos: true
   });
   
   // Form data state
-  const [formData, setFormData] = useState<any>({
+  const [formData, setFormData] = useState<unknown>({
     // Basic Information
     legal_name: '',
     entity_type: 'individual',
@@ -600,7 +600,7 @@ export default function EditCandidateDialog({
     });
   };
   
-  const removeFullBodyPhoto = (index: number) => {
+  const _removeFullBodyPhoto = (index: number) => {
     setFullBodyPhotos(prev => {
       const newPhotos = [...prev];
       newPhotos.splice(index, 1);
@@ -654,7 +654,7 @@ export default function EditCandidateDialog({
     { id: 'cantonese', name: 'Cantonese' },
   ];
 
-  const entityTypes = [
+  // const entityTypes = [
     { value: 'individual', label: 'Individual' },
     { value: 'sole_proprietor', label: 'Sole Proprietor' },
     { value: 'partnership', label: 'Partnership' },
@@ -664,7 +664,7 @@ export default function EditCandidateDialog({
     { value: 'non_profit', label: 'Non-Profit' },
   ];
 
-  const registrationTypes = [
+  // const registrationTypes = [
     { value: 'nric', label: 'National Registration ID Card (NRIC)' },
     { value: 'passport', label: 'Passport' },
     { value: 'business_registration', label: 'Business Registration' },

@@ -303,10 +303,10 @@ export const getBestTextColor = (bgColor: string): string => {
 /**
  * Compares two arrays for equality, handles date objects properly
  */
-export const arraysAreEqual = (arr1: any[], arr2: any[]) => {
+export const arraysAreEqual = (arr1: unknown[], arr2: unknown[]) => {
   if (arr1.length !== arr2.length) return false;
   
-  const processArrayForComparison = (arr: any[]) => {
+  const processArrayForComparison = (arr: unknown[]) => {
     return arr.map(item => {
       if (item instanceof Date) {
         return format(item, 'yyyy-MM-dd');
@@ -334,13 +334,13 @@ export const arraysAreEqual = (arr1: any[], arr2: any[]) => {
 /**
  * Prepares staff data for saving to backend
  */
-export const prepareStaffForSaving = (staffArray: any[]) => {
+export const prepareStaffForSaving = (staffArray: unknown[]) => {
   return staffArray.map(member => {
     const processedMember = { ...member };
     
     // Convert date objects to formatted strings for backend
     if (Array.isArray(processedMember.workingDates)) {
-      processedMember.workingDates = processedMember.workingDates.map((date: any) => {
+      processedMember.workingDates = processedMember.workingDates.map((date: unknown) => {
         if (date instanceof Date) {
           return format(date, 'yyyy-MM-dd');
         }
@@ -353,7 +353,7 @@ export const prepareStaffForSaving = (staffArray: any[]) => {
     
     // Handle workingDatesWithSalary
     if (Array.isArray(processedMember.workingDatesWithSalary)) {
-      processedMember.workingDatesWithSalary = processedMember.workingDatesWithSalary.map((entry: any) => ({
+      processedMember.workingDatesWithSalary = processedMember.workingDatesWithSalary.map((entry: unknown) => ({
         ...entry,
         date: entry.date instanceof Date ? format(entry.date, 'yyyy-MM-dd') : entry.date,
         basicSalary: parseFloat(entry.basicSalary) || 0,
@@ -372,7 +372,7 @@ export const prepareStaffForSaving = (staffArray: any[]) => {
 /**
  * Generates a human-readable summary of changes
  */
-export const generateChangePrompt = (changes: any[]) => {
+export const generateChangePrompt = (changes: unknown[]) => {
   if (changes.length === 0) return "";
   
   let prompt = "The following changes will be made:\n\n";
