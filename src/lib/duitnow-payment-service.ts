@@ -1,5 +1,5 @@
 import { saveAs } from 'file-saver';
-import * as XLSX from 'xlsx';
+import * as ExcelJS from 'exceljs';
 import { format } from 'date-fns';
 
 /**

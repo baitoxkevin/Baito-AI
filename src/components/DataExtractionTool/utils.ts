@@ -1,4 +1,4 @@
-import * as XLSX from 'xlsx';
+import * as ExcelJS from 'exceljs';
 
 interface LocationData {
   date: string;
@@ -40,14 +40,23 @@ export async function extractDataFromSpreadsheet(file: File): Promise<unknown[][
           return;
         }
         
-        // For Excel files
-        const workbook = XLSX.read(data, { type: 'array' });
-        const firstSheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[firstSheetName];
-        
-        // Convert to array of arrays (including header)
-        const rawData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-        resolve(rawData as unknown[][]);
+        // For Excel files using ExcelJS
+        const workbook = new ExcelJS.Workbook();
+        const arrayBuffer = data as ArrayBuffer;
+        workbook.xlsx.load(arrayBuffer).then(() => {
+          const worksheet = workbook.worksheets[0];
+          const rawData: unknown[][] = [];
+          
+          worksheet.eachRow((row, rowNumber) => {
+            const rowData: unknown[] = [];
+            row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+              rowData[colNumber - 1] = cell.value;
+            });
+            rawData.push(rowData);
+          });
+          
+          resolve(rawData);
+        }).catch(reject);
       } catch (error) {
         reject(error);
       }
