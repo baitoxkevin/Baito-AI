@@ -49,7 +49,7 @@ export async function checkCandidateScheduleConflicts(
         console.log("RPC candidate conflict check results:", data);
         
         // Format the conflicts into our return structure
-        const conflicts = data.map((conflict: any) => ({
+        const conflicts = data.map((conflict: unknown) => ({
           date: parseISO(conflict.date),
           projectId: conflict.project_id,
           projectTitle: conflict.project_title || 'Unknown Project'
@@ -83,8 +83,8 @@ export async function checkCandidateScheduleConflicts(
         
         // Format the conflicts into our return structure
         const conflicts = data
-          .filter((item: any) => !item.is_available)
-          .map((conflict: any) => ({
+          .filter((item: unknown) => !item.is_available)
+          .map((conflict: unknown) => ({
             date: parseISO(conflict.check_date),
             projectId: conflict.conflict_project_id || 'unknown',
             projectTitle: conflict.conflict_project_title || 'Unknown Project'

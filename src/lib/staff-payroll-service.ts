@@ -10,7 +10,7 @@ export async function saveStaffPaymentDetails(
   staffId: string,
   workingDatesWithSalary: WorkingDateWithSalary[],
   projectId?: string  // Added projectId parameter for creating new records
-): Promise<{ success: boolean; error?: any }> {
+): Promise<{ success: boolean; error?: unknown }> {
   console.log(`saveStaffPaymentDetails called with staffId: ${staffId}, projectId:`, projectId);
   try {
     // Validate staff ID
@@ -334,7 +334,7 @@ export async function saveProjectPayroll(
     id: string;
     workingDatesWithSalary?: WorkingDateWithSalary[];
   }>
-): Promise<{ success: boolean; error?: any }> {
+): Promise<{ success: boolean; error?: unknown }> {
   try {
     // Validate project ID
     if (!projectId || projectId === "undefined") {

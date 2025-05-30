@@ -1,11 +1,11 @@
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+// import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ShimmerButton } from "@/components/ui/shimmer-button";
-import { ShineBorder } from "@/components/ui/shine-border";
-import { cn } from "@/lib/utils";
+// import { ShineBorder } from "@/components/ui/shine-border";
+// import { cn } from "@/lib/utils";
 import { 
   Calendar, 
   Clock, 
@@ -15,12 +15,12 @@ import {
   ArrowUpRight,
   Sparkles,
   Receipt,
-  DollarSign,
+  // DollarSign,
   Minus,
-  CheckCircle,
-  X,
+  // CheckCircle,
+  // X,
   Plus,
-  Eye,
+  // Eye,
   Banknote,
   Shield,
   MoreVertical,
@@ -28,7 +28,7 @@ import {
 } from "lucide-react";
 
 interface ExpenseClaimsViewProps {
-  project: any;
+  project: unknown;
   onMinimize: () => void;
   onViewDetails: () => void;
 }
@@ -46,7 +46,7 @@ export function ExpenseClaimsView({ project, onMinimize, onViewDetails }: Expens
             <Sparkles className="absolute -top-2 -right-2 h-5 w-5 text-yellow-400" />
           </div>
           <div className="absolute -bottom-10 left-1/2 transform -translate-x-1/2 w-20 h-20 bg-white dark:bg-gray-700 rounded-full shadow-lg flex items-center justify-center text-3xl font-bold text-gray-600 dark:text-gray-300">
-            {(project.client as any)?.name?.charAt(0) || 'C'}
+            {(project.client as unknown as {name?: string})?.name?.charAt(0) || 'C'}
           </div>
           <Button
             variant="ghost"

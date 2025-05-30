@@ -3,7 +3,7 @@ import { supabase } from '@/lib/supabase';
 
 interface AICommand {
   intent: 'ADD_CANDIDATE' | 'GET_PROJECTS' | 'ASSIGN_STAFF' | 'CHECK_STATUS';
-  entities: Record<string, any>;
+  entities: Record<string, string | number | boolean | Date | null>;
 }
 
 export class BaitoAIAssistant {
@@ -143,7 +143,7 @@ export function useAIAssistant() {
     try {
       const response = await assistant.handleMessage(message);
       return { success: true, message: response };
-    } catch (error) {
+    } catch {
       return { success: false, message: 'Failed to process message' };
     } finally {
       setIsProcessing(false);

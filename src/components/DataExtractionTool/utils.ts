@@ -15,7 +15,7 @@ interface ValidationResult {
   rowIndex: number;
   isValid: boolean;
   errors: string[];
-  data: any;
+  data: unknown;
 }
 
 interface ValidationSummary {
@@ -28,7 +28,7 @@ interface ValidationSummary {
 /**
  * Extract data from a spreadsheet file (Excel or CSV)
  */
-export async function extractDataFromSpreadsheet(file: File): Promise<any[][]> {
+export async function extractDataFromSpreadsheet(file: File): Promise<unknown[][]> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     
@@ -47,7 +47,7 @@ export async function extractDataFromSpreadsheet(file: File): Promise<any[][]> {
         
         // Convert to array of arrays (including header)
         const rawData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-        resolve(rawData as any[][]);
+        resolve(rawData as unknown[][]);
       } catch (error) {
         reject(error);
       }
@@ -64,7 +64,7 @@ export async function extractDataFromSpreadsheet(file: File): Promise<any[][]> {
 /**
  * Process schedule data from spreadsheet into structured location data
  */
-export function processScheduleData(rawData: any[][]): { 
+export function processScheduleData(rawData: unknown[][]): { 
   locations: LocationData[]; 
   validation: ValidationSummary; 
 } {

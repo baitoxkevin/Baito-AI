@@ -19,7 +19,7 @@ interface SecurityEvent {
   id: string;
   event_type: string;
   severity: 'low' | 'medium' | 'high' | 'critical';
-  details: any;
+  details: unknown;
   candidate_id?: string;
   ip_address?: string;
   user_agent?: string;

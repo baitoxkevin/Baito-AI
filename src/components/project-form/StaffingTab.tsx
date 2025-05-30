@@ -791,7 +791,7 @@ const StaffingTab = ({
     }
     
     // Quick validation and immediate UI response
-    const isValidDate = (date: any) => date instanceof Date && !isNaN(date.getTime());
+    const isValidDate = (date: unknown) => date instanceof Date && !isNaN(date.getTime());
     if (!isValidDate(projectStartDate) || !isValidDate(projectEndDate)) {
       // console.warn("Using default project date range");
     }

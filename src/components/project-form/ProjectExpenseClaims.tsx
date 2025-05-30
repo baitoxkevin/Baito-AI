@@ -169,7 +169,7 @@ export function ProjectExpenseClaims({
   };
 
   // Handle create new claim
-  const handleCreateClaim = async (formData: any) => {
+  const handleCreateClaim = async (formData: unknown) => {
     try {
       // Create a new dummy claim for demo
       const newClaim: ExpenseClaim = {

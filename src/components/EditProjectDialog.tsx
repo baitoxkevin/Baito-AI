@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { format } from 'date-fns';
 import { motion } from 'framer-motion';
-import { CalendarIcon, Loader2, MapPin, Users, Clock, DollarSign, Building, Briefcase, Calendar as CalendarLucide } from 'lucide-react';
+import { CalendarIcon, Loader2, MapPin, Users, Clock, DollarSign, Building } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -130,10 +130,10 @@ export function EditProjectDialog({
       title: project.title,
       client_id: project.client_id || '',
       manager_id: project.manager_id || '',
-      status: project.status as any,
-      priority: project.priority as any,
+      status: project.status,
+      priority: project.priority,
       event_type: project.event_type || '',
-      description: (project as any).description || '',
+      description: 'description' in project ? (project as { description?: string }).description || '' : '',
       venue_address: project.venue_address,
       venue_details: project.venue_details || '',
       start_date: new Date(project.start_date),
@@ -148,14 +148,7 @@ export function EditProjectDialog({
     },
   });
 
-  // Fetch customers and managers when dialog opens
-  useEffect(() => {
-    if (open) {
-      fetchCustomersAndManagers();
-    }
-  }, [open]);
-
-  const fetchCustomersAndManagers = async () => {
+  const fetchCustomersAndManagers = useCallback(async () => {
     try {
       // Fetch companies as customers
       const { data: companiesData, error: companiesError } = await supabase
@@ -189,7 +182,14 @@ export function EditProjectDialog({
         variant: "destructive",
       });
     }
-  };
+  }, [toast]);
+
+  // Fetch customers and managers when dialog opens
+  useEffect(() => {
+    if (open) {
+      fetchCustomersAndManagers();
+    }
+  }, [open, fetchCustomersAndManagers]);
 
   const onSubmit = async (values: EditProjectFormValues) => {
     setIsSubmitting(true);

@@ -37,7 +37,7 @@ interface NewCandidateDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onCandidateAdded: () => void;
-  initialData?: any; // Data from the import tool
+  initialData?: unknown; // Data from the import tool
 }
 
 export default function NewCandidateDialog({

@@ -6,7 +6,7 @@ interface DocumentTextPreviewProps {
   fileName?: string;
 }
 
-export function DocumentTextPreview({ url, fileName }: DocumentTextPreviewProps) {
+export function DocumentTextPreview({ url, fileName: _fileName }: DocumentTextPreviewProps) {
   const [content, setContent] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>('');
@@ -30,7 +30,7 @@ export function DocumentTextPreview({ url, fileName }: DocumentTextPreviewProps)
         const text = await response.text();
         // Limit preview to first 1000 characters for performance
         setContent(text.substring(0, 1000) + (text.length > 1000 ? '...' : ''));
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error('Text preview error:', err);
         // Provide more specific error messages
         if (err.message.includes('Failed to fetch')) {

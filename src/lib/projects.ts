@@ -75,7 +75,7 @@ export async function fetchProjects(): Promise<Project[]> {
           const clientMap = clientsData.reduce((map, client) => {
             map[client.id] = client;
             return map;
-          }, {} as Record<string, any>);
+          }, {} as Record<string, unknown>);
           
           // Add client data to projects
           projects.forEach(project => {
@@ -102,7 +102,7 @@ export async function fetchProjects(): Promise<Project[]> {
           const managerMap = managersData.reduce((map, manager) => {
             map[manager.id] = manager;
             return map;
-          }, {} as Record<string, any>);
+          }, {} as Record<string, unknown>);
           
           // Add manager data to projects
           projects.forEach(project => {
@@ -227,7 +227,7 @@ export async function fetchProjectsByMonth(year: number, month: number): Promise
           const clientMap = clientsData.reduce((map, client) => {
             map[client.id] = client;
             return map;
-          }, {} as Record<string, any>);
+          }, {} as Record<string, unknown>);
           
           // Add client data to projects
           projects.forEach(project => {
@@ -254,7 +254,7 @@ export async function fetchProjectsByMonth(year: number, month: number): Promise
           const managerMap = managersData.reduce((map, manager) => {
             map[manager.id] = manager;
             return map;
-          }, {} as Record<string, any>);
+          }, {} as Record<string, unknown>);
           
           // Add manager data to projects
           projects.forEach(project => {
@@ -325,7 +325,7 @@ export async function updateProject(id: string, projectData: Partial<Project>): 
     
     // Format dates in workingDates for confirmed_staff if needed
     if (processedData.confirmed_staff) {
-      processedData.confirmed_staff = processedData.confirmed_staff.map((staffMember: any) => {
+      processedData.confirmed_staff = processedData.confirmed_staff.map((staffMember: unknown) => {
         const processedStaff = { ...staffMember };
         
         // Remove UI-specific properties that shouldn't be stored
@@ -334,7 +334,7 @@ export async function updateProject(id: string, projectData: Partial<Project>): 
         
         // Convert workingDates from Date objects to strings and ensure all dates are valid ISO strings
         if (processedStaff.workingDates && Array.isArray(processedStaff.workingDates)) {
-          processedStaff.workingDates = processedStaff.workingDates.map((date: any) => {
+          processedStaff.workingDates = processedStaff.workingDates.map((date: unknown) => {
             if (date instanceof Date) {
               return date.toISOString();
             }
@@ -368,7 +368,7 @@ export async function updateProject(id: string, projectData: Partial<Project>): 
     
     // Format dates in workingDates for applicants if needed
     if (processedData.applicants) {
-      processedData.applicants = processedData.applicants.map((applicant: any) => {
+      processedData.applicants = processedData.applicants.map((applicant: unknown) => {
         const processedApplicant = { ...applicant };
         
         // Remove UI-specific properties that shouldn't be stored
@@ -377,7 +377,7 @@ export async function updateProject(id: string, projectData: Partial<Project>): 
         
         // Convert workingDates from Date objects to strings and ensure all dates are valid ISO strings
         if (processedApplicant.workingDates && Array.isArray(processedApplicant.workingDates)) {
-          processedApplicant.workingDates = processedApplicant.workingDates.map((date: any) => {
+          processedApplicant.workingDates = processedApplicant.workingDates.map((date: unknown) => {
             if (date instanceof Date) {
               return date.toISOString();
             }
@@ -601,8 +601,8 @@ export async function getPossibleClients(): Promise<Client[]> {
       id: user.id,
       full_name: user.full_name || 'Unknown',
       email: user.email || '',
-      phone: (user as any).phone || '',
-      company: (user as any).company || 'Unknown Company',
+      phone: (user as unknown).phone || '',
+      company: (user as unknown).company || 'Unknown Company',
       created_at: user.created_at || new Date().toISOString(),
       updated_at: user.updated_at || new Date().toISOString(),
     })) as Client[];

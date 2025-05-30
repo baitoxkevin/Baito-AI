@@ -29,7 +29,7 @@ interface AppStateContextType {
   prefetchAdjacentMonths: (currentMonth: number) => void;
   
   // User state
-  currentUser: any; // Use proper user type if available
+  currentUser: unknown; // Use proper user type if available
   isLoadingUser: boolean;
 }
 
@@ -57,7 +57,7 @@ const AppStateContext = createContext<AppStateContextType>({
 export function AppStateProvider({ children }: { children: ReactNode }) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
-  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [currentUser, setCurrentUser] = useState<unknown>(null);
   const [isLoadingUser, setIsLoadingUser] = useState(true);
   
   const { toast } = useToast();

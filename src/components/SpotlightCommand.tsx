@@ -38,7 +38,7 @@ import { supabase } from '@/lib/supabase';
 export function SpotlightCommand() {
   const [open, setOpen] = useState(false);
   const [payrollOpen, setPayrollOpen] = useState(false);
-  const [selectedProject, setSelectedProject] = useState<any>(null);
+  const [selectedProject, setSelectedProject] = useState<unknown>(null);
   const [projectStaff, setProjectStaff] = useState<any[]>([]);
   const [projects, setProjects] = useState<any[]>([]);
   const navigate = useNavigate();

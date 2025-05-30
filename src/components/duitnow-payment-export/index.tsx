@@ -128,7 +128,7 @@ interface StaffPaymentEntry {
   bankCode?: string;
   email?: string;
   phone?: string;
-  workingDatesWithSalary: any[];
+  workingDatesWithSalary: unknown[];
   selected?: boolean;
 }
 

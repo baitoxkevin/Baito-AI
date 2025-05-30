@@ -53,7 +53,7 @@ export async function fetchProjectExpenseClaimsWithFallback(projectId: string): 
 
     // Try to get user info separately
     const userIds = data?.filter(claim => claim.user_id).map(claim => claim.user_id) || [];
-    let usersMap: Record<string, any> = {};
+    let usersMap: Record<string, unknown> = {};
     
     if (userIds.length > 0) {
       try {
@@ -66,7 +66,7 @@ export async function fetchProjectExpenseClaimsWithFallback(projectId: string): 
         usersMap = (usersData || []).reduce((map, user) => {
           map[user.id] = user;
           return map;
-        }, {} as Record<string, any>);
+        }, {} as Record<string, unknown>);
       } catch (userError) {
         console.warn('Could not fetch user details for claims:', userError);
         // Continue without user data

@@ -8,7 +8,7 @@ export interface ActivityLog {
   user_name?: string;
   activity_type: 'navigation' | 'interaction' | 'data_change' | 'view' | 'action';
   action: string;
-  details: Record<string, any>;
+  details: Record<string, unknown>;
   timestamp: string;
   session_id?: string;
   page_url?: string;
@@ -18,7 +18,7 @@ export interface ActivityLog {
 export interface LoggableEvent {
   action: string;
   activity_type: ActivityLog['activity_type'];
-  details?: Record<string, any>;
+  details?: Record<string, unknown>;
   project_id?: string;
 }
 
@@ -287,7 +287,7 @@ class ActivityLogger {
 
   // Convenience methods for common actions
 
-  public logDataChange(field: string, oldValue: any, newValue: any, details?: Record<string, any>) {
+  public logDataChange(field: string, oldValue: unknown, newValue: unknown, details?: Record<string, unknown>) {
     this.log({
       action: 'data_change',
       activity_type: 'data_change',
@@ -302,7 +302,7 @@ class ActivityLogger {
   }
 
 
-  public logAction(actionName: string, success: boolean, details?: Record<string, any>) {
+  public logAction(actionName: string, success: boolean, details?: Record<string, unknown>) {
     this.log({
       action: actionName,
       activity_type: 'action',
@@ -337,7 +337,7 @@ export function logActivity(event: LoggableEvent) {
 
 // Export utility functions (only keeping dataChange and action)
 export const logUtils = {
-  dataChange: (field: string, oldValue: any, newValue: any, details?: Record<string, any>, projectId?: string) => {
+  dataChange: (field: string, oldValue: unknown, newValue: unknown, details?: Record<string, unknown>, projectId?: string) => {
     if (projectId) {
       activityLogger.log({
         action: 'data_change',
@@ -356,7 +356,7 @@ export const logUtils = {
     }
   },
   
-  action: (actionName: string, success: boolean, details?: Record<string, any>, projectId?: string) => {
+  action: (actionName: string, success: boolean, details?: Record<string, unknown>, projectId?: string) => {
     if (projectId) {
       activityLogger.log({
         action: actionName,

@@ -111,7 +111,7 @@ export async function getProjectById(id: string, includeDocuments: boolean = fal
         // Ensure workingDates is properly formatted
         if (processedStaff.workingDates && Array.isArray(processedStaff.workingDates)) {
           // Convert dates to Date objects for frontend use
-          processedStaff.workingDates = processedStaff.workingDates.map((date: any) => {
+          processedStaff.workingDates = processedStaff.workingDates.map((date: unknown) => {
             if (typeof date === 'string') {
               try {
                 return new Date(date);
@@ -139,7 +139,7 @@ export async function getProjectById(id: string, includeDocuments: boolean = fal
         // Ensure workingDates is properly formatted
         if (processedApplicant.workingDates && Array.isArray(processedApplicant.workingDates)) {
           // Convert dates to Date objects for frontend use
-          processedApplicant.workingDates = processedApplicant.workingDates.map((date: any) => {
+          processedApplicant.workingDates = processedApplicant.workingDates.map((date: unknown) => {
             if (typeof date === 'string') {
               try {
                 return new Date(date);

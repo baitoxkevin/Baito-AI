@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { fetchHierarchicalCompanies } from '@/lib/utils';
-import type { Company, ContactPerson } from '@/lib/types';
+import type { Company } from '@/lib/types';
 
 export interface HierarchicalCompany extends Company {
   child_companies?: HierarchicalCompany[];

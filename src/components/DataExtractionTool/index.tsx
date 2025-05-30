@@ -26,7 +26,7 @@ export interface DataExtractionToolProps {
   projectId?: string;
 }
 
-export default function DataExtractionTool({ onDataExtracted, projectId }: DataExtractionToolProps) {
+export default function DataExtractionTool({ onDataExtracted, projectId: _projectId }: DataExtractionToolProps) {
   const [activeTab, setActiveTab] = useState<string>('link');
   const [spreadsheetUrl, setSpreadsheetUrl] = useState<string>('');
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
@@ -54,7 +54,7 @@ export default function DataExtractionTool({ onDataExtracted, projectId }: DataE
     
     try {
       // Extract the spreadsheet ID from the URL
-      const spreadsheetId = extractSpreadsheetId(spreadsheetUrl);
+      // const spreadsheetId = extractSpreadsheetId(spreadsheetUrl);
       setProcessProgress(30);
       
       // Simulate API call to fetch data for demo

@@ -16,8 +16,8 @@ interface SpotlightCardMinimizedProps {
   onClick: () => void;
   onMouseMove?: (event: React.MouseEvent<HTMLDivElement>) => void;
   mousePosition?: { x: number; y: number };
-  tasks?: any[];
-  expenseClaims?: any[];
+  tasks?: unknown[];
+  expenseClaims?: unknown[];
 }
 
 export function SpotlightCardMinimized({ 
@@ -31,8 +31,8 @@ export function SpotlightCardMinimized({
   const dateStr = startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
   // Get logo from client or company
-  const clientLogo = (project.client as any)?.logo || (project.brand_client as any)?.logo;
-  const clientName = (project.client as any)?.name || (project.client as any)?.company_name || (project.brand_client as any)?.name || 'Brand';
+  const clientLogo = (project.client as unknown)?.logo || (project.brand_client as unknown)?.logo;
+  const clientName = (project.client as unknown)?.name || (project.client as unknown)?.company_name || (project.brand_client as unknown)?.name || 'Brand';
 
   // Calculate progress percentage
   const progressPercentage = project.crew_count > 0 

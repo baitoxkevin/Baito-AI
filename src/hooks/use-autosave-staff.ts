@@ -6,8 +6,8 @@ import { getUser } from '@/lib/auth';
 
 interface UseAutosaveStaffOptions {
   projectId: string;
-  confirmedStaff: any[];
-  applicants: any[];
+  confirmedStaff: unknown[];
+  applicants: unknown[];
   enabled?: boolean;
   debounceDelay?: number;
 }
@@ -37,7 +37,7 @@ export function useAutosaveStaff({
   }, []); // Only run once on mount
 
   // Function to prepare staff for saving
-  const prepareStaffForSaving = (staffArray: any[]) => {
+  const prepareStaffForSaving = (staffArray: unknown[]) => {
     return staffArray.map(staff => {
       const cleanStaff = { ...staff };
       // Remove UI-specific properties
@@ -46,7 +46,7 @@ export function useAutosaveStaff({
       
       // Convert workingDates to ISO strings
       if (cleanStaff.workingDates && Array.isArray(cleanStaff.workingDates)) {
-        cleanStaff.workingDates = cleanStaff.workingDates.map((date: any) => {
+        cleanStaff.workingDates = cleanStaff.workingDates.map((date: unknown) => {
           if (date instanceof Date) {
             return date.toISOString();
           }

@@ -23,7 +23,7 @@ export interface CreatePaymentBatchParams {
     amount: number;
     reference?: string;
     description?: string;
-    paymentDetails?: Record<string, any>;
+    paymentDetails?: Record<string, unknown>;
   }[];
 }
 
@@ -65,7 +65,7 @@ export interface PaymentItem {
   reference?: string;
   description?: string;
   status: PaymentBatchStatus;
-  payment_details?: Record<string, any>;
+  payment_details?: Record<string, unknown>;
   created_at: string | Date;
   updated_at: string | Date;
 }
@@ -142,7 +142,7 @@ export async function submitPaymentBatch(
     description?: string;
     workingDates?: string[];
     totalDays?: number;
-    payrollDetails?: Record<string, any>;
+    payrollDetails?: Record<string, unknown>;
   }[],
   companyDetails: {
     name: string;
@@ -151,7 +151,7 @@ export async function submitPaymentBatch(
   },
   paymentMethod: PaymentMethod = "duitnow",
   notes?: string
-): Promise<{ success: boolean; batchId?: string; error?: any }> {
+): Promise<{ success: boolean; batchId?: string; error?: unknown }> {
   try {
     // Format payments for the database
     const formattedPayments = staffPayments.map(payment => ({
@@ -351,7 +351,7 @@ export async function approvePaymentBatch(
     return {
       success: true
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error approving payment batch:', error);
     return {
       success: false,
@@ -405,7 +405,7 @@ export async function rejectPaymentBatch(
     return {
       success: true
     };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error rejecting payment batch:', error);
     return {
       success: false,

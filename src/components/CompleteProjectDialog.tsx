@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { useState, useEffect, useCallback } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabase';
@@ -7,7 +7,7 @@ import { CandidateAvatar } from '@/components/ui/candidate-avatar';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { Card } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -69,7 +69,7 @@ export default function CompleteProjectDialog({
   ]);
   const [filteredCandidates, setFilteredCandidates] = useState<ProjectCandidate[]>([]);
   const [completionNotes, setCompletionNotes] = useState('');
-  const [projectRating, setProjectRating] = useState(0);
+  const [projectRating, _setProjectRating] = useState(0);
   
   const { toast } = useToast();
   
@@ -117,7 +117,7 @@ export default function CompleteProjectDialog({
     setSteps(newSteps);
   }, [activeTab]);
   
-  const loadProjectCandidates = async () => {
+  const loadProjectCandidates = useCallback(async () => {
     setLoading(true);
     
     try {
@@ -186,7 +186,7 @@ export default function CompleteProjectDialog({
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
   
   const handleAttendanceChange = (candidateId: string, attended: boolean) => {
     setCandidates(prev => prev.map(candidate => 

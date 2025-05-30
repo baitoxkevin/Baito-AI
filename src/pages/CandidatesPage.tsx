@@ -46,7 +46,7 @@ export default function CandidatesPage() {
   const [reportDialogOpen, setReportDialogOpen] = useState(false);
   const [reportCandidate, setReportCandidate] = useState<Candidate | null>(null);
   const [activeTab, setActiveTab] = useState<string>("candidates");
-  const [newCandidateData, setNewCandidateData] = useState<any>(null);
+  const [newCandidateData, setNewCandidateData] = useState<unknown>(null);
   const [copiedCandidateId, setCopiedCandidateId] = useState<string | null>(null);
   const [expandedIssues, setExpandedIssues] = useState<{[key: string]: boolean}>({});
   const [sortField, setSortField] = useState<string | null>(null);
@@ -125,8 +125,8 @@ export default function CandidatesPage() {
   const sortedCandidates = [...filteredCandidates].sort((a, b) => {
     if (!sortField) return 0;
 
-    let valueA: any;
-    let valueB: any;
+    let valueA: unknown;
+    let valueB: unknown;
 
     switch (sortField) {
       case 'experience':
@@ -180,7 +180,7 @@ export default function CandidatesPage() {
   });
   
   // Function to handle opening the new candidate dialog with data from the import tool
-  const handleOpenNewCandidateDialog = (candidateData: any) => {
+  const handleOpenNewCandidateDialog = (candidateData: unknown) => {
     setNewCandidateData(candidateData);
     setNewDialogOpen(true);
   };

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle
 } from '@/components/ui/card';
@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
+// import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -20,7 +20,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { ExpenseClaim } from '@/lib/expense-claim-service';
 import { Receipt } from '@/lib/receipt-service';
-import { CheckCircle2, CreditCard, Plus, Receipt as ReceiptIcon, Trash2, Camera, ScanLine } from 'lucide-react';
+import { CheckCircle2, CreditCard, Plus, Receipt as ReceiptIcon, Trash2, ScanLine } from 'lucide-react';
 import { format } from 'date-fns';
 import { fetchUserReceipts, addReceipt } from '@/lib/receipt-service';
 import { useExpenseClaims } from '@/hooks/use-expense-claims';
@@ -90,7 +90,7 @@ export function ExpenseClaimForm({
           setSelectedReceipts(currentClaimReceipts);
           
           // Filter out receipts that are already in this claim or any other claim
-          const availableReceiptIds = new Set(receipts.map(r => r.id));
+          // const availableReceiptIds = new Set(receipts.map(r => r.id));
           const claimedReceiptIds = new Set(currentClaimReceipts.map(r => r.id));
           
           // Only show receipts that are not in the current claim
@@ -103,8 +103,8 @@ export function ExpenseClaimForm({
           // If creating a new claim, show all unclaimed receipts
           setAvailableReceipts(receipts);
         }
-      } catch (error) {
-        console.error('Failed to load receipts:', error);
+      } catch (_error) {
+        // console.error('Failed to load receipts:', _error);
       } finally {
         setLoading(false);
       }
@@ -126,8 +126,8 @@ export function ExpenseClaimForm({
     if (!dateString) return 'No date';
     try {
       return format(new Date(dateString), 'MMM d, yyyy');
-    } catch (error) {
-      console.warn('Invalid date format:', dateString);
+    } catch (_error) {
+      // console.warn('Invalid date format:', dateString);
       return 'Invalid Date';
     }
   };
@@ -198,7 +198,7 @@ export function ExpenseClaimForm({
   };
 
   // Auto-save form changes if we have an existing claim
-  const { isSaving, saveStatus } = useAutosaveExpenseClaim({
+  const { isSaving: _isSaving, saveStatus } = useAutosaveExpenseClaim({
     claimId: initialData?.id || '',
     data: {
       title: form.watch('title'),

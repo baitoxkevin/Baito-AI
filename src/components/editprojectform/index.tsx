@@ -108,7 +108,7 @@ const EditProjectForm: React.FC<EditProjectFormProps> = ({
   const [tempBasicValue, setTempBasicValue] = useState("");
   const [selectedStaffForBasic, setSelectedStaffForBasic] = useState<string[]>([]);
   
-  const handleInputChange = (field: string, value: any) => {
+  const handleInputChange = (field: string, value: unknown) => {
     setFormData(prev => ({
       ...prev,
       [field]: value

@@ -18,8 +18,8 @@ import { format } from 'date-fns';
 import { AlertCircle, Check, ChevronDown, CreditCard, FileText, MoreHorizontal, X } from 'lucide-react';
 import { ExpenseClaimDetailsDialog } from './ExpenseClaimDetailsDialog';
 import { HoverPreview } from '@/components/ui/hover-preview';
-import { DocumentTextPreview } from '@/components/DocumentTextPreview';
-import { ScrollArea } from '@/components/ui/scroll-area';
+// import { DocumentTextPreview } from '@/components/DocumentTextPreview';
+// import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface ExpenseClaimsListProps {
   title?: string;
@@ -60,7 +60,7 @@ export function ExpenseClaimsList({
 
   const [selectedClaimId, setSelectedClaimId] = useState<string | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
-  const [claimReceipts, setClaimReceipts] = useState<Record<string, any[]>>({});
+  const [claimReceipts, setClaimReceipts] = useState<Record<string, unknown[]>>({});
   const [loadingReceipts, setLoadingReceipts] = useState<Record<string, boolean>>({});
 
   // Format currency
@@ -76,8 +76,8 @@ export function ExpenseClaimsList({
     if (!dateString) return 'N/A';
     try {
       return format(new Date(dateString), 'MMM d, yyyy');
-    } catch (error) {
-      console.warn('Invalid date format:', dateString);
+    } catch (_error) {
+      // console.warn('Invalid date format:', dateString);
       return 'Invalid Date';
     }
   };

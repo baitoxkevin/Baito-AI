@@ -61,7 +61,7 @@ export default function LoginPage() {
   // Handle Enter key press
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && email && password && !isLoading) {
-      handleLogin(e as any);
+      handleLogin(e as unknown);
     }
   };
 

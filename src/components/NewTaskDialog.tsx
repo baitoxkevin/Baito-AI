@@ -24,7 +24,7 @@ import { format } from 'date-fns';
 interface NewTaskDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onTaskAdded: (task: any) => void;
+  onTaskAdded: (task: unknown) => void;
   statuses: Array<{ id: string; name: string; color: string }>;
   users: Array<{ id: string; name: string; avatar: string; role: string }>;
   currentUser: { id: string; name: string; avatar: string; role: string };

@@ -1,37 +1,16 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, differenceInDays } from 'date-fns';
 import { cn, eventColors, getBestTextColor, formatTimeString, projectsOverlap } from '@/lib/utils';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import { Clock, Users, MapPin } from 'lucide-react';
 import type { Project } from '@/lib/types';
 
-// Convert Tailwind color names to hex for gradients
-const getColorHex = (colorName: string): string => {
-  const colorMap: Record<string, string> = {
-    'red-200': 'fecaca',
-    'blue-200': 'bfdbfe',
-    'purple-200': 'e9d5ff',
-    'yellow-200': 'fef08a',
-    'green-200': 'bbf7d0',
-    'pink-200': 'fbcfe8',
-    'indigo-200': 'c7d2fe',
-    'orange-200': 'fed7aa',
-    'gray-200': 'e5e7eb',
-  };
-  
-  return colorMap[colorName] || 'bfdbfe'; // Default to blue if not found
-};
 
 const groupOverlappingProjects = (projects: Project[]) => {
   const groups: Project[][] = [];
@@ -99,9 +78,20 @@ const CalendarView = React.forwardRef<HTMLDivElement, CalendarViewProps>(({
   onDateRangeSelect,
   onDateClick,
 }, ref) => {
+  // All hooks must be declared before any conditional returns
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStartDate, setDragStartDate] = useState<Date | null>(null);
+  const [dragEndDate, setDragEndDate] = useState<Date | null>(null);
+  const [selectedDates, setSelectedDates] = useState<Date[]>([]);
+  const [eventTypeFilter, setEventTypeFilter] = useState<string[]>([]);
+  const [isHoveringProject, setIsHoveringProject] = useState(false);
+  const [containerSize, setContainerSize] = useState({ height: 0 });
+  const calendarRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
   // Safety check for required props
   if (!date) {
-    console.error('CalendarView: date prop is required but was not provided');
+    // Error: date prop is required
     return (
       <div className="p-4 bg-red-50 border border-red-200 rounded-md">
         <p className="text-red-600">Error: date prop is required</p>
@@ -110,19 +100,13 @@ const CalendarView = React.forwardRef<HTMLDivElement, CalendarViewProps>(({
   }
   
   if (!Array.isArray(projects)) {
-    console.error('CalendarView: projects prop must be an array');
+    // Error: projects prop must be an array
     return (
       <div className="p-4 bg-red-50 border border-red-200 rounded-md">
         <p className="text-red-600">Error: invalid projects data</p>
       </div>
     );
   }
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragStartDate, setDragStartDate] = useState<Date | null>(null);
-  const [dragEndDate, setDragEndDate] = useState<Date | null>(null);
-  const [selectedDates, setSelectedDates] = useState<Date[]>([]);
-  const [eventTypeFilter, setEventTypeFilter] = useState<string[]>([]);
-  const calendarRef = useRef<HTMLDivElement>(null);
   
   // Add CSS for project segment hover effects and proper z-index hierarchy
   useEffect(() => {
@@ -228,7 +212,7 @@ const CalendarView = React.forwardRef<HTMLDivElement, CalendarViewProps>(({
   }, []);
 
   // Memoize these calculations to prevent unnecessary re-renders
-  const { monthStart, monthEnd, calendarStart, calendarEnd, daysInMonth, weeks } = useMemo(() => {
+  const { calendarStart, calendarEnd, daysInMonth } = useMemo(() => {
     const monthStart = startOfMonth(date);
     const monthEnd = endOfMonth(date);
     
@@ -249,7 +233,7 @@ const CalendarView = React.forwardRef<HTMLDivElement, CalendarViewProps>(({
     // Should always be 6 weeks
     const weeks = 6;
     
-    return { monthStart, monthEnd, calendarStart, calendarEnd, daysInMonth, weeks };
+    return { calendarStart, calendarEnd, daysInMonth };
   }, [date]);
   
   // Monitor scroll position to adjust month indicators for better visibility
@@ -626,8 +610,7 @@ const CalendarView = React.forwardRef<HTMLDivElement, CalendarViewProps>(({
   const today = new Date();
 
   // Use ResizeObserver for responsive calculations
-  const [containerSize, setContainerSize] = useState({ height: 0 });
-  const containerRef = useRef<HTMLDivElement>(null);
+  // Hooks moved to top of component
   
   // Use ResizeObserver to track container size changes
   useEffect(() => {
@@ -666,7 +649,7 @@ const CalendarView = React.forwardRef<HTMLDivElement, CalendarViewProps>(({
   }, [projects]);
 
   // State for tracking project hover
-  const [isHoveringProject, setIsHoveringProject] = useState(false);
+  // Hook moved to top of component
   
   // Event handlers for project hover
   const handleProjectMouseEnter = () => {

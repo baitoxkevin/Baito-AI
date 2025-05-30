@@ -36,7 +36,7 @@ export const supabase = createClient<Database>(
 );
 
 // Helper type for RPC calls
-export type SupabaseRPC<T = any> = { data: T | null; error: any };
+export type SupabaseRPC<T = any> = { data: T | null; error: unknown };
 
 // Function to execute a SQL migration directly
 export const applyMigration = async (sql: string) => {

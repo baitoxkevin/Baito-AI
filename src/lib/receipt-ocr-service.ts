@@ -29,7 +29,7 @@ export const validateImage = async () => {
   return { valid: true, reason: null };
 };
 
-export const mapReceiptDataToFormFields = (ocrData: any) => {
+export const mapReceiptDataToFormFields = (ocrData: unknown) => {
   console.warn("receipt-ocr-service.ts was removed - mapReceiptDataToFormFields is a stub");
   return {
     amount: 0,

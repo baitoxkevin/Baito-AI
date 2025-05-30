@@ -4,7 +4,7 @@ import { toast } from '@/hooks/use-toast';
 
 interface UseAutosaveProjectOptions {
   projectId: string;
-  data: any;
+  data: unknown;
   enabled?: boolean;
   debounceDelay?: number;
   onSuccess?: () => void;

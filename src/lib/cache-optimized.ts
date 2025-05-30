@@ -23,7 +23,7 @@ const DEFAULT_CACHE_OPTIONS: CacheOptions = {
 };
 
 // Global cache store for sharing between hooks
-const globalCache: Record<string, any> = {};
+const globalCache: Record<string, unknown> = {};
 
 // LRU tracking
 const cacheAccessTimes: Record<string, Record<string, number>> = {};

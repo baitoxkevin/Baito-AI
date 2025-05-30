@@ -3,7 +3,7 @@ import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 
 export function useProjectStaff(projectId: string, isActive: boolean = true) {
-  const [staffDetails, setStaffDetails] = useState<any[]>([]);
+  const [staffDetails, setStaffDetails] = useState<unknown[]>([]);
   const [loadingStaff, setLoadingStaff] = useState(false);
   const { toast } = useToast();
   

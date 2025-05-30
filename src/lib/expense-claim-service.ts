@@ -28,7 +28,7 @@ export interface ExpenseClaim {
   submitted_by?: string;
   user_image?: string;
   receipts?: Array<{ id: string; url: string; filename: string }>;
-  metadata?: any;
+  metadata?: unknown;
   // Fields expected by the UI
   reference_number?: string;
   submitted_by_name?: string;
@@ -135,7 +135,7 @@ export async function fetchProjectExpenseClaims(projectId: string): Promise<Expe
     
     // Try to get user info separately for claims where we have user_id
     const userIds = data?.filter(claim => claim.user_id).map(claim => claim.user_id) || [];
-    let usersMap: Record<string, any> = {};
+    let usersMap: Record<string, unknown> = {};
     
     if (userIds.length > 0) {
       try {
@@ -148,7 +148,7 @@ export async function fetchProjectExpenseClaims(projectId: string): Promise<Expe
         usersMap = (usersData || []).reduce((map, user) => {
           map[user.id] = user;
           return map;
-        }, {} as Record<string, any>);
+        }, {} as Record<string, unknown>);
       } catch (userError) {
         console.warn('Could not fetch user details for claims:', userError);
         // Continue without user data
@@ -325,7 +325,7 @@ export async function createExpenseClaim(claim: Omit<ExpenseClaim, 'total_amount
 export async function createExpenseClaimWithReceipts(
   claim: Omit<ExpenseClaim, 'total_amount' | 'status' | 'receipt_number'>,
   receiptFiles: File[]
-): Promise<{ claim: ExpenseClaim; receipts: any[] }> {
+): Promise<{ claim: ExpenseClaim; receipts: unknown[] }> {
   console.log('createExpenseClaimWithReceipts called with claim:', claim, 'files:', receiptFiles?.length || 0);
   
   try {

@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { analyzeReceiptImage, validateImage, ReceiptData as OCRReceiptData } from './receipt-ocr-service';
+import { analyzeReceiptImage } from './receipt-ocr-service';
 
 export interface ReceiptData {
   id?: string;
@@ -26,17 +26,8 @@ export default function ReceiptOCRTool({ onReceiptScanned, userId }: ReceiptOCRT
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Generate a unique file name for a receipt upload
-  function generateReceiptFileName(userId: string, fileExtension: string): string {
-    const timestamp = Date.now();
-    return `${userId}_${timestamp}.${fileExtension}`;
-  }
-
-  // Extract the file extension from a file
-  function getFileExtension(file: File): string {
-    const parts = file.name.split('.');
-    return parts.length > 1 ? parts.pop()?.toLowerCase() || 'jpg' : 'jpg';
-  }
+  // These functions are not used in this component
+  // Removed generateReceiptFileName and getFileExtension
 
   // Process OCR using our receipt OCR service
   async function processOCR(file: File): Promise<ReceiptData> {

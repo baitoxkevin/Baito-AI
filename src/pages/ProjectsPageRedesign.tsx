@@ -79,7 +79,7 @@ export default function ProjectsPageRedesign() {
   const [activeMonth, setActiveMonth] = usePersistentState('projects-active-month', new Date().getMonth());
   const [newProjectDialogOpen, setNewProjectDialogOpen] = useState(false);
   // editDialogOpen removed
-  const [selectedProject, setSelectedProject] = useState<any>(null);
+  const [selectedProject, setSelectedProject] = useState<unknown>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [useDummyData, setUseDummyData] = usePersistentState('projects-use-dummy', false);
@@ -187,7 +187,7 @@ export default function ProjectsPageRedesign() {
   };
   
   // Handle project deletion
-  const handleProjectDelete = async (project: any) => {
+  const handleProjectDelete = async (project: unknown) => {
     try {
       // Get session user id, assuming we're using test account for now
       const storedUser = localStorage.getItem('test_user');
@@ -220,7 +220,7 @@ export default function ProjectsPageRedesign() {
   };
   
   // Handle view details
-  const handleViewDetails = (project: any) => {
+  const handleViewDetails = (project: unknown) => {
     setSelectedProject(project);
     // EditProjectDialog removed - no action
   };
@@ -274,7 +274,7 @@ export default function ProjectsPageRedesign() {
     const delayedProjects = filteredProjects.filter(p => {
       const normalizedStatus = p.status.toLowerCase().replace(/_/g, '-');
       return ['in-progress', 'pending'].includes(normalizedStatus) && 
-        (p as any).is_delayed === true;
+        (p as unknown).is_delayed === true;
     });
     
     // Calculate team utilization if available
@@ -321,7 +321,7 @@ export default function ProjectsPageRedesign() {
       
       // Check if user is in confirmed staff
       if (project.confirmed_staff && Array.isArray(project.confirmed_staff)) {
-        return project.confirmed_staff.some((staff: any) => 
+        return project.confirmed_staff.some((staff: unknown) => 
           staff.candidate_id === currentUserId || staff.id === currentUserId
         );
       }
@@ -355,7 +355,7 @@ export default function ProjectsPageRedesign() {
       
     return groupProjects(
       // Sort projects within each group
-      sortProjects(projectsWithoutMine, sortBy as any),
+      sortProjects(projectsWithoutMine, sortBy as unknown),
       groupBy
     );
   }, [filteredProjects, myProjects, groupBy, sortBy]);

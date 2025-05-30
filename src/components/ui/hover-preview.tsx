@@ -29,7 +29,7 @@ import {
 interface HoverPreviewProps {
   children: React.ReactNode;
   previewType: 'document' | 'expense';
-  data: any;
+  data: unknown;
   align?: 'center' | 'start' | 'end';
   side?: 'top' | 'right' | 'bottom' | 'left';
   onAction?: (type: string, id: string) => void;
@@ -77,7 +77,7 @@ export function HoverPreview({
   };
 
   // Component to render file icon
-  const renderFileIcon = (doc: any) => {
+  const renderFileIcon = (doc: unknown) => {
     const fileType = doc.metadata?.type || doc.type || doc.file_type;
     const { icon: Icon, color } = getFileIcon(fileType);
     return <Icon className={cn("h-6 w-6", color)} />;
@@ -106,7 +106,7 @@ export function HoverPreview({
   };
 
   // Helper function to render appropriate preview based on file type
-  const renderPreview = (doc: any) => {
+  const renderPreview = (doc: unknown) => {
     const fileType = doc.metadata?.type || doc.type || doc.file_type;
     const fileUrl = doc.file_url;
     

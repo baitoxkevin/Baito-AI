@@ -412,7 +412,7 @@ export function ProjectDocumentsManager({ projectId, projectTitle }: ProjectDocu
       setGoogleDriveUrl('');
       setUploadType('file');
       fetchDocuments();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Upload error:', error);
       toast({
         title: "Upload Error",
@@ -468,7 +468,7 @@ export function ProjectDocumentsManager({ projectId, projectTitle }: ProjectDocu
       setDocuments(prev => prev.filter(doc => doc.id !== documentToDelete));
       setShowDeleteDialog(false);
       setDocumentToDelete(null);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Delete error:', error);
       toast({
         title: "Delete Error",

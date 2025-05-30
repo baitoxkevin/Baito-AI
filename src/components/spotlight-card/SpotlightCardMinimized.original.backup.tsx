@@ -16,8 +16,8 @@ interface SpotlightCardMinimizedProps {
   onClick: () => void;
   onMouseMove?: (event: React.MouseEvent<HTMLDivElement>) => void;
   mousePosition?: { x: number; y: number };
-  tasks?: any[];
-  expenseClaims?: any[];
+  tasks?: unknown[];
+  expenseClaims?: unknown[];
 }
 
 export function SpotlightCardMinimized({ 
@@ -34,8 +34,8 @@ export function SpotlightCardMinimized({
     : formatDate(project.start_date);
 
   // Get logo from client or company
-  const clientLogo = (project.client as any)?.logo || (project.brand_client as any)?.logo;
-  const clientName = (project.client as any)?.name || (project.client as any)?.company_name || (project.brand_client as any)?.name || 'Brand';
+  const clientLogo = (project.client as unknown)?.logo || (project.brand_client as unknown)?.logo;
+  const clientName = (project.client as unknown)?.name || (project.client as unknown)?.company_name || (project.brand_client as unknown)?.name || 'Brand';
   const clientInitial = clientName ? clientName.charAt(0).toUpperCase() : 'B';
 
   return (

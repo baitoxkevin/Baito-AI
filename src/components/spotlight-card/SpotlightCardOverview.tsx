@@ -24,9 +24,9 @@ import {
 
 interface SpotlightCardOverviewProps {
   project: Project;
-  tasks: any[];
-  documents: any[];
-  expenseClaims: any[];
+  tasks: unknown[];
+  documents: unknown[];
+  expenseClaims: unknown[];
 }
 
 export function SpotlightCardOverview({ 
@@ -101,7 +101,7 @@ export function SpotlightCardOverview({
             
             <div>
               <p className="text-sm text-gray-500">Description</p>
-              <p className="text-sm mt-1">{(currentProject as any).description || 'No description available'}</p>
+              <p className="text-sm mt-1">{(currentProject as unknown).description || 'No description available'}</p>
             </div>
             
             <div>

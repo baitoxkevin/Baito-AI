@@ -9,7 +9,7 @@ interface RateLimitResult {
 interface SecurityCheckResult {
   passed: boolean;
   reason?: string;
-  details?: any;
+  details?: unknown;
 }
 
 // Rate limiting configuration
@@ -262,7 +262,7 @@ export function detectXSS(input: string): boolean {
 export async function logSecurityEvent(
   eventType: string,
   severity: 'low' | 'medium' | 'high' | 'critical',
-  details: any,
+  details: unknown,
   candidateId?: string
 ) {
   try {

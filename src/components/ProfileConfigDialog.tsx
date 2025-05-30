@@ -200,7 +200,7 @@ export default function ProfileConfigDialog({ open, onOpenChange }: ProfileConfi
   }, []);
   
   // Handle preference changes
-  const handlePreferenceChange = useCallback((path: string[], value: any) => {
+  const handlePreferenceChange = useCallback((path: string[], value: unknown) => {
     setPreferences(prev => {
       const newPreferences = { ...prev };
       let current: any = newPreferences;

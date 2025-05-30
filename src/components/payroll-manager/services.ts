@@ -46,7 +46,7 @@ export function calculateStaffWorkingSummaries(confirmedStaff: StaffMember[]): S
 export async function saveStaffPaymentDetails(
   staffId: string,
   workingDatesWithSalary: WorkingDateWithSalary[]
-): Promise<{ success: boolean; message?: string; error?: any }> {
+): Promise<{ success: boolean; message?: string; error?: unknown }> {
   try {
     // First get the staff record to update
     const { data: staffData, error: staffError } = await supabase
@@ -83,7 +83,7 @@ export async function saveStaffPaymentDetails(
 /**
  * Save project payroll data
  */
-export async function saveProjectPayroll(payrollData: PayrollData): Promise<{ success: boolean; message?: string; error?: any }> {
+export async function saveProjectPayroll(payrollData: PayrollData): Promise<{ success: boolean; message?: string; error?: unknown }> {
   try {
     // First check if payroll exists for this project
     const { data: existingPayroll, error: payrollError } = await supabase
@@ -237,7 +237,7 @@ export async function getProjectPayroll(projectId: string): Promise<{
   success: boolean; 
   data?: PayrollData; 
   message?: string; 
-  error?: any 
+  error?: unknown 
 }> {
   try {
     const { data, error } = await supabase
