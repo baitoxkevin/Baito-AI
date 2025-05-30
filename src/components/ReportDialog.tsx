@@ -79,7 +79,7 @@ export default function ReportDialog({
 
       // If there was an error, save to local storage as a fallback
       if (error) {
-        console.warn('Could not save to database, using local storage fallback:', error);
+        // console.warn('Could not save to database, using local storage fallback:', error);
         const savedLocally = saveFeedbackToLocalStorage(feedbackData);
         
         if (!savedLocally) {

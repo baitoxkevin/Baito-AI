@@ -137,7 +137,7 @@ export function useExpenseClaims(options: UseExpenseClaimsOptions = {}) {
       
       // Handle case when claim is null (table doesn't exist)
       if (claim === null) {
-        console.warn('Using local data for expense claim');
+        // console.warn('Using local data for expense claim');
         setCurrentClaim(null);
         setCurrentClaimReceipts([]);
         return { claim: null, receipts: [] };

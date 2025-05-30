@@ -17,7 +17,7 @@ export function TestDialog() {
       <h2 className="text-lg font-bold mb-4">Dialog Test</h2>
       <Button 
         onClick={() => {
-          console.log("Opening dialog");
+          // console.log("Opening dialog");
           setOpen(true);
         }}
         className="bg-blue-600"
@@ -39,7 +39,7 @@ export function TestDialog() {
           <DialogFooter>
             <Button 
               onClick={() => {
-                console.log("Closing dialog");
+                // console.log("Closing dialog");
                 setOpen(false);
               }}
             >

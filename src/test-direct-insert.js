@@ -9,7 +9,7 @@ async function testDirectInsert() {
     })
     .select();
     
-  console.log('Direct insert result:', data, 'Error:', error);
+  // console.log('Direct insert result:', data, 'Error:', error);
 }
 
 // Run in browser console:

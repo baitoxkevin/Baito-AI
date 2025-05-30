@@ -129,6 +129,7 @@ interface StaffPaymentEntry {
   email?: string;
   phone?: string;
   workingDatesWithSalary: any[];
+  selected?: boolean;
 }
 
 export interface DuitNowPaymentExportProps {
@@ -194,18 +195,19 @@ export function DuitNowPaymentExport({
           
           if (!bankCode || !accountNumber) {
             try {
-              // Try to fetch from staff profiles or candidates table
-              const { data: staffData } = await supabase
-                .from('staff_profiles')
-                .select('bank_code, account_number, email, phone')
+              // Try to fetch from candidates table
+              const { data: candidateData } = await supabase
+                .from('candidates')
+                .select('bank_name, bank_account_number, email, phone_number')
                 .eq('id', entry.staffId)
                 .single();
                 
-              if (staffData) {
-                bankCode = staffData.bank_code || bankCode;
-                accountNumber = staffData.account_number || accountNumber;
-                email = staffData.email || email;
-                phone = staffData.phone || phone;
+              if (candidateData) {
+                // Map bank_name to bank_code for DuitNow
+                bankCode = candidateData.bank_name || bankCode;
+                accountNumber = candidateData.bank_account_number || accountNumber;
+                email = candidateData.email || email;
+                phone = candidateData.phone_number || phone;
               } else {
                 // Try candidates table as fallback
                 const { data: candidateData } = await supabase
@@ -215,10 +217,11 @@ export function DuitNowPaymentExport({
                   .single();
                   
                 if (candidateData) {
-                  bankCode = candidateData.bank_code || bankCode;
-                  accountNumber = candidateData.account_number || accountNumber;
+                  // Map bank_name to bank_code for DuitNow
+                  bankCode = candidateData.bank_name || bankCode;
+                  accountNumber = candidateData.bank_account_number || accountNumber;
                   email = candidateData.email || email;
-                  phone = candidateData.phone || phone;
+                  phone = candidateData.phone_number || phone;
                 }
               }
             } catch (error) {

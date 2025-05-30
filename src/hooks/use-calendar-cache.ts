@@ -149,7 +149,7 @@ export function useCalendarCache() {
             });
           }
         } catch (error) {
-          console.warn('Error fetching client data:', error);
+          // console.warn('Error fetching client data:', error);
         }
       }
       
@@ -176,11 +176,11 @@ export function useCalendarCache() {
             });
           }
         } catch (error) {
-          console.warn('Error fetching manager data:', error);
+          // console.warn('Error fetching manager data:', error);
         }
       }
       
-      console.log(`Filtered to ${filteredProjects.length} unique projects in date range`);
+      // console.log(`Filtered to ${filteredProjects.length} unique projects in date range`);
       
       return filteredProjects;
     } catch (error) {
@@ -219,7 +219,7 @@ export function useCalendarCache() {
           return;
         }
 
-        console.log(`Prefetching month: ${cacheKey}`);
+        // console.log(`Prefetching month: ${cacheKey}`);
         
         // Mark as being fetched
         cache.current[cacheKey] = {
@@ -287,13 +287,13 @@ export function useCalendarCache() {
     
     // Check if we have valid cached data
     if (cache.current[cacheKey] && isCacheValid(cache.current[cacheKey]) && !cache.current[cacheKey].loading) {
-      console.log(`CACHE HIT: ${cacheKey}`);
+      // console.log(`CACHE HIT: ${cacheKey}`);
       return cache.current[cacheKey].data;
     }
     
     // Check if a request for this data is already in flight
     if (pendingRequests[cacheKey]) {
-      console.log(`PENDING REQUEST: ${cacheKey}`);
+      // console.log(`PENDING REQUEST: ${cacheKey}`);
       setIsLoading(true);
       try {
         return await pendingRequests[cacheKey];
@@ -302,7 +302,7 @@ export function useCalendarCache() {
       }
     }
     
-    console.log(`CACHE MISS: ${cacheKey}`);
+    // console.log(`CACHE MISS: ${cacheKey}`);
     setIsLoading(true);
     
     // Create the promise for this request

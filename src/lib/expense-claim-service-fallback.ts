@@ -5,10 +5,13 @@ import { ensureExpenseClaimsTable } from './ensure-expense-claims-table';
  * Simplified function to handle expense claims with robust error handling
  */
 export async function fetchProjectExpenseClaimsWithFallback(projectId: string): Promise<any[]> {
+  console.log('fetchProjectExpenseClaimsWithFallback called with projectId:', projectId);
+  
   try {
     // Check if table exists
     const tableExists = await ensureExpenseClaimsTable();
     if (!tableExists) {
+      console.warn('Expense claims table does not exist');
       return []; // Return empty array if table doesn't exist
     }
     
@@ -19,12 +22,22 @@ export async function fetchProjectExpenseClaimsWithFallback(projectId: string): 
       return [];
     }
 
-    // Just use the simple query directly to avoid foreign key issues
+    console.log('Fetching expense claims for project:', projectId);
+    
+    // Query with joins to get staff and user names
     const { data, error } = await supabase
       .from('expense_claims')
-      .select('*')
+      .select(`
+        *,
+        staff:candidates!staff_id(
+          id,
+          full_name
+        )
+      `)
       .eq('project_id', projectId)
       .order('created_at', { ascending: false });
+
+    console.log('Supabase response - data:', data, 'error:', error);
 
     // If table doesn't exist, return empty array
     if (error && error.code === '42P01') {
@@ -66,8 +79,9 @@ export async function fetchProjectExpenseClaimsWithFallback(projectId: string): 
       // Map database fields to UI fields
       reference_number: claim.receipt_number || `EXP${claim.id?.substring(0, 6)}`,
       date: claim.expense_date || claim.created_at,
-      submitted_by_name: usersMap[claim.user_id]?.full_name || claim.submitted_by || 'Unknown',
-      user_email: usersMap[claim.user_id]?.email || null,
+      submitted_by_name: claim.user?.full_name || usersMap[claim.user_id]?.full_name || claim.submitted_by || 'Unknown',
+      user_email: claim.user?.email || usersMap[claim.user_id]?.email || null,
+      staff_name: claim.staff?.full_name || null,
       amount: claim.amount || claim.total_amount || 0,
       category: claim.category || 'other',
       status: claim.status || 'pending',

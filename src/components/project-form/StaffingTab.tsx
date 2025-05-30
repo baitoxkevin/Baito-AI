@@ -442,7 +442,7 @@ const StaffingTab = ({
         variant: "default"
       });
       
-      console.log('[StaffingTab] Added applicant:', applicant);
+      // console.log('[StaffingTab] Added applicant:', applicant);
     } catch (error) {
       console.error('[StaffingTab] Error adding applicant:', error);
       toast({
@@ -455,7 +455,7 @@ const StaffingTab = ({
   
   // Standalone implementation for updating staff status
   const effectiveHandleUpdateStaffStatus = async (staffId: string, newStatus: 'confirmed' | 'pending' | 'hold' | 'rejected') => {
-    console.log('[StaffingTab] effectiveHandleUpdateStaffStatus called');
+    // console.log('[StaffingTab] effectiveHandleUpdateStaffStatus called');
     
     // Find the applicant to update
     const applicant = applicants.find(app => app.id === staffId);
@@ -475,7 +475,7 @@ const StaffingTab = ({
       
       // If status is confirmed, move to confirmed staff
       if (newStatus === 'confirmed') {
-        console.log('[StaffingTab] Moving applicant to confirmed staff:', applicant);
+        // console.log('[StaffingTab] Moving applicant to confirmed staff:', applicant);
         
         // Create new arrays to avoid mutation
         newConfirmedStaff = [...confirmedStaff, { ...applicant, status: 'confirmed' }];
@@ -629,7 +629,7 @@ const StaffingTab = ({
     const endTime = projectEndDate?.getTime();
     
     // Commenting out excessive logging
-    // console.log('Project date range:', { 
+    // // console.log('Project date range:', { 
     //   start: projectStartDate ? projectStartDate.toISOString() : 'undefined', 
     //   end: projectEndDate ? projectEndDate.toISOString() : 'undefined'
     // });
@@ -645,7 +645,7 @@ const StaffingTab = ({
     
     const fetchCandidates = async () => {
       try {
-        console.log('[StaffingTab] Starting to fetch candidates from database...');
+        // console.log('[StaffingTab] Starting to fetch candidates from database...');
         setHasFetchedCandidates(true); // Mark as fetched immediately
         
         const { data, error } = await supabase
@@ -673,7 +673,7 @@ const StaffingTab = ({
           photo: candidate.profile_photo // Use profile_photo field from database
         }));
         
-        console.log('[StaffingTab] Transformed candidates:', transformedCandidates.length);
+        // console.log('[StaffingTab] Transformed candidates:', transformedCandidates.length);
         setDatabaseCandidates(transformedCandidates);
       } catch (error) {
         console.error('[StaffingTab] Error in fetchCandidates:', error);
@@ -720,22 +720,22 @@ const StaffingTab = ({
   
   // Log candidate changes only when they actually change
   useEffect(() => {
-    console.log('[StaffingTab] Candidates updated:', {
-      total: combinedCandidates.length,
-      databaseCandidates: databaseCandidates.length,
-      passedCandidates: availableCandidates.length,
-      assignedIds: assignedIdsArray.length
-    });
+    // console.log('[StaffingTab] Candidates updated:', {
+    //   total: combinedCandidates.length,
+    //   databaseCandidates: databaseCandidates.length,
+    //   passedCandidates: availableCandidates.length,
+    //   assignedIds: assignedIdsArray.length
+    // });
   }, [combinedCandidates.length]); // Only log when count changes
   
   // Log staff changes
   useEffect(() => {
-    console.log('[StaffingTab] Staff state changed:', {
-      confirmedStaff: confirmedStaff.length,
-      applicants: applicants.length,
-      confirmedStaffIds: confirmedStaff.map(s => s.id),
-      applicantIds: applicants.map(a => a.id)
-    });
+    // console.log('[StaffingTab] Staff state changed:', {
+    //   confirmedStaff: confirmedStaff.length,
+    //   applicants: applicants.length,
+    //   confirmedStaffIds: confirmedStaff.map(s => s.id),
+    //   applicantIds: applicants.map(a => a.id)
+    // });
   }, [confirmedStaff.length, applicants.length]);
 
   // Load all staff scheduling conflicts for this project
@@ -753,14 +753,14 @@ const StaffingTab = ({
   // Monitor applicants changes to ensure UI updates
   useEffect(() => {
     // Commenting out excessive logging
-    // console.log('Applicants updated:', applicants.length);
-    // console.log('Current filter:', activeApplicantFilter);
-    // console.log('Applicants details:', applicants.map(a => `${a.id} (${a.status})`));
+    // // console.log('Applicants updated:', applicants.length);
+    // // console.log('Current filter:', activeApplicantFilter);
+    // // console.log('Applicants details:', applicants.map(a => `${a.id} (${a.status})`));
     
     // If staff moved to applicants and there are pending applicants,
     // make sure the pending filter is selected
     if (applicants.length > 0 && applicants.some(a => a.status === 'pending')) {
-      // console.log('Has pending applicants, setting filter to pending');
+      // // console.log('Has pending applicants, setting filter to pending');
       setActiveApplicantFilter('pending');
     }
   }, [applicants]);
@@ -793,7 +793,7 @@ const StaffingTab = ({
     // Quick validation and immediate UI response
     const isValidDate = (date: any) => date instanceof Date && !isNaN(date.getTime());
     if (!isValidDate(projectStartDate) || !isValidDate(projectEndDate)) {
-      console.warn("Using default project date range");
+      // console.warn("Using default project date range");
     }
     
     // Optimize date filtering using pre-calculated values
@@ -811,7 +811,7 @@ const StaffingTab = ({
       
     const filteredOutCount = workingDatesArray.length - cleanDates.length;
     if (filteredOutCount > 0) {
-      console.warn(`Filtered out ${filteredOutCount} working dates outside project range`);
+      // console.warn(`Filtered out ${filteredOutCount} working dates outside project range`);
       toast({
         title: "Some dates were excluded",
         description: `${filteredOutCount} working ${filteredOutCount === 1 ? 'date' : 'dates'} outside the project range ${filteredOutCount === 1 ? 'was' : 'were'} removed.`,
@@ -842,7 +842,7 @@ const StaffingTab = ({
           .then(({ conflicts }) => {
             setCurrentStaffConflicts(conflicts || []);
             if (conflicts && conflicts.length > 0) {
-              console.log(`Found ${conflicts.length} scheduling conflicts for ${staff.name}`);
+              // console.log(`Found ${conflicts.length} scheduling conflicts for ${staff.name}`);
             }
           })
           .catch(error => {
@@ -863,7 +863,7 @@ const StaffingTab = ({
   // Handle updating the staff member with new working dates and salary info
   const handleWorkingDatesChange = async (dates: WorkingDateWithSalary[]) => {
     if (!currentStaff) {
-      console.warn("No current staff selected for date assignment");
+      // console.warn("No current staff selected for date assignment");
       return;
     }
 
@@ -886,7 +886,7 @@ const StaffingTab = ({
       
       if (filteredDates.length !== dates.length) {
         const removed = dates.length - filteredDates.length;
-        console.warn(`Filtered out ${removed} dates outside project range (${projectStart.toISOString().split('T')[0]} to ${projectEnd.toISOString().split('T')[0]})`);
+        // console.warn(`Filtered out ${removed} dates outside project range (${projectStart.toISOString().split('T')[0]} to ${projectEnd.toISOString().split('T')[0]})`);
         
         // Show warning to user
         toast({
@@ -1083,13 +1083,13 @@ const StaffingTab = ({
   // Enhanced filtering logic with better debugging
   const filteredApplicants = useMemo(() => {
     // Commenting out excessive logging
-    // console.log('Computing filteredApplicants. Filter:', activeApplicantFilter, 'Total:', applicants.length);
+    // // console.log('Computing filteredApplicants. Filter:', activeApplicantFilter, 'Total:', applicants.length);
     
     const result = activeApplicantFilter === 'all' 
       ? applicants 
       : applicants.filter(applicant => applicant.status === activeApplicantFilter);
       
-    // console.log('Filtered applicants count:', result.length, 'with IDs:', result.map(a => a.id));
+    // // console.log('Filtered applicants count:', result.length, 'with IDs:', result.map(a => a.id));
     return result;
   }, [applicants, activeApplicantFilter]);
 
@@ -1520,7 +1520,7 @@ const StaffingTab = ({
                       });
                       
                       if (validDates.length !== dates.length) {
-                        console.warn(`Filtered out ${dates.length - validDates.length} dates outside project range`);
+                        // console.warn(`Filtered out ${dates.length - validDates.length} dates outside project range`);
                       }
                       
                       // Convert to WorkingDateWithSalary format efficiently
@@ -1691,7 +1691,7 @@ const StaffingTab = ({
                       // Notify if some dates were excluded
                       if (selectedDates.length !== allDates.length) {
                         const removed = allDates.length - selectedDates.length;
-                        console.warn(`Filtered out ${removed} dates outside project range at save time`);
+                        // console.warn(`Filtered out ${removed} dates outside project range at save time`);
                         
                         toast({
                           title: "Some dates were outside project period",
@@ -1701,7 +1701,7 @@ const StaffingTab = ({
                         });
                       }
                       
-                      console.log(`Saving ${selectedDates.length} working dates for ${currentStaff?.name}`);
+                      // console.log(`Saving ${selectedDates.length} working dates for ${currentStaff?.name}`);
                       
                       // Apply changes immediately
                       await handleWorkingDatesChange(selectedDates);

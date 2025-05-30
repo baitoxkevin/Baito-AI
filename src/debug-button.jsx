@@ -9,28 +9,28 @@ export function DebugButton() {
   
   // Log when component mounts
   useEffect(() => {
-    console.log('DebugButton component mounted');
+    // console.log('DebugButton component mounted');
   }, []);
   
   // Log when dialog state changes
   useEffect(() => {
-    console.log('Dialog state changed to:', isDialogOpen);
+    // console.log('Dialog state changed to:', isDialogOpen);
   }, [isDialogOpen]);
   
   // Button click handler
   const handleButtonClick = () => {
-    console.log('Button clicked, current state:', isDialogOpen);
+    // console.log('Button clicked, current state:', isDialogOpen);
     
     // Update state using functional form for safety
     setIsDialogOpen(prev => {
-      console.log('Setting isDialogOpen from', prev, 'to true');
+      // console.log('Setting isDialogOpen from', prev, 'to true');
       return true;
     });
     
     // Check if state was updated after a brief delay
     setTimeout(() => {
-      console.log('After timeout, isDialogOpen =', isDialogOpen);
-      console.log('Dialog element present:', document.querySelector('[role="dialog"]') !== null);
+      // console.log('After timeout, isDialogOpen =', isDialogOpen);
+      // console.log('Dialog element present:', document.querySelector('[role="dialog"]') !== null);
     }, 100);
   };
   

@@ -112,7 +112,7 @@ export function ProjectExpenseClaims({
     try {
       return format(new Date(dateString), 'MMM d, yyyy');
     } catch (error) {
-      console.warn('Invalid date format:', dateString);
+      // console.warn('Invalid date format:', dateString);
       return 'Invalid Date';
     }
   };

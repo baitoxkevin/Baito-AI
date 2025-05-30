@@ -1,5 +1,7 @@
-require('dotenv').config();
-const { execSync } = require('child_process');
+import dotenv from 'dotenv';
+import { execSync } from 'child_process';
+
+dotenv.config();
 
 const supabaseUrl = process.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY;

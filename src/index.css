@@ -48,7 +48,7 @@
     --chart-2: 173 58% 39%;
     --chart-3: 197 37% 24%;
     --chart-4: 43 74% 66%;
-    
+
     /* Rainbow button colors */
     --color-1: #f97316;
     --color-2: #f59e0b;
@@ -85,6 +85,10 @@
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;
   }
+  .theme {
+    --animate-shimmer-slide: shimmer-slide var(--speed) ease-in-out infinite alternate;
+    --animate-spin-around: spin-around calc(var(--speed) * 2) infinite linear;
+  }
 }
 
 @layer base {
@@ -106,24 +110,24 @@
     @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring;
     @apply active:scale-[0.98];
   }
-  
+
   .sidebar-link::before {
     content: '';
     @apply absolute inset-0 rounded-md transition-all duration-200;
   }
-  
+
   .sidebar-link:hover::before {
     @apply bg-muted;
   }
-  
+
   .sidebar-link:active::before {
     @apply bg-muted/80;
   }
-  
+
   .sidebar-link[aria-current="page"] {
     @apply bg-muted;
   }
-  
+
   .sidebar-link[aria-disabled="true"] {
     @apply opacity-50 cursor-not-allowed;
   }
@@ -132,7 +136,7 @@
   .sidebar-link img {
     @apply transition-all duration-200;
   }
-  
+
   .sidebar-link:hover img {
     @apply border-primary/50;
   }
@@ -234,4 +238,35 @@
 
 .animate-shimmer {
   animation: shimmer 2s ease-in-out infinite;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+@theme inline {
+  @keyframes shimmer-slide {
+  to {
+    transform: translate(calc(100cqw - 100%), 0);
+    }
+  }
+  @keyframes spin-around {
+  0% {
+    transform: translateZ(0) rotate(0);
+    }
+  15%, 35% {
+    transform: translateZ(0) rotate(90deg);
+    }
+  65%, 85% {
+    transform: translateZ(0) rotate(270deg);
+    }
+  100% {
+    transform: translateZ(0) rotate(360deg);
+    }
+  }
 }

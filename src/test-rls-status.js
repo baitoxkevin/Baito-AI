@@ -21,8 +21,8 @@ async function checkRLSStatus() {
       return;
     }
     
-    console.log('Tables with RLS DISABLED:');
-    console.table(data);
+    // console.log('Tables with RLS DISABLED:');
+    // console.table(data);
     
   } catch (err) {
     console.error('Failed to check RLS status:', err);

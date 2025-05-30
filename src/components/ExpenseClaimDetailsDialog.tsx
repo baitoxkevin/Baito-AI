@@ -89,7 +89,7 @@ export function ExpenseClaimDetailsDialog({
     if (open && claimId) {
       // Always try to load from database first
       loadClaim(claimId).catch(err => {
-        console.warn('Failed to load claim from database:', err);
+        // console.warn('Failed to load claim from database:', err);
         // If database fails, try using local claim if available
         if (propLocalClaim) {
           setLocalClaim(propLocalClaim);
@@ -144,7 +144,7 @@ export function ExpenseClaimDetailsDialog({
     try {
       return format(new Date(dateString), 'MMM d, yyyy');
     } catch (error) {
-      console.warn('Invalid date format:', dateString);
+      // console.warn('Invalid date format:', dateString);
       return 'Invalid Date';
     }
   };

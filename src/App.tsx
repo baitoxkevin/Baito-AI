@@ -10,9 +10,8 @@ import ReceiptScannerPage from './pages/ReceiptScannerPage';
 import TestPage from './pages/TestPage';
 import IntegratedStaffingPayrollDemo from './pages/IntegratedStaffingPayrollDemo';
 import PaymentQueueDemo from './pages/PaymentQueueDemo';
-import StaticCandidateUpdatePage from '@/pages/StaticCandidateUpdatePage';
-import MobileCandidateUpdatePage from '@/pages/MobileCandidateUpdatePage';
-import { renderCanvas } from '@/components/ui/canvas';
+import MobileCandidateUpdatePage from './pages/MobileCandidateUpdatePage';
+import { renderCanvas } from './components/ui/canvas';
 import { SpotlightCommand } from './components/SpotlightCommand';
 
 function App() {
@@ -85,7 +84,6 @@ function App() {
           <Route path="/receipt-scanner" element={<ReceiptScannerPage />} />
           <Route path="/test-button" element={<TestPage />} />
           {/* Candidate update routes with secure token */}
-          <Route path="/candidate-update-static/:candidateId" element={<StaticCandidateUpdatePage />} />
           <Route path="/candidate-update-mobile/:candidateId" element={<MobileCandidateUpdatePage />} />
           <Route path="/candidate-form/:token" element={<Navigate to="/login" replace />} />
           <Route path="/candidate/:token" element={<Navigate to="/login" replace />} />

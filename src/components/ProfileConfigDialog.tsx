@@ -124,11 +124,11 @@ export default function ProfileConfigDialog({ open, onOpenChange }: ProfileConfi
       
       try {
         setIsLoading(true);
-        console.log("Loading user profile...");
+        // console.log("Loading user profile...");
         
         // Get user profile
         const profile = await getUserProfile();
-        console.log("User profile loaded:", profile);
+        // console.log("User profile loaded:", profile);
         
         // Store profile data
         setUserProfile(profile);
@@ -251,7 +251,7 @@ export default function ProfileConfigDialog({ open, onOpenChange }: ProfileConfi
         });
         window.dispatchEvent(previewEvent);
       } catch (e) {
-        console.warn('Could not update localStorage with preview avatar:', e);
+        // console.warn('Could not update localStorage with preview avatar:', e);
       }
       
       // Upload the avatar to permanent storage
@@ -282,7 +282,7 @@ export default function ProfileConfigDialog({ open, onOpenChange }: ProfileConfi
         });
         window.dispatchEvent(finalEvent);
       } catch (e) {
-        console.warn('Could not update localStorage with final avatar:', e);
+        // console.warn('Could not update localStorage with final avatar:', e);
       }
       
       toast({
@@ -319,7 +319,7 @@ export default function ProfileConfigDialog({ open, onOpenChange }: ProfileConfi
           });
           window.dispatchEvent(revertEvent);
         } catch (e) {
-          console.warn('Could not update localStorage with reverted avatar:', e);
+          // console.warn('Could not update localStorage with reverted avatar:', e);
         }
       } else {
         // Clear avatar to use initials
@@ -341,7 +341,7 @@ export default function ProfileConfigDialog({ open, onOpenChange }: ProfileConfi
           });
           window.dispatchEvent(clearEvent);
         } catch (e) {
-          console.warn('Could not update localStorage:', e);
+          // console.warn('Could not update localStorage:', e);
         }
       }
     } finally {
@@ -484,7 +484,7 @@ export default function ProfileConfigDialog({ open, onOpenChange }: ProfileConfi
         // Save current avatar URL to localStorage for immediate access
         if (userProfile && formData.avatarUrl) {
           localStorage.setItem(`user_avatar_${userProfile.id}`, formData.avatarUrl);
-          console.log(`ProfileConfigDialog: Saved avatar URL to localStorage: ${formData.avatarUrl}`);
+          // console.log(`ProfileConfigDialog: Saved avatar URL to localStorage: ${formData.avatarUrl}`);
         }
         
         // Broadcast event with actual avatar URL for immediate update in other components
@@ -496,9 +496,9 @@ export default function ProfileConfigDialog({ open, onOpenChange }: ProfileConfi
           }
         });
         window.dispatchEvent(event);
-        console.log("ProfileConfigDialog: Dispatched avatarUpdated event with current avatar URL");
+        // console.log("ProfileConfigDialog: Dispatched avatarUpdated event with current avatar URL");
       } catch (e) {
-        console.warn('Could not signal avatar update:', e);
+        // console.warn('Could not signal avatar update:', e);
       }
       
       // Now close the dialog

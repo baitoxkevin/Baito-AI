@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { CandidateAvatar } from "@/components/ui/candidate-avatar";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { ShimmerButton } from "@/components/magicui/shimmer-button";
 import {
   Select,
   SelectContent,
@@ -33,7 +34,10 @@ import {
   ChevronRight,
   Sparkles,
   Check,
-  Filter
+  Filter,
+  User,
+  Phone,
+  Briefcase
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -167,86 +171,162 @@ export function AddCandidateRedesigned({
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] p-0 overflow-hidden">
-        <DialogHeader className="p-4 pb-0">
-          <DialogTitle className="text-lg font-semibold flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-indigo-500" />
-            Add Candidates
+      <DialogContent className="max-w-2xl max-h-[90vh] p-0 overflow-hidden border-0 bg-gradient-to-br from-white via-slate-50/50 to-indigo-50/30 dark:from-slate-900 dark:via-slate-900/95 dark:to-indigo-950/20">
+        <DialogHeader className="p-6 pb-0 relative overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/10 via-purple-500/5 to-pink-500/10 dark:from-indigo-500/20 dark:via-purple-500/10 dark:to-pink-500/20 blur-3xl" />
+          <DialogTitle className="text-xl font-bold flex items-center gap-3 relative z-10">
+            <div className="p-2.5 bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 rounded-xl shadow-lg shadow-indigo-500/25 animate-pulse">
+              <UserPlus className="h-5 w-5 text-white" />
+            </div>
+            <span className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 dark:from-indigo-400 dark:via-purple-400 dark:to-pink-400 bg-clip-text text-transparent">
+              Add Staff Members
+            </span>
           </DialogTitle>
+          <p className="text-sm text-muted-foreground mt-2 pl-14">
+            Search and select candidates to add to your project
+          </p>
         </DialogHeader>
 
-        <div className="p-4 border-b border-slate-200 dark:border-slate-700">
-        
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-          <Input
-            placeholder="Search candidates by name or phone..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
-            autoFocus
-          />
-        </div>
-      </div>
-
-      <ScrollArea className="h-[400px]">
-        {loading ? (
-          <div className="flex items-center justify-center py-8">
-            <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full" />
+        <div className="p-6 pt-4 space-y-4">
+          <div className="relative group">
+            <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/20 via-purple-500/20 to-pink-500/20 blur-xl opacity-0 group-focus-within:opacity-100 transition-opacity duration-500 rounded-xl" />
+            <div className="relative bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm rounded-xl border border-slate-200/50 dark:border-slate-700/50 shadow-sm transition-all duration-200 group-focus-within:shadow-lg group-focus-within:border-indigo-300 dark:group-focus-within:border-indigo-700">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 transition-colors duration-200 group-focus-within:text-indigo-500" />
+              <Input
+                placeholder="Search by name, phone, or designation..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-11 pr-4 py-3 bg-transparent border-0 focus:ring-0 text-sm placeholder:text-slate-400"
+                autoFocus
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                >
+                  <X className="h-3 w-3 text-slate-400" />
+                </button>
+              )}
+            </div>
           </div>
-        ) : filteredCandidates.length === 0 ? (
-          <div className="text-center py-8">
-            <p className="text-muted-foreground">No candidates found</p>
-            {searchQuery && (
-              <p className="text-sm text-muted-foreground mt-1">
-                Try adjusting your search
-              </p>
+          
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Filter className="h-4 w-4" />
+              <span>{filteredCandidates.length} candidates available</span>
+            </div>
+            {loading && (
+              <div className="flex items-center gap-2 text-sm text-indigo-600 dark:text-indigo-400">
+                <div className="animate-spin h-3 w-3 border-2 border-indigo-500 border-t-transparent rounded-full" />
+                <span>Loading...</span>
+              </div>
             )}
           </div>
+        </div>
+
+      <ScrollArea className="h-[380px] px-6">
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-16 space-y-4">
+            <div className="relative">
+              <div className="animate-spin h-12 w-12 border-3 border-indigo-200 dark:border-indigo-800 border-t-indigo-500 dark:border-t-indigo-400 rounded-full" />
+              <div className="absolute inset-0 animate-ping h-12 w-12 border-2 border-indigo-400 rounded-full opacity-20" />
+            </div>
+            <p className="text-sm text-muted-foreground animate-pulse">Loading candidates...</p>
+          </div>
+        ) : filteredCandidates.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 space-y-4">
+            <div className="p-4 bg-slate-100 dark:bg-slate-800 rounded-full">
+              <User className="h-8 w-8 text-slate-400" />
+            </div>
+            <div className="text-center space-y-1">
+              <p className="font-medium text-slate-700 dark:text-slate-300">No candidates found</p>
+              {searchQuery && (
+                <p className="text-sm text-muted-foreground">
+                  Try adjusting your search criteria
+                </p>
+              )}
+            </div>
+          </div>
         ) : (
-          <div className="p-4 space-y-2">
+          <div className="pb-4 space-y-3">
             {filteredCandidates.map((candidate) => (
               <div
                 key={candidate.id}
                 className={cn(
-                  "p-3 rounded-lg border cursor-pointer transition-all",
+                  "group relative p-4 rounded-xl border-2 cursor-pointer transition-all duration-300 overflow-hidden",
                   selectedCandidate?.id === candidate.id
-                    ? "border-primary bg-primary/5"
-                    : "border-transparent hover:border-slate-200 dark:hover:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800"
+                    ? "border-indigo-500 bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 dark:from-indigo-950/30 dark:via-purple-950/30 dark:to-pink-950/30 shadow-lg shadow-indigo-500/20 scale-[1.02]"
+                    : "border-slate-200 dark:border-slate-700 hover:border-indigo-300 dark:hover:border-indigo-600 hover:shadow-md bg-white dark:bg-slate-900/50"
                 )}
                 onClick={() => setSelectedCandidate(candidate)}
               >
-                <div className="flex items-center gap-3">
-                  <CandidateAvatar
-                    src={candidate.photo}
-                    fallback={candidate.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
-                    candidateId={candidate.id}
-                    size="md"
-                  />
+                {selectedCandidate?.id === candidate.id && (
+                  <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/10 via-purple-500/10 to-pink-500/10 animate-pulse" />
+                )}
+                <div className="flex items-center gap-4 relative z-10">
+                  <div className="relative">
+                    <CandidateAvatar
+                      src={candidate.photo}
+                      fallback={candidate.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
+                      candidateId={candidate.id}
+                      size="lg"
+                      className="ring-2 ring-white dark:ring-slate-800 shadow-md transition-transform duration-300 group-hover:scale-110"
+                    />
+                    {selectedCandidate?.id === candidate.id && (
+                      <div className="absolute -bottom-1 -right-1 p-1 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-full shadow-lg">
+                        <Check className="h-3 w-3 text-white" />
+                      </div>
+                    )}
+                  </div>
                   
-                  <div className="flex-1 min-w-0">
+                  <div className="flex-1 min-w-0 space-y-1">
                     <div className="flex items-center gap-2">
-                      <h4 className="font-medium text-sm">{candidate.name}</h4>
+                      <h4 className="font-semibold text-base text-slate-900 dark:text-slate-100 truncate">{candidate.name}</h4>
                       {candidate.rating > 0 && (
-                        <div className="flex items-center gap-0.5">
+                        <div className="flex items-center gap-1 px-2 py-0.5 bg-yellow-100 dark:bg-yellow-900/30 rounded-full">
                           <Star className="h-3 w-3 fill-yellow-500 text-yellow-500" />
-                          <span className="text-xs font-medium">{candidate.rating.toFixed(1)}</span>
+                          <span className="text-xs font-semibold text-yellow-700 dark:text-yellow-400">{candidate.rating.toFixed(1)}</span>
                         </div>
                       )}
                     </div>
-                    <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                    <div className="flex items-center gap-3 text-sm">
                       {candidate.phone && (
-                        <span>{candidate.phone}</span>
+                        <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
+                          <Phone className="h-3 w-3" />
+                          <span>{candidate.phone}</span>
+                        </div>
+                      )}
+                      {candidate.designation && (
+                        <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
+                          <Briefcase className="h-3 w-3" />
+                          <span>{candidate.designation}</span>
+                        </div>
                       )}
                     </div>
                   </div>
                   
-                  <Badge
-                    variant={candidate.availability === 'available' ? 'default' : 'secondary'}
-                    className="text-xs"
-                  >
-                    {candidate.availability}
-                  </Badge>
+                  <div className="flex flex-col items-end gap-2">
+                    <Badge
+                      className={cn(
+                        "text-xs font-medium shadow-sm",
+                        candidate.availability === 'available' 
+                          ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white border-0' 
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                      )}
+                    >
+                      {candidate.availability === 'available' ? (
+                        <>
+                          <CheckCircle className="h-3 w-3 mr-1" />
+                          Available
+                        </>
+                      ) : (
+                        candidate.availability
+                      )}
+                    </Badge>
+                    {selectedCandidate?.id === candidate.id && (
+                      <ChevronRight className="h-4 w-4 text-indigo-500 animate-pulse" />
+                    )}
+                  </div>
                 </div>
               </div>
             ))}
@@ -255,61 +335,78 @@ export function AddCandidateRedesigned({
       </ScrollArea>
 
       {selectedCandidate && (
-        <div className="p-4 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
-          <div className="flex items-center gap-3 mb-3">
-            <CandidateAvatar
-              src={selectedCandidate.photo}
-              fallback={selectedCandidate.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
-              candidateId={selectedCandidate.id}
-              size="sm"
-            />
-            <div>
-              <p className="font-medium text-sm">{selectedCandidate.name}</p>
-              <p className="text-xs text-muted-foreground">{selectedCandidate.phone || 'No phone'}</p>
-            </div>
-          </div>
-          
-          <div className="space-y-3">
-            <div className="space-y-1">
-              <Label className="text-xs font-medium">Designation</Label>
-              <Select
-                value={selectedDesignation}
-                onValueChange={setSelectedDesignation}
-              >
-                <SelectTrigger className="h-8 text-sm">
-                  <SelectValue placeholder="Select designation" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Crew">Crew</SelectItem>
-                  <SelectItem value="Supervisor">Supervisor</SelectItem>
-                  <SelectItem value="Manager">Manager</SelectItem>
-                  <SelectItem value="Technician">Technician</SelectItem>
-                  <SelectItem value="Designer">Designer</SelectItem>
-                  <SelectItem value="Photographer">Photographer</SelectItem>
-                </SelectContent>
-              </Select>
+        <div className="p-6 pt-4 border-t border-slate-200/50 dark:border-slate-700/50 bg-gradient-to-br from-slate-50 via-indigo-50/30 to-purple-50/30 dark:from-slate-900/50 dark:via-indigo-950/20 dark:to-purple-950/20">
+          <div className="bg-white dark:bg-slate-900/80 rounded-xl p-4 shadow-sm border border-slate-200/50 dark:border-slate-700/50">
+            <div className="flex items-center gap-4 mb-4">
+              <div className="relative">
+                <CandidateAvatar
+                  src={selectedCandidate.photo}
+                  fallback={selectedCandidate.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
+                  candidateId={selectedCandidate.id}
+                  size="md"
+                  className="ring-2 ring-indigo-500 shadow-lg"
+                />
+                <div className="absolute -bottom-1 -right-1 p-1.5 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-full shadow-lg animate-pulse">
+                  <UserPlus className="h-3 w-3 text-white" />
+                </div>
+              </div>
+              <div className="flex-1">
+                <p className="font-semibold text-base text-slate-900 dark:text-slate-100">{selectedCandidate.name}</p>
+                <p className="text-sm text-slate-600 dark:text-slate-400 flex items-center gap-1.5 mt-0.5">
+                  <Phone className="h-3 w-3" />
+                  {selectedCandidate.phone || 'No phone'}
+                </p>
+              </div>
             </div>
             
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setSelectedCandidate(null);
-                  setSelectedDesignation('Crew');
-                }}
-                className="flex-1"
-              >
-                Cancel
-              </Button>
-              <Button
-                size="sm"
-                onClick={() => handleAddCandidate(selectedCandidate)}
-                className="flex-1"
-              >
-                <Plus className="h-4 w-4 mr-1" />
-                Add as {selectedDesignation}
-              </Button>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                  <Briefcase className="h-4 w-4 text-indigo-500" />
+                  Select Designation
+                </Label>
+                <Select
+                  value={selectedDesignation}
+                  onValueChange={setSelectedDesignation}
+                >
+                  <SelectTrigger className="h-10 bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 focus:ring-indigo-500 focus:border-indigo-500">
+                    <SelectValue placeholder="Select designation" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
+                    <SelectItem value="Crew" className="focus:bg-indigo-50 dark:focus:bg-indigo-950/30">Crew</SelectItem>
+                    <SelectItem value="Supervisor" className="focus:bg-indigo-50 dark:focus:bg-indigo-950/30">Supervisor</SelectItem>
+                    <SelectItem value="Manager" className="focus:bg-indigo-50 dark:focus:bg-indigo-950/30">Manager</SelectItem>
+                    <SelectItem value="Technician" className="focus:bg-indigo-50 dark:focus:bg-indigo-950/30">Technician</SelectItem>
+                    <SelectItem value="Designer" className="focus:bg-indigo-50 dark:focus:bg-indigo-950/30">Designer</SelectItem>
+                    <SelectItem value="Photographer" className="focus:bg-indigo-50 dark:focus:bg-indigo-950/30">Photographer</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="flex gap-3 pt-2">
+                <Button
+                  variant="outline"
+                  size="default"
+                  onClick={() => {
+                    setSelectedCandidate(null);
+                    setSelectedDesignation('Crew');
+                  }}
+                  className="flex-1 h-10 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800"
+                >
+                  Cancel
+                </Button>
+                <ShimmerButton
+                  onClick={() => handleAddCandidate(selectedCandidate)}
+                  className="flex-1 h-10 shadow-lg"
+                  shimmerColor="#ffffff"
+                  background="linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #ec4899 100%)"
+                >
+                  <span className="flex items-center justify-center gap-2 text-white font-medium">
+                    <Plus className="h-4 w-4" />
+                    Add as {selectedDesignation}
+                  </span>
+                </ShimmerButton>
+              </div>
             </div>
           </div>
         </div>

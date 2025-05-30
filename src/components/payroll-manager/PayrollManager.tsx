@@ -263,7 +263,7 @@ export default function PayrollManager({
   
   // Debug logging for dialog state
   useEffect(() => {
-    console.log('Dialog state changed:', isSetBasicDialogOpen);
+    // console.log('Dialog state changed:', isSetBasicDialogOpen);
   }, [isSetBasicDialogOpen]);
   const [tempBasicValue, setTempBasicValue] = useState("");
   const [selectedStaffForBasic, setSelectedStaffForBasic] = useState<string[]>([]);
@@ -282,14 +282,14 @@ export default function PayrollManager({
   
   // Adding debug logging for dialog state changes
   useEffect(() => {
-    console.log('DuitNow Export dialog state changed:', showDuitNowExport);
+    // console.log('DuitNow Export dialog state changed:', showDuitNowExport);
   }, [showDuitNowExport]);
 
   // Project ID validation and fallback logic
   useEffect(() => {
     const validateProjectId = async () => {
       if (!projectId || projectId === "undefined") {
-        console.warn('Invalid project ID provided:', projectId);
+        // console.warn('Invalid project ID provided:', projectId);
         
         // Try to find a valid project ID from confirmed staff
         if (confirmedStaff.length > 0) {
@@ -587,10 +587,10 @@ export default function PayrollManager({
       const currentBasicValue = tempBasicValue;
       const currentSelectedStaff = [...selectedStaffForBasic];
       
-      console.log('setBasicSalaryForAllDates executing', { 
-        currentBasicValue, 
-        staffCount: currentSelectedStaff.length 
-      });
+      // console.log('setBasicSalaryForAllDates executing', { 
+      //   currentBasicValue, 
+      //   staffCount: currentSelectedStaff.length 
+      // });
       
       // Parse amount and validate
       const basicAmount = parseAmount(currentBasicValue);
@@ -615,12 +615,12 @@ export default function PayrollManager({
       }
 
       // Update staff data with new basic salary
-      console.log('Updating staff salary data for', currentSelectedStaff.length, 'staff members');
+      // console.log('Updating staff salary data for', currentSelectedStaff.length, 'staff members');
       setConfirmedStaff(prevStaff => {
         return prevStaff.map(staff => {
           // Only update if this staff is selected
           if (currentSelectedStaff.includes(staff.id)) {
-            console.log('Updating salary for staff:', staff.name || staff.id);
+            // console.log('Updating salary for staff:', staff.name || staff.id);
             
             const updatedDates = staff.workingDatesWithSalary?.map(date => ({
               ...date,
@@ -637,13 +637,13 @@ export default function PayrollManager({
       });
       
       // Show success message
-      console.log('Basic salary update completed');
+      // console.log('Basic salary update completed');
       toast({
         title: "Success",
         description: `Basic salary of RM ${basicAmount.toLocaleString()} set for ${currentSelectedStaff.length} staff member(s)`,
       });
       
-      console.log('setBasicSalaryForAllDates completed successfully');
+      // console.log('setBasicSalaryForAllDates completed successfully');
     } catch (error) {
       console.error('Error in setBasicSalaryForAllDates:', error);
       toast({
@@ -837,7 +837,7 @@ export default function PayrollManager({
                   <div className="flex gap-3">
                     <Button
                       onClick={() => {
-                        console.log("New Set Basic Salary button clicked!");
+                        // console.log("New Set Basic Salary button clicked!");
                         // Set default selections
                         setSelectedStaffForBasic(confirmedStaff.map(s => s.id));
                         // Force open the dialog
@@ -888,9 +888,9 @@ export default function PayrollManager({
                   </div>
                   <Button
                     onClick={() => {
-                      console.log("Push Payment button clicked");
+                      // console.log("Push Payment button clicked");
                       handleExportDuitNowPayment();
-                      console.log("showDuitNowExport set to:", true);
+                      // console.log("showDuitNowExport set to:", true);
                     }}
                     className="bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-md hover:shadow-lg"
                     disabled={
@@ -1617,7 +1617,7 @@ export default function PayrollManager({
                 type="button"
                 className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700"
                 onClick={() => {
-                  console.log("Cancel button clicked");
+                  // console.log("Cancel button clicked");
                   setIsSetBasicDialogOpen(false);
                   setSelectedStaffForBasic([]);
                   setTempBasicValue("");
@@ -1634,7 +1634,7 @@ export default function PayrollManager({
                 }`}
                 disabled={selectedStaffForBasic.length === 0 || !tempBasicValue}
                 onClick={() => {
-                  console.log("Apply button clicked");
+                  // console.log("Apply button clicked");
                   
                   // Process data and close dialog
                   try {

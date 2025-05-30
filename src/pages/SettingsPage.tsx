@@ -9,7 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { 
   Loader2, PlusIcon, Edit2, Trash2, Building, Image, AlertCircle,
   User as UserIcon, Briefcase, Mail, Phone, Search, ShieldAlert,
-  RefreshCcw, Database
+  RefreshCcw, Database, Users2, Shield, CheckCircle2, Settings
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { 
@@ -25,6 +25,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import NewCompanyDialog from '@/components/NewCompanyDialog';
 import NewCandidateDialog from '@/components/NewCandidateDialog';
 import NewUserDialog from '@/components/NewUserDialog';
+import UserConfigurationPage from './UserConfigurationPage';
 import type { Company, Candidate, User } from '@/lib/types';
 import { getUserProfile } from '@/lib/auth';
 
@@ -197,6 +198,7 @@ export default function SettingsPage() {
   useEffect(() => {
     loadCurrentUser();
     loadCompanies();
+    loadCurrentUserRole(); // Load user role on mount to check super admin status
   }, []);
   
   // Load other sections data when tab changes
@@ -441,7 +443,8 @@ export default function SettingsPage() {
         <h1 className="text-2xl font-bold">Settings</h1>
       </div>
 
-      {/* Companies Management Section - Always Visible */}
+      {/* Companies Management Section - Only visible to non-super admins */}
+      {!isSuperAdmin && (
       <div className="bg-card rounded-lg border shadow-sm">
         <div className="p-6">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
@@ -637,40 +640,93 @@ export default function SettingsPage() {
           )}
         </div>
       </div>
+      )}
       
-      {/* Other Settings (Tabs) - Only visible to super_admin */}
+      {/* User Configuration Section - Only visible to super_admin */}
       {isSuperAdmin && (
         <div className="mt-8">
-          <h3 className="text-lg font-medium mb-4">Other Settings</h3>
-          
+          <UserConfigurationPage />
+        </div>
+      )}
+      
+      {/* Other Settings (Tabs) - Admin tab visible to all, others to super_admin */}
+      <div className="mt-8 space-y-6">
+        <div>
+          <h3 className="text-2xl font-bold">Advanced Settings</h3>
+          <p className="text-muted-foreground text-sm mt-1">
+            Additional configuration options and system tools
+          </p>
+        </div>
+        
+        <Card className="overflow-hidden">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="candidates">Candidates</TabsTrigger>
-              <TabsTrigger value="staff">Staff Management</TabsTrigger>
-              <TabsTrigger value="auth">Auth Check</TabsTrigger>
-              <TabsTrigger value="admin">Admin</TabsTrigger>
-            </TabsList>
-          
-          {/* Candidates Tab */}
-          <TabsContent value="candidates" className="space-y-4">
-          <div className="flex justify-between items-center">
-            <h2 className="text-xl font-semibold">Candidates Management</h2>
-            <Button onClick={() => {
-              setEditingCandidate(null);
-              setCandidateFormOpen(true);
-            }} size="sm">
-              <PlusIcon className="h-4 w-4 mr-1" />
-              Add
-            </Button>
-          </div>
-          
-          {candidateLoading ? (
-            <div className="flex justify-center p-8">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <div className="border-b bg-muted/50">
+              <TabsList className={isSuperAdmin ? "grid w-full grid-cols-4 h-auto p-0 bg-transparent" : "grid w-full grid-cols-1 h-auto p-0 bg-transparent"}>
+                {isSuperAdmin && (
+                  <>
+                    <TabsTrigger 
+                      value="candidates" 
+                      className="rounded-none border-r data-[state=active]:bg-background data-[state=active]:shadow-none h-16 flex flex-col gap-1"
+                    >
+                      <Users2 className="h-5 w-5" />
+                      <span className="text-xs">Candidates</span>
+                    </TabsTrigger>
+                    <TabsTrigger 
+                      value="staff" 
+                      className="rounded-none border-r data-[state=active]:bg-background data-[state=active]:shadow-none h-16 flex flex-col gap-1"
+                    >
+                      <Shield className="h-5 w-5" />
+                      <span className="text-xs">Staff</span>
+                    </TabsTrigger>
+                    <TabsTrigger 
+                      value="auth" 
+                      className="rounded-none border-r data-[state=active]:bg-background data-[state=active]:shadow-none h-16 flex flex-col gap-1"
+                    >
+                      <CheckCircle2 className="h-5 w-5" />
+                      <span className="text-xs">Auth Check</span>
+                    </TabsTrigger>
+                  </>
+                )}
+                <TabsTrigger 
+                  value="admin" 
+                  className="rounded-none data-[state=active]:bg-background data-[state=active]:shadow-none h-16 flex flex-col gap-1"
+                >
+                  <Settings className="h-5 w-5" />
+                  <span className="text-xs">Admin</span>
+                </TabsTrigger>
+              </TabsList>
             </div>
-          ) : (
-            <div className="rounded-md border overflow-hidden">
-              <Table>
+          
+            {/* Candidates Tab - Only for super admins */}
+            {isSuperAdmin && (
+            <TabsContent value="candidates" className="p-0 m-0">
+              <div className="p-6 space-y-6">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <h2 className="text-xl font-semibold">Candidates Management</h2>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Manage candidate profiles and information
+                    </p>
+                  </div>
+                  <Button onClick={() => {
+                    setEditingCandidate(null);
+                    setCandidateFormOpen(true);
+                  }}>
+                    <UserPlus className="h-4 w-4 mr-2" />
+                    Add Candidate
+                  </Button>
+                </div>
+          
+                {candidateLoading ? (
+                  <div className="flex justify-center p-12 bg-muted/20 rounded-lg">
+                    <div className="text-center space-y-2">
+                      <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
+                      <p className="text-sm text-muted-foreground">Loading candidates...</p>
+                    </div>
+                  </div>
+                ) : (
+                  <Card>
+                    <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Full Name</TableHead>
@@ -742,7 +798,7 @@ export default function SettingsPage() {
                   )}
                 </TableBody>
               </Table>
-            </div>
+            </Card>
           )}
           
           {/* Candidate Form Dialog */}
@@ -754,30 +810,31 @@ export default function SettingsPage() {
               onCandidateAdded={loadCandidates}
             />
           )}
-        </TabsContent>
+              </div>
+            </TabsContent>
+            )}
         
-        {/* Staff Management Tab */}
-        <TabsContent value="staff" className="space-y-4">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center gap-3">
-              <h2 className="text-xl font-semibold">Staff Management</h2>
-              {!isSuperAdmin && (
-                <Badge variant="secondary" className="flex items-center gap-1">
-                  <ShieldAlert className="h-3.5 w-3.5 mr-0.5" />
-                  View Only
-                </Badge>
-              )}
-            </div>
+        {/* Staff Management Tab - Only for super admins */}
+        {isSuperAdmin && (
+        <TabsContent value="staff" className="p-0 m-0">
+          <div className="p-6 space-y-6">
+            <div className="flex justify-between items-center">
+              <div>
+                <h2 className="text-xl font-semibold">Staff Management</h2>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Manage system users and their permissions
+                </p>
+              </div>
             
-            {/* All users can add new staff */}
-            <Button onClick={() => {
-              setEditingUser(null);
-              setUserFormOpen(true);
-            }} size="sm">
-              <PlusIcon className="h-4 w-4 mr-1" />
-              Add
-            </Button>
-          </div>
+              {/* All users can add new staff */}
+              <Button onClick={() => {
+                setEditingUser(null);
+                setUserFormOpen(true);
+              }}>
+                <UserPlus className="h-4 w-4 mr-2" />
+                Add Staff
+              </Button>
+            </div>
           
           {/* Show permission notice for non-admin users */}
           {!isSuperAdmin && (
@@ -797,13 +854,16 @@ export default function SettingsPage() {
             onUserAdded={loadUsers}
           />
           
-          {usersLoading || isUserLoading ? (
-            <div className="flex justify-center p-8">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            </div>
-          ) : (
-            <div className="rounded-md border overflow-hidden">
-              <Table>
+            {usersLoading || isUserLoading ? (
+              <div className="flex justify-center p-12 bg-muted/20 rounded-lg">
+                <div className="text-center space-y-2">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
+                  <p className="text-sm text-muted-foreground">Loading staff members...</p>
+                </div>
+              </div>
+            ) : (
+              <Card>
+                <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Name</TableHead>
@@ -885,19 +945,26 @@ export default function SettingsPage() {
                   )}
                 </TableBody>
               </Table>
-            </div>
-          )}
-        </TabsContent>
+              </Card>
+            )}
+              </div>
+            </TabsContent>
+            )}
         
-        {/* Auth Check Tab */}
-        <TabsContent value="auth" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Authentication Status Check</CardTitle>
-              <CardDescription>
-                Check your authentication status and test database access
-              </CardDescription>
-            </CardHeader>
+        {/* Auth Check Tab - Only for super admins */}
+        {isSuperAdmin && (
+        <TabsContent value="auth" className="p-0 m-0">
+          <div className="p-6">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-5 w-5 text-primary" />
+                  <CardTitle>Authentication Status Check</CardTitle>
+                </div>
+                <CardDescription>
+                  Check your authentication status and test database access
+                </CardDescription>
+              </CardHeader>
             <CardContent className="space-y-4">
               {authStatus.loading ? (
                 <div className="flex justify-center p-8">
@@ -968,29 +1035,34 @@ export default function SettingsPage() {
               )}
             </CardContent>
           </Card>
+          </div>
         </TabsContent>
+        )}
 
-        {/* Admin Tab */}
-        <TabsContent value="admin" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <ShieldAlert className="h-5 w-5" />
-                Admin Controls
-              </CardTitle>
-              <CardDescription>
-                Manage admin permissions and roles (for testing purposes)
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label htmlFor="admin-role">Make User Admin</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Toggle admin role to access Payments page
-                  </p>
+        {/* Admin Tab - Available to all users */}
+        <TabsContent value="admin" className="p-0 m-0">
+          <div className="p-6">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <Shield className="h-5 w-5 text-primary" />
+                  <CardTitle>Admin Controls</CardTitle>
                 </div>
-                <Switch
+                <CardDescription>
+                  Manage admin permissions and roles for your account
+                </CardDescription>
+              </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="space-y-6">
+                <div className="p-4 rounded-lg bg-muted/50 border">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label htmlFor="admin-role" className="text-base font-medium">Admin Role</Label>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Grant admin privileges to access the Payments page
+                      </p>
+                    </div>
+                    <Switch
                   id="admin-role"
                   checked={currentUserRole === 'admin'}
                   onCheckedChange={async (checked) => {
@@ -1025,16 +1097,18 @@ export default function SettingsPage() {
                   }}
                   disabled={adminLoading}
                 />
-              </div>
-              
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label htmlFor="super-admin">Super Admin</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Grant super admin privileges
-                  </p>
+                  </div>
                 </div>
-                <Switch
+                
+                <div className="p-4 rounded-lg bg-muted/50 border">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label htmlFor="super-admin" className="text-base font-medium">Super Admin</Label>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Grant full system access and configuration privileges
+                      </p>
+                    </div>
+                    <Switch
                   id="super-admin"
                   checked={isSuperAdmin}
                   onCheckedChange={async (checked) => {
@@ -1069,23 +1143,29 @@ export default function SettingsPage() {
                   }}
                   disabled={adminLoading}
                 />
+                  </div>
+                </div>
               </div>
               
-              <div className="pt-4 border-t">
+              <Card className="bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800">
+                <CardContent className="pt-6">
                 <p className="text-sm text-muted-foreground">
                   Current role: <span className="font-medium">{currentUserRole}</span>
                   {isSuperAdmin && <span className="text-blue-600 ml-2">(Super Admin)</span>}
                 </p>
-                <p className="text-xs text-muted-foreground mt-1">
+                <p className="text-xs text-muted-foreground mt-2">
+                  <AlertCircle className="h-3 w-3 inline mr-1" />
                   Admin users can access the Payments page to view and export payment submissions from projects.
                 </p>
-              </div>
+                </CardContent>
+              </Card>
             </CardContent>
           </Card>
+          </div>
         </TabsContent>
       </Tabs>
+      </Card>
       </div>
-      )}
     </div>
   );
 }

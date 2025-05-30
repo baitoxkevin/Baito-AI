@@ -100,10 +100,30 @@ export interface PaymentBatchFilter {
 /**
  * Generate a unique batch reference for a new payment batch
  */
-export function generateBatchReference(projectId: string, prefix: string = 'PMT'): string {
-  const dateStr = format(new Date(), 'yyyyMMddHHmmss');
-  const projectHash = projectId?.substring(0, 6) || 'unknown';
-  return `${prefix}-${dateStr}-${projectHash}`;
+export function generateBatchReference(projectName: string, existingReferences: string[] = []): string {
+  // Get first 10 letters of project name, remove spaces and special chars
+  const projectPrefix = projectName
+    .replace(/[^a-zA-Z0-9]/g, '')
+    .toUpperCase()
+    .substring(0, 10)
+    .padEnd(10, 'X') || 'PROJECTXXX';
+  
+  // Find the highest number for this prefix
+  let maxNumber = 0;
+  existingReferences.forEach(ref => {
+    if (ref.startsWith(projectPrefix + '-')) {
+      const numberPart = ref.substring(projectPrefix.length + 1);
+      const num = parseInt(numberPart, 10);
+      if (!isNaN(num) && num > maxNumber) {
+        maxNumber = num;
+      }
+    }
+  });
+  
+  // Generate new reference with next number (padded to 2 digits)
+  const nextNumber = maxNumber + 1;
+  const paddedNumber = nextNumber.toString().padStart(2, '0');
+  return `${projectPrefix}-${paddedNumber}`;
 }
 
 /**
@@ -152,6 +172,12 @@ export async function submitPaymentBatch(
 
     // Format the payment date
     const formattedDate = format(paymentDate, 'yyyy-MM-dd');
+
+    // Validate total amount
+    const totalAmount = formattedPayments.reduce((sum, p) => sum + p.amount, 0);
+    if (totalAmount <= 0) {
+      throw new Error('Invalid payment amount: Total amount must be greater than 0');
+    }
 
     // Call the database function to submit the payment batch
     const { data, error } = await supabase.rpc('submit_payment_batch', {
@@ -289,18 +315,43 @@ export async function approvePaymentBatch(
   notes?: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const { data, error } = await supabase
-      .rpc('approve_payment_batch', {
-        p_batch_id: batchId,
-        p_notes: notes
-      });
+    const { data: user } = await supabase.auth.getUser();
+    if (!user?.user) {
+      return { success: false, error: 'User not authenticated' };
+    }
+
+    // Update the payment batch directly
+    const { error } = await supabase
+      .from('payment_batches')
+      .update({
+        status: 'approved',
+        approved_by: user.user.id,
+        approved_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', batchId)
+      .eq('status', 'pending'); // Only approve if pending
 
     if (error) throw error;
+
+    // Log the approval action (ignore errors as the table might not exist)
+    try {
+      await supabase
+        .from('payment_approval_history')
+        .insert({
+          batch_id: batchId,
+          user_id: user.user.id,
+          action: 'approved',
+          notes: notes
+        });
+    } catch (historyError) {
+      console.log('Could not log approval history:', historyError);
+    }
     
     return {
-      success: data.success
+      success: true
     };
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error approving payment batch:', error);
     return {
       success: false,
@@ -317,18 +368,44 @@ export async function rejectPaymentBatch(
   notes?: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const { data, error } = await supabase
-      .rpc('reject_payment_batch', {
-        p_batch_id: batchId,
-        p_notes: notes
-      });
+    const { data: user } = await supabase.auth.getUser();
+    if (!user?.user) {
+      return { success: false, error: 'User not authenticated' };
+    }
+
+    // Update the payment batch directly
+    const { error } = await supabase
+      .from('payment_batches')
+      .update({
+        status: 'rejected',
+        approved_by: user.user.id,
+        approved_at: new Date().toISOString(),
+        rejection_reason: notes,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', batchId)
+      .eq('status', 'pending'); // Only reject if pending
 
     if (error) throw error;
+
+    // Log the rejection action (ignore errors as the table might not exist)
+    try {
+      await supabase
+        .from('payment_approval_history')
+        .insert({
+          batch_id: batchId,
+          user_id: user.user.id,
+          action: 'rejected',
+          notes: notes
+        });
+    } catch (historyError) {
+      console.log('Could not log rejection history:', historyError);
+    }
     
     return {
-      success: data.success
+      success: true
     };
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error rejecting payment batch:', error);
     return {
       success: false,

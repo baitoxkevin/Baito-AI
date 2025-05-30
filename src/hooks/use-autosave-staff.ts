@@ -29,7 +29,7 @@ export function useAutosaveStaff({
   
   // Update initial values when props change on mount
   useEffect(() => {
-    console.log('[Autosave] Initializing lastSavedRef');
+    // console.log('[Autosave] Initializing lastSavedRef');
     lastSavedRef.current = {
       staff: JSON.stringify(confirmedStaff),
       applicants: JSON.stringify(applicants),
@@ -59,30 +59,30 @@ export function useAutosaveStaff({
   };
 
   const saveChanges = useCallback(async () => {
-    console.log('[Autosave] saveChanges called', { enabled });
+    // console.log('[Autosave] saveChanges called', { enabled });
     if (!enabled) {
-      console.log('[Autosave] Not enabled, returning');
+      // console.log('[Autosave] Not enabled, returning');
       return;
     }
 
     const currentStaff = JSON.stringify(confirmedStaff);
     const currentApplicants = JSON.stringify(applicants);
 
-    console.log('[Autosave] Comparing changes', {
-      currentStaffEquals: currentStaff === lastSavedRef.current.staff,
-      currentApplicantsEquals: currentApplicants === lastSavedRef.current.applicants,
-      currentStaffLength: confirmedStaff.length,
-      lastStaffLength: JSON.parse(lastSavedRef.current.staff || '[]').length,
-      currentApplicantsLength: applicants.length,
-      lastApplicantsLength: JSON.parse(lastSavedRef.current.applicants || '[]').length,
-    });
+    // console.log('[Autosave] Comparing changes', {
+    //   currentStaffEquals: currentStaff === lastSavedRef.current.staff,
+    //   currentApplicantsEquals: currentApplicants === lastSavedRef.current.applicants,
+    //   currentStaffLength: confirmedStaff.length,
+    //   lastStaffLength: JSON.parse(lastSavedRef.current.staff || '[]').length,
+    //   currentApplicantsLength: applicants.length,
+    //   lastApplicantsLength: JSON.parse(lastSavedRef.current.applicants || '[]').length,
+    // });
 
     // Check if there are actually changes
     if (
       currentStaff === lastSavedRef.current.staff &&
       currentApplicants === lastSavedRef.current.applicants
     ) {
-      console.log('[Autosave] No changes detected, marking as saved');
+      // console.log('[Autosave] No changes detected, marking as saved');
       setSaveStatus('saved');
       return;
     }
@@ -97,11 +97,11 @@ export function useAutosaveStaff({
         applicants: prepareStaffForSaving(applicants),
       };
 
-      console.log('[Autosave] Saving staff changes:', {
-        projectId,
-        confirmedStaffCount: confirmedStaff.length,
-        applicantsCount: applicants.length,
-      });
+      // console.log('[Autosave] Saving staff changes:', {
+      //   projectId,
+      //   confirmedStaffCount: confirmedStaff.length,
+      //   applicantsCount: applicants.length,
+      // });
 
       await updateProject(projectId, updateData);
 
@@ -163,14 +163,14 @@ export function useAutosaveStaff({
 
   // Debounced save effect
   useEffect(() => {
-    console.log('[Autosave] useEffect triggered', {
-      enabled,
-      confirmedStaffLength: confirmedStaff.length,
-      applicantsLength: applicants.length,
-    });
+    // console.log('[Autosave] useEffect triggered', {
+    //   enabled,
+    //   confirmedStaffLength: confirmedStaff.length,
+    //   applicantsLength: applicants.length,
+    // });
     
     if (!enabled) {
-      console.log('[Autosave] Disabled, skipping');
+      // console.log('[Autosave] Disabled, skipping');
       return;
     }
 
@@ -185,16 +185,16 @@ export function useAutosaveStaff({
     }
 
     // Set new timeout
-    console.log(`[Autosave] Setting timeout for ${debounceDelay}ms`);
+    // console.log(`[Autosave] Setting timeout for ${debounceDelay}ms`);
     saveTimeoutRef.current = setTimeout(() => {
-      console.log('[Autosave] Timeout reached, calling saveChanges');
+      // console.log('[Autosave] Timeout reached, calling saveChanges');
       saveChanges();
     }, debounceDelay);
 
     // Cleanup function
     return () => {
       if (saveTimeoutRef.current) {
-        console.log('[Autosave] Cleanup: clearing timeout');
+        // console.log('[Autosave] Cleanup: clearing timeout');
         clearTimeout(saveTimeoutRef.current);
       }
     };

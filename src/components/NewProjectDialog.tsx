@@ -1,18 +1,36 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { format } from 'date-fns';
-import { getSession } from '@/lib/auth';
-import { CalendarIcon, ChevronLeft, ChevronRight, Loader2, Shield, Palette, Sparkles, Wand2, Calendar as CalendarLucide, Building, Info, Users, Plus, MapPin, Clock, PlusCircle, Briefcase, ClipboardList, ListTodo, FileSpreadsheet } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  CalendarIcon, 
+  Loader2, 
+  X,
+  FileText,
+  Palette,
+  MapPin,
+  Clock,
+  Users,
+  Cog,
+  Share2,
+  Info,
+  Check,
+  Building2,
+  User,
+  DollarSign,
+  ChevronRight,
+  Briefcase,
+  Calendar,
+  MapPinIcon,
+  UserCheck,
+  Link
+} from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
 } from "@/components/ui/dialog";
 import {
   Form,
@@ -21,7 +39,11 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
+  FormDescription,
 } from "@/components/ui/form";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Select,
   SelectContent,
@@ -30,73 +52,82 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { Calendar } from '@/components/ui/calendar';
-import { Checkbox } from "@/components/ui/checkbox";
-import { Badge } from "@/components/ui/badge";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { Textarea } from "@/components/ui/textarea";
-import { cn, formatTimeString, getGoogleMapsLink, getWazeLink, createDialogHandler } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
 import { createProject } from '@/lib/projects';
+import { fetchBrandLogo } from '@/lib/logo-service';
 import { useToast } from '@/hooks/use-toast';
-import { getTaskSuggestions, TaskSuggestion } from '@/lib/ai-service';
-import NewCompanyDialog from '@/components/NewCompanyDialog';
 
 // Define step types
 type Step = 
   | 'project-info' 
   | 'event-details' 
+  | 'location'
   | 'schedule' 
-  | 'staffing' 
-  | 'task-creation';
+  | 'staffing'
+  | 'advanced'
+  | 'review';
 
-// Make schema more step-friendly
+const steps: { id: Step; label: string; icon: React.ElementType; description: string }[] = [
+  { id: 'project-info', label: 'Project Information', icon: FileText, description: 'Basic details about your project' },
+  { id: 'event-details', label: 'Event Details', icon: Palette, description: 'Type and description of the event' },
+  { id: 'location', label: 'Location', icon: MapPin, description: 'Where the project will take place' },
+  { id: 'schedule', label: 'Schedule', icon: Clock, description: 'When the project will happen' },
+  { id: 'staffing', label: 'Staffing', icon: Users, description: 'Team requirements' },
+  { id: 'advanced', label: 'Advanced', icon: Cog, description: 'Additional settings' },
+  { id: 'review', label: 'Review & Create', icon: Share2, description: 'Confirm all details' },
+];
+
 const projectSchema = z.object({
-  // Step 1: Project Information
+  // Project Information
   title: z.string().min(1, 'Project name is required'),
   client_id: z.string().min(1, 'Customer is required'),
   manager_id: z.string().min(1, 'Person in charge is required'),
-  status: z.enum(['new', 'in-progress', 'completed', 'cancelled', 'pending']).default('new'),
-  priority: z.enum(['low', 'medium', 'high']).default('medium'),
-  color: z.string().regex(/^#([0-9A-F]{3}){1,2}$/i, 'Must be a valid hex color').optional(),
+  brand_name: z.string().optional(),
+  brand_logo: z.string().url().optional().or(z.literal('')),
   
-  // Step 2: Event Details & Branding
+  // Event Details
   event_type: z.string().min(1, 'Event type is required'),
-  logo_url: z.string().optional(), // Added back as it exists in the database schema (per migration file)
+  description: z.string().optional(),
+  project_type: z.enum(['recruitment', 'internal_event', 'custom']).optional(),
+  
+  // Location
   venue_address: z.string().min(1, 'Venue address is required'),
   venue_details: z.string().optional(),
   
-  // Step 3: Schedule
+  // Schedule
   start_date: z.date({
     required_error: 'Start date is required',
   }),
   end_date: z.date().optional(),
   working_hours_start: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Invalid time format'),
   working_hours_end: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Invalid time format'),
+  schedule_type: z.string().optional().default('single'),
   
-  // For recurring schedules
-  recurrence_pattern: z.enum(['daily', 'weekly', 'biweekly', 'monthly']).optional(),
-  recurrence_days: z.array(z.number().min(0).max(6)).optional(),
-  
-  // For multiple locations
-  locations: z.array(z.object({
-    address: z.string().min(1, 'Location address is required'),
-    date: z.string().min(1, 'Location date is required'),
-    is_primary: z.boolean().default(false),
-    notes: z.string().optional()
-  })).optional(),
-  
-  // Step 4: Staffing
+  // Staffing
   crew_count: z.number().min(1, 'Must have at least one crew member'),
-  needs_supervisors: z.boolean().default(false),
   supervisors_required: z.number().min(0).max(9).optional(),
-  project_type: z.string().optional().default('recruitment'), // Added project_type
+  
+  // Advanced
+  status: z.enum(['planning', 'confirmed', 'in_progress', 'completed', 'cancelled']).default('planning'),
+  priority: z.enum(['low', 'medium', 'high']).default('medium'),
+  budget: z.number().min(0).optional(),
+  invoice_number: z.string().optional(),
+}).refine((data) => {
+  if (data.end_date && data.start_date > data.end_date) {
+    return false;
+  }
+  return true;
+}, {
+  message: "End date must be after start date",
+  path: ["end_date"],
 });
 
 type ProjectFormValues = z.infer<typeof projectSchema>;
@@ -105,2373 +136,1441 @@ interface NewProjectDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onProjectAdded: () => void;
-  initialDates: { start: Date; end: Date } | null;
+  initialDates?: { start: Date; end: Date } | null;
 }
 
-export default function NewProjectDialog({
+export function NewProjectDialog({
   open,
   onOpenChange,
   onProjectAdded,
   initialDates,
 }: NewProjectDialogProps) {
-  // Navigation state
   const [currentStep, setCurrentStep] = useState<Step>('project-info');
-  const [isSkipStaffing, setIsSkipStaffing] = useState(false);
-  
-  // Form state
   const [isLoading, setIsLoading] = useState(false);
-  const [isSuggestionsLoading, setIsSuggestionsLoading] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
-  const [customers, setCustomers] = useState<{ id: string; full_name: string; }[]>([]);
+  const [customers, setCustomers] = useState<{ id: string; full_name: string; company_name?: string; logo_url?: string }[]>([]);
   const [managers, setManagers] = useState<{ id: string; full_name: string; }[]>([]);
-  const [suggestions, setSuggestions] = useState<TaskSuggestion[]>([]);
-  const [selectedSuggestions, setSelectedSuggestions] = useState<number[]>([]);
-  const [suggestedTasks, setSuggestedTasks] = useState<TaskSuggestion[]>([]);
-  const [companyDialogOpen, setCompanyDialogOpen] = useState(false);
-  const colorWasSelected = useRef(false);
-  const [selectedColor, setSelectedColor] = useState('#CBD5E1');
-  const [logoFile, setLogoFile] = useState<File | null>(null);
-  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [visitedSteps, setVisitedSteps] = useState<Set<Step>>(new Set(['project-info']));
   const { toast } = useToast();
-
-  const [needsStaffing, setNeedsStaffing] = useState<boolean>(false);
-  const [scheduleType, setScheduleType] = useState<'single' | 'recurring' | 'multiple'>('single');
-  
-  // Check for saved locations data when dialog opens
-  useEffect(() => {
-    if (open && scheduleType === 'multiple') {
-      try {
-        const savedLocations = localStorage.getItem('extractedLocations');
-        if (savedLocations) {
-          const parsedLocations = JSON.parse(savedLocations);
-          if (Array.isArray(parsedLocations) && parsedLocations.length > 0) {
-            // Format the locations to match our internal format
-            const newLocations = parsedLocations.map((loc, index) => ({
-              id: `imported-${index}`,
-              address: loc.location || '',
-              date: loc.date || '',
-              isPrimary: index === 0, // First location is primary
-              notes: `${loc.time || ''} ${loc.staff ? `• Staff: ${loc.staff}` : ''} ${loc.region ? `• ${loc.region}` : ''}`
-            }));
-            
-            // Set the locations
-            setLocations(newLocations);
-            
-            // Update the main project fields with the primary location data
-            if (newLocations[0]) {
-              form.setValue('venue_address', newLocations[0].address);
-              if (newLocations[0].date) {
-                const date = new Date(newLocations[0].date);
-                if (!isNaN(date.getTime())) {
-                  form.setValue('start_date', date);
-                }
-              }
-            }
-            
-            toast({
-              title: 'Locations Loaded',
-              description: `${newLocations.length} locations imported from the Data Extraction Tool.`,
-            });
-            
-            // Clear the localStorage to avoid confusion on subsequent opens
-            localStorage.removeItem('extractedLocations');
-          }
-        }
-      } catch (err) {
-        console.error('Error loading saved locations:', err);
-      }
-    }
-  }, [open, scheduleType]);
-  const [selectedDays, setSelectedDays] = useState<number[]>([1, 2, 3, 4, 5]); // Default to weekdays
-  const [locations, setLocations] = useState<Array<{
-    id: string;
-    address: string;
-    date: string;
-    isPrimary: boolean;
-    notes?: string;
-  }>>([
-    {
-      id: '1',
-      address: '',
-      date: '',
-      isPrimary: true,
-      notes: ''
-    },
-    {
-      id: '2',
-      address: '',
-      date: '',
-      isPrimary: false,
-      notes: ''
-    }
-  ]);
-  const [staffTypes, setStaffTypes] = useState<{id: string, name: string, count: number}[]>([
-    { id: '1', name: 'Promoters', count: 0 },
-    { id: '2', name: 'BAs', count: 0 },
-    { id: '3', name: 'Models', count: 0 },
-    { id: '4', name: 'Supervisors', count: 0 }
-  ]);
-
-  // Define steps for navigation
-  const steps: { id: Step; title: string; icon: React.ReactNode; description: string }[] = [
-    { 
-      id: 'project-info', 
-      title: 'Project Information', 
-      icon: <Briefcase className="w-5 h-5" />,
-      description: 'Basic project details and client information'
-    },
-    { 
-      id: 'event-details', 
-      title: 'Event Details & Brand', 
-      icon: <Building className="w-5 h-5" />,
-      description: 'Event type, branding, and venue information'
-    },
-    { 
-      id: 'schedule', 
-      title: 'Project Schedule', 
-      icon: <CalendarLucide className="w-5 h-5" />,
-      description: 'Date, time, and schedule settings'
-    },
-    { 
-      id: 'staffing', 
-      title: 'Staffing Requirements', 
-      icon: <Users className="w-5 h-5" />,
-      description: 'Specify staff needs for the project'
-    },
-    { 
-      id: 'task-creation', 
-      title: 'Tasks & Setup', 
-      icon: <ListTodo className="w-5 h-5" />,
-      description: 'Create initial tasks and finalize setup'
-    }
-  ];
-
-  // Get current step index
-  const currentStepIndex = steps.findIndex(step => step.id === currentStep);
-  const totalSteps = steps.length;
-  
-  // For navigation between steps
-  const nextStep = () => {
-    const currentIndex = steps.findIndex(step => step.id === currentStep);
-    if (currentIndex < steps.length - 1) {
-      // Handle special case for staffing
-      if (steps[currentIndex + 1].id === 'staffing' && isSkipStaffing) {
-        setCurrentStep(steps[currentIndex + 2].id);
-      } else {
-        setCurrentStep(steps[currentIndex + 1].id);
-      }
-    }
-  };
-  
-  const prevStep = () => {
-    const currentIndex = steps.findIndex(step => step.id === currentStep);
-    if (currentIndex > 0) {
-      // Always move to the previous step, don't skip staffing on back navigation
-      setCurrentStep(steps[currentIndex - 1].id);
-    }
-  };
-
-  // Allow jumping to any previous step directly
-  const jumpToStep = (stepId: Step) => {
-    const targetIndex = steps.findIndex(step => step.id === stepId);
-    const currentIndex = steps.findIndex(step => step.id === currentStep);
-    
-    // Only allow going to previous steps or current step
-    if (targetIndex <= currentIndex) {
-      setCurrentStep(stepId);
-    }
-  };
 
   const form = useForm<ProjectFormValues>({
     resolver: zodResolver(projectSchema),
     defaultValues: {
       title: '',
-      event_type: 'other',
-      working_hours_start: '09:00',
-      working_hours_end: '17:00',
-      crew_count: 1,
-      needs_supervisors: false,
-      supervisors_required: 0,
-      status: 'new',
-      priority: 'medium',
-      start_date: initialDates?.start || new Date(),
-      end_date: initialDates?.end,
+      client_id: '',
+      manager_id: '',
+      brand_name: '',
+      brand_logo: '',
+      event_type: '',
+      description: '',
+      project_type: undefined,
       venue_address: '',
       venue_details: '',
-      color: '#CBD5E1', // Default gray color
-      // logo_url field is not in the database schema but included in form for future use
-      logo_url: '',
-      project_type: 'recruitment',
+      start_date: initialDates?.start || new Date(),
+      end_date: initialDates?.end,
+      working_hours_start: '09:00',
+      working_hours_end: '18:00',
+      schedule_type: 'single',
+      crew_count: 1,
+      supervisors_required: 0,
+      status: 'planning',
+      priority: 'medium',
+      budget: 0,
+      invoice_number: '',
     },
-    mode: 'onChange'
+    mode: 'onChange',
   });
-  
-  // Update form with locations data
-  useEffect(() => {
-    if (scheduleType === 'multiple') {
-      // Initialize locations with form data if we have venue info
-      if (form.getValues().venue_address) {
-        const currentLocations = [...locations];
-        if (currentLocations.length > 0) {
-          currentLocations[0] = {
-            ...currentLocations[0],
-            address: form.getValues().venue_address || '',
-            date: form.getValues().start_date ? format(form.getValues().start_date, "yyyy-MM-dd") : '',
-          };
-          setLocations(currentLocations);
-        }
-      }
-    }
-  }, [scheduleType]);
-  
-  // Update form data whenever locations change
-  useEffect(() => {
-    if (scheduleType === 'multiple') {
-      // Map to the format expected by the API
-      const formattedLocations = locations.map(loc => ({
-        address: loc.address,
-        date: loc.date,
-        is_primary: loc.isPrimary,
-        notes: loc.notes
-      }));
-      
-      // Update form data
-      const projectData = form.getValues();
-      projectData.locations = formattedLocations;
-      
-      // Also set the main venue address to the primary location
-      const primaryLocation = locations.find(loc => loc.isPrimary);
-      if (primaryLocation?.address) {
-        form.setValue('venue_address', primaryLocation.address);
-      }
-      
-      // Set the start_date to the primary location date
-      if (primaryLocation?.date) {
-        const date = new Date(primaryLocation.date);
-        if (!isNaN(date.getTime())) {
-          form.setValue('start_date', date);
-        }
-      }
-    }
-  }, [locations, scheduleType]);
-  
-  // Update form with selected days
-  useEffect(() => {
-    if (scheduleType === 'recurring') {
-      const projectData = form.getValues();
-      projectData.recurrence_days = selectedDays;
-    }
-  }, [selectedDays, scheduleType]);
 
-  // Reset form and state when dialog opens
   useEffect(() => {
     if (open) {
-      // Reset step
-      setCurrentStep('project-info');
-      
-      // Reset color selection state
-      colorWasSelected.current = false;
-      setSelectedColor('#CBD5E1');
-      
-      // Reset logo state
-      setLogoFile(null);
-      setLogoPreview(null);
-      
-      // Reset schedule type
-      setScheduleType('single');
-      
-      // Reset days selection for recurring events
-      setSelectedDays([1, 2, 3, 4, 5]); // Default to weekdays
-      
-      // Reset locations for multiple locations
-      setLocations([
-        {
-          id: '1',
-          address: '',
-          date: '',
-          isPrimary: true,
-          notes: ''
-        },
-        {
-          id: '2',
-          address: '',
-          date: '',
-          isPrimary: false,
-          notes: ''
-        }
-      ]);
-      
-      // Reset form with new values
+      // Reset to default values immediately
       form.reset({
         title: '',
-        event_type: 'other',
-        working_hours_start: '09:00',
-        working_hours_end: '17:00',
-        crew_count: 1,
-        needs_supervisors: false,
-        supervisors_required: 0,
-        status: 'new',
-        priority: 'medium',
-        start_date: initialDates?.start || new Date(),
-        end_date: initialDates?.end,
+        client_id: '',
+        manager_id: '',
+        brand_name: '',
+        brand_logo: '',
+        event_type: '',
+        description: '',
+        project_type: undefined,
         venue_address: '',
         venue_details: '',
-        color: '#CBD5E1', // Default gray color
-        logo_url: '', // Default empty logo URL
+        start_date: initialDates?.start || new Date(),
+        end_date: initialDates?.end,
+        working_hours_start: '09:00',
+        working_hours_end: '18:00',
+        schedule_type: 'single',
+        crew_count: 1,
+        supervisors_required: 0,
+        status: 'planning',
+        priority: 'medium',
+        budget: 0,
+        invoice_number: '',
+      }, {
+        keepErrors: false,
+        keepDirty: false,
+        keepValues: false,
+        keepTouched: false,
+        keepIsValid: false,
+        keepIsSubmitting: false,
+        keepIsValidating: false,
+        keepSubmitCount: false,
       });
+      
+      fetchCustomersAndManagers();
+      setCurrentStep('project-info');
+      setVisitedSteps(new Set(['project-info']));
     }
-  }, [open, initialDates, form]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, form, initialDates]);
 
-  const loadCustomers = async () => {
+  const fetchCustomersAndManagers = async () => {
     try {
-      // First try loading clients
-      const { data, error } = await supabase
-        .from('users')
-        .select('id, full_name')
-        .eq('role', 'client');
-      
-      if (error) throw error;
-      
-      if (data && data.length > 0) {
-        setCustomers(data);
-      } else {
-        console.log('No users with role "client" found, trying to load from companies table...');
-        
-        // If no clients, try loading from companies table as fallback
-        const { data: companyData, error: companyError } = await supabase
-          .from('companies')
-          .select('id, company_name');
-          
-        if (companyError) throw companyError;
-        
-        // Map companies to customers format
-        const companiesAsCustomers = companyData.map(company => ({
-          id: company.id,
-          full_name: company.company_name
-        }));
-        
-        setCustomers(companiesAsCustomers);
-      }
+      const [companiesResult, managersResult] = await Promise.all([
+        supabase.from('companies').select('id, name, company_name, logo_url').order('name'),
+        supabase.from('users').select('id, full_name, role').in('role', ['admin', 'super_admin', 'manager']).order('full_name')
+      ]);
+
+      if (companiesResult.error) throw companiesResult.error;
+      if (managersResult.error) throw managersResult.error;
+
+      setCustomers(companiesResult.data?.map(company => ({
+        id: company.id,
+        full_name: company.company_name || company.name || 'Unknown Company',
+        company_name: company.company_name || company.name || 'Unknown Company',
+        logo_url: company.logo_url
+      })) || []);
+
+      setManagers(managersResult.data || []);
     } catch (error) {
-      console.error('Error loading customers:', error);
+      console.error('Error fetching data:', error);
       toast({
-        title: 'Error loading customers',
-        description: error instanceof Error ? error.message : 'An unexpected error occurred',
-        variant: 'destructive',
+        title: "Error",
+        description: "Failed to load customers and managers",
+        variant: "destructive",
       });
     }
   };
 
-  const loadManagers = async () => {
-    try {
-      // First try to load users with manager role
-      const { data, error } = await supabase
-        .from('users')
-        .select('id, full_name')
-        .eq('role', 'manager');
-      
-      if (error) throw error;
-      
-      if (data && data.length > 0) {
-        setManagers(data);
-      } else {
-        console.log('No users with role "manager" found, loading all users as fallback...');
+  const currentStepIndex = steps.findIndex(s => s.id === currentStep);
+  const progress = ((currentStepIndex + 1) / steps.length) * 100;
+
+  const handleNext = async () => {
+    const fieldsToValidate = getFieldsForStep(currentStep);
+    const isValid = await form.trigger(fieldsToValidate as (keyof ProjectFormValues)[]);
+    
+    if (isValid) {
+      const nextIndex = currentStepIndex + 1;
+      if (nextIndex < steps.length) {
+        const nextStep = steps[nextIndex].id;
         
-        // If no managers, try loading all users as fallback
-        const { data: allUsers, error: usersError } = await supabase
-          .from('users')
-          .select('id, full_name');
-          
-        if (usersError) throw usersError;
-        
-        if (allUsers && allUsers.length > 0) {
-          setManagers(allUsers);
-        } else {
-          // If still no users, create a default manager
-          setManagers([{ 
-            id: '00000000-0000-0000-0000-000000000000', 
-            full_name: 'Default Manager' 
-          }]);
-        }
+        // Force a clean render of the next step
+        setCurrentStep(nextStep);
+        setVisitedSteps(prev => new Set([...prev, nextStep]));
       }
-    } catch (error) {
-      console.error('Error loading managers:', error);
-      toast({
-        title: 'Error loading managers',
-        description: error instanceof Error ? error.message : 'An unexpected error occurred',
-        variant: 'destructive',
-      });
-      
-      // Set a fallback option to prevent UI errors
-      setManagers([{ 
-        id: '00000000-0000-0000-0000-000000000000', 
-        full_name: 'Default Manager' 
-      }]);
+    }
+    // Prevent form submission
+    return false;
+  };
+
+  const handlePrevious = () => {
+    const prevIndex = currentStepIndex - 1;
+    if (prevIndex >= 0) {
+      setCurrentStep(steps[prevIndex].id);
     }
   };
 
-  useEffect(() => {
-    if (open) {
-      loadCustomers();
-      loadManagers();
-      // Reset suggestions when dialog opens
-      setSuggestions([]);
-      setSelectedSuggestions([]);
-      setSuggestedTasks([]);
-    }
-  }, [open]);
-  
-  // Handle logo file selection
-  const handleLogoChange = (file: File | null) => {
-    if (!file) {
-      setLogoFile(null);
-      setLogoPreview(null);
-      form.setValue('logo_url', '');
-      return;
-    }
-    
-    // Validate file type
-    const validFileTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/svg+xml'];
-    if (!validFileTypes.includes(file.type)) {
-      toast({
-        title: 'Invalid file type',
-        description: 'Logo must be a JPG, PNG, GIF, or SVG image',
-        variant: 'destructive',
-      });
-      return;
-    }
-    
-    // Validate file size (max 2MB)
-    if (file.size > 2 * 1024 * 1024) {
-      toast({
-        title: 'File too large',
-        description: 'Logo image must be less than 2MB',
-        variant: 'destructive',
-      });
-      return;
-    }
-    
-    setLogoFile(file);
-    
-    // Create preview URL
-    const previewUrl = URL.createObjectURL(file);
-    setLogoPreview(previewUrl);
-  };
-  
-  // Upload logo to storage and get URL
-  const uploadLogo = async (): Promise<string | null> => {
-    if (!logoFile) {
-      return form.getValues().logo_url || null; // Return existing URL if no new file
-    }
-    
-    setIsUploading(true);
-    
-    try {
-      // First, try to ensure the bucket exists
-      const bucketResult = await ensureLogosBucketExists();
-      if (!bucketResult.success) {
-        console.warn('Error ensuring logos bucket:', bucketResult.message);
-        // Continue anyway, in case it's just a permission issue but the bucket actually exists
-      }
-      
-      // Create a unique file path
-      const fileExt = logoFile.name.split('.').pop()?.toLowerCase() || 'png';
-      const fileName = `project-logo-${Date.now()}-${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
-      const filePath = `project-logos/${fileName}`;
-      
-      // Create project-logos folder if needed
-      try {
-        const { data: folderData, error: folderError } = await supabase.storage
-          .from('logos')
-          .upload('project-logos/.folder', new Blob(['']));
-          
-        if (folderError && !folderError.message.includes('already exists')) {
-          console.warn('Error creating folder:', folderError);
-        }
-      } catch (folderError) {
-        console.warn('Error creating folder:', folderError);
-      }
-      
-      // Upload the file
-      const { data, error } = await supabase.storage
-        .from('logos')
-        .upload(filePath, logoFile, {
-          cacheControl: '3600',
-          upsert: true // Set to true to overwrite if needed
-        });
-      
-      if (error) {
-        if (error.message.includes('Bucket not found')) {
-          // Special handling for bucket not found
-          toast({
-            title: 'Storage bucket missing',
-            description: 'Please use the fix-company-logo.html tool to fix this issue',
-            variant: 'destructive',
-          });
-        }
-        throw error;
-      }
-      
-      // Get public URL
-      const { data: urlData } = supabase.storage
-        .from('logos')
-        .getPublicUrl(filePath);
-        
-      // Return the public URL
-      return urlData.publicUrl;
-    } catch (error) {
-      console.error('Error uploading logo:', error);
-      toast({
-        title: 'Upload failed',
-        description: 'Failed to upload project logo. Check console for details.',
-        variant: 'destructive',
-      });
-      return null;
-    } finally {
-      setIsUploading(false);
+  const getFieldsForStep = (step: Step): (keyof ProjectFormValues)[] => {
+    switch (step) {
+      case 'project-info':
+        return ['title', 'client_id', 'manager_id'];
+      case 'event-details':
+        return ['event_type', 'description', 'project_type'];
+      case 'location':
+        return ['venue_address', 'venue_details'];
+      case 'schedule':
+        return ['start_date', 'end_date', 'working_hours_start', 'working_hours_end', 'schedule_type'];
+      case 'staffing':
+        return ['crew_count', 'supervisors_required'];
+      case 'advanced':
+        return ['status', 'priority', 'budget', 'invoice_number'];
+      default:
+        return [];
     }
   };
 
-  // Function to determine if we have enough info for suggestions
-  const formHasEnoughInfo = useMemo(() => {
-    const values = form.getValues();
-    return (
-      values.title && 
-      values.event_type && 
-      (needsStaffing ? values.crew_count > 0 : true) && 
-      (scheduleType === 'multiple' ? true : values.venue_address)
-    );
-  }, [
-    form.watch('title'), 
-    form.watch('event_type'), 
-    form.watch('crew_count'), 
-    form.watch('venue_address'), 
-    needsStaffing,
-    scheduleType
-  ]);
-  
-  // Logo and branding info based on event type
-  const eventInfo = useMemo(() => {
-    // This would come from your database or API in a real app
-    const eventDetails: Record<string, { color: string, logo?: string }> = {
-      'nestle': { 
-        color: '#FCA5A5',
-        logo: 'https://upload.wikimedia.org/wikipedia/en/d/d8/Nestl%C3%A9.svg'
-      },
-      'ribena': { 
-        color: '#DDD6FE',
-        logo: 'https://upload.wikimedia.org/wikipedia/en/6/6a/Ribena_logo.svg' 
-      },
-      'mytown': { color: '#FDA4AF' },
-      'warrior': { 
-        color: '#93C5FD',
-        logo: 'https://upload.wikimedia.org/wikipedia/commons/c/c9/Red_Bull_brand_mark.svg'
-      },
-      'diy': { color: '#FEF08A' },
-      'blackmores': { color: '#E2E8F0' },
-      'lapasar': { color: '#F9A8D4' },
-      'spritzer': { color: '#BBF7D0' },
-      'redoxon': { color: '#FDBA74' },
-      'double-mint': { color: '#67E8F9' },
-      'softlan': { color: '#E2E8F0' },
-      'colgate': { 
-        color: '#FED7AA',
-        logo: 'https://upload.wikimedia.org/wikipedia/commons/8/86/Colgate_Logo.svg'
-      },
-      'hsbc': { 
-        color: '#FCA5A5',
-        logo: 'https://upload.wikimedia.org/wikipedia/commons/a/aa/HSBC_logo_%282018%29.svg'
-      },
-      'asw': { color: '#93C5FD' },
-      'lee-frozen': { color: '#E2E8F0' },
-      'maggle': { color: '#E2E8F0' },
-      'unifi': { 
-        color: '#FEF9C3',
-        logo: 'https://upload.wikimedia.org/wikipedia/commons/f/ff/UniFi_Logo.svg'
-      },
-      'brands': { color: '#BBF7D0' },
-      'oppo': { 
-        color: '#93C5FD',
-        logo: 'https://upload.wikimedia.org/wikipedia/commons/8/83/OPPO_Logo_wiki.png'
-      },
-      'chrissy': { color: '#F9A8D4' },
-      'xiao-mi': { color: '#E2E8F0' },
-      'mcd': { 
-        color: '#DDD6FE',
-        logo: 'https://upload.wikimedia.org/wikipedia/commons/3/36/McDonald%27s_Golden_Arches.svg'
-      },
-      'te': { color: '#F472B6' },
-      'cpoc': { color: '#86EFAC' },
-      'drora': { color: '#FEF9C3' },
-      'roving': { color: '#FCA5A5' },
-      'roadshow': { color: '#93C5FD' },
-      'in-store': { color: '#DDD6FE' },
-      'ad-hoc': { color: '#FEF08A' },
-      'corporate': { color: '#BBF7D0' },
-      'wedding': { color: '#F9A8D4' },
-      'concert': { color: '#93C5FD' },
-      'conference': { color: '#FDBA74' },
-      'other': { color: '#CBD5E1' },
-    };
-    
-    const selectedEvent = form.watch('event_type');
-    const details = eventDetails[selectedEvent] || { color: '#CBD5E1' };
-    
-    // Auto-update color and logo when event type changes
-    if (details.color) {
-      form.setValue('color', details.color);
-    }
-    
-    if (details.logo) {
-      form.setValue('logo_url', details.logo);
-    }
-    
-    return details;
-  }, [form.watch('event_type')]);
-  
-  // Function to get task suggestions from AI
-  const handleGetSuggestions = async () => {
-    setIsSuggestionsLoading(true);
-    setSuggestions([]);
-    setSelectedSuggestions([]);
-    
-    try {
-      const formData = form.getValues();
-      
-      const projectDetails = {
-        title: formData.title,
-        // project_type field removed as it's not in the database schema
-        event_type: formData.event_type,
-        crew_count: formData.crew_count,
-        supervisors_required: formData.needs_supervisors ? formData.supervisors_required : 0,
-        venue_address: formData.venue_address,
-        start_date: formData.start_date,
-        end_date: formData.end_date,
-      };
-      
-      const taskSuggestions = await getTaskSuggestions(projectDetails);
-      
-      setSuggestions(taskSuggestions);
-      // Select all suggestions by default
-      setSelectedSuggestions(taskSuggestions.map((_, index) => index));
-      
-      toast({
-        title: 'Suggestions ready',
-        description: `${taskSuggestions.length} task suggestions generated based on your project details`,
-      });
-      
-    } catch (error) {
-      console.error('Error getting suggestions:', error);
-      toast({
-        title: 'Error getting suggestions',
-        description: 'Failed to generate task suggestions. Please try again.',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsSuggestionsLoading(false);
-    }
-  };
-  
-  // Function to add selected suggestions to tasks list
-  const handleAddSelectedSuggestions = () => {
-    const tasksToAdd = selectedSuggestions.map(index => suggestions[index]);
-    setSuggestedTasks(tasksToAdd);
-    
-    toast({
-      title: 'Tasks ready',
-      description: `${tasksToAdd.length} tasks will be created with this project.`,
-    });
-    
-    // Clear the suggestions UI after adding
-    setSuggestions([]);
-    setSelectedSuggestions([]);
-  };
-
-  // Project type detection function - no longer used with database schema, kept for reference
-  const determineProjectType = (data: ProjectFormValues): 'recruitment' | 'internal_event' | 'custom' => {
-    if (data.crew_count > 0) {
-      return 'recruitment';
-    } else if (['roadshow', 'in-store', 'corporate', 'wedding', 'concert', 'conference'].includes(data.event_type)) {
-      return 'internal_event';
-    } else {
-      return 'custom';
-    }
-  };
-
-  const onSubmit = async (data: ProjectFormValues) => {
-    console.log('[NewProjectDialog] onSubmit - Function start. Initial data:', JSON.stringify(data, null, 2));
+  const onSubmit = async (values: ProjectFormValues) => {
     setIsLoading(true);
-    
     try {
-      console.log("[NewProjectDialog] onSubmit - Form submission started with data (raw object):", data);
-      console.log("[NewProjectDialog] onSubmit - Current form.getValues():", JSON.stringify(form.getValues(), null, 2));
-      console.log("[NewProjectDialog] onSubmit - Form validation state (form.formState.errors):", JSON.stringify(form.formState.errors, null, 2));
-      
-      // Get automatic color for event type if not provided
-      const eventColors = {
-        'nestle': '#FCA5A5',
-        'ribena': '#DDD6FE',
-        'mytown': '#FDA4AF',
-        'warrior': '#93C5FD',
-        'diy': '#FEF08A',
-        'blackmores': '#E2E8F0',
-        'lapasar': '#F9A8D4',
-        'spritzer': '#BBF7D0',
-        'redoxon': '#FDBA74',
-        'double-mint': '#67E8F9',
-        'softlan': '#E2E8F0',
-        'colgate': '#FED7AA',
-        'hsbc': '#FCA5A5',
-        'asw': '#93C5FD',
-        'lee-frozen': '#E2E8F0',
-        'maggle': '#E2E8F0',
-        'unifi': '#FEF9C3',
-        'brands': '#BBF7D0',
-        'oppo': '#93C5FD',
-        'chrissy': '#F9A8D4',
-        'xiao-mi': '#E2E8F0',
-        'mcd': '#DDD6FE',
-        'te': '#F472B6',
-        'cpoc': '#86EFAC',
-        'drora': '#FEF9C3',
-        'roving': '#FCA5A5',
-        'roadshow': '#93C5FD',
-        'in-store': '#DDD6FE',
-        'ad-hoc': '#FEF08A',
-        'corporate': '#BBF7D0',
-        'wedding': '#F9A8D4',
-        'concert': '#93C5FD',
-        'conference': '#FDBA74',
-        'other': '#CBD5E1',
+      // Convert empty strings to null for optional fields
+      const processedData = {
+        ...values,
+        project_type: values.project_type || null,
+        description: values.description || null,
+        venue_details: values.venue_details || null,
+        supervisors_required: values.supervisors_required ?? 0,
+        budget: values.budget || null,
+        invoice_number: values.invoice_number || null,
+        brand_name: values.brand_name || null,
+        brand_logo: values.brand_logo || null,
+        start_date: format(values.start_date, 'yyyy-MM-dd'),
+        end_date: values.end_date ? format(values.end_date, 'yyyy-MM-dd') : null,
       };
       
-      // Use selected color if explicitly chosen, otherwise use the event type color
-      const finalColor = colorWasSelected.current 
-        ? selectedColor
-        : (data.color || eventColors[data.event_type] || '#CBD5E1');
+      const result = await createProject(processedData);
       
-      // Upload logo if one was selected
-      let logoUrl = data.logo_url;
-      console.log('[NewProjectDialog] onSubmit - Initial logoUrl from data:', logoUrl);
-      if (logoFile) {
-        console.log('[NewProjectDialog] onSubmit - logoFile is present. Attempting to upload.');
-        const uploadedLogoUrl = await uploadLogo();
-        console.log('[NewProjectDialog] onSubmit - uploadLogo() returned:', uploadedLogoUrl);
-        logoUrl = uploadedLogoUrl || logoUrl;
-        console.log('[NewProjectDialog] onSubmit - Final logoUrl after upload attempt:', logoUrl);
-      }
-      
-      // Determine project type
-      const projectType = determineProjectType(data);
-
-      // Create the project object with schedule type and associated data
-      const projectData: any = {
-        title: data.title,
-        client_id: data.client_id,
-        manager_id: data.manager_id,
-        start_date: data.start_date.toISOString(),
-        end_date: data.end_date?.toISOString(),
-        working_hours_start: data.working_hours_start,
-        working_hours_end: data.working_hours_end,
-        event_type: data.event_type,
-        // project_type field removed as it's not in the database schema
-        crew_count: data.crew_count,
-        filled_positions: 0,
-        venue_address: data.venue_address,
-        venue_details: data.venue_details,
-        supervisors_required: data.needs_supervisors ? data.supervisors_required : 0,
-        status: data.status,
-        priority: data.priority,
-        color: finalColor,
-        logo_url: logoUrl || null, // Use the newly uploaded logo URL if available
-        project_type: projectType,
-        schedule_type: scheduleType
-      };
-      
-      // Add schedule-type specific properties
-      if (scheduleType === 'recurring') {
-        // Get recurrence data from form state (temporary until we have proper form field)
-        // Default to weekdays if not specified
-        const recurrenceDays = data.recurrence_days || [1, 2, 3, 4, 5]; 
-        const recurrencePattern = data.recurrence_pattern || 'weekly';
-        
-        projectData.recurrence_pattern = recurrencePattern;
-        projectData.recurrence_days = recurrenceDays;
-      }
-      
-      // Add locations data for multiple locations
-      if (scheduleType === 'multiple') {
-        // This should already be set in the form data from our location component
-        projectData.locations = data.locations || [];
-      }
-
-      // Get current user ID for authentication context
-      const session = await getSession();
-      if (!session?.user) {
-        throw new Error("You must be logged in to create a project");
-      }
-      
-      // Add user ID to project data as manager_id if not already set
-      if (!projectData.manager_id) {
-        projectData.manager_id = session.user.id;
-      }
-      
-      // If client_id is set but appears invalid, remove it to avoid FK errors
-      if (projectData.client_id) {
-        try {
-          // Simple validation - if it's not a UUID, it's not valid
-          const isValidUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(projectData.client_id);
-          if (!isValidUUID) {
-            console.warn("Removing invalid client_id to avoid FK constraint error");
-            delete projectData.client_id;
-          }
-        } catch (e) {
-          // If any issue occurs, just remove the client_id to be safe
-          console.warn("Error validating client_id, removing it", e);
-          delete projectData.client_id;
-        }
-      }
-      
-      // Create the project
-      console.log('[NewProjectDialog] onSubmit - Assembled projectData before calling createProject:', JSON.stringify(projectData, null, 2));
-      const projectResponse = await createProject(projectData);
-      console.log('[NewProjectDialog] onSubmit - Response from createProject:', JSON.stringify(projectResponse, null, 2));
-      
-      // If we have suggested tasks and they've been approved, create them
-      if (suggestedTasks.length > 0 && projectResponse?.id) { // Added optional chaining for projectResponse
-        console.log('[NewProjectDialog] onSubmit - projectResponse.id exists and suggestedTasks present. Proceeding to create tasks. Project ID:', projectResponse.id);
-        const projectId = projectResponse.id;
-        
-        // Create tasks in bulk
-        try {
-          console.log('[NewProjectDialog] onSubmit - Tasks to be created:', JSON.stringify(suggestedTasks, null, 2));
-          await Promise.all(suggestedTasks.map(async (task) => {
-            // Calculate due date based on relative value
-            const daysFromStart = parseInt(task.due_date_relative.split(' ')[0]) || 0;
-            const startDate = new Date(data.start_date);
-            const dueDate = new Date(startDate);
-            dueDate.setDate(startDate.getDate() + daysFromStart);
-            
-            await supabase.from('tasks').insert({
-              project_id: projectId,
-              title: task.title,
-              description: task.description,
-              status: task.status,
-              priority: task.priority,
-              due_date: dueDate.toISOString().split('T')[0],
-              created_at: new Date().toISOString(),
-            });
-          }));
-          
-          toast({
-            title: 'Tasks added',
-            description: `${suggestedTasks.length} tasks were created for this project`,
-          });
-        } catch (taskError) {
-          console.error('Error creating tasks:', taskError);
-          toast({
-            title: 'Warning',
-            description: 'Project created but there was an issue creating tasks',
-            variant: 'destructive',
-          });
-        }
+      if (!result) {
+        throw new Error("Failed to create project");
       }
 
       toast({
-        title: 'Success',
-        description: 'Project created successfully',
+        title: "Success",
+        description: "Project created successfully",
       });
 
       onProjectAdded();
       onOpenChange(false);
-      console.log('[NewProjectDialog] onSubmit - Successfully created project and tasks (if any). Dialog closing.');
+      
+      // Reset form and step
+      form.reset();
+      setCurrentStep('project-info');
+      setVisitedSteps(new Set(['project-info']));
     } catch (error) {
-      console.error('[NewProjectDialog] onSubmit - ERROR caught during submission:', error);
-      console.error('Error creating project:', error); // Keep original error log too
-      
-      let errorMessage = 'An unexpected error occurred. Please try again.';
-      
-      // More descriptive error messages
-      if (error instanceof Error) {
-        if (error.message.includes('foreign key constraint')) {
-          errorMessage = 'Client or manager not found. Please check your selection.';
-        } else if (error.message.includes('unique constraint')) {
-          errorMessage = 'A project with this name already exists.';
-        } else if (error.message.includes('not found')) {
-          errorMessage = 'Required data not found. Please check all fields.';
-        } else if (error.message.includes('permission denied')) {
-          errorMessage = 'You do not have permission to create projects.';
-        } else if (error.message.includes('network')) {
-          errorMessage = 'Network error. Please check your connection and try again.';
-        } else if (error.message.includes('required')) {
-          errorMessage = 'Missing required fields. Please check all mandatory fields.';
-        } else if (error.message.includes('validation')) {
-          errorMessage = 'Invalid data provided. Please check all fields.';
-        } else {
-          // Include part of the error message for debugging but keep it user-friendly
-          errorMessage = `Error: ${error.message.substring(0, 100)}${error.message.length > 100 ? '...' : ''}`;
-        }
-      }
-      
+      console.error('Error creating project:', error);
       toast({
-        title: 'Project creation failed',
-        description: errorMessage,
-        variant: 'destructive',
+        title: "Error",
+        description: (error as Error)?.message || "Failed to create project. Please check all required fields.",
+        variant: "destructive",
       });
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Check if form data is valid for the current step
-  const isCurrentStepValid = () => {
-    const values = form.getValues();
-    
-    switch(currentStep) {
+  const renderStepContent = () => {
+    switch (currentStep) {
       case 'project-info':
-        return !!values.title && !!values.client_id && !!values.manager_id;
+        return (
+          <motion.div
+            key="project-info-step"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.3 }}
+          >
+            <Card className="shadow-sm">
+              <CardHeader>
+                <CardTitle className="text-xl">Basic Information</CardTitle>
+                <CardDescription>Start by entering the fundamental details of your project</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <FormField
+                  control={form.control}
+                  name="title"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className={cn(
+                        "flex items-center gap-1",
+                        form.formState.errors.title && "text-red-500"
+                      )}>
+                        Project Name <span className="text-red-500">*</span>
+                      </FormLabel>
+                      <FormControl>
+                        <Input 
+                          value={field.value || ''}
+                          onChange={field.onChange}
+                          onBlur={field.onBlur}
+                          name={field.name}
+                          ref={field.ref}
+                          placeholder="e.g., Annual Company Conference 2024" 
+                          className={cn(
+                            "h-11 transition-all hover:border-gray-400 focus:border-gray-600",
+                            form.formState.errors.title && "border-red-500 focus:border-red-500"
+                          )}
+                          autoComplete="off"
+                          data-lpignore="true"
+                          data-form-type="other"
+                        />
+                      </FormControl>
+                      <FormDescription>Choose a clear, descriptive name for your project</FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="client_id"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className={cn(
+                        "flex items-center gap-1",
+                        form.formState.errors.client_id && "text-red-500"
+                      )}>
+                        <Building2 className={cn(
+                          "h-4 w-4",
+                          form.formState.errors.client_id ? "text-red-500" : ""
+                        )} />
+                        Customer <span className="text-red-500">*</span>
+                      </FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger className={cn(
+                            "h-11 transition-all hover:border-gray-400",
+                            form.formState.errors.client_id && "border-red-500 focus:border-red-500"
+                          )}>
+                            <SelectValue placeholder="Select a customer" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {customers.map((customer) => (
+                            <SelectItem key={customer.id} value={customer.id}>
+                              <div className="flex items-center gap-2">
+                                {customer.logo_url ? (
+                                  <img 
+                                    src={customer.logo_url} 
+                                    alt={customer.company_name || customer.full_name}
+                                    className="h-5 w-5 rounded object-cover"
+                                  />
+                                ) : (
+                                  <Building2 className="h-4 w-4 text-gray-500" />
+                                )}
+                                {customer.company_name || customer.full_name}
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormDescription>Select the company or client for this project</FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="manager_id"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className={cn(
+                        "flex items-center gap-1",
+                        form.formState.errors.manager_id && "text-red-500"
+                      )}>
+                        <User className={cn(
+                          "h-4 w-4",
+                          form.formState.errors.manager_id ? "text-red-500" : ""
+                        )} />
+                        Person in Charge <span className="text-red-500">*</span>
+                      </FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger className={cn(
+                            "h-11 transition-all hover:border-gray-400",
+                            form.formState.errors.manager_id && "border-red-500 focus:border-red-500"
+                          )}>
+                            <SelectValue placeholder="Select a manager" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {managers.map((manager) => (
+                            <SelectItem key={manager.id} value={manager.id}>
+                              <div className="flex items-center gap-2">
+                                <UserCheck className="h-3 w-3 text-gray-500" />
+                                {manager.full_name}
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormDescription>Assign the project manager responsible for this project</FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* Brand Fields */}
+                <div className="grid grid-cols-2 gap-4 mt-6">
+                  <FormField
+                    control={form.control}
+                    name="brand_name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center gap-1">
+                          <Building2 className="h-4 w-4" />
+                          Brand Name
+                        </FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <Input 
+                              {...field} 
+                              placeholder="e.g., Nike, Coca-Cola" 
+                              className="h-11 transition-all hover:border-gray-400 focus:border-gray-600"
+                              onBlur={async (e) => {
+                                field.onBlur();
+                                // Auto-fetch logo when brand name is entered
+                                const brandName = e.target.value.trim();
+                                if (brandName && !form.getValues('brand_logo')) {
+                                  try {
+                                    // Show loading state
+                                    toast({
+                                      title: "Fetching brand logo...",
+                                      description: "Please wait while we find the logo for " + brandName,
+                                    });
+                                    
+                                    // Fetch logo automatically
+                                    const logoUrl = await fetchBrandLogo(brandName, true);
+                                    
+                                    // Set the logo URL in the form
+                                    form.setValue('brand_logo', logoUrl);
+                                    
+                                    toast({
+                                      title: "Logo found!",
+                                      description: "Brand logo has been added automatically.",
+                                    });
+                                  } catch (error) {
+                                    console.error('Error fetching logo:', error);
+                                    // Silent fail - user can still enter manually
+                                  }
+                                }
+                              }}
+                            />
+                          </div>
+                        </FormControl>
+                        <FormDescription>Enter the brand or company name</FormDescription>
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="brand_logo"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center gap-1">
+                          <Link className="h-4 w-4" />
+                          Brand Logo URL
+                        </FormLabel>
+                        <FormControl>
+                          <div className="space-y-2">
+                            <div className="flex gap-2">
+                              <Input 
+                                {...field} 
+                                placeholder="https://example.com/logo.png" 
+                                className="h-11 transition-all hover:border-gray-400 focus:border-gray-600"
+                              />
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                className="h-11 w-11"
+                                onClick={() => {
+                                  const brandName = form.getValues('brand_name');
+                                  if (brandName) {
+                                    // Generate Google Image search URL
+                                    const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(brandName + ' logo transparent png')}&tbm=isch`;
+                                    window.open(searchUrl, '_blank');
+                                  } else {
+                                    toast({
+                                      title: "Enter brand name first",
+                                      description: "Please enter a brand name before searching for logos",
+                                      variant: "destructive"
+                                    });
+                                  }
+                                }}
+                                title="Search for logo on Google Images"
+                              >
+                                <Building2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                            {field.value && (
+                              <div className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                                <img 
+                                  src={field.value} 
+                                  alt="Brand logo preview" 
+                                  className="h-8 w-auto object-contain"
+                                  onError={(e) => {
+                                    e.currentTarget.style.display = 'none';
+                                  }}
+                                />
+                                <a 
+                                  href={field.value} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="text-xs text-blue-500 hover:text-blue-700 underline"
+                                >
+                                  View full size
+                                </a>
+                              </div>
+                            )}
+                          </div>
+                        </FormControl>
+                        <FormDescription>Logo URL (will auto-fetch based on brand name)</FormDescription>
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        );
+
       case 'event-details':
-        return !!values.event_type && !!values.venue_address;
+        return (
+          <motion.div
+            key="event-details-step"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.3 }}
+          >
+            <Card className="shadow-sm">
+              <CardHeader>
+                <CardTitle className="text-xl">Event Details</CardTitle>
+                <CardDescription>Describe the nature and type of your event</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <FormField
+                  control={form.control}
+                  name="event_type"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className={cn(
+                        "flex items-center gap-1",
+                        form.formState.errors.event_type && "text-red-500"
+                      )}>
+                        <Briefcase className={cn(
+                          "h-4 w-4",
+                          form.formState.errors.event_type ? "text-red-500" : ""
+                        )} />
+                        Event Type <span className="text-red-500">*</span>
+                      </FormLabel>
+                      <FormControl>
+                        <Input 
+                          value={field.value || ''}
+                          onChange={field.onChange}
+                          onBlur={field.onBlur}
+                          name={field.name}
+                          ref={field.ref}
+                          placeholder="e.g., Conference, Wedding, Corporate Event, Exhibition" 
+                          className={cn(
+                            "h-11 transition-all hover:border-gray-400 focus:border-gray-600",
+                            form.formState.errors.event_type && "border-red-500 focus:border-red-500"
+                          )}
+                          autoComplete="off"
+                          data-lpignore="true"
+                          data-form-type="other"
+                        />
+                      </FormControl>
+                      <FormDescription>What kind of event is this?</FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="project_type"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Project Category</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger className="h-11 transition-all hover:border-gray-400">
+                            <SelectValue placeholder="Select a category" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="recruitment">
+                            <div className="flex items-center gap-2">
+                              <Users className="h-4 w-4" />
+                              Recruitment
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="internal_event">
+                            <div className="flex items-center gap-2">
+                              <Calendar className="h-4 w-4" />
+                              Internal Event
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="custom">
+                            <div className="flex items-center gap-2">
+                              <Briefcase className="h-4 w-4" />
+                              Custom
+                            </div>
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormDescription>Categorize your project for better organization</FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="description"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Description</FormLabel>
+                      <FormControl>
+                        <Textarea 
+                          value={field.value || ''}
+                          onChange={field.onChange}
+                          onBlur={field.onBlur}
+                          name={field.name}
+                          ref={field.ref}
+                          placeholder="Provide additional details about the project..."
+                          rows={5}
+                          className="resize-none transition-all hover:border-gray-400 focus:border-gray-600"
+                          autoComplete="off"
+                          data-lpignore="true"
+                          data-form-type="other"
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        Include any important information that team members should know
+                      </FormDescription>
+                    </FormItem>
+                  )}
+                />
+              </CardContent>
+            </Card>
+          </motion.div>
+        );
+
+      case 'location':
+        return (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.3 }}
+          >
+            <Card className="shadow-sm">
+              <CardHeader>
+                <CardTitle className="text-xl">Location Information</CardTitle>
+                <CardDescription>Where will this project take place?</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <FormField
+                  control={form.control}
+                  name="venue_address"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className={cn(
+                        "flex items-center gap-1",
+                        form.formState.errors.venue_address && "text-red-500"
+                      )}>
+                        <MapPinIcon className={cn(
+                          "h-4 w-4",
+                          form.formState.errors.venue_address ? "text-red-500" : ""
+                        )} />
+                        Venue Address <span className="text-red-500">*</span>
+                      </FormLabel>
+                      <FormControl>
+                        <Input 
+                          {...field} 
+                          placeholder="123 Main Street, City, State 12345" 
+                          className={cn(
+                            "h-11 transition-all hover:border-gray-400 focus:border-gray-600",
+                            form.formState.errors.venue_address && "border-red-500 focus:border-red-500"
+                          )}
+                        />
+                      </FormControl>
+                      <FormDescription>Full address including street, city, and postal code</FormDescription>
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="venue_details"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Additional Venue Details</FormLabel>
+                      <FormControl>
+                        <Textarea 
+                          {...field} 
+                          placeholder="e.g., Conference Room A, 3rd Floor, Parking available at basement..."
+                          rows={4}
+                          className="resize-none transition-all hover:border-gray-400 focus:border-gray-600"
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        Include specific location details, access instructions, or landmarks
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <Alert className="border-blue-200 bg-blue-50 dark:bg-blue-950/20">
+                  <MapPin className="h-4 w-4 text-blue-600" />
+                  <AlertDescription className="text-blue-800 dark:text-blue-200">
+                    Make sure to include clear directions and any special access requirements for the venue.
+                  </AlertDescription>
+                </Alert>
+              </CardContent>
+            </Card>
+          </motion.div>
+        );
+
       case 'schedule':
-        return !!values.start_date && 
-          !!values.working_hours_start && 
-          !!values.working_hours_end;
+        return (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.3 }}
+          >
+            <Card className="shadow-sm">
+              <CardHeader>
+                <CardTitle className="text-xl">Schedule & Timing</CardTitle>
+                <CardDescription>Set the dates and working hours for your project</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="start_date"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center gap-1">
+                          Start Date <span className="text-red-500">*</span>
+                        </FormLabel>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <FormControl>
+                              <Button
+                                variant="outline"
+                                className={cn(
+                                  "w-full h-11 justify-start text-left font-normal transition-all hover:border-gray-400",
+                                  !field.value && "text-muted-foreground"
+                                )}
+                              >
+                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                {field.value ? (
+                                  format(field.value, "PPP")
+                                ) : (
+                                  <span>Pick a date</span>
+                                )}
+                              </Button>
+                            </FormControl>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <CalendarComponent
+                              mode="single"
+                              selected={field.value}
+                              onSelect={field.onChange}
+                              initialFocus
+                            />
+                          </PopoverContent>
+                        </Popover>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="end_date"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>End Date</FormLabel>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <FormControl>
+                              <Button
+                                variant="outline"
+                                className={cn(
+                                  "w-full h-11 justify-start text-left font-normal transition-all hover:border-gray-400",
+                                  !field.value && "text-muted-foreground"
+                                )}
+                              >
+                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                {field.value ? (
+                                  format(field.value, "PPP")
+                                ) : (
+                                  <span>Pick a date</span>
+                                )}
+                              </Button>
+                            </FormControl>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <CalendarComponent
+                              mode="single"
+                              selected={field.value}
+                              onSelect={field.onChange}
+                              disabled={(date) =>
+                                date < form.getValues('start_date')
+                              }
+                              initialFocus
+                            />
+                          </PopoverContent>
+                        </Popover>
+                        <FormDescription>Leave empty for single-day projects</FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="working_hours_start"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center gap-1">
+                          <Clock className="h-4 w-4" />
+                          Start Time <span className="text-red-500">*</span>
+                        </FormLabel>
+                        <FormControl>
+                          <Input 
+                            {...field} 
+                            type="time" 
+                            className="h-11 transition-all hover:border-gray-400 focus:border-gray-600"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="working_hours_end"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center gap-1">
+                          <Clock className="h-4 w-4" />
+                          End Time <span className="text-red-500">*</span>
+                        </FormLabel>
+                        <FormControl>
+                          <Input 
+                            {...field} 
+                            type="time" 
+                            className="h-11 transition-all hover:border-gray-400 focus:border-gray-600"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <FormField
+                  control={form.control}
+                  name="schedule_type"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Schedule Type</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger className="h-11 transition-all hover:border-gray-400">
+                            <SelectValue placeholder="Select schedule type" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="single">Single Event</SelectItem>
+                          <SelectItem value="recurring">Recurring</SelectItem>
+                          <SelectItem value="multiple">Multiple Days</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormDescription>How often does this project occur?</FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </CardContent>
+            </Card>
+          </motion.div>
+        );
+
       case 'staffing':
-        return true; // Can be skipped, so always valid
-      case 'task-creation':
-        return true; // No required fields just tasks
+        return (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.3 }}
+          >
+            <Card className="shadow-sm">
+              <CardHeader>
+                <CardTitle className="text-xl">Staffing Requirements</CardTitle>
+                <CardDescription>Define the team size and supervision needs</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="crew_count"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center gap-1">
+                          <Users className="h-4 w-4" />
+                          Crew Count <span className="text-red-500">*</span>
+                        </FormLabel>
+                        <FormControl>
+                          <Input 
+                            {...field} 
+                            type="number"
+                            min="1"
+                            className="h-11 transition-all hover:border-gray-400 focus:border-gray-600"
+                            onChange={(e) => {
+                              const value = parseInt(e.target.value);
+                              field.onChange(isNaN(value) ? 1 : Math.max(1, value));
+                            }}
+                          />
+                        </FormControl>
+                        <FormDescription>Total number of crew members needed</FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="supervisors_required"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center gap-1">
+                          <UserCheck className="h-4 w-4" />
+                          Supervisors
+                        </FormLabel>
+                        <FormControl>
+                          <Input 
+                            {...field} 
+                            type="number"
+                            min="0"
+                            max="9"
+                            className="h-11 transition-all hover:border-gray-400 focus:border-gray-600"
+                            onChange={(e) => {
+                              const value = parseInt(e.target.value);
+                              field.onChange(isNaN(value) ? 0 : Math.max(0, Math.min(9, value)));
+                            }}
+                          />
+                        </FormControl>
+                        <FormDescription>Number of supervisors (if any)</FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <Alert className="border-amber-200 bg-amber-50 dark:bg-amber-950/20">
+                  <Info className="h-4 w-4 text-amber-600" />
+                  <AlertDescription className="text-amber-800 dark:text-amber-200">
+                    <strong>Tip:</strong> Consider adding 10-15% extra crew members for large events to account for last-minute changes or no-shows.
+                  </AlertDescription>
+                </Alert>
+              </CardContent>
+            </Card>
+          </motion.div>
+        );
+
+      case 'advanced':
+        return (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.3 }}
+          >
+            <Card className="shadow-sm">
+              <CardHeader>
+                <CardTitle className="text-xl">Advanced Settings</CardTitle>
+                <CardDescription>Configure status, priority, and budget</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="status"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Status</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger className="h-11 transition-all hover:border-gray-400">
+                              <SelectValue />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="planning">
+                              <div className="flex items-center gap-2">
+                                <div className="h-2 w-2 rounded-full bg-gray-500" />
+                                Planning
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="confirmed">
+                              <div className="flex items-center gap-2">
+                                <div className="h-2 w-2 rounded-full bg-purple-500" />
+                                Confirmed
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="in_progress">
+                              <div className="flex items-center gap-2">
+                                <div className="h-2 w-2 rounded-full bg-blue-500" />
+                                In Progress
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="completed">
+                              <div className="flex items-center gap-2">
+                                <div className="h-2 w-2 rounded-full bg-green-500" />
+                                Completed
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="cancelled">
+                              <div className="flex items-center gap-2">
+                                <div className="h-2 w-2 rounded-full bg-red-500" />
+                                Cancelled
+                              </div>
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="priority"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Priority</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger className="h-11 transition-all hover:border-gray-400">
+                              <SelectValue />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="low">
+                              <Badge variant="secondary" className="text-xs">Low</Badge>
+                            </SelectItem>
+                            <SelectItem value="medium">
+                              <Badge variant="default" className="text-xs">Medium</Badge>
+                            </SelectItem>
+                            <SelectItem value="high">
+                              <Badge variant="destructive" className="text-xs">High</Badge>
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <div className="grid grid-cols-3 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="budget"
+                    render={({ field }) => (
+                      <FormItem className="col-span-2">
+                        <FormLabel className="flex items-center gap-1">
+                          <DollarSign className="h-4 w-4" />
+                          Budget (RM)
+                        </FormLabel>
+                        <FormControl>
+                          <Input 
+                            {...field} 
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            placeholder="0.00"
+                            className="h-11 transition-all hover:border-gray-400 focus:border-gray-600"
+                            onChange={(e) => {
+                              const value = parseFloat(e.target.value);
+                              field.onChange(isNaN(value) ? 0 : Math.max(0, value));
+                            }}
+                          />
+                        </FormControl>
+                        <FormDescription>Estimated budget for this project</FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="invoice_number"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="flex items-center gap-1">
+                          <Link className="h-4 w-4" />
+                          Invoice Link/Number
+                        </FormLabel>
+                        <FormControl>
+                          <Input 
+                            {...field} 
+                            placeholder="e.g., INV-2024-001 or https://..."
+                            className="h-11 transition-all hover:border-gray-400 focus:border-gray-600"
+                          />
+                        </FormControl>
+                        <FormDescription>Invoice number or link</FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        );
+
+      case 'review': {
+        const values = form.getValues();
+        const customer = customers.find(c => c.id === values.client_id);
+        const manager = managers.find(m => m.id === values.manager_id);
+        
+        return (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.3 }}
+            className="space-y-4"
+          >
+            <Card className="shadow-sm">
+              <CardContent className="pt-6">
+                <div className="space-y-6">
+                  {/* Project Information */}
+                  <div>
+                    <h4 className="font-medium text-sm text-gray-500 mb-3 flex items-center gap-2">
+                      <FileText className="h-4 w-4" />
+                      PROJECT INFORMATION
+                    </h4>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <p className="text-muted-foreground">Project Name</p>
+                        <p className="font-medium">{values.title || '-'}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Customer</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          {customer && customer.logo_url && (
+                            <img 
+                              src={customer.logo_url} 
+                              alt={customer.company_name || customer.full_name}
+                              className="h-5 w-5 rounded object-cover"
+                            />
+                          )}
+                          <p className="font-medium">{customer?.company_name || customer?.full_name || '-'}</p>
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Manager</p>
+                        <p className="font-medium">{manager?.full_name || '-'}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Event Type</p>
+                        <p className="font-medium">{values.event_type || '-'}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Project Category</p>
+                        <p className="font-medium capitalize">{values.project_type || '-'}</p>
+                      </div>
+                      {values.brand_name && (
+                        <div>
+                          <p className="text-muted-foreground">Brand</p>
+                          <div className="flex items-center gap-2 mt-1">
+                            {values.brand_logo && (
+                              <img 
+                                src={values.brand_logo} 
+                                alt={values.brand_name}
+                                className="h-5 w-5 object-contain"
+                                onError={(e) => {
+                                  e.currentTarget.style.display = 'none';
+                                }}
+                              />
+                            )}
+                            <p className="font-medium">{values.brand_name}</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Schedule & Location */}
+                  <div>
+                    <h4 className="font-medium text-sm text-gray-500 mb-3 flex items-center gap-2">
+                      <Calendar className="h-4 w-4" />
+                      SCHEDULE & LOCATION
+                    </h4>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <p className="text-muted-foreground">Start Date</p>
+                        <p className="font-medium">{values.start_date ? format(values.start_date, 'PPP') : '-'}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">End Date</p>
+                        <p className="font-medium">{values.end_date ? format(values.end_date, 'PPP') : 'Single Day'}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Working Hours</p>
+                        <p className="font-medium">{values.working_hours_start} - {values.working_hours_end}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Venue</p>
+                        <p className="font-medium">{values.venue_address || '-'}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Staffing & Budget */}
+                  <div>
+                    <h4 className="font-medium text-sm text-gray-500 mb-3 flex items-center gap-2">
+                      <Users className="h-4 w-4" />
+                      STAFFING & SETTINGS
+                    </h4>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <p className="text-muted-foreground">Crew Count</p>
+                        <p className="font-medium">{values.crew_count} members</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Supervisors</p>
+                        <p className="font-medium">{values.supervisors_required || 0}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Status</p>
+                        <Badge variant={values.status === 'planning' ? 'secondary' : 'default'} className="mt-1">
+                          {values.status}
+                        </Badge>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Budget</p>
+                        <p className="font-medium">RM {values.budget?.toFixed(2) || '0.00'}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Invoice Number</p>
+                        <p className="font-medium">{values.invoice_number || '-'}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        );
+      }
+
       default:
-        return false;
+        return null;
     }
   };
 
   return (
-    <>
-      <Dialog open={open} onOpenChange={createDialogHandler(onOpenChange)}>
-        <DialogContent 
-          className="w-[95%] sm:max-w-[800px] max-h-[95vh] overflow-hidden p-0 border-primary/10 bg-background shadow-lg shadow-primary/5"
-          overlayClassName="bg-black/25 backdrop-blur-[1px]"
-        >
-          <div className="flex h-full">
-            {/* Sidebar */}
-            <div className="hidden md:block w-1/3 border-r border-gray-200 p-6 bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
-              <h2 className="text-lg font-semibold mb-4">Create Project</h2>
-              <p className="text-gray-500 mb-6 text-sm">
-                Complete all steps to set up your new project.
-              </p>
-              <nav className="space-y-2">
-                {steps.map((step, index) => (
-                  <button
-                    key={step.id}
-                    className={cn(
-                      "flex items-center text-gray-500 w-full p-2 rounded-lg text-left",
-                      currentStep === step.id && "bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700 text-gray-900 dark:text-gray-100 font-medium"
-                    )}
-                    onClick={() => jumpToStep(step.id)}
-                    disabled={index > currentStepIndex}
-                  >
-                    <div className={cn(
-                      "flex items-center justify-center w-7 h-7 rounded-full mr-2",
-                      index < currentStepIndex ? "bg-green-100 text-green-600" : 
-                      index === currentStepIndex ? "bg-blue-100 text-blue-600" : 
-                      "bg-gray-100 text-gray-400"
-                    )}>
-                      {index < currentStepIndex ? (
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                        </svg>
-                      ) : (
-                        <span>{index + 1}</span>
-                      )}
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-5xl p-0 h-[90vh] max-h-[800px] flex flex-col overflow-hidden">
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col h-full" autoComplete="off" noValidate>
+            <div className="flex flex-1 overflow-hidden">
+              {/* Left Sidebar */}
+              <div className="w-72 bg-gray-50 dark:bg-gray-900 p-4 flex flex-col border-r">
+                <div className="flex-1 overflow-y-auto">
+                  <div className="mb-8 relative">
+                    {/* Animated gradient background for main title */}
+                    <motion.div 
+                      className="absolute inset-0 bg-gradient-to-r from-purple-600/10 via-pink-500/10 to-purple-600/10 rounded-lg"
+                      animate={{ backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"] }}
+                      transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
+                      style={{ backgroundSize: "200% 100%" }}
+                    />
+                    <div className="relative z-10 p-4">
+                      <h2 className="text-2xl font-semibold text-gray-800 dark:text-gray-100">Create Project</h2>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
+                        Complete all steps to set up your new project.
+                      </p>
                     </div>
-                    <span className="align-middle">{step.title}</span>
-                  </button>
-                ))}
-              </nav>
-              <div className="mt-6 text-gray-500 text-sm bottom-6 absolute md:relative md:bottom-auto">
-                <p>Step {currentStepIndex + 1} of {totalSteps}</p>
-                <div className="w-full bg-gray-200 rounded-full h-1 mt-1">
-                  <div 
-                    className="h-1 rounded-full bg-gradient-to-r from-blue-400 to-blue-500"
-                    style={{ width: `${((currentStepIndex + 1) / totalSteps) * 100}%` }}>
+                  </div>
+
+                  <nav className="space-y-1">
+                    {steps.map((step, index) => {
+                      const isActive = currentStep === step.id;
+                      const isVisited = visitedSteps.has(step.id);
+
+                      return (
+                        <motion.button
+                          key={step.id}
+                          type="button"
+                          onClick={() => {
+                            // Allow free navigation to any step
+                            setCurrentStep(step.id);
+                            setVisitedSteps(prev => new Set([...prev, step.id]));
+                          }}
+                          className={cn(
+                            "w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200",
+                            isActive
+                              ? "bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 shadow-md"
+                              : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+                          )}
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
+                        >
+                          <div className={cn(
+                            "flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-colors",
+                            isActive
+                              ? "bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900"
+                              : isVisited
+                              ? "bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-400"
+                              : "bg-gray-200 dark:bg-gray-700"
+                          )}>
+                            {isVisited && !isActive ? (
+                              <Check className="h-4 w-4" />
+                            ) : (
+                              <span className="text-xs font-semibold">{index + 1}</span>
+                            )}
+                          </div>
+                          <div className="flex-1 text-left">
+                            <p className="font-medium">{step.label}</p>
+                            {isActive && (
+                              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                                {step.description}
+                              </p>
+                            )}
+                          </div>
+                          {isActive && (
+                            <ChevronRight className="h-4 w-4 text-gray-400" />
+                          )}
+                        </motion.button>
+                      );
+                    })}
+                  </nav>
+                </div>
+
+                {/* Step Progress at bottom of sidebar */}
+                <div className="mt-6 pt-6 border-t">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Progress</span>
+                    <span className="text-sm text-gray-500">
+                      {currentStepIndex + 1} / {steps.length}
+                    </span>
+                  </div>
+                  <div className="w-full h-2 rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden">
+                    <motion.div 
+                      className="h-full rounded-full bg-gradient-to-r from-gray-600 to-gray-800"
+                      initial={{ width: 0 }}
+                      animate={{ width: `${progress}%` }}
+                      transition={{ duration: 0.5, ease: "easeInOut" }}
+                    />
                   </div>
                 </div>
               </div>
-            </div>
 
-            {/* Main Content */}
-            <div className="w-full md:w-2/3 flex flex-col">
-              <div className="flex justify-between items-center p-6 border-b">
-                <div>
-                  <h2 className="text-lg font-semibold flex items-center">
-                    {steps[currentStepIndex].icon}
-                    <span className="ml-2">{steps[currentStepIndex].title}</span>
-                  </h2>
-                  <p className="text-gray-500 text-sm">{steps[currentStepIndex].description}</p>
-                </div>
-                {/* Mobile step indicator */}
-                <div className="flex md:hidden items-center space-x-1">
-                  {steps.map((_, index) => (
-                    <div 
-                      key={index}
-                      className={cn(
-                        "w-2 h-2 rounded-full", 
-                        index === currentStepIndex 
-                          ? "bg-blue-500" 
-                          : index < currentStepIndex 
-                            ? "bg-green-500" 
-                            : "bg-gray-300"
-                      )}
+              {/* Right Content */}
+              <div className="flex-1 flex flex-col bg-gray-50/50 dark:bg-gray-900/50">
+                {/* Header */}
+                <div className="p-6 pb-4 border-b">
+                  <div className="flex justify-between items-start relative">
+                    {/* Animated gradient background */}
+                    <motion.div 
+                      className="absolute inset-0 bg-gradient-to-r from-purple-600/5 via-pink-500/5 to-purple-600/5 rounded-lg"
+                      animate={{ backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"] }}
+                      transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
+                      style={{ backgroundSize: "200% 100%" }}
                     />
-                  ))}
+                    <div className="relative z-10 flex-1">
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                        {React.createElement(steps[currentStepIndex].icon, { className: "h-5 w-5" })}
+                        {steps[currentStepIndex].label}
+                      </h3>
+                      <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                        {steps[currentStepIndex].description}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => onOpenChange(false)}
+                      className="relative z-10 text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+                    >
+                      <X className="h-5 w-5" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Scrollable Content Area */}
+                <div className="flex-1 overflow-y-auto p-6">
+                  <AnimatePresence mode="wait">
+                    <div key={currentStep}>
+                      {renderStepContent()}
+                    </div>
+                  </AnimatePresence>
                 </div>
               </div>
+            </div>
 
-              <div className="flex-grow overflow-y-auto p-6 max-h-[70vh]">
-                <Form {...form}>
-                  <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                    {/* Step 1: Project Info */}
-                    {currentStep === 'project-info' && (
-                      <div className="space-y-4">
-                        <FormField
-                          control={form.control}
-                          name="title"
-                          render={({ field }) => {
-                            const [colorPickerOpen, setColorPickerOpen] = useState(false);
-                            return (
-                              <FormItem>
-                                <FormLabel>Project Name *</FormLabel>
-                                <div className="relative">
-                                  <FormControl>
-                                    <div className="flex">
-                                      <Input {...field} className="font-medium" />
-                                      <div className="absolute right-1 top-1/2 -mt-3 flex items-center">
-                                        <button 
-                                          type="button" 
-                                          className="p-1 rounded-md hover:bg-muted group relative" 
-                                          onClick={() => setColorPickerOpen(!colorPickerOpen)}
-                                          style={{ backgroundColor: selectedColor || form.watch('color') || '#CBD5E1' }}
-                                        >
-                                          <Palette className="h-4 w-4 group-hover:text-white" />
-                                        </button>
-                                      </div>
-                                    </div>
-                                  </FormControl>
-                                  
-                                  {colorPickerOpen && (
-                                    <div className="absolute right-0 top-full mt-1 z-50 p-2 grid grid-cols-5 gap-1 border rounded-md bg-background shadow-md animate-in fade-in w-56">
-                                      {[
-                                        { name: "Red", color: "#FCA5A5" },
-                                        { name: "Orange", color: "#FDBA74" },
-                                        { name: "Yellow", color: "#FEF08A" },
-                                        { name: "Green", color: "#BBF7D0" },
-                                        { name: "Teal", color: "#67E8F9" },
-                                        { name: "Blue", color: "#93C5FD" },
-                                        { name: "Purple", color: "#DDD6FE" },
-                                        { name: "Pink", color: "#F9A8D4" },
-                                        { name: "Gray", color: "#E2E8F0" },
-                                        { name: "Default", color: "#CBD5E1" }
-                                      ].map(colorOption => (
-                                        <div 
-                                          key={colorOption.color}
-                                          className={`aspect-square rounded-md cursor-pointer transition-all border flex items-center justify-center ${(form.watch('color') === colorOption.color || selectedColor === colorOption.color) ? 'ring-2 ring-primary ring-offset-2' : 'hover:scale-105'}`}
-                                          style={{ backgroundColor: colorOption.color }}
-                                          onClick={() => {
-                                            // Mark that a color was explicitly selected
-                                            colorWasSelected.current = true;
-                                            
-                                            // Update state and form values
-                                            setSelectedColor(colorOption.color);
-                                            form.setValue('color', colorOption.color, { shouldValidate: true });
-                                            
-                                            // Close color picker after selection
-                                            setTimeout(() => setColorPickerOpen(false), 200);
-                                          }}
-                                          title={colorOption.name}
-                                        >
-                                          {(form.watch('color') === colorOption.color || selectedColor === colorOption.color) && (
-                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="w-4 h-4 text-primary-foreground" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                              <polyline points="20 6 9 17 4 12"></polyline>
-                                            </svg>
-                                          )}
-                                        </div>
-                                      ))}
-                                    </div>
-                                  )}
-                                </div>
-                                <FormMessage />
-                              </FormItem>
-                            )
-                          }}
-                        />
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
-                          <FormField
-                            control={form.control}
-                            name="client_id"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Customer *</FormLabel>
-                                <Select 
-                                  onValueChange={(value) => {
-                                    if (value === "new_client") {
-                                      // Open the company dialog when "New Client" is selected
-                                      setCompanyDialogOpen(true);
-                                      // Don't update the field value yet
-                                    } else {
-                                      field.onChange(value);
-                                    }
-                                  }} 
-                                  value={field.value}
-                                >
-                                  <FormControl>
-                                    <SelectTrigger className="w-full">
-                                      <SelectValue placeholder="Select customer" />
-                                    </SelectTrigger>
-                                  </FormControl>
-                                  <SelectContent>
-                                    <SelectItem 
-                                      value="new_client" 
-                                      className="text-primary border-b mb-1 pb-1 font-medium text-center justify-center"
-                                    >
-                                      + New Client
-                                    </SelectItem>
-                                    {customers.map((customer) => (
-                                      <SelectItem key={customer.id} value={customer.id}>
-                                        {customer.full_name}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                                <div className="text-xs text-amber-500 mt-1">
-                                  <strong>Note:</strong> Companies must be linked to user accounts to be valid project clients.
-                                </div>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-
-                          <FormField
-                            control={form.control}
-                            name="manager_id"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Person in Charge *</FormLabel>
-                                <Select onValueChange={field.onChange} value={field.value}>
-                                  <FormControl>
-                                    <SelectTrigger>
-                                      <SelectValue placeholder="Select manager" />
-                                    </SelectTrigger>
-                                  </FormControl>
-                                  <SelectContent>
-                                    {managers.map((manager) => (
-                                      <SelectItem key={manager.id} value={manager.id}>
-                                        {manager.full_name}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
-                          <FormField
-                            control={form.control}
-                            name="status"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Status</FormLabel>
-                                <Select onValueChange={field.onChange} value={field.value}>
-                                  <FormControl>
-                                    <SelectTrigger>
-                                      <SelectValue />
-                                    </SelectTrigger>
-                                  </FormControl>
-                                  <SelectContent>
-                                    <SelectItem value="new">New</SelectItem>
-                                    <SelectItem value="pending">Pending</SelectItem>
-                                    <SelectItem value="in-progress">In Progress</SelectItem>
-                                    <SelectItem value="completed">Completed</SelectItem>
-                                    <SelectItem value="cancelled">Cancelled</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-
-                          <FormField
-                            control={form.control}
-                            name="priority"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Priority</FormLabel>
-                                <Select onValueChange={field.onChange} value={field.value}>
-                                  <FormControl>
-                                    <SelectTrigger>
-                                      <SelectValue />
-                                    </SelectTrigger>
-                                  </FormControl>
-                                  <SelectContent>
-                                    <SelectItem value="low">Low</SelectItem>
-                                    <SelectItem value="medium">Medium</SelectItem>
-                                    <SelectItem value="high">High</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Step 2: Event Details & Branding */}
-                    {currentStep === 'event-details' && (
-                      <div className="space-y-4">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <FormField
-                            control={form.control}
-                            name="event_type"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Event Type / Brand *</FormLabel>
-                                <Select onValueChange={field.onChange} value={field.value}>
-                                  <FormControl>
-                                    <SelectTrigger>
-                                      <SelectValue placeholder="Select event type" />
-                                    </SelectTrigger>
-                                  </FormControl>
-                                  <SelectContent className="max-h-80 overflow-y-auto">
-                                    <SelectItem value="roving">Roving</SelectItem>
-                                    <SelectItem value="roadshow">Roadshow</SelectItem>
-                                    <SelectItem value="in-store">In-store</SelectItem>
-                                    <SelectItem value="ad-hoc">Ad-hoc</SelectItem>
-                                    <SelectItem value="corporate">Corporate</SelectItem>
-                                    <SelectItem value="wedding">Wedding</SelectItem>
-                                    <SelectItem value="concert">Concert</SelectItem>
-                                    <SelectItem value="conference">Conference</SelectItem>
-                                    
-                                    {/* Brand specific event types */}
-                                    <SelectItem value="nestle">Nestle Choy Sun</SelectItem>
-                                    <SelectItem value="ribena">Ribena</SelectItem>
-                                    <SelectItem value="mytown">Mytown</SelectItem>
-                                    <SelectItem value="warrior">Warrior</SelectItem>
-                                    <SelectItem value="diy">DIY/MrDIY</SelectItem>
-                                    <SelectItem value="blackmores">Blackmores</SelectItem>
-                                    <SelectItem value="lapasar">Lapasar</SelectItem>
-                                    <SelectItem value="spritzer">Spritzer</SelectItem>
-                                    <SelectItem value="redoxon">Redoxon</SelectItem>
-                                    <SelectItem value="double-mint">Double Mint</SelectItem>
-                                    <SelectItem value="softlan">Softlan</SelectItem>
-                                    <SelectItem value="colgate">Colgate</SelectItem>
-                                    <SelectItem value="hsbc">HSBC</SelectItem>
-                                    <SelectItem value="asw">ASW</SelectItem>
-                                    <SelectItem value="other">Other</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-
-                          <FormField
-                            control={form.control}
-                            name="logo_url"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Project Logo</FormLabel>
-                                <FormControl>
-                                  <div className="flex flex-col gap-2">
-                                    <div className="flex items-center gap-3">
-                                      <Input 
-                                        {...field} 
-                                        placeholder="Enter logo URL or upload a file" 
-                                        className="flex-grow"
-                                        onChange={(e) => {
-                                          field.onChange(e.target.value);
-                                          // Clear any uploaded file state when manually entering URL
-                                          if (logoFile) {
-                                            setLogoFile(null);
-                                            setLogoPreview(null);
-                                          }
-                                        }}
-                                      />
-                                      <Button
-                                        type="button"
-                                        variant="outline"
-                                        size="sm"
-                                        className="whitespace-nowrap"
-                                        onClick={() => {
-                                          // Create a file input and trigger click
-                                          const input = document.createElement('input');
-                                          input.type = 'file';
-                                          input.accept = 'image/*';
-                                          input.onchange = (e) => {
-                                            const files = (e.target as HTMLInputElement).files;
-                                            if (files && files.length > 0) {
-                                              handleLogoChange(files[0]);
-                                            }
-                                          };
-                                          input.click();
-                                        }}
-                                      >
-                                        Upload
-                                      </Button>
-                                    </div>
-                                    
-                                    <div className="flex items-center gap-3">
-                                      {/* Show the logo preview if available */}
-                                      {(logoPreview || field.value) && (
-                                        <div className="h-16 w-16 rounded-md border flex items-center justify-center overflow-hidden bg-gray-50">
-                                          <img 
-                                            src={logoPreview || field.value} 
-                                            alt="Logo preview" 
-                                            className="max-h-full max-w-full object-contain"
-                                            onError={(e) => {
-                                              (e.target as HTMLImageElement).src = 'https://placehold.co/40x40/EEE/999?text=Logo';
-                                            }}
-                                          />
-                                        </div>
-                                      )}
-                                      
-                                      {/* Show upload status or info */}
-                                      {isUploading ? (
-                                        <div className="text-sm text-muted-foreground flex items-center">
-                                          <Loader2 className="animate-spin h-4 w-4 mr-2" />
-                                          <span>Uploading logo...</span>
-                                        </div>
-                                      ) : (logoFile || logoPreview) ? (
-                                        <div className="text-sm text-muted-foreground">
-                                          <p>{logoFile?.name}</p>
-                                          <p className="text-xs">Logo will be uploaded when you create the project</p>
-                                        </div>
-                                      ) : null}
-                                    </div>
-                                  </div>
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </div>
-
-                        <div className="mt-4">
-                          <FormField
-                            control={form.control}
-                            name="venue_address"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Venue Address *</FormLabel>
-                                <FormControl>
-                                  <Input {...field} />
-                                </FormControl>
-                                {field.value && (
-                                  <div className="flex gap-2 mt-1">
-                                    <a 
-                                      href={getGoogleMapsLink(field.value)} 
-                                      target="_blank" 
-                                      rel="noopener noreferrer"
-                                      className="text-xs px-2 py-0.5 bg-blue-100 text-blue-600 rounded hover:bg-blue-200 inline-flex items-center"
-                                    >
-                                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="w-3 h-3 mr-1" fill="currentColor">
-                                        <path d="M19.527 4.799c1.212 2.608.937 5.678-.405 8.173-1.101 2.047-2.744 3.74-4.098 5.614-.619.858-1.244 1.75-1.669 2.727-.141.325-.263.658-.383.992-.121.333-.224.673-.34 1.008-.109.314-.236.684-.627.687h-.007c-.466-.001-.579-.53-.695-.887-.284-.874-.581-1.713-1.019-2.525-.51-.944-1.145-1.817-1.79-2.671L19.527 4.799zM8.545 7.705l-3.959 4.707c.724 1.54 1.821 2.863 2.871 4.18.247.31.494.622.737.936l4.984-5.925-.029.01c-1.741.601-3.691-.291-4.392-1.987a3.377 3.377 0 0 1-.209-.716c-.063-.437-.077-.761-.004-1.198l.001-.007zM5.492 3.149l-.003.004c-1.947 2.466-2.281 5.88-1.117 8.77l4.785-5.689-.058-.05-3.607-3.035zM14.661.436l-3.838 4.563a.295.295 0 0 1 .027-.01c1.6-.551 3.403.15 4.22 1.626.176.319.323.683.377 1.045.068.446.085.773.012 1.22l-.003.016 3.836-4.561A8.382 8.382 0 0 0 14.67.439l-.009-.003z" />
-                                      </svg>
-                                      Google Maps
-                                    </a>
-                                    <a 
-                                      href={getWazeLink(field.value)} 
-                                      target="_blank" 
-                                      rel="noopener noreferrer"
-                                      className="text-xs px-2 py-0.5 bg-blue-100 text-blue-600 rounded hover:bg-blue-200 inline-flex items-center"
-                                    >
-                                      <svg viewBox="0 0 24 24" className="w-3 h-3 mr-1" fill="currentColor">
-                                        <path d="M20.54 6.63c0-2.35-1.21-4.57-3.21-5.96C15.34-0.7 12.66-0.7 10.67.67c-2 1.39-3.21 3.61-3.21 5.96 0 3.83 4.15 8.87 6.53 11.74l.14.18c.14.17.35.27.57.27.23 0 .44-.1.58-.27l.14-.18c2.39-2.87 6.53-7.91 6.53-11.74zm-4.86 0c0 1.3-1.06 2.36-2.36 2.36S10.97 7.93 10.97 6.63s1.06-2.36 2.36-2.36 2.35 1.06 2.35 2.36z" />
-                                      </svg>
-                                      Waze
-                                    </a>
-                                  </div>
-                                )}
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </div>
-
-                        <div className="mt-4">
-                          <FormField
-                            control={form.control}
-                            name="venue_details"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Venue Details (Optional)</FormLabel>
-                                <FormControl>
-                                  <Textarea {...field} rows={3} placeholder="Additional venue information" />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Step 3: Project Schedule */}
-                    {currentStep === 'schedule' && (
-                      <div className="space-y-4">
-                        <div className="flex justify-between items-center mb-3">
-                          <div className="text-sm text-muted-foreground">Schedule Type:</div>
-                          <div className="flex space-x-2">
-                            <Button 
-                              type="button"
-                              size="sm"
-                              variant={scheduleType === 'single' ? 'default' : 'outline'}
-                              onClick={() => setScheduleType('single')}
-                            >
-                              Single Period
-                            </Button>
-                            <Button 
-                              type="button"
-                              size="sm"
-                              variant={scheduleType === 'recurring' ? 'default' : 'outline'}
-                              onClick={() => setScheduleType('recurring')}
-                            >
-                              Recurring
-                            </Button>
-                            <Button 
-                              type="button"
-                              size="sm"
-                              variant={scheduleType === 'multiple' ? 'default' : 'outline'}
-                              onClick={() => setScheduleType('multiple')}
-                            >
-                              Multiple Locations
-                            </Button>
-                          </div>
-                        </div>
-
-                        {scheduleType === 'recurring' && (
-                          <div className="space-y-4 border rounded-md p-4">
-                            <div className="flex items-start mb-2">
-                              <CalendarLucide className="w-5 h-5 text-primary mr-2 mt-0.5" />
-                              <div>
-                                <h4 className="font-medium">Recurring Schedule</h4>
-                                <p className="text-sm text-muted-foreground">
-                                  Set up a recurring schedule for this project
-                                </p>
-                              </div>
-                            </div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                              <div>
-                                <Label>Start Date *</Label>
-                                <Popover>
-                                  <PopoverTrigger asChild>
-                                    <Button
-                                      variant="outline"
-                                      className="w-full pl-3 text-left font-normal"
-                                    >
-                                      {form.watch('start_date') ? (
-                                        format(form.watch('start_date'), "PPP")
-                                      ) : (
-                                        <span>Pick a date</span>
-                                      )}
-                                      <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                    </Button>
-                                  </PopoverTrigger>
-                                  <PopoverContent className="w-auto p-0" align="start">
-                                    <Calendar
-                                      mode="single"
-                                      selected={form.watch('start_date')}
-                                      onSelect={(date) => form.setValue('start_date', date as Date)}
-                                      initialFocus
-                                    />
-                                  </PopoverContent>
-                                </Popover>
-                              </div>
-
-                              <div>
-                                <Label>End Date *</Label>
-                                <Popover>
-                                  <PopoverTrigger asChild>
-                                    <Button
-                                      variant="outline"
-                                      className="w-full pl-3 text-left font-normal"
-                                    >
-                                      {form.watch('end_date') ? (
-                                        format(form.watch('end_date'), "PPP")
-                                      ) : (
-                                        <span>Pick a date</span>
-                                      )}
-                                      <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                    </Button>
-                                  </PopoverTrigger>
-                                  <PopoverContent className="w-auto p-0" align="start">
-                                    <Calendar
-                                      mode="single"
-                                      selected={form.watch('end_date')}
-                                      onSelect={(date) => form.setValue('end_date', date as Date)}
-                                      disabled={(date) => date < form.getValues('start_date')}
-                                      initialFocus
-                                    />
-                                  </PopoverContent>
-                                </Popover>
-                              </div>
-                            </div>
-
-                            <div className="mt-4">
-                              <Label>Repeat Pattern</Label>
-                              <Select 
-                                defaultValue="weekly" 
-                                onValueChange={(val: 'daily' | 'weekly' | 'biweekly' | 'monthly') => {
-                                  const projectData = form.getValues();
-                                  projectData.recurrence_pattern = val;
-                                }}
-                              >
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select frequency" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="daily">Daily</SelectItem>
-                                  <SelectItem value="weekly">Weekly</SelectItem>
-                                  <SelectItem value="biweekly">Bi-weekly</SelectItem>
-                                  <SelectItem value="monthly">Monthly</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
-
-                            <div className="mt-4 grid grid-cols-7 gap-2">
-                              {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, i) => (
-                                <div key={i} className="text-center">
-                                  <Button 
-                                    type="button" 
-                                    size="sm" 
-                                    variant={selectedDays.includes(i) ? "default" : "outline"} 
-                                    className="w-10 h-10 rounded-full"
-                                    onClick={() => {
-                                      const newSelectedDays = selectedDays.includes(i)
-                                        ? selectedDays.filter(d => d !== i)
-                                        : [...selectedDays, i];
-                                      
-                                      setSelectedDays(newSelectedDays);
-                                      
-                                      // Update form state
-                                      const projectData = form.getValues();
-                                      projectData.recurrence_days = newSelectedDays;
-                                    }}
-                                  >
-                                    {day}
-                                  </Button>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {scheduleType === 'multiple' && (
-                          <div className="space-y-4 border rounded-md p-4 max-h-[50vh] overflow-y-auto">
-                            <div className="flex items-start mb-2">
-                              <MapPin className="w-5 h-5 text-primary mr-2 mt-0.5" />
-                              <div>
-                                <h4 className="font-medium">Multiple Locations</h4>
-                                <p className="text-sm text-muted-foreground">
-                                  Set up the project at multiple venues
-                                </p>
-                              </div>
-                            </div>
-
-                            
-                            {(()=> {
-                              // These functions are defined inside the render function
-                              // to avoid hook rule violations
-                              
-                              // Add a new empty location
-                              const addLocation = () => {
-                                setLocations([
-                                  ...locations,
-                                  {
-                                    id: Date.now().toString(),
-                                    address: '',
-                                    date: '',
-                                    isPrimary: false,
-                                    notes: ''
-                                  }
-                                ]);
-                              };
-
-                              // Update a location
-                              const updateLocation = (id: string, field: string, value: string | boolean) => {
-                                setLocations(locations.map(loc => 
-                                  loc.id === id ? { ...loc, [field]: value } : loc
-                                ));
-                                
-                                // If setting a new primary, update all others to not be primary
-                                if (field === 'isPrimary' && value === true) {
-                                  setLocations(locations.map(loc => 
-                                    loc.id === id ? { ...loc, isPrimary: true } : { ...loc, isPrimary: false }
-                                  ));
-                                }
-                              };
-
-                              // Remove a location
-                              const removeLocation = (id: string) => {
-                                // Don't remove if it's the only location or if it's the primary one
-                                if (locations.length <= 1) return;
-                                
-                                const locToRemove = locations.find(loc => loc.id === id);
-                                if (locToRemove?.isPrimary) {
-                                  // Cannot remove primary location
-                                  return;
-                                }
-                                
-                                setLocations(locations.filter(loc => loc.id !== id));
-                              };
-
-                              return (
-                                <>
-                                  {locations.map((location, index) => (
-                                    <div key={location.id} className="border rounded-md p-3 bg-background">
-                                      <div className="flex justify-between items-center mb-2">
-                                        <h5 className="font-medium text-sm">Location {index + 1}</h5>
-                                        <div className="flex items-center gap-2">
-                                          {location.isPrimary ? (
-                                            <Badge variant="default">Primary</Badge>
-                                          ) : (
-                                            <Button 
-                                              type="button" 
-                                              variant="ghost" 
-                                              size="sm"
-                                              className="h-6"
-                                              onClick={() => updateLocation(location.id, 'isPrimary', true)}
-                                            >
-                                              Set as Primary
-                                            </Button>
-                                          )}
-                                          
-                                          {!location.isPrimary && (
-                                            <Button
-                                              type="button"
-                                              variant="ghost"
-                                              size="icon"
-                                              className="h-6 w-6 text-muted-foreground hover:text-destructive"
-                                              onClick={() => removeLocation(location.id)}
-                                            >
-                                              <svg 
-                                                xmlns="http://www.w3.org/2000/svg" 
-                                                width="14" 
-                                                height="14" 
-                                                viewBox="0 0 24 24" 
-                                                fill="none" 
-                                                stroke="currentColor" 
-                                                strokeWidth="2" 
-                                                strokeLinecap="round" 
-                                                strokeLinejoin="round"
-                                              >
-                                                <path d="M18 6L6 18"></path>
-                                                <path d="M6 6l12 12"></path>
-                                              </svg>
-                                            </Button>
-                                          )}
-                                        </div>
-                                      </div>
-                                      
-                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                        <div>
-                                          <Label className="text-xs">Address *</Label>
-                                          <div className="space-y-1">
-                                            <Input 
-                                              placeholder="Enter venue address"
-                                              value={location.address}
-                                              onChange={(e) => updateLocation(location.id, 'address', e.target.value)}
-                                            />
-                                            {location.address && (
-                                              <div className="flex gap-2">
-                                                <a 
-                                                  href={getGoogleMapsLink(location.address)} 
-                                                  target="_blank" 
-                                                  rel="noopener noreferrer"
-                                                  className="text-xs px-2 py-0.5 bg-blue-100 text-blue-600 rounded hover:bg-blue-200 inline-flex items-center"
-                                                  onClick={(e) => e.stopPropagation()}
-                                                >
-                                                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="w-3 h-3 mr-1" fill="currentColor">
-                                                    <path d="M19.527 4.799c1.212 2.608.937 5.678-.405 8.173-1.101 2.047-2.744 3.74-4.098 5.614-.619.858-1.244 1.75-1.669 2.727-.141.325-.263.658-.383.992-.121.333-.224.673-.34 1.008-.109.314-.236.684-.627.687h-.007c-.466-.001-.579-.53-.695-.887-.284-.874-.581-1.713-1.019-2.525-.51-.944-1.145-1.817-1.79-2.671L19.527 4.799zM8.545 7.705l-3.959 4.707c.724 1.54 1.821 2.863 2.871 4.18.247.31.494.622.737.936l4.984-5.925-.029.01c-1.741.601-3.691-.291-4.392-1.987a3.377 3.377 0 0 1-.209-.716c-.063-.437-.077-.761-.004-1.198l.001-.007zM5.492 3.149l-.003.004c-1.947 2.466-2.281 5.88-1.117 8.77l4.785-5.689-.058-.05-3.607-3.035zM14.661.436l-3.838 4.563a.295.295 0 0 1 .027-.01c1.6-.551 3.403.15 4.22 1.626.176.319.323.683.377 1.045.068.446.085.773.012 1.22l-.003.016 3.836-4.561A8.382 8.382 0 0 0 14.67.439l-.009-.003z" />
-                                                  </svg>
-                                                  Maps
-                                                </a>
-                                                <a 
-                                                  href={getWazeLink(location.address)} 
-                                                  target="_blank" 
-                                                  rel="noopener noreferrer"
-                                                  className="text-xs px-2 py-0.5 bg-blue-100 text-blue-600 rounded hover:bg-blue-200 inline-flex items-center"
-                                                  onClick={(e) => e.stopPropagation()}
-                                                >
-                                                  <svg viewBox="0 0 24 24" className="w-3 h-3 mr-1" fill="currentColor">
-                                                    <path d="M20.54 6.63c0-2.35-1.21-4.57-3.21-5.96C15.34-0.7 12.66-0.7 10.67.67c-2 1.39-3.21 3.61-3.21 5.96 0 3.83 4.15 8.87 6.53 11.74l.14.18c.14.17.35.27.57.27.23 0 .44-.1.58-.27l.14-.18c2.39-2.87 6.53-7.91 6.53-11.74zm-4.86 0c0 1.3-1.06 2.36-2.36 2.36S10.97 7.93 10.97 6.63s1.06-2.36 2.36-2.36 2.35 1.06 2.35 2.36z" />
-                                                  </svg>
-                                                  Waze
-                                                </a>
-                                              </div>
-                                            )}
-                                          </div>
-                                        </div>
-                                        <div>
-                                          <Label className="text-xs">Date *</Label>
-                                          <Input 
-                                            type="date"
-                                            value={location.date}
-                                            onChange={(e) => updateLocation(location.id, 'date', e.target.value)}
-                                          />
-                                        </div>
-                                      </div>
-                                      
-                                      <div className="mt-2">
-                                        <Label className="text-xs">Notes (Optional)</Label>
-                                        <Input 
-                                          placeholder="Additional location details"
-                                          value={location.notes || ''}
-                                          onChange={(e) => updateLocation(location.id, 'notes', e.target.value)}
-                                        />
-                                      </div>
-                                    </div>
-                                  ))}
-                                  
-                                  <Button 
-                                    type="button" 
-                                    variant="outline" 
-                                    size="sm"
-                                    className="mt-2"
-                                    onClick={addLocation}
-                                  >
-                                    <Plus className="h-4 w-4 mr-2" />
-                                    Add Another Location
-                                  </Button>
-                                </>
-                              );
-                            })()}
-                          </div>
-                        )}
-                        
-                        {/* Single Period Schedule (Default) */}
-                        {scheduleType === 'single' && (<div className="space-y-4">
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <FormField
-                              control={form.control}
-                              name="start_date"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Start Date *</FormLabel>
-                                  <Popover>
-                                    <PopoverTrigger asChild>
-                                      <FormControl>
-                                        <Button
-                                          variant="outline"
-                                          className={cn(
-                                            "w-full pl-3 text-left font-normal",
-                                            !field.value && "text-muted-foreground"
-                                          )}
-                                        >
-                                          {field.value ? (
-                                            format(field.value, "PPP")
-                                          ) : (
-                                            <span>Pick a date</span>
-                                          )}
-                                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                        </Button>
-                                      </FormControl>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0" align="start">
-                                      <Calendar
-                                        mode="single"
-                                        selected={field.value}
-                                        onSelect={field.onChange}
-                                        initialFocus
-                                      />
-                                    </PopoverContent>
-                                  </Popover>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-
-                            <FormField
-                              control={form.control}
-                              name="end_date"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>End Date (Optional)</FormLabel>
-                                  <Popover>
-                                    <PopoverTrigger asChild>
-                                      <FormControl>
-                                        <Button
-                                          variant="outline"
-                                          className={cn(
-                                            "w-full pl-3 text-left font-normal",
-                                            !field.value && "text-muted-foreground"
-                                          )}
-                                        >
-                                          {field.value ? (
-                                            format(field.value, "PPP")
-                                          ) : (
-                                            <span>Pick a date</span>
-                                          )}
-                                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                        </Button>
-                                      </FormControl>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0" align="start">
-                                      <Calendar
-                                        mode="single"
-                                        selected={field.value}
-                                        onSelect={field.onChange}
-                                        disabled={(date) =>
-                                          date < form.getValues('start_date')
-                                        }
-                                        initialFocus
-                                      />
-                                    </PopoverContent>
-                                  </Popover>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                          </div>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <FormField
-                              control={form.control}
-                              name="working_hours_start"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Working Hours Start *</FormLabel>
-                                  <FormControl>
-                                    <Input type="time" {...field} />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-
-                            <FormField
-                              control={form.control}
-                              name="working_hours_end"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Working Hours End *</FormLabel>
-                                  <FormControl>
-                                    <Input type="time" {...field} />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                          </div>
-                        </div>)}
-                       
-                        {/* Add Schedule Period button and functionality */}
-                        {scheduleType === 'recurring' && (
-                          <div className="mt-4">
-                            <Button 
-                              type="button" 
-                              variant="outline" 
-                              size="sm" 
-                              className="w-full relative bg-muted/20 border-dashed border-muted-foreground/30"
-                              onClick={() => {
-                                // For recurring, toggle weekend days
-                                const hasWeekends = selectedDays.includes(0) && selectedDays.includes(6);
-                                
-                                if (hasWeekends) {
-                                  // Remove weekends
-                                  setSelectedDays(selectedDays.filter(d => d !== 0 && d !== 6));
-                                } else {
-                                  // Add weekends
-                                  setSelectedDays([...selectedDays, 0, 6]);
-                                }
-                                
-                                toast({
-                                  title: hasWeekends ? "Weekends Removed" : "Weekends Added",
-                                  description: hasWeekends 
-                                    ? "Removed weekend days from schedule" 
-                                    : "Added weekend days to schedule",
-                                });
-                              }}
-                            >
-                              <Plus className="h-4 w-4 mr-1" /> 
-                              Toggle Weekend Days
-                            </Button>
-                            <div className="flex justify-between text-xs text-muted-foreground mt-1 px-1">
-                              <span>Quickly add or remove weekend days (Saturday and Sunday)</span>
-                              <Badge variant="outline" className="text-[10px] h-4 font-normal">
-                                Weekend
-                              </Badge>
-                            </div>
-                          </div>
-                        )}
-                        
-                        {scheduleType === 'multiple' && (
-                          <div className="mt-4">
-                            <Button 
-                              type="button" 
-                              variant="default" 
-                              size="sm"
-                              className="bg-primary/90 hover:bg-primary w-full"
-                              onClick={() => {
-                                // Close this dialog and open the tools page
-                                onOpenChange(false);
-      console.log('[NewProjectDialog] onSubmit - Successfully created project and tasks (if any). Dialog closing.');
-                                
-                                // Create a new event that bubbles up to notify the parent components
-                                // that we want to navigate to the extraction tool
-                                const event = new CustomEvent('navigate', {
-                                  bubbles: true,
-                                  detail: { path: '/tools', tool: 'extraction' }
-                                });
-                                document.dispatchEvent(event);
-                                
-                                toast({
-                                  title: "Opening Data Extraction Tool",
-                                  description: "Import multiple locations from spreadsheets",
-                                });
-                              }}
-                            >
-                              <FileSpreadsheet className="h-4 w-4 mr-1" /> 
-                              Import Locations from File/URL
-                            </Button>
-                            <div className="flex justify-between text-xs text-muted-foreground mt-1 px-1">
-                              <span>Import multiple locations from spreadsheets</span>
-                              <Badge variant="outline" className="text-[10px] h-4 font-normal">
-                                Import
-                              </Badge>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Step 4: Staffing */}
-                    {currentStep === 'staffing' && (
-                      <div className="space-y-4">
-                        <div className="flex justify-between items-center mb-4">
-                          <div className="text-sm text-muted-foreground">Enable staffing for this project:</div>
-                          <div className="flex items-center space-x-2">
-                            <Switch
-                              id="staffing-toggle"
-                              checked={needsStaffing}
-                              onCheckedChange={(checked) => {
-                                setNeedsStaffing(checked);
-                                setIsSkipStaffing(!checked);
-                              }}
-                            />
-                            <Label htmlFor="staffing-toggle">Needs Staffing</Label>
-                          </div>
-                        </div>
-                        
-                        {needsStaffing && (
-                          <>
-                            <FormField
-                              control={form.control}
-                              name="crew_count"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Number of Crew Members *</FormLabel>
-                                  <FormControl>
-                                    <Input
-                                      type="number"
-                                      min={1}
-                                      {...field}
-                                      onChange={(e) => field.onChange(Number(e.target.value))}
-                                    />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                            
-                            <div className="border rounded-md p-3 bg-background mt-4">
-                              <h4 className="text-sm font-medium mb-2 flex justify-between items-center">
-                                <span>Crew Composition</span>
-                                <Badge variant="outline" className="font-normal">
-                                  Total: {staffTypes.reduce((sum, t) => sum + t.count, 0)}
-                                </Badge>
-                              </h4>
-                              
-                              <div className="space-y-3 text-sm">
-                                <div className="overflow-hidden rounded-md border">
-                                  <table className="w-full caption-bottom text-sm">
-                                    <thead className="[&_tr]:border-b bg-muted/50">
-                                      <tr className="border-b">
-                                        <th className="h-9 px-3 text-left align-middle font-medium">Staff Type</th>
-                                        <th className="h-9 px-2 text-center align-middle font-medium w-16">Count</th>
-                                        <th className="h-9 px-2 text-center align-middle font-medium w-16">Actions</th>
-                                      </tr>
-                                    </thead>
-                                    <tbody className="[&_tr:last-child]:border-0">
-                                      {staffTypes.length === 0 ? (
-                                        <tr>
-                                          <td colSpan={3} className="p-3 text-center text-muted-foreground">
-                                            No staff types added yet
-                                          </td>
-                                        </tr>
-                                      ) : (
-                                        staffTypes.map((staffType) => (
-                                          <tr key={staffType.id} className="border-b transition-colors hover:bg-muted/50">
-                                            <td className="p-2 align-middle">
-                                              {staffType.name}
-                                            </td>
-                                            <td className="p-1 align-middle text-center">
-                                              <Input 
-                                                type="number" 
-                                                min={0} 
-                                                className="w-14 h-8 text-center" 
-                                                placeholder="0"
-                                                value={staffType.count}
-                                                onChange={(e) => {
-                                                  const newCount = parseInt(e.target.value) || 0;
-                                                  setStaffTypes(prev => 
-                                                    prev.map(type => 
-                                                      type.id === staffType.id 
-                                                        ? { ...type, count: newCount }
-                                                        : type
-                                                    )
-                                                  );
-                                                  // Update crew count field with total
-                                                  const total = staffTypes
-                                                    .filter(t => t.id !== staffType.id)
-                                                    .reduce((sum, t) => sum + t.count, 0) + newCount;
-                                                  form.setValue('crew_count', total);
-                                                }}
-                                              />
-                                            </td>
-                                            <td className="p-1 align-middle text-center">
-                                              <Button 
-                                                variant="ghost" 
-                                                size="icon" 
-                                                className="h-7 w-7 hover:bg-red-100 hover:text-red-600" 
-                                                onClick={() => {
-                                                  setStaffTypes(prev => prev.filter(t => t.id !== staffType.id))
-                                                  // Recalculate total after removing
-                                                  const total = staffTypes
-                                                    .filter(t => t.id !== staffType.id)
-                                                    .reduce((sum, t) => sum + t.count, 0);
-                                                  form.setValue('crew_count', total);
-                                                }}
-                                              >
-                                                <svg 
-                                                  xmlns="http://www.w3.org/2000/svg" 
-                                                  width="15" 
-                                                  height="15" 
-                                                  viewBox="0 0 24 24" 
-                                                  fill="none" 
-                                                  stroke="currentColor" 
-                                                  strokeWidth="2" 
-                                                  strokeLinecap="round" 
-                                                  strokeLinejoin="round" 
-                                                >
-                                                  <path d="M3 6h18"></path>
-                                                  <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
-                                                  <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
-                                                </svg>
-                                              </Button>
-                                            </td>
-                                          </tr>
-                                        ))
-                                      )}
-                                    </tbody>
-                                  </table>
-                                </div>
-                                
-                                <div className="flex gap-2 mt-3">
-                                  <Input 
-                                    type="text" 
-                                    placeholder="New staff type..."
-                                    className="flex-grow"
-                                    onKeyPress={(e) => {
-                                      if (e.key === 'Enter' && (e.target as HTMLInputElement).value.trim()) {
-                                        setStaffTypes([...staffTypes, {
-                                          id: Date.now().toString(),
-                                          name: (e.target as HTMLInputElement).value.trim(),
-                                          count: 0
-                                        }]);
-                                        (e.target as HTMLInputElement).value = '';
-                                      }
-                                    }}
-                                  />
-                                  <Button 
-                                    type="button"
-                                    className="bg-primary hover:bg-primary/90"
-                                    onClick={() => {
-                                      const input = document.querySelector('input[placeholder="New staff type..."]') as HTMLInputElement;
-                                      if (input?.value.trim()) {
-                                        setStaffTypes([...staffTypes, {
-                                          id: Date.now().toString(),
-                                          name: input.value.trim(),
-                                          count: 0
-                                        }]);
-                                        input.value = '';
-                                      }
-                                    }}
-                                  >
-                                    <Plus className="h-4 w-4 mr-1" /> Add
-                                  </Button>
-                                </div>
-                              </div>
-                            </div>
-                          </>
-                        )}
-                        
-                        {!needsStaffing && (
-                          <div className="text-sm text-muted-foreground p-2 bg-muted rounded-md">
-                            <p className="mb-2">If this project doesn't require staffing, you can skip this step or toggle staffing on above.</p>
-                            <p className="font-semibold">Click "Next" to continue to task creation.</p>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Step 5: Task Creation */}
-                    {currentStep === 'task-creation' && (
-                      <div className="space-y-4">
-                        {/* Show this when we have enough info to make suggestions */}
-                        {formHasEnoughInfo && suggestedTasks.length === 0 && (
-                          <div className="flex items-center justify-between bg-muted/50 p-3 rounded-lg">
-                            <div className="flex items-center">
-                              <Sparkles className="h-5 w-5 text-primary mr-2" />
-                              <span>AI task suggestions available based on your project details</span>
-                            </div>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={handleGetSuggestions}
-                              disabled={isSuggestionsLoading}
-                            >
-                              {isSuggestionsLoading ? (
-                                <>
-                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                  Getting suggestions...
-                                </>
-                              ) : (
-                                <>
-                                  <Wand2 className="mr-2 h-4 w-4" />
-                                  Get Suggestions
-                                </>
-                              )}
-                            </Button>
-                          </div>
-                        )}
-                        
-                        {/* Show suggestions if we have them */}
-                        {suggestions.length > 0 && (
-                          <div className="space-y-3">
-                            <div className="max-h-60 overflow-y-auto border rounded-lg p-3 space-y-2">
-                              {suggestions.map((suggestion, index) => (
-                                <div key={index} className="flex items-start space-x-2 py-2 border-b last:border-b-0">
-                                  <Checkbox
-                                    id={`suggestion-${index}`}
-                                    checked={selectedSuggestions.includes(index)}
-                                    onCheckedChange={(checked) => {
-                                      setSelectedSuggestions(prev => 
-                                        checked 
-                                          ? [...prev, index]
-                                          : prev.filter(i => i !== index)
-                                      );
-                                    }}
-                                  />
-                                  <div className="flex-1">
-                                    <label 
-                                      htmlFor={`suggestion-${index}`}
-                                      className="font-medium cursor-pointer"
-                                    >
-                                      {suggestion.title}
-                                    </label>
-                                    <div className="text-sm text-muted-foreground">{suggestion.description}</div>
-                                    <div className="flex mt-1 space-x-2 text-xs">
-                                      <Badge variant={suggestion.priority === 'high' ? 'destructive' : suggestion.priority === 'medium' ? 'default' : 'outline'}>
-                                        {suggestion.priority}
-                                      </Badge>
-                                      <Badge variant="outline">
-                                        Due: {suggestion.due_date_relative}
-                                      </Badge>
-                                      <Badge variant="secondary">
-                                        Status: {suggestion.status}
-                                      </Badge>
-                                    </div>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                            
-                            <div className="flex justify-between items-center">
-                              <span className="text-sm text-muted-foreground">
-                                {selectedSuggestions.length} of {suggestions.length} suggestions selected
-                              </span>
-                              <Button
-                                type="button"
-                                variant="secondary"
-                                size="sm"
-                                onClick={handleAddSelectedSuggestions}
-                                disabled={selectedSuggestions.length === 0}
-                              >
-                                Add Selected Tasks
-                              </Button>
-                            </div>
-                          </div>
-                        )}
-
-                        {!formHasEnoughInfo && suggestedTasks.length === 0 && (
-                          <div className="text-sm text-muted-foreground p-2 bg-muted rounded-md">
-                            <p className="mb-2">Fill in project details to enable AI task suggestions. Each field provides more context for better task suggestions.</p>
-                            <p>Missing info required for suggestions:</p>
-                            <ul className="list-disc list-inside mt-1 space-y-1">
-                              {!form.getValues().title && <li>Project name</li>}
-                              {!form.getValues().event_type && <li>Event type</li>}
-                              {needsStaffing && (!form.getValues().crew_count || form.getValues().crew_count < 1) && <li>Crew count</li>}
-                              {!form.getValues().venue_address && <li>Venue address</li>}
-                            </ul>
-                          </div>
-                        )}
-
-                        {/* Show message when tasks have been added */}
-                        {suggestedTasks.length > 0 && (
-                          <div className="flex items-center p-3 bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-300 rounded-lg">
-                            <div className="flex-1">
-                              <p className="font-medium">{suggestedTasks.length} tasks will be added to this project</p>
-                              <p className="text-sm">These tasks will be created automatically when you create the project</p>
-                            </div>
-                          </div>
-                        )}
-
-                        <div className="border-t pt-3 mt-3">
-                          <h3 className="text-sm font-medium mb-2">Project Summary</h3>
-                          <dl className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
-                            <div>
-                              <dt className="text-muted-foreground">Project Name:</dt>
-                              <dd className="font-medium">{form.getValues().title || '(Not set)'}</dd>
-                            </div>
-                            <div>
-                              <dt className="text-muted-foreground">Event Type:</dt>
-                              <dd className="font-medium">{form.getValues().event_type || '(Not set)'}</dd>
-                            </div>
-                            <div>
-                              <dt className="text-muted-foreground">Date:</dt>
-                              <dd className="font-medium">
-                                {form.getValues().start_date ? format(form.getValues().start_date, "MMM d, yyyy") : '(Not set)'}
-                                {form.getValues().end_date ? ` - ${format(form.getValues().end_date, "MMM d, yyyy")}` : ''}
-                              </dd>
-                            </div>
-                            <div>
-                              <dt className="text-muted-foreground">Venue:</dt>
-                              <dd className="font-medium truncate">{form.getValues().venue_address || '(Not set)'}</dd>
-                            </div>
-                          </dl>
-                        </div>
-                      </div>
-                    )}
-                  
-                    {/* Navigation Footer */}
-                    <div className="border-t mt-8 pt-4 flex justify-between">
-                      {currentStepIndex > 0 ? (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={prevStep}
-                          className="flex items-center"
-                        >
-                          <ChevronLeft className="w-4 h-4 mr-1" />
-                          Back
-                        </Button>
+            {/* Fixed Footer */}
+            <div className="border-t bg-white dark:bg-gray-900 p-6 flex-shrink-0">
+              <div className="flex justify-between gap-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="lg"
+                  onClick={() => {
+                    if (currentStepIndex === 0) {
+                      onOpenChange(false);
+                    } else {
+                      handlePrevious();
+                    }
+                  }}
+                  className="min-w-[100px]"
+                >
+                  {currentStepIndex === 0 ? 'Cancel' : 'Previous'}
+                </Button>
+                <div className="flex gap-2">
+                  {currentStepIndex > 0 && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="lg"
+                      onClick={() => onOpenChange(false)}
+                      className="min-w-[100px]"
+                    >
+                      Cancel
+                    </Button>
+                  )}
+                  {currentStep === 'review' ? (
+                    <Button 
+                      type="submit" 
+                      size="lg"
+                      disabled={isLoading}
+                      className="min-w-[160px] bg-gradient-to-r from-gray-700 to-gray-900 hover:from-gray-800 hover:to-black text-white"
+                    >
+                      {isLoading ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Creating Project...
+                        </>
                       ) : (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => onOpenChange(false)}
-                        >
-                          Cancel
-                        </Button>
+                        'Create Project'
                       )}
-
-                      <div className="flex space-x-2">
-                        {/* Optional Skip button */}
-                        {currentStepIndex < steps.length - 1 && currentStep === 'staffing' && (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            onClick={() => {
-                              setIsSkipStaffing(true);
-                              nextStep();
-                            }}
-                            className="text-muted-foreground"
-                          >
-                            Skip this step
-                          </Button>
-                        )}
-                        
-                        {currentStepIndex < steps.length - 1 ? (
-                          <Button
-                            type="button"
-                            onClick={nextStep}
-                            className="flex items-center"
-                          >
-                            Next
-                            <ChevronRight className="w-4 h-4 ml-1" />
-                          </Button>
-                        ) : (
-                          <Button 
-                            type="button" 
-                            disabled={isLoading}
-                            onClick={() => {
-                              // Check basic required fields first
-                              const values = form.getValues();
-                              const missingFields = [];
-                              
-                              if (!values.title) missingFields.push("Project title");
-                              if (!values.client_id) missingFields.push("Customer");
-                              if (!values.manager_id) missingFields.push("Person in charge");
-                              if (!values.venue_address) missingFields.push("Venue address");
-                              
-                              if (missingFields.length > 0) {
-                                toast({
-                                  title: "Missing required fields",
-                                  description: `Please complete these fields: ${missingFields.join(", ")}`,
-                                  variant: "destructive"
-                                });
-                                return;
-                              }
-                              
-                              // Manually trigger form validation and submission
-                              form.handleSubmit(onSubmit)();
-                            }}
-                            className="flex items-center bg-green-600 hover:bg-green-700"
-                          >
-                            {isLoading ? (
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            ) : null}
-                            Create Project
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  </form>
-                </Form>
+                    </Button>
+                  ) : (
+                    <Button 
+                      type="button" 
+                      size="lg"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        handleNext();
+                      }}
+                      className="min-w-[100px] gap-2"
+                    >
+                      Next
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Company dialog */}
-      <NewCompanyDialog
-        open={companyDialogOpen}
-        onOpenChange={setCompanyDialogOpen}
-        onCompanyAdded={() => {
-          // Refresh the customers list when a new company is added
-          loadCustomers();
-          toast({
-            title: "Company added",
-            description: "New company has been added successfully",
-          });
-        }}
-      />
-    </>
+          </form>
+        </Form>
+      </DialogContent>
+    </Dialog>
   );
 }
+
+// Default export for backward compatibility
+export default NewProjectDialog;
