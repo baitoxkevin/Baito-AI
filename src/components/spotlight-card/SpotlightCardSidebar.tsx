@@ -32,7 +32,8 @@ import {
   User,
   Activity,
   AlertCircle,
-  Edit
+  Edit,
+  History
 } from "lucide-react";
 
 interface SpotlightCardSidebarProps {
@@ -228,6 +229,19 @@ export function SpotlightCardSidebar({
               >
                 <Edit className="h-4 w-4" />
                 Edit Project Details
+              </button>
+              
+              {/* View History */}
+              <button
+                className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onTabChange('history');
+                  setIsDropdownOpen(false);
+                }}
+              >
+                <History className="h-4 w-4" />
+                View History
               </button>
               
               {/* Copy Project ID */}
