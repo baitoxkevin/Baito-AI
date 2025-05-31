@@ -150,23 +150,31 @@ const getActivityIcon = (activity: ActivityLog) => {
 const formatActivityDescription = (activity: ActivityLog) => {
   const details = activity.details || {};
   
+  // Helper to format values nicely
+  const formatValue = (value: unknown) => {
+    if (value === null || value === undefined || value === '') return 'empty';
+    if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+    if (typeof value === 'object') return JSON.stringify(value);
+    return String(value);
+  };
+  
   switch (activity.action) {
     // Document actions
     case 'upload_document':
       if (details.is_external_link) {
-        return `Added Google Drive link: ${details.document_name}`;
+        return `Added Google Drive link: "${details.document_name || 'Unnamed'}"`;
       }
-      return `Uploaded document: ${details.document_name}`;
+      return `Uploaded document: "${details.document_name || 'Unnamed'}"`;
     
     case 'delete_document':
-      return `Deleted document: ${details.document_name}`;
+      return `Deleted document: "${details.document_name || 'Unnamed'}"`;
     
     // Expense actions
     case 'create_expense_claim':
-      return `Created expense claim: ${details.claim_title} ($${details.claim_amount})`;
+      return `Created expense claim: "${details.claim_title || 'Untitled'}" (RM ${details.claim_amount || 0})`;
     
     case 'delete_expense_claim':
-      return `Deleted expense claim: ${details.claim_title} ($${details.claim_amount})`;
+      return `Deleted expense claim: "${details.claim_title || 'Untitled'}" (RM ${details.claim_amount || 0})`;
     
     case 'approve_expense_claim':
       return `Approved expense claim: ${details.claim_title}`;
@@ -176,14 +184,17 @@ const formatActivityDescription = (activity: ActivityLog) => {
     
     // Data changes
     case 'data_change':
-      return `Changed ${details.field}: ${details.old_value} → ${details.new_value}`;
+      const fieldName = details.field || 'Unknown field';
+      const oldVal = details.old_value || 'empty';
+      const newVal = details.new_value || 'empty';
+      return `Changed ${fieldName}: "${oldVal}" → "${newVal}"`;
     
     // Staff actions
     case 'add_staff':
-      return `Added staff member: ${details.staff_name} (${details.staff_position})`;
+      return `Added staff member: "${details.staff_name || 'Unknown'}" (${details.staff_position || 'Crew'})`;
     
     case 'remove_staff':
-      return `Removed staff member: ${details.staff_name} (${details.staff_position})`;
+      return `Removed staff member: "${details.staff_name || 'Unknown'}" (${details.staff_position || 'Crew'})`;
     
     case 'update_staff_schedule':
       return `Updated schedule for: ${details.staff_name}`;
@@ -191,12 +202,12 @@ const formatActivityDescription = (activity: ActivityLog) => {
     // Payroll actions
     case 'submit_payment':
       if (details.success) {
-        return `Submitted payment for ${details.staff_count || 1} staff ($${details.total_amount})`;
+        return `Submitted payment for ${details.staff_count || 1} staff (RM ${details.total_amount || 0})`;
       }
       return `Failed to submit payment for ${details.staff_count || 1} staff`;
     
     case 'export_payment_data':
-      return `Exported ${details.export_type?.toUpperCase()} payment data ($${details.total_amount})`;
+      return `Exported ${details.export_type?.toUpperCase() || 'Unknown'} payment data (RM ${details.total_amount || 0})`;
     
     case 'approve_payment':
       return `Approved payment: $${details.amount}`;
@@ -222,6 +233,7 @@ const getActivityTypeColor = (activityType: string) => {
 export function CompactHistory({ projectId }: { projectId: string }) {
   const [expandedGroups, setExpandedGroups] = useState<string[]>([]);
   const [expandedChanges, setExpandedChanges] = useState<string[]>([]);
+  const [showAllDetails, setShowAllDetails] = useState(false);
   const [activities, setActivities] = useState<ActivityLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -291,6 +303,19 @@ export function CompactHistory({ projectId }: { projectId: string }) {
       }
     }
   }, [activityGroups, expandedGroups.length, expandedChanges.length]);
+  
+  // Handle expand/collapse all
+  useEffect(() => {
+    if (showAllDetails) {
+      // Expand all groups and activities
+      setExpandedGroups(activityGroups.map(g => g.date));
+      setExpandedChanges(activities.map(a => a.id));
+    } else if (expandedGroups.length === activityGroups.length) {
+      // Collapse all if everything was expanded
+      setExpandedGroups([]);
+      setExpandedChanges([]);
+    }
+  }, [showAllDetails, activityGroups, activities]);
   
   const toggleGroupExpand = (date: string) => {
     setExpandedGroups(current => 
@@ -364,18 +389,26 @@ export function CompactHistory({ projectId }: { projectId: string }) {
   }
 
   return (
-    <div className="h-full w-full bg-white dark:bg-gray-950 rounded-lg flex flex-col">
-      <div className="p-3 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center">
+    <div className="h-full w-full bg-white dark:bg-gray-950 rounded-lg flex flex-col overflow-hidden">
+      <div className="p-3 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center flex-shrink-0">
         <h3 className="text-base font-medium text-gray-900 dark:text-white">Change History</h3>
-        <Badge variant="outline" className="text-xs">
-          {activities.length} changes
-        </Badge>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowAllDetails(!showAllDetails)}
+            className="text-xs text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 underline"
+          >
+            {showAllDetails ? 'Collapse all' : 'Expand all'}
+          </button>
+          <Badge variant="outline" className="text-xs">
+            {activities.length} changes
+          </Badge>
+        </div>
       </div>
       
       <ScrollArea className="flex-grow w-full">
-        <div className="p-0 w-full h-full">
+        <div className="p-0 w-full">
           {activityGroups.map((group) => {
-            const isExpanded = expandedGroups.includes(group.date);
+            const isExpanded = expandedGroups.includes(group.date) || showAllDetails;
             
             return (
               <div key={group.date} className="border-b border-gray-100 dark:border-gray-900 w-full">
@@ -398,23 +431,23 @@ export function CompactHistory({ projectId }: { projectId: string }) {
                 </button>
                 
                 {isExpanded && (
-                  <div className="pl-9 pr-3 pb-2">
-                    <div className="space-y-1">
+                  <div className="pl-6 pr-3 pb-3">
+                    <div className="space-y-2">
                       {group.activities.map((activity) => {
                         const Icon = getActivityIcon(activity);
-                        const isActivityExpanded = expandedChanges.includes(activity.id);
+                        const isActivityExpanded = expandedChanges.includes(activity.id) || showAllDetails;
                         
                         return (
                           <div key={activity.id} className="rounded-md overflow-hidden">
                             <button
-                              className="w-full flex items-center justify-between py-1.5 text-sm text-left hover:bg-gray-50 dark:hover:bg-gray-900 focus:outline-none"
+                              className="w-full flex items-start justify-between py-2 px-2 text-sm text-left hover:bg-gray-50 dark:hover:bg-gray-900 focus:outline-none rounded-md"
                               onClick={() => toggleChangeExpand(activity.id)}
                             >
-                              <div className="flex items-center flex-1 min-w-0">
-                                <Icon className="h-3.5 w-3.5 mr-2 text-gray-600 dark:text-gray-400 flex-shrink-0" />
-                                <span className="font-medium truncate">{formatActivityDescription(activity)}</span>
+                              <div className="flex items-start flex-1 min-w-0">
+                                <Icon className="h-3.5 w-3.5 mr-2 mt-0.5 text-gray-600 dark:text-gray-400 flex-shrink-0" />
+                                <span className="font-medium break-words">{formatActivityDescription(activity)}</span>
                               </div>
-                              <div className="flex items-center text-xs text-gray-500 ml-2 flex-shrink-0">
+                              <div className="flex items-center text-xs text-gray-500 ml-2 flex-shrink-0 gap-1">
                                 <Badge className={cn("text-xs mr-2", getActivityTypeColor(activity.activity_type))}>
                                   {activity.activity_type}
                                 </Badge>
@@ -428,7 +461,7 @@ export function CompactHistory({ projectId }: { projectId: string }) {
                             </button>
                             
                             {isActivityExpanded && (
-                              <div className="bg-gray-50 dark:bg-gray-900 py-2 px-3 text-xs space-y-2">
+                              <div className="bg-gray-50 dark:bg-gray-900 py-3 px-4 text-xs space-y-2">
                                 <div className="grid grid-cols-2 gap-2">
                                   <div>
                                     <span className="text-gray-500">Action:</span>
@@ -443,14 +476,14 @@ export function CompactHistory({ projectId }: { projectId: string }) {
                                 {activity.details && Object.keys(activity.details).length > 0 && (
                                   <div>
                                     <span className="text-gray-500">Details:</span>
-                                    <div className="mt-1 bg-white dark:bg-gray-800 rounded p-2 text-xs">
+                                    <div className="mt-1 bg-white dark:bg-gray-800 rounded p-3 text-xs space-y-1">
                                       {Object.entries(activity.details)
                                         .filter(([key]) => !['session_id', 'url', 'user_agent', 'viewport', 'timestamp_client'].includes(key))
                                         .map(([key, value]) => (
-                                          <div key={key} className="flex justify-between py-0.5">
-                                            <span className="text-gray-500">{key.replace(/_/g, ' ')}:</span>
-                                            <span className="font-medium text-right ml-2 break-all">
-                                              {typeof value === 'object' ? JSON.stringify(value) : String(value)}
+                                          <div key={key} className="py-1">
+                                            <span className="text-gray-500 block">{key.replace(/_/g, ' ')}:</span>
+                                            <span className="font-medium block mt-0.5 break-words whitespace-pre-wrap">
+                                              {typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value)}
                                             </span>
                                           </div>
                                         ))}
