@@ -31,7 +31,6 @@ const tabs = [
   { value: "payroll", label: "Payroll", icon: DollarSign },
   { value: "expenses", label: "Expenses", icon: Receipt },
   { value: "documents", label: "Documents", icon: FileText },
-  { value: "history", label: "History", icon: History },
 ];
 
 export function SpotlightCardDropdown({ activeTab, onTabChange, className }: SpotlightCardDropdownProps) {
