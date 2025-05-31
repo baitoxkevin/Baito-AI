@@ -1113,7 +1113,7 @@ export function SpotlightCard({
                     )}
                     
                     {activeTab === 'history' && (
-                      <div className="h-full w-full flex">
+                      <div className="h-full bg-white dark:bg-slate-800 rounded-lg overflow-hidden">
                         <CompactHistory projectId={project.id} />
                       </div>
                     )}
