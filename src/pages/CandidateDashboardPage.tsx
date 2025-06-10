@@ -6,9 +6,9 @@ import { PublicPageWrapper } from '@/components/PublicPageWrapper'; // For consi
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button'; // Example UI component
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'; // For profile picture
-import { Mail, UserCircle } from 'lucide-react'; // Icons
+import { Mail, UserCircle, SparklesIcon } from 'lucide-react'; // Icons, Added SparklesIcon
 import { CandidateProjectApplications } from '@/components/CandidateProjectApplications';
-import CandidateProjectHistory from '@/components/CandidateProjectHistory'; // Added
+import CandidateProjectHistory from '@/components/CandidateProjectHistory';
 
 // Mock candidate data type for now
 interface Candidate {
@@ -95,12 +95,23 @@ const CandidateDashboardPage: React.FC = () => {
         </header>
 
         <Card className="shadow-lg">
-          <CardHeader className="bg-gray-50 rounded-t-lg">
-            <nav className="flex border-b border-gray-200">
-              <Button variant={activeTab === 'profile' ? 'default' : 'ghost'} onClick={() => setActiveTab('profile')} className="mr-2 rounded-none border-b-2 border-transparent hover:border-primary focus:border-primary data-[state=active]:border-primary data-[state=active]:text-primary">Profile</Button>
-              <Button variant={activeTab === 'projects' ? 'default' : 'ghost'} onClick={() => setActiveTab('projects')} className="mr-2 rounded-none border-b-2 border-transparent hover:border-primary focus:border-primary data-[state=active]:border-primary data-[state=active]:text-primary">Projects</Button>
-              <Button variant={activeTab === 'history' ? 'default' : 'ghost'} onClick={() => setActiveTab('history')} className="rounded-none border-b-2 border-transparent hover:border-primary focus:border-primary data-[state=active]:border-primary data-[state=active]:text-primary">History</Button>
-            </nav>
+          <CardHeader className="bg-gray-50 rounded-t-lg p-4"> {/* Adjusted padding for CardHeader */}
+            <div className="flex justify-between items-center border-b border-gray-200 pb-2"> {/* Flex container for tabs and new button */}
+              <nav className="flex"> {/* Container for tabs */}
+                <Button variant={activeTab === 'profile' ? 'default' : 'ghost'} onClick={() => setActiveTab('profile')} className="mr-1 rounded-b-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:shadow-none hover:border-primary-light focus:outline-none">Profile</Button>
+                <Button variant={activeTab === 'projects' ? 'default' : 'ghost'} onClick={() => setActiveTab('projects')} className="mr-1 rounded-b-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:shadow-none hover:border-primary-light focus:outline-none">Projects</Button>
+                <Button variant={activeTab === 'history' ? 'default' : 'ghost'} onClick={() => setActiveTab('history')} className="rounded-b-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:shadow-none hover:border-primary-light focus:outline-none">History</Button>
+              </nav>
+              <Button
+                variant="outline"
+                size="sm" // Made button slightly smaller to fit better
+                onClick={() => navigate('/job-discovery')}
+                className="ml-auto flex items-center text-primary border-primary hover:bg-primary-light hover:text-primary-foreground"
+              >
+                <SparklesIcon className="h-4 w-4 mr-2" />
+                Discover Jobs
+              </Button>
+            </div>
           </CardHeader>
           <CardContent className="mt-6 p-6">
             {activeTab === 'profile' && (
