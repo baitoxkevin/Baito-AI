@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { getUserProfile } from '@/lib/auth';
+import type { Candidate } from '@/lib/types';
 
 import { logger } from './logger';
 export interface CandidateInfo {
@@ -95,7 +96,7 @@ export async function createCandidate(candidateInfo: CandidateInfo) {
     const uniqueId = candidateInfo.unique_id || `C${Math.floor(Math.random() * 100000).toString().padStart(5, '0')}`;
     
     // Use only fields that exist in the database
-    const candidateData: any = {
+    const candidateData: Partial<Candidate> = {
       full_name: candidateInfo.name,
       ic_number: candidateInfo.ic_number || '000000-00-0000', // Placeholder if missing
       date_of_birth: dateOfBirth,
@@ -157,7 +158,7 @@ export async function createCandidate(candidateInfo: CandidateInfo) {
         candidateData.custom_fields = customFieldsData;
       }
     } catch (e) {
-      logger.debug('Custom fields not supported, { data: continuing without them' });
+      logger.debug('Custom fields not supported, continuing without them');
     }
     
     // Insert the candidate into the database

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { logger } from '../lib/logger';
+import type { User, UserRole } from '@/lib/types';
 import {
   Dialog,
   DialogContent,
@@ -145,7 +146,7 @@ export default function NewUserDialog({
         if (authData.user) {
           // Create or update the user profile
           // Start with basic fields that should always exist
-          const userProfile: any = {
+          const userProfile: Partial<User> = {
             id: authData.user.id,
             email: formData.email,
             full_name: formData.full_name,
@@ -169,7 +170,7 @@ export default function NewUserDialog({
             if (profileError) {
               // If the error is about missing columns, try again without them
               if (profileError.message?.includes('avatar_seed') || profileError.message?.includes('username')) {
-                logger.debug('Optional columns not found, { data: creating user without them' });
+                logger.debug('Optional columns not found, creating user without them');
                 const { error: basicProfileError } = await supabase
                   .from("users")
                   .upsert(userProfile);
@@ -197,10 +198,10 @@ export default function NewUserDialog({
           onOpenChange(false);
         }
       }
-    } catch (error: any) {
+    } catch (error) {
       logger.error("Error saving user:", error);
       
-      let errorMessage = error.message || "Failed to save user";
+      let errorMessage = error instanceof Error ? error.message : "Failed to save user";
       
       // Handle specific error cases
       if (errorMessage.includes("duplicate key") || errorMessage.includes("already registered")) {

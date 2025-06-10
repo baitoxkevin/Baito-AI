@@ -279,7 +279,7 @@ export function EditProjectDialog({
       const userName = currentUser?.full_name || currentUser?.email || 'Someone';
 
       // Track changed fields for notification
-      const changedFields: Record<string, { old: any; new: any }> = {};
+      const changedFields: Record<string, { old: unknown; new: unknown }> = {};
       
       // Compare values with original project data
       Object.entries(values).forEach(([key, value]) => {

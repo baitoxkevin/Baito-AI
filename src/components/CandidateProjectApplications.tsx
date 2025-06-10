@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import type { Project, ProjectStaffMember } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -35,11 +36,11 @@ interface CandidateProjectApplicationsProps {
 }
 
 export function CandidateProjectApplications({ candidateId, candidateName }: CandidateProjectApplicationsProps) {
-  const [openProjects, setOpenProjects] = useState<any[]>([]);
-  const [myApplications, setMyApplications] = useState<any[]>([]);
+  const [openProjects, setOpenProjects] = useState<Project[]>([]);
+  const [myApplications, setMyApplications] = useState<ProjectStaff[]>([]);
   const [loading, setLoading] = useState(true);
   const [applying, setApplying] = useState(false);
-  const [selectedProject, setSelectedProject] = useState<any>(null);
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [designation, setDesignation] = useState('Crew');
   const [showApplicationDialog, setShowApplicationDialog] = useState(false);
   const [activeTab, setActiveTab] = useState<'open' | 'applications'>('open');
@@ -104,11 +105,11 @@ export function CandidateProjectApplications({ candidateId, candidateName }: Can
       setShowApplicationDialog(false);
       setSelectedProject(null);
       loadData(); // Refresh the data
-    } catch (error: any) {
+    } catch (error) {
       logger.error('Error applying to project:', error);
       toast({
         title: "Application Failed",
-        description: error.message || "Failed to submit application",
+        description: error instanceof Error ? error.message : "Failed to submit application",
         variant: "destructive"
       });
     } finally {
@@ -134,8 +135,8 @@ export function CandidateProjectApplications({ candidateId, candidateName }: Can
     );
   };
 
-  const getApplicationStatus = (application: any) => {
-    const status = application.working_dates_with_salary?.status || 'pending';
+  const getApplicationStatus = (application: Record<string, unknown>) => {
+    const status = (application.working_dates_with_salary as { status?: string })?.status || 'pending';
     return status;
   };
 

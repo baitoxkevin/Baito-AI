@@ -56,6 +56,7 @@ import {
   Clock
 } from "lucide-react";
 import type { Project } from '@/lib/types';
+import type { ExpenseClaim } from '@/lib/expense-claim-service';
 import { DuitNowPaymentExport } from '@/components/duitnow-payment-export';
 import PaymentSubmissionDialog from './PaymentSubmissionDialog';
 import { logUtils } from '@/lib/activity-logger';
@@ -234,7 +235,7 @@ export default function ProjectPayroll({
   // Payment date selector state
   const [selectedPaymentDate, setSelectedPaymentDate] = useState<Date>(new Date());
   // State for staff expense claims
-  const [staffExpenseClaims, setStaffExpenseClaims] = useState<Record<string, any[]>>({});
+  const [staffExpenseClaims, setStaffExpenseClaims] = useState<Record<string, ExpenseClaim[]>>({});
   // Budget editing state
   const [isEditingBudget, setIsEditingBudget] = useState(false);
   const [tempBudget, setTempBudget] = useState('');

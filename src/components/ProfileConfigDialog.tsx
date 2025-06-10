@@ -21,7 +21,7 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { cn } from '@/lib/utils';
 import { getUserProfile, updateUserProfile } from '@/lib/auth';
 import { uploadAvatar, removeAvatar, getAvatarUrl } from '@/lib/avatar-service';
-import type { UserProfile } from '@/lib/types';
+import type { UserProfile, User } from '@/lib/types';
 
 // Props interface
 interface ProfileConfigDialogProps {
@@ -204,11 +204,11 @@ export default function ProfileConfigDialog({ open, onOpenChange }: ProfileConfi
   const handlePreferenceChange = useCallback((path: string[], value: unknown) => {
     setPreferences(prev => {
       const newPreferences = { ...prev };
-      let current: any = newPreferences;
+      let current: Record<string, unknown> = newPreferences as Record<string, unknown>;
       
       // Navigate through the path to the right property
       for (let i = 0; i < path.length - 1; i++) {
-        current = current[path[i]];
+        current = current[path[i]] as Record<string, unknown>;
       }
       
       // Set the value
@@ -431,7 +431,10 @@ export default function ProfileConfigDialog({ open, onOpenChange }: ProfileConfi
       setIsSaving(true);
       
       // Prepare data for update
-      const updateData: any = {
+      const updateData: Partial<User> & {
+        avatar_seed?: string | null;
+        raw_app_meta_data?: Record<string, unknown>;
+      } = {
         full_name: formData.fullName,
         contact_phone: formData.phoneNumber,
         username: formData.username || userEmail.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '_'),

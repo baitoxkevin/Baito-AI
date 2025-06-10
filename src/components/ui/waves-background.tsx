@@ -134,7 +134,12 @@ export function WavesBackground({
   const ctxRef = useRef<CanvasRenderingContext2D | null>(null)
   const boundingRef = useRef({ width: 0, height: 0, left: 0, top: 0 })
   const noiseRef = useRef(new Noise(Math.random()))
-  const linesRef = useRef<any[]>([])
+  const linesRef = useRef<Array<Array<{
+    x: number;
+    y: number;
+    wave: { x: number; y: number };
+    cursor: { x: number; y: number; vx: number; vy: number };
+  }>>>([])
   const mouseRef = useRef({
     x: -10,
     y: 0,
@@ -172,7 +177,12 @@ export function WavesBackground({
       const xStart = (width - xGap * totalLines) / 2
       const yStart = (height - yGap * totalPoints) / 2
       for (let i = 0; i <= totalLines; i++) {
-        const pts: unknown[] = []
+        const pts: Array<{
+          x: number;
+          y: number;
+          wave: { x: number; y: number };
+          cursor: { x: number; y: number; vx: number; vy: number };
+        }> = []
         for (let j = 0; j <= totalPoints; j++) {
           pts.push({
             x: xStart + xGap * i,

@@ -755,7 +755,7 @@ export default function ListView({
         
         // Don't store this preference in localStorage anymore
         // We want to reset this on each page load
-        logger.debug('Top reached, { data: disabling for this session only' });
+        logger.debug('Top reached, disabling for this session only');
       }
     };
     
@@ -771,7 +771,7 @@ export default function ListView({
         
         // Don't store this preference in localStorage anymore
         // We want to reset this on each page load
-        logger.debug('Bottom reached, { data: disabling for this session only' });
+        logger.debug('Bottom reached, disabling for this session only');
       }
       
       // Always show the month indicator when scrolling

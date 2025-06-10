@@ -35,7 +35,7 @@ const cacheAccessTimes: Record<string, Record<string, number>> = {};
  * @param fetchFunction The function to call when data needs to be fetched
  * @param options Caching configuration options
  */
-export function useCache<T, P extends any[]>(
+export function useCache<T, P extends unknown[]>(
   namespace: string,
   fetchFunction: (...args: P) => Promise<T>, 
   options: CacheOptions = {}

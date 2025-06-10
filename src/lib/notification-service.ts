@@ -213,7 +213,7 @@ export const notificationService = {
    */
   formatProjectUpdateEmail(
     projectTitle: string,
-    updatedFields: Record<string, { old: any; new: any }>,
+    updatedFields: Record<string, { old: unknown; new: unknown }>,
     updatedBy: string
   ): { subject: string; body: string } {
     const subject = `Project Update: ${projectTitle}`;

@@ -163,10 +163,10 @@ export async function rateLimitedFetch(
  * Decorator for rate limiting class methods
  */
 export function rateLimit(config?: Partial<RateLimitConfig>) {
-  return function (target: any, propertyKey: string, descriptor: PropertyDescriptor) {
+  return function (target: object, propertyKey: string, descriptor: PropertyDescriptor) {
     const originalMethod = descriptor.value;
 
-    descriptor.value = async function (...args: any[]) {
+    descriptor.value = async function (this: unknown, ...args: unknown[]) {
       const identifier = `${target.constructor.name}.${propertyKey}`;
       const allowed = await rateLimiter.checkLimit({
         ...config,
