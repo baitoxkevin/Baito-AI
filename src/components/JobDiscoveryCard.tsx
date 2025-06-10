@@ -1,8 +1,9 @@
 import React from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Building2, MapPin, Briefcase, CalendarDays, Users } from 'lucide-react'; // Example icons
-import type { Project } from '@/lib/types'; // Assuming Project type exists and is relevant
+import { Building2, MapPin, Briefcase, CalendarDays, Users, Clock, DollarSign } from 'lucide-react';
+import type { Project } from '@/lib/types';
+import { format } from 'date-fns';
 
 interface JobDiscoveryCardProps {
   project: Project; // Using Project type for consistency
@@ -46,7 +47,17 @@ const JobDiscoveryCard: React.FC<JobDiscoveryCardProps> = ({ project }) => {
         {project.start_date && (
           <div className="flex items-center text-gray-700">
             <CalendarDays className="h-4 w-4 mr-2 flex-shrink-0 text-blue-500" />
-            Starts: {new Date(project.start_date).toLocaleDateString()}
+            <span>
+              {format(new Date(project.start_date), 'dd MMM yyyy')}
+              {project.end_date && ` - ${format(new Date(project.end_date), 'dd MMM yyyy')}`}
+            </span>
+          </div>
+        )}
+
+        {project.working_hours_start && project.working_hours_end && (
+          <div className="flex items-center text-gray-700">
+            <Clock className="h-4 w-4 mr-2 flex-shrink-0 text-purple-500" />
+            {project.working_hours_start} - {project.working_hours_end}
           </div>
         )}
 
@@ -63,9 +74,15 @@ const JobDiscoveryCard: React.FC<JobDiscoveryCardProps> = ({ project }) => {
         </p>
 
         <div className="pt-2 flex flex-wrap gap-2">
-          {project.employment_type && <Badge variant="secondary">{project.employment_type}</Badge>}
-          {project.salary_range && <Badge variant="outline" className="border-green-500 text-green-600">Salary: {project.salary_range}</Badge>}
-          {/* Add more badges based on relevant project fields if available */}
+          {project.event_type && <Badge variant="secondary">{project.event_type}</Badge>}
+          {project.priority && <Badge variant={project.priority === 'high' ? 'destructive' : 'outline'}>{project.priority}</Badge>}
+          {project.salary_range && (
+            <Badge variant="outline" className="border-green-500 text-green-600">
+              <DollarSign className="h-3 w-3 mr-1" />
+              {project.salary_range}
+            </Badge>
+          )}
+          {project.status === 'active' && <Badge className="bg-green-500">Active Now</Badge>}
         </div>
       </CardContent>
 

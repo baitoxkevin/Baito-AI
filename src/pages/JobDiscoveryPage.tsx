@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import TinderCard from 'react-tinder-card';
 import JobDiscoveryCard from '@/components/JobDiscoveryCard';
 import type { Project } from '@/lib/types';
-import { getOpenProjects } from '@/lib/project-application-service'; // Assuming this service exists
+import { getProjectsForDiscovery } from '@/lib/project-application-service';
 import { Button } from '@/components/ui/button';
 import { PublicPageWrapper } from '@/components/PublicPageWrapper';
 import { XIcon, HeartIcon, Loader2, RotateCcwIcon } from 'lucide-react'; // Added RotateCcwIcon for potential undo
@@ -30,18 +30,18 @@ const JobDiscoveryPage: React.FC = () => {
     const fetchJobs = async () => {
       try {
         setLoading(true);
-        logger.info('JobDiscoveryPage: Fetching open projects...');
-        // Assuming getOpenProjects returns projects suitable for discovery
-        // In a real app, this would likely be paginated or filtered for new jobs
-        const openProjects = await getOpenProjects();
+        logger.info('JobDiscoveryPage: Fetching projects for discovery...');
+        // Get projects that are currently active or upcoming
+        // TODO: Pass candidateId when we have authentication
+        const result = await getProjectsForDiscovery();
 
-        if (openProjects && openProjects.length > 0) {
-          logger.info(`JobDiscoveryPage: Fetched ${openProjects.length} projects.`);
+        if (result.data && result.data.length > 0) {
+          logger.info(`JobDiscoveryPage: Fetched ${result.data.length} projects.`);
           // Reverse to simulate stack: last item in array is on top
-          setJobs(openProjects.reverse());
-          setCurrentIndex(openProjects.length - 1);
+          setJobs(result.data.reverse());
+          setCurrentIndex(result.data.length - 1);
         } else {
-          logger.info('JobDiscoveryPage: No open projects found or empty array returned.');
+          logger.info('JobDiscoveryPage: No projects found for discovery.');
           setJobs([]);
           setCurrentIndex(0); // No projects, so index is 0
         }
