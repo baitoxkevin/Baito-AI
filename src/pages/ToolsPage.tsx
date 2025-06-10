@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { logger } from '../lib/logger';
+// import { logger } from '../lib/logger';
 import {
   Card,
   CardContent,
@@ -139,7 +139,7 @@ function ToastDemo() {
       title: "Success! 🎉",
       description: "Your changes have been saved successfully.",
       action: (
-        <ToastAction altText="Undo action" onClick={() => logger.debug("Undo clicked")}>
+        <ToastAction altText="Undo action" onClick={() => console.log("Undo clicked")}>
           Undo
         </ToastAction>
       ),
@@ -167,7 +167,7 @@ function ToastDemo() {
       title: "New feature available",
       description: "Check out our new dashboard analytics!",
       action: (
-        <ToastAction altText="Learn more about the feature" onClick={() => logger.debug("Learn more clicked")}>
+        <ToastAction altText="Learn more about the feature" onClick={() => console.log("Learn more clicked")}>
           Learn More
         </ToastAction>
       ),
@@ -200,11 +200,11 @@ function ToastDemo() {
         title: "Creating project...",
         description: "Setting up your new project",
       },
-      success: (data: unknown) => ({
+      success: (data: any) => ({ // Using any for demo data
         title: `Project "${data.name}" created!`,
         description: "You can now start adding team members.",
       }),
-      error: (err: unknown) => ({
+      error: (err: any) => ({ // Using any for error type
         title: "Failed to create project",
         description: err?.message || "Please check your connection and try again.",
       }),
@@ -355,7 +355,7 @@ function ToastDemo() {
 function GoogleSlidesScraper({ onDataExtracted }: { onDataExtracted: (data: ScrapedData[]) => void }) {
   const [isLoading, setIsLoading] = useState(false);
   const [slideUrl, setSlideUrl] = useState('');
-  const [file, setFile] = useState<File | null>(null);
+  const [, setFile] = useState<File | null>(null);
   const [credentials, setCredentials] = useState({ clientId: '', apiKey: '' });
   const { toast } = useToast();
 
@@ -396,7 +396,7 @@ function GoogleSlidesScraper({ onDataExtracted }: { onDataExtracted: (data: Scra
         description: `Found ${exampleData.length} records`,
       });
     } catch (error) {
-      logger.error('Error extracting data:', error);
+      console.error('Error extracting data:', error);
       toast({
         title: 'Error',
         description: 'Failed to extract data. Please try again.',
@@ -506,7 +506,7 @@ function WhatsAppScraper({ onDataExtracted }: { onDataExtracted: (data: ScrapedD
         description: `Found ${exampleData.length} records`,
       });
     } catch (error) {
-      logger.error('Error processing file:', error);
+      console.error('Error processing file:', error);
       toast({
         title: 'Error',
         description: 'Failed to process file. Please try again.',
@@ -640,7 +640,7 @@ function ExportOptions({ data }: { data: ScrapedData[] }) {
         description: `Data exported as ${format.toUpperCase()}`,
       });
     } catch (error) {
-      logger.error('Export error:', error);
+      console.error('Export error:', error);
       toast({
         title: 'Error',
         description: 'Failed to export data',
@@ -699,10 +699,10 @@ function ExportOptions({ data }: { data: ScrapedData[] }) {
 export default function ToolsPage() {
   const [activeComponent, setActiveComponent] = useState<string | null>(null);
   const [scrapedData, setScrapedData] = useState<ScrapedData[]>([]);
-  const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
+  const [, setReceiptData] = useState<ReceiptData | null>(null);
   const [selectedProject, setSelectedProject] = useState<unknown>(null);
-  const [projectStaff, setProjectStaff] = useState<any[]>([]);
-  const [projects, setProjects] = useState<any[]>([]);
+  const [projectStaff, setProjectStaff] = useState<any[]>([]); // Using any for project staff type
+  const [projects, setProjects] = useState<any[]>([]); // Using any for project type
   const { toast } = useToast();
 
   // Check if we have a saved active tool component from navigation
@@ -889,7 +889,7 @@ export default function ToolsPage() {
                     projectEndDate={new Date(selectedProject.end_date)}
                     projectId={selectedProject.id}
                     onSave={async (payrollData) => {
-                      logger.debug('Saving payroll data:', { data: payrollData });
+                      console.log('Saving payroll data:', { data: payrollData });
                       toast({
                         title: 'Payroll Saved',
                         description: 'Payroll data has been saved successfully',

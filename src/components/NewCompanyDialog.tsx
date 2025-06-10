@@ -12,14 +12,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { 
-  Loader2, Mail, Phone, Building, User, Briefcase, 
-  ShieldAlert, Image, Upload, GitBranchPlus, UsersRound, 
+  Loader2, Phone, Building, 
+  ShieldAlert, Upload, GitBranchPlus, UsersRound, 
   Plus as PlusIcon, Edit2 
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabase';
 import { applyCompanyPermissionsFix, ensureLogosBucketExists } from '@/lib/utils';
-import { formatDate } from '@/lib/utils';
 import type { Company } from '@/lib/types';
 import ContactPersonForm, { ContactPerson } from './ContactPersonForm';
 import {
@@ -51,12 +50,12 @@ export default function NewCompanyDialog({
   // File upload state
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string>('');
-  const [isUploading, setIsUploading] = useState(false);
+  const [isUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Parent company state
   const [parentCompanies, setParentCompanies] = useState<Company[]>([]);
-  const [isLoadingParents, setIsLoadingParents] = useState(false);
+  const [isLoadingParents] = useState(false);
 
   // Contact persons state
   const [contacts, setContacts] = useState<ContactPerson[]>([
@@ -105,32 +104,32 @@ export default function NewCompanyDialog({
     }
   };
 
-  // Load company contacts
-  const loadCompanyContacts = async (companyId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('company_contacts')
-        .select('*')
-        .eq('company_id', companyId);
-      
-      if (error) throw error;
-      
-      if (data && data.length > 0) {
-        setContacts(data);
-      } else {
-        // If no contacts found, initialize with single empty contact
-        setContacts([
-          { name: '', designation: '', email: '', phone: '', is_primary: true }
-        ]);
-      }
-    } catch (error) {
-      logger.error('Error loading company contacts:', error);
-      // Default to a single empty contact
-      setContacts([
-        { name: '', designation: '', email: '', phone: '', is_primary: true }
-      ]);
-    }
-  };
+  // // Load company contacts - Not currently used - kept for future reference
+  // // const loadCompanyContacts = async (companyId: string) => {
+  // //   try {
+  // //     const { data, error } = await supabase
+  // //       .from('company_contacts')
+  // //       .select('*')
+  // //       .eq('company_id', companyId);
+  // //     
+  // //     if (error) throw error;
+  // //     
+  // //     if (data && data.length > 0) {
+  // //       setContacts(data);
+  // //     } else {
+  // //       // If no contacts found, initialize with single empty contact
+  // //       setContacts([
+  // //         { name: '', designation: '', email: '', phone: '', is_primary: true }
+  // //       ]);
+  // //     }
+  // //   } catch (error) {
+  // //     logger.error('Error loading company contacts:', error);
+  // //     // Default to a single empty contact
+  // //     setContacts([
+  // //       { name: '', designation: '', email: '', phone: '', is_primary: true }
+  // //     ]);
+  // //   }
+  // // };
   
   // Reset form when dialog opens or company prop changes
   useEffect(() => {
@@ -238,7 +237,7 @@ export default function NewCompanyDialog({
       
       // Create company-logos folder if needed
       try {
-        const { data: folderData, error: folderError } = await supabase.storage
+        const { error: folderError } = await supabase.storage
           .from('logos')
           .upload('company-logos/.folder', new Blob(['']));
           
@@ -250,7 +249,7 @@ export default function NewCompanyDialog({
       }
       
       // Upload the file
-      const { data, error } = await supabase.storage
+      const { error } = await supabase.storage
         .from('logos')
         .upload(filePath, logoFile, {
           cacheControl: '3600',
@@ -382,6 +381,7 @@ export default function NewCompanyDialog({
             await applyCompanyPermissionsFix();
           }
         } catch (e) {
+          // Permission check failed silently - will be handled by next operation
         }
       }
       

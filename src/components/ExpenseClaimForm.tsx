@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { logger } from '../lib/logger';
 import {
-  Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle
+  Card, CardContent, CardDescription, CardHeader, CardTitle
 } from '@/components/ui/card';
 import {
-  Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage
+  Form, FormControl, FormField, FormItem, FormLabel, FormMessage
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -12,7 +12,6 @@ import { Textarea } from '@/components/ui/textarea';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from '@/components/ui/select';
-// import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -21,7 +20,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { ExpenseClaim } from '@/lib/expense-claim-service';
 import { Receipt } from '@/lib/receipt-service';
-import { CheckCircle2, CreditCard, Plus, Receipt as ReceiptIcon, Trash2, ScanLine } from 'lucide-react';
+import { CheckCircle2, Plus, Receipt as ReceiptIcon, Trash2, ScanLine } from 'lucide-react';
 import { format } from 'date-fns';
 import { fetchUserReceipts, addReceipt } from '@/lib/receipt-service';
 import { useExpenseClaims } from '@/hooks/use-expense-claims';

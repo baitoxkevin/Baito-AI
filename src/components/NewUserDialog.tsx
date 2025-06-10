@@ -22,7 +22,6 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
 import { Loader2, Info } from "lucide-react";
-import type { User } from "@/lib/types";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface NewUserDialogProps {

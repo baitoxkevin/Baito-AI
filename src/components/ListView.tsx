@@ -310,7 +310,7 @@ export default function ListView({
   const [selectedMonthRange, setSelectedMonthRange] = useState({ start: '', end: '' });
   const [newProjectDialogOpen, setNewProjectDialogOpen] = useState(false);
   const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
-  const [localProjects, setLocalProjects] = useState<Project[]>(projects);
+  const [localProjects, setLocalProjects] = useState<Project[]>(safeProjects);
   const processCountRef = useRef(0);
   const [zoomLevel, setZoomLevel] = useState(1);
   const [initialPinchDistance, setInitialPinchDistance] = useState<number | null>(null);
@@ -323,31 +323,20 @@ export default function ListView({
   const disableTopLoadingRef = useRef(false);
   const disableBottomLoadingRef = useRef(false);
   const [visibleMonth, setVisibleMonth] = useState<string>('');
-  const [visibleYear, setVisibleYear] = useState<number>(new Date().getFullYear());
+  const [visibleYear] = useState<number>(new Date().getFullYear());
   const hasInitialScroll = useRef(false);
-  const prevDateRef = useRef(date);
+  const prevDateRef = useRef(safeDate);
   const monthPositionsRef = useRef<Map<string, number>>(new Map());
   const [showFloatingMonth, setShowFloatingMonth] = useState(false);
   const floatingMonthTimeoutRef = useRef<number | null>(null);
 
-  // Safety check for required props
-  if (!date) {
-    // logger.error('ListView: date prop is required but was not provided');
-    return (
-      <div className="p-4 bg-red-50 border border-red-200 rounded-md">
-        <p className="text-red-600">Error: date prop is required</p>
-      </div>
-    );
-  }
+  // Use default values if props are invalid
+  const safeDate = date || new Date();
+  const safeProjects = Array.isArray(projects) ? projects : [];
   
-  if (!Array.isArray(projects)) {
-    // logger.error('ListView: projects prop must be an array');
-    return (
-      <div className="p-4 bg-red-50 border border-red-200 rounded-md">
-        <p className="text-red-600">Error: invalid projects data</p>
-      </div>
-    );
-  }
+  // Check for errors to display error state later
+  const hasDateError = !date;
+  const hasProjectsError = !Array.isArray(projects);
   // Calculate the number of past and future months to show - expanded to a full year
   const MAX_PAST_MONTHS = 24;  // Expanded to 2 years in the past
   const MAX_FUTURE_MONTHS = 24; // Expanded to 2 years in the future
@@ -361,9 +350,9 @@ export default function ListView({
   // Use a memoization key to prevent unnecessary recalculations - with stable reference
   const memoKey = useMemo(() => {
     // Only output to console on significant changes
-    const key = `${date.getFullYear()}-${date.getMonth()}-${pastMonths}-${futureMonths}`;
+    const key = `${safeDate.getFullYear()}-${safeDate.getMonth()}-${pastMonths}-${futureMonths}`;
     return key;
-  }, [date.getFullYear(), date.getMonth(), pastMonths, futureMonths]); // More stable dependency array
+  }, [safeDate, pastMonths, futureMonths]); // More stable dependency array
     
   // Save scroll position before data loads
   useEffect(() => {
@@ -384,8 +373,8 @@ export default function ListView({
     
     try {
       // Guard against invalid date
-      if (!date || !(date instanceof Date) || isNaN(date.getTime())) {
-        // logger.error('Invalid date provided to ListView:', date);
+      if (!safeDate || !(safeDate instanceof Date) || isNaN(safeDate.getTime())) {
+        // logger.error('Invalid date provided to ListView:', safeDate);
         // Default to current date if invalid
         const currentDate = new Date();
         
@@ -400,10 +389,10 @@ export default function ListView({
       }
       
       // Calculate start date (subtracting past months)
-      const startDate = startOfMonth(addMonths(date, -pastMonths));
+      const startDate = startOfMonth(addMonths(safeDate, -pastMonths));
       
       // Calculate end date (adding future months)
-      const endDate = endOfMonth(addMonths(date, futureMonths));
+      const endDate = endOfMonth(addMonths(safeDate, futureMonths));
       
       // Safety check to ensure we're not generating a ridiculously large date range
       const dayDiff = differenceInDays(endDate, startDate);
@@ -422,7 +411,7 @@ export default function ListView({
       const endDate = endOfMonth(addMonths(currentDate, 1));
       return eachDayOfInterval({ start: startDate, end: endDate });
     }
-  }, [memoKey, date, pastMonths, futureMonths]); // Include all dependencies explicitly
+  }, [memoKey, safeDate, pastMonths, futureMonths]); // Include all dependencies explicitly
   
   // Find today's date index for scrolling
   useMemo(() => {
@@ -1632,6 +1621,17 @@ export default function ListView({
     };
   }, []);
   
+  // If there are errors, show error state
+  if (hasDateError || hasProjectsError) {
+    return (
+      <div className="p-4 bg-red-50 border border-red-200 rounded-md">
+        <p className="text-red-600">
+          {hasDateError ? 'Error: date prop is required' : 'Error: invalid projects data'}
+        </p>
+      </div>
+    );
+  }
+
   return (
     <Card 
       className="h-full rounded-xl border bg-card text-card-foreground shadow relative">
@@ -1713,7 +1713,7 @@ export default function ListView({
                 }}
                 className="bg-primary/10 text-primary px-3 py-1 rounded-md text-xs font-semibold cursor-pointer hover:bg-primary/20 transition-colors flex items-center"
               >
-                <span>{syncToDate ? format(date, 'MMMM yyyy') : visibleMonth}</span>
+                <span>{syncToDate ? format(safeDate, 'MMMM yyyy') : visibleMonth}</span>
                 <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="ml-1">
                   <polyline points="6 9 12 15 18 9"></polyline>
                 </svg>

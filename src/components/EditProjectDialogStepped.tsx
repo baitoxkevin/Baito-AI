@@ -13,16 +13,14 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { logger } from '../lib/logger';
 // Removed Calendar and Popover imports - using native date inputs instead
-import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
-import { CalendarIcon, FileText, MapPin, Clock, Users, Cog, Palette, Share2, Check, ChevronRight, Building2, Loader2, Search, Link, User, UserCheck } from 'lucide-react';
+import { FileText, MapPin, Clock, Users, Cog, Palette, Share2, Check, ChevronRight, Building2, Loader2, Search, User } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 // Removed useCompanies import - will fetch companies directly
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { BrandLogoSelector } from '@/components/BrandLogoSelector';
-import { fetchBrandLogo } from '@/lib/logo-service';
 
 type Step = 'project-info' | 'event-details' | 'location' | 'schedule' | 'staffing' | 'advanced' | 'review';
 
@@ -295,7 +293,7 @@ export function EditProjectDialogStepped({ project, open, onOpenChange, onProjec
       if (error) throw error;
 
       // Fetch manager information if manager_id exists
-      let projectWithDetails = { ...updatedProject };
+      const projectWithDetails = { ...updatedProject };
       if (updatedProject.manager_id) {
         const { data: managerData } = await supabase
           .from('users')
@@ -474,19 +472,19 @@ export function EditProjectDialogStepped({ project, open, onOpenChange, onProjec
             {/* Display Client PIC Information in a compact format */}
             {form.watch('client_id') && (() => {
               const selectedCompany = companies?.find(c => c.id === form.watch('client_id'));
-              return selectedCompany && (selectedCompany as any).pic_name ? (
+              return selectedCompany && 'pic_name' in selectedCompany && selectedCompany.pic_name ? (
                 <div className="flex items-center gap-2 p-2 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
                   <User className="h-4 w-4 text-blue-600 dark:text-blue-400 flex-shrink-0" />
                   <div className="flex items-center gap-2 text-sm">
                     <span className="text-blue-700 dark:text-blue-300 font-medium">Client PIC:</span>
-                    <span className="text-blue-900 dark:text-blue-100 font-semibold">{(selectedCompany as any).pic_name}</span>
-                    {(selectedCompany as any).pic_designation && (
-                      <span className="text-blue-600 dark:text-blue-400">({(selectedCompany as any).pic_designation})</span>
+                    <span className="text-blue-900 dark:text-blue-100 font-semibold">{(selectedCompany as { pic_name?: string }).pic_name}</span>
+                    {'pic_designation' in selectedCompany && selectedCompany.pic_designation && (
+                      <span className="text-blue-600 dark:text-blue-400">({(selectedCompany as { pic_designation?: string }).pic_designation})</span>
                     )}
-                    {(selectedCompany as any).pic_phone && (
+                    {'pic_phone' in selectedCompany && selectedCompany.pic_phone && (
                       <>
                         <span className="text-blue-500 dark:text-blue-500">•</span>
-                        <span className="text-blue-600 dark:text-blue-400">{(selectedCompany as any).pic_phone}</span>
+                        <span className="text-blue-600 dark:text-blue-400">{(selectedCompany as { pic_phone?: string }).pic_phone}</span>
                       </>
                     )}
                   </div>
@@ -1060,7 +1058,7 @@ export function EditProjectDialogStepped({ project, open, onOpenChange, onProjec
           </div>
         );
 
-      case 'review':
+      case 'review': {
         const formValues = form.getValues();
         const selectedCompany = companies?.find(c => c.id === formValues.client_id);
         
@@ -1143,6 +1141,7 @@ export function EditProjectDialogStepped({ project, open, onOpenChange, onProjec
             </div>
           </div>
         );
+      }
 
       default:
         return null;

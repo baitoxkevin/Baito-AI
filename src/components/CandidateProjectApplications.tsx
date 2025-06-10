@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import type { Project, ProjectStaffMember } from '@/lib/types';
+import React, { useState, useEffect, useCallback } from 'react';
+import type { Project } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -24,8 +24,6 @@ import {
 import {
   getOpenProjects,
   applyToProject,
-  hasAppliedToProject,
-  isProjectOpen,
   getCandidateApplications
 } from '@/lib/project-application-service';
 import { format } from 'date-fns';
@@ -37,7 +35,7 @@ interface CandidateProjectApplicationsProps {
 
 export function CandidateProjectApplications({ candidateId, candidateName }: CandidateProjectApplicationsProps) {
   const [openProjects, setOpenProjects] = useState<Project[]>([]);
-  const [myApplications, setMyApplications] = useState<ProjectStaff[]>([]);
+  const [myApplications, setMyApplications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [applying, setApplying] = useState(false);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
@@ -46,48 +44,39 @@ export function CandidateProjectApplications({ candidateId, candidateName }: Can
   const [activeTab, setActiveTab] = useState<'open' | 'applications'>('open');
   const { toast } = useToast();
 
-  useEffect(() => {
-    loadData();
-  }, [candidateId]);
-
-  const loadData = async () => {
-    setLoading(true);
+  const loadData = useCallback(async () => {
     try {
+      setLoading(true);
+      
       // Load open projects
-      const { data: projects, error: projectsError } = await getOpenProjects();
-      if (projectsError) throw projectsError;
-
+      const projects = await getOpenProjects();
+      setOpenProjects(projects);
+      
       // Load candidate's applications
-      const { data: applications, error: appsError } = await getCandidateApplications(candidateId);
-      if (appsError) throw appsError;
-
-      // Mark projects that candidate has already applied to
-      const appliedProjectIds = new Set(applications?.map(app => app.project_id) || []);
-      const projectsWithStatus = projects?.map(project => ({
-        ...project,
-        hasApplied: appliedProjectIds.has(project.id)
-      })) || [];
-
-      setOpenProjects(projectsWithStatus);
-      setMyApplications(applications || []);
+      const applications = await getCandidateApplications(candidateId);
+      setMyApplications(applications);
     } catch (error) {
-      logger.error('Error loading data:', error);
+      logger.error('Error loading project data:', error);
       toast({
-        title: "Error",
-        description: "Failed to load projects",
-        variant: "destructive"
+        title: 'Error',
+        description: 'Failed to load projects',
+        variant: 'destructive'
       });
     } finally {
       setLoading(false);
     }
-  };
+  }, [candidateId, toast]);
+
+  useEffect(() => {
+    loadData();
+  }, [candidateId, loadData]);
 
   const handleApply = async () => {
     if (!selectedProject || !candidateId) return;
 
     setApplying(true);
     try {
-      const { data, error } = await applyToProject({
+      const { error } = await applyToProject({
         project_id: selectedProject.id,
         candidate_id: candidateId,
         designation: designation,

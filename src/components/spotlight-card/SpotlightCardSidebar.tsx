@@ -7,6 +7,7 @@ import { ShimmerButton } from "@/components/ui/shimmer-button";
 import { TextAnimate } from "@/components/ui/text-animate";
 import { SpotlightCardDropdown } from "./SpotlightCardDropdown";
 import { EditProjectDialogStepped } from "@/components/EditProjectDialogStepped";
+import { JobPostGeneratorDialog } from "@/components/JobPostGeneratorDialog";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { formatRecurringDates, getGoogleMapsLink, getWazeLink } from '@/lib/utils';
@@ -34,7 +35,8 @@ import {
   Activity,
   AlertCircle,
   Edit,
-  History
+  History,
+  Megaphone
 } from "lucide-react";
 
 interface SpotlightCardSidebarProps {
@@ -64,6 +66,7 @@ export function SpotlightCardSidebar({
   const [activeOverviewTab, setActiveOverviewTab] = React.useState<'staffing' | 'details'>('staffing');
   const [isDropdownOpen, setIsDropdownOpen] = React.useState(false);
   const [editDialogOpen, setEditDialogOpen] = React.useState(false);
+  const [jobPostDialogOpen, setJobPostDialogOpen] = React.useState(false);
   const [currentProject, setCurrentProject] = React.useState(project);
   const [customerLogo, setCustomerLogo] = React.useState<string | null>(null);
   const [customerName, setCustomerName] = React.useState<string>('');
@@ -232,6 +235,19 @@ export function SpotlightCardSidebar({
               >
                 <Edit className="h-4 w-4" />
                 Edit Project Details
+              </button>
+              
+              {/* Job Post Generator */}
+              <button
+                className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setJobPostDialogOpen(true);
+                  setIsDropdownOpen(false);
+                }}
+              >
+                <Megaphone className="h-4 w-4" />
+                Generate Job Post
               </button>
               
               {/* View History */}
@@ -750,6 +766,13 @@ export function SpotlightCardSidebar({
         open={editDialogOpen}
         onOpenChange={setEditDialogOpen}
         onProjectUpdated={handleProjectUpdate}
+      />
+      
+      {/* Job Post Generator Dialog */}
+      <JobPostGeneratorDialog
+        project={currentProject}
+        open={jobPostDialogOpen}
+        onOpenChange={setJobPostDialogOpen}
       />
       
       {/* Removed duplicate client logo from container bottom */}

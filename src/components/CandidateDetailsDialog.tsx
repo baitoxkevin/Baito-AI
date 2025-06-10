@@ -1,25 +1,22 @@
 import { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogClose } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { logger } from '../lib/logger';
-// import { Separator } from '@/components/ui/separator';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import { format, differenceInYears } from 'date-fns';
 import { 
-  User, Phone, Mail, MapPin, Briefcase, Star, Calendar, CreditCard, 
+  User, Phone, Mail, MapPin, Briefcase, Star, Calendar, 
   Activity, Award, Shield, Clock, AlertCircle,
-  Copy, CheckCircle, HistoryIcon, Building, FileText, Ban, X,
-  Wallet, DollarSign, Receipt, BanknoteIcon, CalendarDays, 
-  Coffee, CheckSquare, ArrowUpDown, CalendarClock, Users2,
-  Sparkles, GraduationCap, BarChart, Link,
+  Copy, HistoryIcon, Building, FileText, Ban, X,
+  CheckSquare, CalendarClock, Users2,
+  Sparkles, GraduationCap, Link,
   Flame, Film, Zap, Languages,
-  LucideIcon, CheckCircle2, CircleDashed, Pencil, Car
+  LucideIcon, CheckCircle2, CircleDashed, Pencil
 } from 'lucide-react';
-// import { CandidateActionButton } from './CandidateActionButton';
 import CandidateProjectHistory from './CandidateProjectHistory';
 import NewCandidateDialog from './NewCandidateDialog';
 import { CandidateProjectApplications } from './CandidateProjectApplications';
@@ -256,13 +253,13 @@ export function CandidateDetailsDialog({
       })()
     : null;
 
-  const loyaltyTierColors = {
-    bronze: 'bg-orange-500/10 text-orange-500',
-    silver: 'bg-slate-500/10 text-slate-500',
-    gold: 'bg-yellow-500/10 text-yellow-500',
-    platinum: 'bg-purple-500/10 text-purple-500',
-    diamond: 'bg-blue-500/10 text-blue-500',
-  } as const;
+  // const loyaltyTierColors = {
+  //   bronze: 'bg-orange-500/10 text-orange-500',
+  //   silver: 'bg-slate-500/10 text-slate-500',
+  //   gold: 'bg-yellow-500/10 text-yellow-500',
+  //   platinum: 'bg-purple-500/10 text-purple-500',
+  //   diamond: 'bg-blue-500/10 text-blue-500',
+  // } as const;
 
   // Interface for the info card component
   interface InfoCardProps {
@@ -278,7 +275,7 @@ export function CandidateDetailsDialog({
     icon: Icon, 
     title, 
     value, 
-    color: _color = "bg-blue-500", // Keep parameter for backward compatibility
+    // color: _color = "bg-blue-500", // Keep parameter for backward compatibility - not used
     className 
   }: InfoCardProps) => {
     return (
@@ -306,7 +303,7 @@ export function CandidateDetailsDialog({
     value, 
     maxValue = 100,
     suffix = "",
-    color: _color = "from-blue-500 to-indigo-600" // Keep parameter for backward compatibility
+    // color: _color = "from-blue-500 to-indigo-600" // Keep parameter for backward compatibility - not used
   }: {
     icon: LucideIcon;
     title: string;
