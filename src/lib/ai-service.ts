@@ -1,3 +1,5 @@
+import { logger } from './logger';
+
 // AI Service for task suggestions using OpenRouter API
 // DO NOT include API keys directly in this file - they should be loaded from environment variables
 
@@ -22,7 +24,7 @@ export interface ProjectDetails {
 
 // Mock function for development until API key is properly set up
 export async function getTaskSuggestions(projectDetails: ProjectDetails): Promise<TaskSuggestion[]> {
-  console.log('Getting AI task suggestions for:', projectDetails);
+  logger.debug('Getting AI task suggestions for:', { data: projectDetails });
   
   // In a production app, this would call the actual OpenRouter API
   // For now, return mock suggestions based on project type
@@ -158,11 +160,11 @@ export async function getTaskSuggestionsFromAI(projectDetails: ProjectDetails): 
       const content = data.choices[0].message.content;
       return JSON.parse(content);
     } catch (parseError) {
-      console.error('Failed to parse suggestions:', parseError);
+      logger.error('Failed to parse suggestions:', parseError);
       return getTaskSuggestions(projectDetails); // Fallback to mock suggestions
     }
   } catch (error) {
-    console.error('Error calling AI API:', error);
+    logger.error('Error calling AI API:', error);
     return getTaskSuggestions(projectDetails); // Fallback to mock suggestions
   }
   */

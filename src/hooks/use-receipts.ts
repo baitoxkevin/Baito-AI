@@ -3,6 +3,7 @@ import { fetchUserReceipts, fetchProjectReceipts, addReceipt, updateReceipt, del
 import type { Receipt } from '@/lib/receipt-service';
 import { useToast } from './use-toast';
 
+import { logger } from '../lib/logger';
 export function useReceipts(projectId?: string) {
   const [receipts, setReceipts] = useState<Receipt[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -45,7 +46,7 @@ export function useReceipts(projectId?: string) {
       const statsData = await getReceiptStatistics();
       setStats(statsData);
     } catch (err) {
-      console.error('Failed to load receipt statistics:', err);
+      logger.error('Failed to load receipt statistics:', err);
       // Don't show toast for stats loading failures
     }
   }, []);

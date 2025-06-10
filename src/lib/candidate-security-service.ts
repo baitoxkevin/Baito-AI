@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 
+import { logger } from './logger';
 interface RateLimitResult {
   allowed: boolean;
   remainingAttempts: number;
@@ -40,7 +41,7 @@ export async function checkRateLimit(
 ): Promise<RateLimitResult> {
   const config = RATE_LIMITS[action];
   if (!config) {
-    console.error(`Invalid rate limit action: ${action}`);
+    logger.error(`Invalid rate limit action: ${action}`);
     return { allowed: true, remainingAttempts: 0 };
   }
   
@@ -105,7 +106,7 @@ export async function checkRateLimit(
       remainingAttempts: config.maxAttempts - attemptCount - 1
     };
   } catch (error) {
-    console.error('Error checking rate limit:', error);
+    logger.error('Error checking rate limit:', error);
     // Fail open but log the error
     return {
       allowed: true,
@@ -278,7 +279,7 @@ export async function logSecurityEvent(
         timestamp: new Date().toISOString()
       });
   } catch (error) {
-    console.error('Error logging security event:', error);
+    logger.error('Error logging security event:', error);
   }
 }
 
@@ -418,7 +419,7 @@ export async function validateCSRFToken(token: string, sessionId: string): Promi
     
     return true;
   } catch (error) {
-    console.error('Error validating CSRF token:', error);
+    logger.error('Error validating CSRF token:', error);
     return false;
   }
 }

@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
+import { logger } from '../lib/logger';
 import { 
   Loader2, PlusIcon, Edit2, Trash2, Building, Image, AlertCircle,
   User as UserIcon, Briefcase, Mail, Phone, Search, ShieldAlert,
@@ -125,7 +126,7 @@ export default function SettingsPage() {
         });
 
       } catch (err) {
-        console.error('Auth check error:', err);
+        logger.error('Auth check error:', err);
         setAuthStatus(prev => ({ 
           ...prev, 
           loading: false, 
@@ -157,7 +158,7 @@ export default function SettingsPage() {
       if (error) throw error;
       setCompanies(data || []);
     } catch (error) {
-      console.error('Error fetching companies:', error);
+      logger.error('Error fetching companies:', error);
       toast({
         title: 'Error',
         description: 'Failed to fetch companies',
@@ -179,7 +180,7 @@ export default function SettingsPage() {
       if (error) throw error;
       setCandidates(data || []);
     } catch (error) {
-      console.error('Error fetching candidates:', error);
+      logger.error('Error fetching candidates:', error);
       toast({
         title: 'Error',
         description: 'Failed to fetch candidates',
@@ -201,7 +202,7 @@ export default function SettingsPage() {
       if (error) throw error;
       setUsers(data || []);
     } catch (error) {
-      console.error('Error fetching users:', error);
+      logger.error('Error fetching users:', error);
       toast({
         title: 'Error',
         description: 'Failed to fetch users',
@@ -234,7 +235,7 @@ export default function SettingsPage() {
       
       fetchCompanies();
     } catch (error) {
-      console.error('Error deleting company:', error);
+      logger.error('Error deleting company:', error);
       toast({
         title: 'Error',
         description: 'Failed to delete company',
@@ -259,7 +260,7 @@ export default function SettingsPage() {
       
       fetchCandidates();
     } catch (error) {
-      console.error('Error deleting candidate:', error);
+      logger.error('Error deleting candidate:', error);
       toast({
         title: 'Error',
         description: 'Failed to delete candidate',
@@ -284,7 +285,7 @@ export default function SettingsPage() {
       
       fetchUsers();
     } catch (error) {
-      console.error('Error deleting user:', error);
+      logger.error('Error deleting user:', error);
       toast({
         title: 'Error',
         description: 'Failed to delete user',
@@ -314,7 +315,7 @@ export default function SettingsPage() {
         });
         
       if (tokenError) {
-        console.error("Error creating password token:", tokenError);
+        logger.error("Error creating password token:", tokenError);
         // Check if it's a table not found error
         if (tokenError.message?.includes('relation') && tokenError.message?.includes('does not exist')) {
           throw new Error("Password reset tokens table not found. Please run the migration script in Supabase SQL Editor.");
@@ -339,7 +340,7 @@ export default function SettingsPage() {
         setCopiedUserId(null);
       }, 3000);
     } catch (error) {
-      console.error('Error generating password link:', error);
+      logger.error('Error generating password link:', error);
       toast({
         title: 'Error',
         description: 'Failed to generate password setup link',

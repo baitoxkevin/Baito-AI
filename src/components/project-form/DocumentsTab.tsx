@@ -10,6 +10,7 @@ import { format } from "date-fns";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
 
+import { logger } from '../../lib/logger';
 interface Document {
   id: string;
   name: string;
@@ -155,7 +156,7 @@ const DocumentsTab = ({ documents, setDocuments, projectId }: DocumentsTabProps)
             });
             
           if (dbError) {
-            console.error('Database insert error:', dbError);
+            logger.error('Database insert error:', dbError);
             throw dbError;
           }
         }
@@ -191,7 +192,7 @@ const DocumentsTab = ({ documents, setDocuments, projectId }: DocumentsTabProps)
             .upload(filePath, selectedFile);
             
           if (uploadError) {
-            console.error('Storage upload error:', uploadError);
+            logger.error('Storage upload error:', uploadError);
             throw uploadError;
           }
           
@@ -234,7 +235,7 @@ const DocumentsTab = ({ documents, setDocuments, projectId }: DocumentsTabProps)
             });
             
           if (dbError) {
-            console.error('Database insert error:', dbError);
+            logger.error('Database insert error:', dbError);
             throw dbError;
           }
         }
@@ -269,7 +270,7 @@ const DocumentsTab = ({ documents, setDocuments, projectId }: DocumentsTabProps)
         });
       }
     } catch (error) {
-      console.error('Error uploading document:', error);
+      logger.error('Error uploading document:', error);
       toast({
         title: "Upload failed",
         description: "Failed to upload document. Please try again.",
@@ -304,7 +305,7 @@ const DocumentsTab = ({ documents, setDocuments, projectId }: DocumentsTabProps)
             .from(BUCKET_NAME)
             .remove([documentToRemove.url]);
             
-          if (storageError) console.error('Storage deletion error:', storageError);
+          if (storageError) logger.error('Storage deletion error:', storageError);
         }
         
         // Update database if projectId is provided
@@ -331,7 +332,7 @@ const DocumentsTab = ({ documents, setDocuments, projectId }: DocumentsTabProps)
         variant: "default"
       });
     } catch (error) {
-      console.error('Error removing document:', error);
+      logger.error('Error removing document:', error);
       toast({
         title: "Removal failed",
         description: "Failed to remove document. Please try again.",

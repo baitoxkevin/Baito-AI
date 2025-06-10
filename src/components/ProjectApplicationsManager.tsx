@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { useToast } from '@/hooks/use-toast';
+import { logger } from '../lib/logger';
 import { 
   CheckCircle, 
   XCircle, 
@@ -57,7 +58,7 @@ export function ProjectApplicationsManager({
 
       setApplications(sortedApplications);
     } catch (error) {
-      console.error('Error loading applications:', error);
+      logger.error('Error loading applications:', error);
       toast({
         title: "Error",
         description: "Failed to load applications",
@@ -81,7 +82,7 @@ export function ProjectApplicationsManager({
 
       loadApplications(); // Refresh the list
     } catch (error) {
-      console.error('Error updating application:', error);
+      logger.error('Error updating application:', error);
       toast({
         title: "Error",
         description: `Failed to ${status} application`,

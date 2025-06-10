@@ -2,6 +2,7 @@ import { supabase } from './supabase';
 import { getAvatarUrl } from './avatar-service';
 import type { UserProfile } from './types';
 
+import { logger } from './logger';
 // Connection health check
 let isConnectionHealthy = true;
 let lastHealthCheck = 0;
@@ -55,7 +56,7 @@ export async function signIn(email: string, password: string) {
     ]) as Awaited<ReturnType<typeof supabase.auth.signInWithPassword>>;
 
     if (error) {
-      console.error('Auth error details:', error);
+      logger.error('Auth error details:', error);
       
       if (error.message?.includes('Email not confirmed')) {
         throw new Error('Please verify your email before signing in');
@@ -73,7 +74,7 @@ export async function signIn(email: string, password: string) {
     if (data.user) {
       // Fire and forget profile check/creation
       checkOrCreateProfile(data.user.id, email).catch(err => {
-        console.error('Profile creation error (non-blocking):', err);
+        logger.error('Profile creation error (non-blocking):', err);
       });
     }
 
@@ -115,7 +116,7 @@ async function checkOrCreateProfile(userId: string, email: string) {
         }]);
     }
   } catch (error) {
-    console.error('Error in profile check/creation:', error);
+    logger.error('Error in profile check/creation:', error);
   }
 }
 
@@ -189,7 +190,7 @@ export async function signUp(email: string, password: string, fullName?: string)
       ]);
 
     if (profileError) {
-      console.error('Error creating user profile:', profileError);
+      logger.error('Error creating user profile:', profileError);
       throw profileError;
     }
   }
@@ -216,7 +217,7 @@ export async function getSession() {
       // Handle auth session missing error gracefully
       if (error.message?.includes('Auth session missing') ||
           error.name === 'AuthSessionMissingError') {
-        console.log('No active session found - returning null session');
+        logger.debug('No active session found - returning null session');
         return null;
       }
       throw error;
@@ -224,7 +225,7 @@ export async function getSession() {
     return session;
   } catch (error) {
     // Additional error handling for any unexpected errors
-    console.error('Error in getSession:', error);
+    logger.error('Error in getSession:', error);
     if (String(error).includes('Auth session missing')) {
       return null;
     }
@@ -243,7 +244,7 @@ export async function getUser() {
       // Handle auth session missing error gracefully
       if (error.message?.includes('Auth session missing') ||
           error.name === 'AuthSessionMissingError') {
-        console.log('No active session found - returning null user');
+        logger.debug('No active session found - returning null user');
         return null;
       }
       throw error;
@@ -251,7 +252,7 @@ export async function getUser() {
     return user;
   } catch (error) {
     // Additional error handling for any unexpected errors
-    console.error('Error in getUser:', error);
+    logger.error('Error in getUser:', error);
     if (String(error).includes('Auth session missing')) {
       return null;
     }
@@ -329,7 +330,7 @@ export async function getUserProfile(userId?: string): Promise<UserProfile> {
     if (error || !data) {
       // If profile doesn't exist but we have an auth user, create a basic profile
       if (error?.code === 'PGRST116' && currentUser) {
-        console.log('User profile not found, creating basic profile...');
+        logger.debug('User profile not found, { data: creating basic profile...' });
         
         // Get current user data if we don't have it
         if (!currentUser && currentUserId) {
@@ -357,7 +358,7 @@ export async function getUserProfile(userId?: string): Promise<UserProfile> {
             .single();
             
           if (insertError) {
-            console.error('Failed to create user profile:', insertError);
+            logger.error('Failed to create user profile:', insertError);
             throw new Error('User profile not found and could not be created');
           }
           
@@ -376,7 +377,7 @@ export async function getUserProfile(userId?: string): Promise<UserProfile> {
     
     return profile;
   } catch (error) {
-    console.error('Error getting user profile:', error);
+    logger.error('Error getting user profile:', error);
     throw error;
   }
 }
@@ -411,7 +412,7 @@ export async function updateUserProfile(
     
     return data as UserProfile;
   } catch (error) {
-    console.error('Error updating user profile:', error);
+    logger.error('Error updating user profile:', error);
     throw error;
   }
 }

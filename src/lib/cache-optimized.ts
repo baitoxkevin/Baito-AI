@@ -1,5 +1,6 @@
 import { useRef, useCallback, useState, useEffect } from 'react';
 
+import { logger } from './logger';
 interface CacheOptions {
   expireAfter?: number;   // Time in ms after which cache is considered completely expired
   staleAfter?: number;    // Time in ms after which cache is considered stale but usable
@@ -153,7 +154,7 @@ export function useCache<T, P extends any[]>(
         if (cachedEntry) {
           delete cachedEntry.fetchingPromise;
         }
-        console.error(`Error fetching ${namespace} data:`, error);
+        logger.error(`Error fetching ${namespace} data:`, error);
         throw error;
       } finally {
         setIsLoading(false);
@@ -179,7 +180,7 @@ export function useCache<T, P extends any[]>(
             return data;
           })
           .catch(error => {
-            console.error(`Error refreshing stale ${namespace} data:`, error);
+            logger.error(`Error refreshing stale ${namespace} data:`, error);
             // Keep using the stale data on refresh failure
             return cachedEntry.data;
           })
@@ -237,7 +238,7 @@ export function useCache<T, P extends any[]>(
         return data;
       })
       .catch(error => {
-        console.error(`Error prefetching ${namespace} data:`, error);
+        logger.error(`Error prefetching ${namespace} data:`, error);
         throw error;
       })
       .finally(() => {
@@ -393,14 +394,14 @@ export async function preloadAppData() {
                   });
                 });
               } catch (err) {
-                console.error('Error during background preloading:', err);
+                logger.error('Error during background preloading:', err);
               }
             }, 2000); // Wait 2 seconds before trying to load adjacent months
           }
           
           return { namespace: task.namespace, success: true };
         } catch (error) {
-          console.error(`Failed to preload ${task.namespace} data:`, error);
+          logger.error(`Failed to preload ${task.namespace} data:`, error);
           return { namespace: task.namespace, success: false, error };
         }
       })
@@ -411,12 +412,12 @@ export async function preloadAppData() {
       const { setActiveView } = await import('./view-cache');
       setActiveView('dashboard');
     } catch (error) {
-      console.error('Error initializing view cache:', error);
+      logger.error('Error initializing view cache:', error);
     }
     
     return results;
   } catch (error) {
-    console.error('Error in preloadAppData:', error);
+    logger.error('Error in preloadAppData:', error);
     return [];
   }
 }

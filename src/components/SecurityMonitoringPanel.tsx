@@ -9,6 +9,7 @@ import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { format } from 'date-fns';
+import { logger } from '../lib/logger';
 import { 
   Shield, AlertTriangle, Clock, Ban, Activity, 
   CheckCircle, XCircle, Info, RefreshCw, Search,
@@ -117,7 +118,7 @@ export function SecurityMonitoringPanel() {
       
       setStats(stats);
     } catch (error) {
-      console.error('Error loading security data:', error);
+      logger.error('Error loading security data:', error);
       toast({
         title: 'Error',
         description: 'Failed to load security data',

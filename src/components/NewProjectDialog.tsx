@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
+import { logger } from '../lib/logger';
 import { 
   CalendarIcon, 
   Loader2, 
@@ -296,7 +297,7 @@ export function NewProjectDialog({
 
       setManagers(managersResult.data || []);
     } catch (error) {
-      console.error('Error fetching data:', error);
+      logger.error('Error fetching data:', error);
       toast({
         title: "Error",
         description: "Failed to load customers and managers",
@@ -390,7 +391,7 @@ export function NewProjectDialog({
           userName
         );
       } catch (notifError) {
-        console.error('Failed to send notification:', notifError);
+        logger.error('Failed to send notification:', notifError);
         // Don't fail the creation if notification fails
       }
 
@@ -407,7 +408,7 @@ export function NewProjectDialog({
       setCurrentStep('project-info');
       setVisitedSteps(new Set(['project-info']));
     } catch (error) {
-      console.error('Error creating project:', error);
+      logger.error('Error creating project:', error);
       toast({
         title: "Error",
         description: (error as Error)?.message || "Failed to create project. Please check all required fields.",

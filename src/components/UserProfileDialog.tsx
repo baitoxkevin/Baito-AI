@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { logger } from '../lib/logger';
 import { 
   Dialog, 
   DialogContent, 
@@ -72,7 +73,7 @@ export default function UserProfileDialog({ open, onOpenChange }: UserProfileDia
       try {
         localStorage.setItem('avatar_updated_at', Date.now().toString());
       } catch (e) {
-        console.warn('Could not update avatar timestamp:', e);
+        logger.warn('Could not update avatar timestamp:', e);
       }
       return;
     }
@@ -229,7 +230,7 @@ export default function UserProfileDialog({ open, onOpenChange }: UserProfileDia
             variant: 'default',
           });
         } catch (e) {
-          console.error('Failed to store avatar in localStorage:', e);
+          logger.error('Failed to store avatar in localStorage:', e);
           toast({
             title: 'Storage Error', 
             description: 'Failed to save profile picture. Local storage may be full.',
@@ -244,7 +245,7 @@ export default function UserProfileDialog({ open, onOpenChange }: UserProfileDia
       
       reader.readAsDataURL(file);
     } catch (error) {
-      console.error('Failed to upload avatar:', error);
+      logger.error('Failed to upload avatar:', error);
       toast({
         title: 'Upload Failed',
         description: error instanceof Error ? error.message : 'Failed to process profile picture',
@@ -271,7 +272,7 @@ export default function UserProfileDialog({ open, onOpenChange }: UserProfileDia
         localStorage.removeItem(`user_avatar_${userProfile.id}`);
         localStorage.removeItem(`avatar_seed_${userProfile.id}`);
       } catch (e) {
-        console.warn('Could not update avatar in localStorage:', e);
+        logger.warn('Could not update avatar in localStorage:', e);
       }
       
       // Reset form data avatar URL
@@ -288,7 +289,7 @@ export default function UserProfileDialog({ open, onOpenChange }: UserProfileDia
         description: 'Your profile picture has been removed',
       });
     } catch (error) {
-      console.error('Failed to remove avatar:', error);
+      logger.error('Failed to remove avatar:', error);
       toast({
         title: 'Error',
         description: 'Failed to remove profile picture',
@@ -308,7 +309,7 @@ export default function UserProfileDialog({ open, onOpenChange }: UserProfileDia
         const event = new CustomEvent('avatarUpdated', { detail: { userId: userProfile?.id } });
         window.dispatchEvent(event);
       } catch (e) {
-        console.warn('Could not dispatch avatar update event:', e);
+        logger.warn('Could not dispatch avatar update event:', e);
       }
     }
     

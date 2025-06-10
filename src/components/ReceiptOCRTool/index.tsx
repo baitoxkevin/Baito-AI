@@ -9,6 +9,7 @@ import { Receipt, Upload, Loader2, CheckCircle, XCircle, Camera, Scan } from 'lu
 import { Progress } from "@/components/ui/progress";
 import { analyzeReceiptImage, validateImage, mapReceiptDataToFormFields, ReceiptData as OCRReceiptData } from '@/lib/receipt-ocr-service';
 
+import { logger } from '../../lib/logger';
 export interface ReceiptData {
   id?: string;
   amount: number;
@@ -94,7 +95,7 @@ export default function ReceiptOCRTool({ onReceiptScanned, userId }: ReceiptOCRT
 
       return urlData.publicUrl;
     } catch (error) {
-      console.error('Error uploading receipt:', error);
+      logger.error('Error uploading receipt:', error);
       throw error;
     }
   }
@@ -120,7 +121,7 @@ export default function ReceiptOCRTool({ onReceiptScanned, userId }: ReceiptOCRT
         user_id: userId
       };
     } catch (error) {
-      console.error("Error in OCR processing:", error);
+      logger.error("Error in OCR processing:", error);
       
       // Fallback to simulated data if OCR fails
       return {

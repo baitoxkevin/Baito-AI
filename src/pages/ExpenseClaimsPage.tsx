@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { logger } from '../lib/logger';
 import { 
   Card, CardContent, CardDescription, CardHeader, CardTitle 
 } from '@/components/ui/card';
@@ -54,7 +55,7 @@ export default function ExpenseClaimsPage() {
         // Check if user is admin - in a real app this would be based on auth state
         setIsAdmin(true);
       } catch (error) {
-        console.error('Failed to fetch data:', error);
+        logger.error('Failed to fetch data:', error);
         toast({
           title: 'Error',
           description: 'Failed to load page data',
@@ -86,7 +87,7 @@ export default function ExpenseClaimsPage() {
       // Refresh the claims list
       fetchClaims();
     } catch (error) {
-      console.error('Failed to create expense claim:', error);
+      logger.error('Failed to create expense claim:', error);
       toast({
         title: 'Error',
         description: 'Failed to create expense claim',

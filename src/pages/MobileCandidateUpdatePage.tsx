@@ -6,6 +6,7 @@ import { Label } from '../components/ui/label';
 import { Input } from '../components/ui/input';
 import { Button } from '../components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '../components/ui/alert';
+import { logger } from '../lib/logger';
 import {
   Dialog,
   DialogContent,
@@ -242,23 +243,23 @@ export default function MobileCandidateUpdatePage() {
   
   // Debug: Monitor formData changes
   useEffect(() => {
-    console.log('FormData updated:', {
+    logger.debug('FormData updated:', { data: {
       race: formData.race,
       shirt_size: formData.shirt_size,
       emergency_contact_relationship: formData.emergency_contact_relationship,
       highest_education: formData.highest_education
-    });
+    } });
   }, [formData.race, formData.shirt_size, formData.emergency_contact_relationship, formData.highest_education]);
   
   // Debug: Log when component renders
   useEffect(() => {
-    console.log('Component rendered. isAuthenticated:', isAuthenticated, 'formData.race:', formData.race);
+    logger.debug('Component rendered. isAuthenticated:', { data: isAuthenticated, 'formData.race:', formData.race });
   });
   
   // Workaround for Radix UI Select not updating properly
   useEffect(() => {
     if (isAuthenticated && formData.race) {
-      console.log('Race value exists, forcing update');
+      logger.debug('Race value exists, { data: forcing update' });
       // Force the Select components to recognize the new value
       const timer = setTimeout(() => {
         setFormData(prev => ({ ...prev }));
@@ -287,7 +288,7 @@ export default function MobileCandidateUpdatePage() {
         });
       
       if (error) {
-        console.error('Token validation error:', error);
+        logger.error('Token validation error:', error);
         setError('This link has expired or is invalid. Please request a new update link from the Baito team.');
         setLoading(false);
         return;
@@ -312,7 +313,7 @@ export default function MobileCandidateUpdatePage() {
       });
       setLoading(false);
     } catch (error) {
-      console.error('Error validating token:', error);
+      logger.error('Error validating token:', error);
       setError('Failed to validate access. Please contact the Baito team for assistance.');
       setLoading(false);
     }
@@ -338,14 +339,14 @@ export default function MobileCandidateUpdatePage() {
       setIsEditMode(true);
       
       // Debug: Log the actual values from database
-      console.log('Candidate data from DB:', {
+      logger.debug('Candidate data from DB:', { data: {
         race: candidateData.race,
         shirt_size: candidateData.shirt_size,
         emergency_contact_relationship: candidateData.emergency_contact_relationship,
         highest_education: candidateData.highest_education,
         languages_spoken: candidateData.languages_spoken,
         field_of_study: candidateData.field_of_study
-      });
+      } });
       const normalizedData = {
         race: normalizeDropdownValue(candidateData.race, 'race'),
         emergency_contact_relationship: normalizeDropdownValue(candidateData.emergency_contact_relationship, 'relationship'),
@@ -353,7 +354,7 @@ export default function MobileCandidateUpdatePage() {
         shirt_size: candidateData.shirt_size || ''
       };
       
-      console.log('Normalized values:', normalizedData);
+      logger.debug('Normalized values:', { data: normalizedData });
       
       const newFormData = {
         full_name: candidateData.full_name || '',
@@ -387,11 +388,11 @@ export default function MobileCandidateUpdatePage() {
         pdpa_consent: candidateData.custom_fields?.pdpa_consent || false
       };
       
-      console.log('Setting form data in fetchCandidateData:', {
+      logger.debug('Setting form data in fetchCandidateData:', { data: {
         race: newFormData.race,
         shirt_size: newFormData.shirt_size,
         emergency_contact_relationship: newFormData.emergency_contact_relationship
-      });
+      } });
       
       setFormData(newFormData);
       
@@ -399,7 +400,7 @@ export default function MobileCandidateUpdatePage() {
         setPhotoPreview(candidateData.profile_photo);
       }
     } catch (error) {
-      console.error('Error fetching candidate:', error);
+      logger.error('Error fetching candidate:', error);
       setError('Failed to load candidate data');
       setLoading(false);
     }
@@ -427,7 +428,7 @@ export default function MobileCandidateUpdatePage() {
         });
       
       if (error) {
-        console.error('IC verification error:', error);
+        logger.error('IC verification error:', error);
         setAuthError('IC verification failed. Please check your IC number.');
         setVerifying(false);
         return;
@@ -448,7 +449,7 @@ export default function MobileCandidateUpdatePage() {
       
       // IC verified successfully - load full candidate data
       const candidateData = validationResult.candidate_data;
-      console.log('Candidate data from validation:', candidateData);
+      logger.debug('Candidate data from validation:', { data: candidateData });
       setCandidate(candidateData);
       setIsAuthenticated(true);
       
@@ -460,16 +461,16 @@ export default function MobileCandidateUpdatePage() {
         .single();
         
       if (fetchError || !fullCandidateData) {
-        console.error('Error fetching full candidate data:', fetchError);
+        logger.error('Error fetching full candidate data:', fetchError);
         setAuthError('Failed to load candidate data');
         return;
       }
       
-      console.log('Full candidate data from DB:', fullCandidateData);
+      logger.debug('Full candidate data from DB:', { data: fullCandidateData });
       
       // Initialize form with actual candidate data
-      console.log('Setting form data after IC verification with:', {
-        race: normalizeDropdownValue(fullCandidateData.race, 'race'),
+      logger.debug('Setting form data after IC verification with:', { data: {
+        race: normalizeDropdownValue(fullCandidateData.race, 'race' }),
         shirt_size: fullCandidateData.shirt_size,
         emergency_contact_relationship: normalizeDropdownValue(fullCandidateData.emergency_contact_relationship, 'relationship'),
         highest_education: normalizeDropdownValue(fullCandidateData.highest_education, 'education')
@@ -507,11 +508,11 @@ export default function MobileCandidateUpdatePage() {
         pdpa_consent: fullCandidateData.custom_fields?.pdpa_consent || false
       };
       
-      console.log('Setting form data with normalized values:', {
+      logger.debug('Setting form data with normalized values:', { data: {
         race: newFormData.race,
         shirt_size: newFormData.shirt_size,
         emergency_contact_relationship: newFormData.emergency_contact_relationship
-      });
+      } });
       
       setFormData(newFormData);
       
@@ -522,7 +523,7 @@ export default function MobileCandidateUpdatePage() {
       setIsEditMode(true);
       setLoading(false);
     } catch (error) {
-      console.error('Error verifying IC:', error);
+      logger.error('Error verifying IC:', error);
       setAuthError('Verification failed. Please try again.');
     }
   };
@@ -829,20 +830,20 @@ export default function MobileCandidateUpdatePage() {
   };
 
   const handleSaveChanges = async () => {
-    console.log('Save button clicked');
-    console.log('Current form data:', {
+    logger.debug('Save button clicked');
+    logger.debug('Current form data:', { data: {
       race: formData.race,
       shirt_size: formData.shirt_size,
       emergency_contact_relationship: formData.emergency_contact_relationship,
       highest_education: formData.highest_education
-    });
+    } });
     
     if (!validateForm()) {
-      console.log('Validation failed');
+      logger.debug('Validation failed');
       return;
     }
     
-    console.log('Validation passed, showing confirmation dialog');
+    logger.debug('Validation passed, { data: showing confirmation dialog' });
     // Show confirmation dialog
     setShowConfirmDialog(true);
   };
@@ -928,12 +929,12 @@ export default function MobileCandidateUpdatePage() {
         : [];
       
       // Debug: Log what we're saving
-      console.log('Saving to database:', {
+      logger.debug('Saving to database:', { data: {
         race: formData.race,
         shirt_size: formData.shirt_size,
         emergency_contact_relationship: formData.emergency_contact_relationship,
         highest_education: formData.highest_education,
-        languages_spoken: languagesArray.join(',')
+        languages_spoken: languagesArray.join(',' })
       });
       
       // Prepare update data
@@ -978,7 +979,7 @@ export default function MobileCandidateUpdatePage() {
       };
       
       // Log the full update data
-      console.log('Full update data being sent to Supabase:', updateData);
+      logger.debug('Full update data being sent to Supabase:', { data: updateData });
       
       // Update candidate
       const { error: updateError } = await supabase
@@ -987,11 +988,11 @@ export default function MobileCandidateUpdatePage() {
         .eq('id', candidateId);
         
       if (updateError) {
-        console.error('Update error:', updateError);
+        logger.error('Update error:', updateError);
         throw updateError;
       }
       
-      console.log('Update successful');
+      logger.debug('Update successful');
       
       // Log activity
       await supabase
@@ -1022,7 +1023,7 @@ export default function MobileCandidateUpdatePage() {
       }, 3000);
       
     } catch (error: unknown) {
-      console.error('Error saving candidate:', error);
+      logger.error('Error saving candidate:', error);
       toast({
         title: 'Error',
         description: error.message || 'Failed to update profile. Please try again.',
@@ -1772,7 +1773,7 @@ export default function MobileCandidateUpdatePage() {
                             <Select
                               value={formData.race || undefined}
                               onValueChange={(value) => {
-                                console.log('Race changed to:', value);
+                                logger.debug('Race changed to:', { data: value });
                                 setFormData({...formData, race: value});
                               }}
                             >
@@ -1793,7 +1794,7 @@ export default function MobileCandidateUpdatePage() {
                             <Select
                               value={formData.shirt_size || undefined}
                               onValueChange={(value) => {
-                                console.log('Shirt size changed to:', value);
+                                logger.debug('Shirt size changed to:', { data: value });
                                 setFormData({...formData, shirt_size: value});
                               }}
                             >
@@ -2470,7 +2471,7 @@ Days Committed: [Number]`}
                                   <Select
                                     value={formData.emergency_contact_relationship || undefined}
                                     onValueChange={(value) => {
-                                      console.log('Emergency relationship changed to:', value);
+                                      logger.debug('Emergency relationship changed to:', { data: value });
                                       setFormData({...formData, emergency_contact_relationship: value});
                                     }}
                                   >

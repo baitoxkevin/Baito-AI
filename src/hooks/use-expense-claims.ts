@@ -3,6 +3,7 @@ import { useToast } from './use-toast';
 import * as ExpenseClaimService from '@/lib/expense-claim-service';
 import { ExpenseClaim, Receipt } from '@/lib/expense-claim-service';
 
+import { logger } from '../lib/logger';
 interface UseExpenseClaimsOptions {
   filterByStatus?: ExpenseClaim['status'];
   projectId?: string;
@@ -137,7 +138,7 @@ export function useExpenseClaims(options: UseExpenseClaimsOptions = {}) {
       
       // Handle case when claim is null (table doesn't exist)
       if (claim === null) {
-        // console.warn('Using local data for expense claim');
+        // logger.warn('Using local data for expense claim');
         setCurrentClaim(null);
         setCurrentClaimReceipts([]);
         return { claim: null, receipts: [] };

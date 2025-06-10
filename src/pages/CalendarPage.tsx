@@ -4,6 +4,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { logger } from '../lib/logger';
 import {
   Tabs,
   TabsContent,
@@ -82,7 +83,7 @@ export default function CalendarPage() {
   // Determine initial view from URL path or default to 'list'
   const getInitialView = () => {
     const path = location.pathname;
-    // console.log('CalendarPage - Current path:', path);
+    // logger.debug('CalendarPage - Current path:', { data: path });
     if (path === '/calendar/list') return 'list';
     if (path === '/calendar/view') return 'calendar';
     // Also check for case without leading slash
@@ -109,7 +110,7 @@ export default function CalendarPage() {
   const loadProjects = useCallback(async (showLoadingState = true) => {
     // Prevent concurrent loads and return if already loading
     if (loadingRef.current) {
-      // console.log("Already loading, skipping");
+      // logger.debug("Already loading, { data: skipping" });
       return;
     }
     
@@ -125,11 +126,11 @@ export default function CalendarPage() {
       const currentMonth = date.getMonth();
       const currentYear = date.getFullYear();
       
-      // console.log(`Loading projects for ${currentMonth}/${currentYear}`);
+      // logger.debug(`Loading projects for ${currentMonth}/${currentYear}`);
       
       // Load current month data
       const currentMonthData = await getProjectsByMonth(currentMonth, currentYear);
-      // console.log(`Loaded ${currentMonthData.length} projects for current month`);
+      // logger.debug(`Loaded ${currentMonthData.length} projects for current month`);
       
       // Update projects state ONLY if we got data and component is still mounted
       if (mountedRef.current) {
@@ -142,11 +143,11 @@ export default function CalendarPage() {
         if (view === 'list') {
           if (extendedProjects.length === 0) {
             // First load - just set the data directly
-            // console.log(`Initial list view load with ${currentMonthData.length} projects`);
+            // logger.debug(`Initial list view load with ${currentMonthData.length} projects`);
             setExtendedProjects(currentMonthData);
           } else {
             // Subsequent loads - merge with existing data
-            // console.log(`Merging ${currentMonthData.length} projects with ${extendedProjects.length} existing projects`);
+            // logger.debug(`Merging ${currentMonthData.length} projects with ${extendedProjects.length} existing projects`);
             setExtendedProjects(prev => {
               // Create a map of existing projects by ID
               const existingMap = new Map(prev.map(p => [p.id, p]));
@@ -165,7 +166,7 @@ export default function CalendarPage() {
       
       return true;
     } catch (error) {
-      console.error('Error loading projects:', error);
+      logger.error('Error loading projects:', error);
       if (mountedRef.current) {
         toast({
           title: 'Error loading projects',
@@ -213,13 +214,13 @@ export default function CalendarPage() {
   }, [location.pathname, navigate, view]);
   
   useEffect(() => {
-    // console.log("CalendarPage mounted");
+    // logger.debug("CalendarPage mounted");
     mountedRef.current = true;
     
     // Initial load on mount - make it aggressive like the refresh button
     if (!initialLoadRef.current) {
       initialLoadRef.current = true;
-      // console.log("Initial projects load - forcing aggressive load with expanded date range");
+      // logger.debug("Initial projects load - forcing aggressive load with expanded date range");
       
       // Force today's date to ensure we're showing the current month
       const today = new Date();
@@ -271,8 +272,8 @@ export default function CalendarPage() {
               });
             }
             
-            // console.log(`Loaded ${allProjects.length} projects from ${results.length} months`);
-            // console.log(`Earliest month with projects: ${earliestMonthWithProjects}, Latest: ${latestMonthWithProjects}`);
+            // logger.debug(`Loaded ${allProjects.length} projects from ${results.length} months`);
+            // logger.debug(`Earliest month with projects: ${earliestMonthWithProjects}, Latest: ${latestMonthWithProjects}`);
             
             // Update projects with current month only (for calendar view)
             setProjects(results[0] || []);
@@ -282,7 +283,7 @@ export default function CalendarPage() {
             
             // IMPORTANT: Check if current month has no projects but other months do have projects
             if (results[0].length === 0 && allProjects.length > 0) {
-              // console.log("Current month has no projects, but other months do - adjusting view");
+              // logger.debug("Current month has no projects, { data: but other months do - adjusting view" });
               
               // Determine which month to target (prefer most recent past month with projects)
               const targetMonthOffset = earliestMonthWithProjects !== null ? earliestMonthWithProjects : 0;
@@ -297,13 +298,13 @@ export default function CalendarPage() {
                   timestamp: Date.now()
                 })
               );
-              // console.log(`Set auto-scroll target to month offset: ${targetMonthOffset}`);
+              // logger.debug(`Set auto-scroll target to month offset: ${targetMonthOffset}`);
             }
             
             // Finish loading
             setIsLoading(false);
           }).catch(error => {
-            console.error("Error in initial multi-month load:", error);
+            logger.error("Error in initial multi-month load:", error);
             setIsLoading(false);
             loadProjects(true); // Fallback to regular loading
           });
@@ -333,7 +334,7 @@ export default function CalendarPage() {
       
       // Only reload if month or year actually changed
       if (prevMonth !== currentMonth || prevYear !== currentYear) {
-        // console.log(`Date changed from ${format(previousDateRef.current, 'MMM yyyy')} to ${format(date, 'MMM yyyy')}`);
+        // logger.debug(`Date changed from ${format(previousDateRef.current, 'MMM yyyy')} to ${format(date, 'MMM yyyy')}`);
         loadProjects(true);
       }
     }
@@ -348,7 +349,7 @@ export default function CalendarPage() {
   useEffect(() => {
     // Initialize or update extendedProjects whenever projects change
     // Note: We still update even if projects is empty to ensure proper initialization
-    // console.log(`Updating extendedProjects with ${projects.length} current projects`);
+    // logger.debug(`Updating extendedProjects with ${projects.length} current projects`);
     
     if (!projectsInitialized.current) {
       // First initialization - always run this regardless of project count
@@ -361,13 +362,13 @@ export default function CalendarPage() {
       // This avoids overriding our optimization from the initial load
       if (view === 'list' && loadedMonthsRange.start === -2 && loadedMonthsRange.end === 2) {
         // Keep the optimized initial range
-        // console.log("Keeping optimized initial month range for list view");
+        // logger.debug("Keeping optimized initial month range for list view");
       } else if (view === 'calendar') {
         // For calendar view, use smaller range
         setLoadedMonthsRange({ start: -3, end: 3 }); // Increased to ±3 months
       }
       
-      // console.log("Initial extendedProjects setup complete");
+      // logger.debug("Initial extendedProjects setup complete");
     } else if (projects.length > 0) {
       // For subsequent updates, only merge when we have actual projects
       // Merge new projects with existing ones to preserve extended data
@@ -388,7 +389,7 @@ export default function CalendarPage() {
 
   // Navigation with enhanced data loading - like refresh with multi-month load
   const handlePrevMonth = useCallback(() => {
-    // console.log("Previous month navigation with enhanced loading");
+    // logger.debug("Previous month navigation with enhanced loading");
     
     // Reset loading flags to force a clean load
     loadingRef.current = false;
@@ -489,8 +490,8 @@ export default function CalendarPage() {
             }
           });
           
-          // console.log(`Prev month: Loaded ${allProjects.length} projects from ${results.length} months`);
-          // console.log(`Earliest month with projects: ${earliestMonthWithProjects}, Latest: ${latestMonthWithProjects}`);
+          // logger.debug(`Prev month: Loaded ${allProjects.length} projects from ${results.length} months`);
+          // logger.debug(`Earliest month with projects: ${earliestMonthWithProjects}, Latest: ${latestMonthWithProjects}`);
           
           // Update projects with current month only (for calendar view)
           setProjects(results[0] || []);
@@ -500,7 +501,7 @@ export default function CalendarPage() {
           
           // IMPORTANT: Check if current month has no projects but other months do have projects
           if (results[0].length === 0 && allProjects.length > 0) {
-            // console.log("Current month has no projects, but other months do - adjusting view");
+            // logger.debug("Current month has no projects, { data: but other months do - adjusting view" });
             
             // Determine which month to target (prefer most recent past month with projects)
             const targetMonthOffset = earliestMonthWithProjects !== null ? earliestMonthWithProjects : 0;
@@ -514,13 +515,13 @@ export default function CalendarPage() {
                 timestamp: Date.now()
               })
             );
-            // console.log(`Set auto-scroll target to month offset: ${targetMonthOffset}`);
+            // logger.debug(`Set auto-scroll target to month offset: ${targetMonthOffset}`);
           }
           
           // Finish loading
           setIsLoading(false);
         }).catch(error => {
-          console.error("Error in prev month multi-month load:", error);
+          logger.error("Error in prev month multi-month load:", error);
           setIsLoading(false);
           loadProjects(true); // Fallback to regular loading
         });
@@ -532,7 +533,7 @@ export default function CalendarPage() {
   }, [date, loadProjects, view, invalidateCache, getProjectsByMonth]);
   
   const handleNextMonth = useCallback(() => {
-    // console.log("Next month navigation with enhanced loading");
+    // logger.debug("Next month navigation with enhanced loading");
     
     // Reset loading flags to force a clean load
     loadingRef.current = false;
@@ -633,8 +634,8 @@ export default function CalendarPage() {
             }
           });
           
-          // console.log(`Next month: Loaded ${allProjects.length} projects from ${results.length} months`);
-          // console.log(`Earliest month with projects: ${earliestMonthWithProjects}, Latest: ${latestMonthWithProjects}`);
+          // logger.debug(`Next month: Loaded ${allProjects.length} projects from ${results.length} months`);
+          // logger.debug(`Earliest month with projects: ${earliestMonthWithProjects}, Latest: ${latestMonthWithProjects}`);
           
           // Update projects with current month only (for calendar view)
           setProjects(results[0] || []);
@@ -644,7 +645,7 @@ export default function CalendarPage() {
           
           // IMPORTANT: Check if current month has no projects but other months do have projects
           if (results[0].length === 0 && allProjects.length > 0) {
-            // console.log("Current month has no projects, but other months do - adjusting view");
+            // logger.debug("Current month has no projects, { data: but other months do - adjusting view" });
             
             // Determine which month to target (prefer most recent past month with projects)
             const targetMonthOffset = earliestMonthWithProjects !== null ? earliestMonthWithProjects : 0;
@@ -658,13 +659,13 @@ export default function CalendarPage() {
                 timestamp: Date.now()
               })
             );
-            // console.log(`Set auto-scroll target to month offset: ${targetMonthOffset}`);
+            // logger.debug(`Set auto-scroll target to month offset: ${targetMonthOffset}`);
           }
           
           // Finish loading
           setIsLoading(false);
         }).catch(error => {
-          console.error("Error in next month multi-month load:", error);
+          logger.error("Error in next month multi-month load:", error);
           setIsLoading(false);
           loadProjects(true); // Fallback to regular loading
         });
@@ -677,7 +678,7 @@ export default function CalendarPage() {
   
   // Today button with enhanced multi-month loading
   const handleTodayClick = useCallback(() => {
-    // console.log("Today button clicked with enhanced loading");
+    // logger.debug("Today button clicked with enhanced loading");
     
     // Reset loading flags to force a clean load
     loadingRef.current = false;
@@ -778,8 +779,8 @@ export default function CalendarPage() {
             }
           });
           
-          // console.log(`Today: Loaded ${allProjects.length} projects from ${results.length} months`);
-          // console.log(`Earliest month with projects: ${earliestMonthWithProjects}, Latest: ${latestMonthWithProjects}`);
+          // logger.debug(`Today: Loaded ${allProjects.length} projects from ${results.length} months`);
+          // logger.debug(`Earliest month with projects: ${earliestMonthWithProjects}, Latest: ${latestMonthWithProjects}`);
           
           // Update projects with current month only (for calendar view)
           setProjects(results[0] || []);
@@ -789,7 +790,7 @@ export default function CalendarPage() {
           
           // IMPORTANT: Check if current month has no projects but other months do have projects
           if (results[0].length === 0 && allProjects.length > 0) {
-            // console.log("Current month has no projects, but other months do - adjusting view");
+            // logger.debug("Current month has no projects, { data: but other months do - adjusting view" });
             
             // Determine which month to target (prefer most recent past month with projects)
             const targetMonthOffset = earliestMonthWithProjects !== null ? earliestMonthWithProjects : 0;
@@ -803,13 +804,13 @@ export default function CalendarPage() {
                 timestamp: Date.now()
               })
             );
-            // console.log(`Set auto-scroll target to month offset: ${targetMonthOffset}`);
+            // logger.debug(`Set auto-scroll target to month offset: ${targetMonthOffset}`);
           }
           
           // Finish loading
           setIsLoading(false);
         }).catch(error => {
-          console.error("Error in today multi-month load:", error);
+          logger.error("Error in today multi-month load:", error);
           setIsLoading(false);
           loadProjects(true); // Fallback to regular loading
         });
@@ -822,7 +823,7 @@ export default function CalendarPage() {
   
   // Manual refresh button - enhanced for more comprehensive data loading
   const handleRefresh = useCallback(() => {
-    // console.log("Manual refresh requested - loading multiple months");
+    // logger.debug("Manual refresh requested - loading multiple months");
     
     // Reset loading flags to force a new load
     loadingRef.current = false;
@@ -912,8 +913,8 @@ export default function CalendarPage() {
             }
           });
           
-          // console.log(`Refresh loaded ${allProjects.length} projects from ${results.length} months`);
-          // console.log(`Earliest month with projects: ${earliestMonthWithProjects}, Latest: ${latestMonthWithProjects}`);
+          // logger.debug(`Refresh loaded ${allProjects.length} projects from ${results.length} months`);
+          // logger.debug(`Earliest month with projects: ${earliestMonthWithProjects}, Latest: ${latestMonthWithProjects}`);
           
           // Update projects with current month only (for calendar view)
           setProjects(results[0] || []);
@@ -923,7 +924,7 @@ export default function CalendarPage() {
           
           // IMPORTANT: Check if current month has no projects but other months do have projects
           if (results[0].length === 0 && allProjects.length > 0) {
-            // console.log("Current month has no projects, but other months do - adjusting view");
+            // logger.debug("Current month has no projects, { data: but other months do - adjusting view" });
             
             // Determine which month to target (prefer most recent past month with projects)
             const targetMonthOffset = earliestMonthWithProjects !== null ? earliestMonthWithProjects : 0;
@@ -937,13 +938,13 @@ export default function CalendarPage() {
                 timestamp: Date.now()
               })
             );
-            // console.log(`Set auto-scroll target to month offset: ${targetMonthOffset}`);
+            // logger.debug(`Set auto-scroll target to month offset: ${targetMonthOffset}`);
           }
           
           // Finish loading
           setIsLoading(false);
         }).catch(error => {
-          console.error("Error in refresh multi-month load:", error);
+          logger.error("Error in refresh multi-month load:", error);
           setIsLoading(false);
           loadProjects(true); // Fallback to regular loading
         });
@@ -961,7 +962,7 @@ export default function CalendarPage() {
 
   // Project updates
   const handleProjectUpdate = useCallback(() => {
-    // console.log("Project updated, refreshing data");
+    // logger.debug("Project updated, { data: refreshing data" });
     
     // Load projects with loading state
     loadProjects(true);
@@ -985,7 +986,7 @@ export default function CalendarPage() {
       
       handleProjectUpdate();
     } catch (error) {
-      console.error('Error deleting project:', error);
+      logger.error('Error deleting project:', error);
       toast({
         title: "Error",
         description: "Failed to delete project. Please try again.",
@@ -1033,7 +1034,7 @@ export default function CalendarPage() {
       setSelectionMode(false);
       setDeleteDialogOpen(false);
     } catch (error) {
-      console.error('Error batch deleting projects:', error);
+      logger.error('Error batch deleting projects:', error);
       toast({
         title: "Error",
         description: "Failed to delete projects. Please try again.",
@@ -1062,7 +1063,7 @@ export default function CalendarPage() {
       // Only run once when projects are loaded and we haven't loaded adjacent months yet
       if (projects.length > 0 && !adjacentMonthsLoaded.current && mountedRef.current) {
         adjacentMonthsLoaded.current = true;
-        // console.log("Loading adjacent months once");
+        // logger.debug("Loading adjacent months once");
         
         // We'll manually load these in handleLoadMoreMonths if needed for the scrollable list
       }
@@ -1073,7 +1074,7 @@ export default function CalendarPage() {
 
   // Function to load more months in the list view with reasonable limits
   const handleLoadMoreMonths = useCallback(async (direction: 'past' | 'future', monthsToAdd: number) => {
-    // console.log(`Loading more months: ${direction}, count: ${monthsToAdd}`);
+    // logger.debug(`Loading more months: ${direction}, count: ${monthsToAdd}`);
     
     // Constants for reasonable date limits (matches ListView MAX constants)
     const MAX_PAST_MONTHS = 24;  // 2 years in the past to match ListView
@@ -1087,7 +1088,7 @@ export default function CalendarPage() {
     if (direction === 'past') {
       // Don't allow going too far into the past
       if (newRange.start <= -MAX_PAST_MONTHS) {
-        // console.log(`Already at maximum past limit (${MAX_PAST_MONTHS} months)`);
+        // logger.debug(`Already at maximum past limit (${MAX_PAST_MONTHS} months)`);
         return;
       }
       
@@ -1106,7 +1107,7 @@ export default function CalendarPage() {
         const targetMonth = targetDate.getMonth();
         const targetYear = targetDate.getFullYear();
         
-        // console.log(`Queuing past month: ${targetMonth}/${targetYear}`);
+        // logger.debug(`Queuing past month: ${targetMonth}/${targetYear}`);
         loadPromises.push(getProjectsByMonth(targetMonth, targetYear));
       }
       
@@ -1126,12 +1127,12 @@ export default function CalendarPage() {
           });
         }
       } catch (error) {
-        console.error(`Error loading past months: ${error}`);
+        logger.error(`Error loading past months: ${error}`);
       }
     } else {
       // Don't allow going too far into the future
       if (newRange.end >= MAX_FUTURE_MONTHS) {
-        // console.log(`Already at maximum future limit (${MAX_FUTURE_MONTHS} months)`);
+        // logger.debug(`Already at maximum future limit (${MAX_FUTURE_MONTHS} months)`);
         return;
       }
       
@@ -1152,11 +1153,11 @@ export default function CalendarPage() {
         
         // Don't load years beyond the reasonable limit
         if (targetYear > currentYear + 2) {
-          // console.log(`Skipping month ${targetMonth}/${targetYear} (beyond reasonable limit)`);
+          // logger.debug(`Skipping month ${targetMonth}/${targetYear} (beyond reasonable limit)`);
           continue;
         }
         
-        // console.log(`Queuing future month: ${targetMonth}/${targetYear}`);
+        // logger.debug(`Queuing future month: ${targetMonth}/${targetYear}`);
         loadPromises.push(getProjectsByMonth(targetMonth, targetYear));
       }
       
@@ -1176,7 +1177,7 @@ export default function CalendarPage() {
           });
         }
       } catch (error) {
-        console.error(`Error loading future months: ${error}`);
+        logger.error(`Error loading future months: ${error}`);
       }
     }
     
@@ -1192,7 +1193,7 @@ export default function CalendarPage() {
     
     // Only update if we need to show more than current view
     if (monthsNeeded > viewMonthsCount) {
-      // console.log(`Updating months to show: ${viewMonthsCount} -> ${monthsNeeded}`);
+      // logger.debug(`Updating months to show: ${viewMonthsCount} -> ${monthsNeeded}`);
       setViewMonthsCount(monthsNeeded);
     }
   }, [loadedMonthsRange, date, getProjectsByMonth, viewMonthsCount]);
@@ -1242,7 +1243,7 @@ export default function CalendarPage() {
   const filteredProjects = useMemo(() => {
     if (view === 'list') {
       // In list view, we'll force an update with the date we have
-      // console.log(`CalendarPage: Filtering extended projects for ListView (${format(date, 'MMMM yyyy')})`);
+      // logger.debug(`CalendarPage: Filtering extended projects for ListView (${format(date, 'MMMM yyyy')})`);
       
       // SIMPLIFIED LIST VIEW LOGIC - Be more permissive about what we show
       // Mix in both regular and extended projects for maximum visibility
@@ -1251,7 +1252,7 @@ export default function CalendarPage() {
       
       // First add extended projects if available
       if (extendedProjects && extendedProjects.length > 0) {
-        // console.log(`Adding ${extendedProjects.length} extended projects`);
+        // logger.debug(`Adding ${extendedProjects.length} extended projects`);
         extendedProjects.forEach(project => {
           if (!projectIds.has(project.id)) {
             projectIds.add(project.id);
@@ -1262,7 +1263,7 @@ export default function CalendarPage() {
       
       // Then add regular projects as backup
       if (projects && projects.length > 0) {
-        // console.log(`Adding ${projects.length} regular projects`);
+        // logger.debug(`Adding ${projects.length} regular projects`);
         projects.forEach(project => {
           if (!projectIds.has(project.id)) {
             projectIds.add(project.id);
@@ -1272,10 +1273,9 @@ export default function CalendarPage() {
       }
       
       // Debug projects
-      // console.log(`Total projects to send to ListView: ${allProjects.length}`);
+      // logger.debug(`Total projects to send to ListView: ${allProjects.length}`);
       if (allProjects.length > 0) {
-        // console.log('Sample projects:', 
-        //   allProjects.slice(0, Math.min(3, allProjects.length)).map(p => ({
+        // logger.debug('Sample projects:', { data: //   allProjects.slice(0, Math.min(3, allProjects.length })).map(p => ({
         //     id: p.id,
         //     title: p.title,
         //     start: p.start_date,
@@ -1305,7 +1305,7 @@ export default function CalendarPage() {
         const testDate = new Date(project.start_date);
         return testDate instanceof Date && !isNaN(testDate.getTime());
       } catch (e) {
-        console.warn(`Project ${project.id} has invalid date format, skipping`);
+        logger.warn(`Project ${project.id} has invalid date format, skipping`);
         return false;
       }
     });
@@ -1322,12 +1322,12 @@ export default function CalendarPage() {
         
         return projectStartsInMonth || projectEndsInMonth || projectSpansMonth;
       } catch (e) {
-        console.error(`Error filtering project ${project.id}:`, e);
+        logger.error(`Error filtering project ${project.id}:`, e);
         return false;
       }
     });
     
-    // console.log(`CalendarPage: Filtered ${validProjects.length} valid projects to ${filtered.length} for current month`);
+    // logger.debug(`CalendarPage: Filtered ${validProjects.length} valid projects to ${filtered.length} for current month`);
     return filtered;
   }, [projects, date, view, extendedProjects]);
 
@@ -1458,7 +1458,7 @@ export default function CalendarPage() {
               <Tabs 
                 value={view} 
                 onValueChange={(v) => {
-                  // console.log(`Changing view from ${view} to ${v}`);
+                  // logger.debug(`Changing view from ${view} to ${v}`);
                   // Make sure we reset any accumulated state when switching views
                   if (v !== view) {
                     // Reset flags to prevent issues
@@ -1566,7 +1566,7 @@ export default function CalendarPage() {
                 monthsToShow={viewMonthsCount}
                 syncToDate={true}
                 onMonthChange={(newDate) => {
-                  // console.log('ListView month changed to:', format(newDate, 'MMMM yyyy'));
+                  // logger.debug('ListView month changed to:', { data: format(newDate, 'MMMM yyyy' }));
                   setDate(newDate);
                 }}
               />

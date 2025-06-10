@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { logger } from '../lib/logger';
 import {
   Table,
   TableBody,
@@ -38,7 +39,7 @@ export default function InvitesPage() {
         .limit(1);
       
       if (tableError) {
-        console.error('Error checking invites table:', tableError);
+        logger.error('Error checking invites table:', tableError);
         // Fall back to a simpler query
         const { data, error } = await supabase
           .from('invites')
@@ -103,10 +104,10 @@ export default function InvitesPage() {
             }
           }
         } catch (relatedDataError) {
-          console.warn('Could not load related company data:', relatedDataError);
+          logger.warn('Could not load related company data:', relatedDataError);
         }
       } catch (mainError) {
-        console.warn('Error fetching invite data, using fallback:', mainError);
+        logger.warn('Error fetching invite data, using fallback:', mainError);
         
         // Fall back to a basic query
         const { data, error } = await supabase
@@ -118,7 +119,7 @@ export default function InvitesPage() {
         setInvites(data || []);
       }
     } catch (error) {
-      console.error('Error loading invites:', error);
+      logger.error('Error loading invites:', error);
       toast({
         title: 'Error',
         description: 'Failed to load invites. Please try again.',

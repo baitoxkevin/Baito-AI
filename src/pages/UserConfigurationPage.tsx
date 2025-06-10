@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
+import { logger } from '../lib/logger';
 import { 
   Loader2, Search, UserPlus, Edit2, Trash2, Shield, Mail, 
   User as UserIcon, CheckCircle, XCircle, AlertCircle,
@@ -134,7 +135,7 @@ export default function UserConfigurationPage() {
       setUsers(userList);
       setStats(newStats);
     } catch (error) {
-      console.error('Error loading users:', error);
+      logger.error('Error loading users:', error);
       toast({
         title: 'Error',
         description: 'Failed to load users. Please try again.',
@@ -166,7 +167,7 @@ export default function UserConfigurationPage() {
       
       setCompanies(mappedCompanies);
     } catch (error) {
-      console.error('Error loading companies:', error);
+      logger.error('Error loading companies:', error);
       toast({
         title: 'Error',
         description: 'Failed to load companies. Please try again.',
@@ -194,7 +195,7 @@ export default function UserConfigurationPage() {
       
       loadCompaniesData();
     } catch (error) {
-      console.error('Error deleting company:', error);
+      logger.error('Error deleting company:', error);
       toast({
         title: 'Error',
         description: 'Failed to delete company. Please try again.',
@@ -273,7 +274,7 @@ export default function UserConfigurationPage() {
       setEditDialogOpen(false);
       loadUsers();
     } catch (error) {
-      console.error('Error updating user:', error);
+      logger.error('Error updating user:', error);
       toast({
         title: 'Error',
         description: 'Failed to update user. Please try again.',
@@ -304,7 +305,7 @@ export default function UserConfigurationPage() {
       setDeleteUserId(null);
       loadUsers();
     } catch (error) {
-      console.error('Error deleting user:', error);
+      logger.error('Error deleting user:', error);
       toast({
         title: 'Error',
         description: 'Failed to delete user. Please try again.',

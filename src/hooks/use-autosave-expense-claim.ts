@@ -3,6 +3,7 @@ import { useExpenseClaims } from '@/hooks/use-expense-claims';
 import { toast } from '@/hooks/use-toast';
 import { ExpenseClaim } from '@/lib/expense-claim-service';
 
+import { logger } from '../lib/logger';
 interface UseAutosaveExpenseClaimOptions {
   claimId: string;
   data: Partial<Omit<ExpenseClaim, 'total_amount'>>;
@@ -64,7 +65,7 @@ export function useAutosaveExpenseClaim({
         onSuccess?.();
       } catch (error) {
         setSaveStatus('error');
-        console.error('Autosave error:', error);
+        logger.error('Autosave error:', error);
         
         toast({
           title: 'Failed to save changes',

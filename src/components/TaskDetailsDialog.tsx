@@ -12,6 +12,7 @@ import { Separator } from '@/components/ui/separator';
 import { format } from 'date-fns';
 import { Clock, Calendar, FileText, AlertCircle, Tag, Paperclip, MessageSquare, Trash2, Edit, ChevronDown, User as UserIcon, Download, Upload } from 'lucide-react';
 import type { Task, TaskComment, TaskAttachment, User } from '@/lib/types';
+import { logger } from '../lib/logger';
 // Removed useKanban hook
 import { useToast } from '@/hooks/use-toast';
 import { createDialogHandler } from '@/lib/utils';
@@ -107,7 +108,7 @@ export function TaskDetailsDialog({
         setIsEditing(false);
       }
     } catch (error) {
-      console.error('Error updating task:', error);
+      logger.error('Error updating task:', error);
       toast({
         title: 'Error',
         description: 'Failed to update task. Please try again.',

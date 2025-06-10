@@ -9,6 +9,7 @@ import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
 import { Loader2, Lock, Eye, EyeOff, CheckCircle, AlertCircle } from "lucide-react";
 
+import { logger } from '../lib/logger';
 export default function SetPasswordPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -63,7 +64,7 @@ export default function SetPasswordPage() {
           setTokenValid(true);
         }
       } catch (err) {
-        console.error("Error validating token:", err);
+        logger.error("Error validating token:", err);
         setTokenError("An error occurred validating your link. Please contact the Baito team for assistance.");
         setTokenValid(false);
       } finally {
@@ -142,7 +143,7 @@ export default function SetPasswordPage() {
       });
 
       if (signUpError) {
-        console.error("Sign up error:", signUpError);
+        logger.error("Sign up error:", signUpError);
         // Even if there's an error, the user might have been created
         // Let them try to sign in
       }
@@ -159,7 +160,7 @@ export default function SetPasswordPage() {
         navigate("/login");
       }, 2000);
     } catch (error) {
-      console.error("Error setting password:", error);
+      logger.error("Error setting password:", error);
       toast({
         title: "Error",
         description: "Failed to set password. Please try again or contact support.",

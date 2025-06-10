@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase';
 import { format } from 'date-fns';
 
+import { logger } from './logger';
 // Type definitions for status values
 export type PaymentBatchStatus = 'pending' | 'approved' | 'rejected' | 'processing' | 'completed' | 'cancelled';
 export type PaymentMethod = 'bank_transfer' | 'duitnow' | 'cash' | 'cheque';
@@ -200,7 +201,7 @@ export async function submitPaymentBatch(
       ...data
     };
   } catch (error) {
-    console.error('Error submitting payment batch:', error);
+    logger.error('Error submitting payment batch:', error);
     return {
       success: false,
       error: error.message || 'Failed to submit payment batch'
@@ -246,7 +247,7 @@ export async function fetchPaymentBatches(filter: PaymentBatchFilter = {}): Prom
       count: count || 0
     };
   } catch (error) {
-    console.error('Error fetching payment batches:', error);
+    logger.error('Error fetching payment batches:', error);
     return {
       data: [],
       count: 0,
@@ -273,7 +274,7 @@ export async function getPaymentBatchDetails(batchId: string): Promise<{
     
     return { data };
   } catch (error) {
-    console.error('Error fetching payment batch details:', error);
+    logger.error('Error fetching payment batch details:', error);
     return {
       error: error.message || 'Failed to fetch payment batch details'
     };
@@ -299,7 +300,7 @@ export async function getPaymentBatchHistory(batchId: string): Promise<{
       data: data || []
     };
   } catch (error) {
-    console.error('Error fetching payment batch history:', error);
+    logger.error('Error fetching payment batch history:', error);
     return {
       data: [],
       error: error.message || 'Failed to fetch payment batch history'
@@ -345,14 +346,14 @@ export async function approvePaymentBatch(
           notes: notes
         });
     } catch (historyError) {
-      console.log('Could not log approval history:', historyError);
+      logger.debug('Could not log approval history:', { data: historyError });
     }
     
     return {
       success: true
     };
   } catch (error: unknown) {
-    console.error('Error approving payment batch:', error);
+    logger.error('Error approving payment batch:', error);
     return {
       success: false,
       error: error.message || 'Failed to approve payment batch'
@@ -399,14 +400,14 @@ export async function rejectPaymentBatch(
           notes: notes
         });
     } catch (historyError) {
-      console.log('Could not log rejection history:', historyError);
+      logger.debug('Could not log rejection history:', { data: historyError });
     }
     
     return {
       success: true
     };
   } catch (error: unknown) {
-    console.error('Error rejecting payment batch:', error);
+    logger.error('Error rejecting payment batch:', error);
     return {
       success: false,
       error: error.message || 'Failed to reject payment batch'
@@ -434,7 +435,7 @@ export async function markPaymentBatchExported(
       success: data.success
     };
   } catch (error) {
-    console.error('Error marking payment batch as exported:', error);
+    logger.error('Error marking payment batch as exported:', error);
     return {
       success: false,
       error: error.message || 'Failed to mark payment batch as exported'
@@ -462,7 +463,7 @@ export async function markPaymentBatchCompleted(
       success: data.success
     };
   } catch (error) {
-    console.error('Error marking payment batch as completed:', error);
+    logger.error('Error marking payment batch as completed:', error);
     return {
       success: false,
       error: error.message || 'Failed to mark payment batch as completed'
@@ -642,7 +643,7 @@ export async function getPaymentBatchStatistics(): Promise<{
       totalAmount
     };
   } catch (error) {
-    console.error('Error fetching payment batch statistics:', error);
+    logger.error('Error fetching payment batch statistics:', error);
     return {
       pending: 0,
       approved: 0,
@@ -671,7 +672,7 @@ export async function getPaymentBatchesByStatusCount(status: PaymentBatchStatus)
     
     return count || 0;
   } catch (error) {
-    console.error(`Error fetching ${status} payment batches count:`, error);
+    logger.error(`Error fetching ${status} payment batches count:`, error);
     return 0;
   }
 }
@@ -732,7 +733,7 @@ export async function cancelPaymentBatch(
       success: true
     };
   } catch (error) {
-    console.error('Error cancelling payment batch:', error);
+    logger.error('Error cancelling payment batch:', error);
     return {
       success: false,
       error: error.message || 'Failed to cancel payment batch'
@@ -771,7 +772,7 @@ export async function updatePaymentBatchNotes(
       success: true
     };
   } catch (error) {
-    console.error('Error updating payment batch notes:', error);
+    logger.error('Error updating payment batch notes:', error);
     return {
       success: false,
       error: error.message || 'Failed to update payment batch notes'

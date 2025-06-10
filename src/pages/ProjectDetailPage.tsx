@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
+import { logger } from '../lib/logger';
 // EditProjectDialog removed
 import { SpotlightCard } from '@/components/spotlight-card';
 import { getProjectById } from '@/lib/getProjectById';
@@ -34,7 +35,7 @@ const ProjectDetailPage = () => {
           setError('Project not found');
         }
       } catch (err) {
-        console.error('Error fetching project:', err);
+        logger.error('Error fetching project:', err);
         setError('Failed to load project details');
       } finally {
         setLoading(false);
@@ -58,7 +59,7 @@ const ProjectDetailPage = () => {
         }
       }
     } catch (err) {
-      console.error('Error refreshing project:', err);
+      logger.error('Error refreshing project:', err);
       toast({
         title: 'Error',
         description: 'Failed to refresh project data',

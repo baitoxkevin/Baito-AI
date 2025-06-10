@@ -3,6 +3,7 @@ import { parseAmount } from './utils';
 import { supabase as supabaseClient } from '@/lib/supabase';
 import { useToast as useAppToast } from '@/hooks/use-toast';
 
+import { logger } from '../../lib/logger';
 // Adapter for consistent imports when using component in different contexts
 export const supabase = supabaseClient;
 export function useToast() {
@@ -71,7 +72,7 @@ export async function saveStaffPaymentDetails(
     
     return { success: true, message: 'Staff payment details saved successfully' };
   } catch (error) {
-    console.error('Error saving staff payment details:', error);
+    logger.error('Error saving staff payment details:', error);
     return { 
       success: false, 
       message: error instanceof Error ? error.message : 'Failed to save staff payment details',
@@ -141,7 +142,7 @@ export async function saveProjectPayroll(payrollData: PayrollData): Promise<{ su
           
           // If that failed with a column error, try with staff_id
           if (staffError && staffError.code === '42703' && staffError.message?.includes('staff_id')) {
-            // console.log('Trying with alternate column name...');
+            // logger.debug('Trying with alternate column name...');
             const { error: retry } = await supabase
               .from('project_staff')
               .update({
@@ -156,7 +157,7 @@ export async function saveProjectPayroll(payrollData: PayrollData): Promise<{ su
             }
           }
         } catch (err) {
-          console.error('Error during staff update:', err);
+          logger.error('Error during staff update:', err);
           updateError = err;
         }
         
@@ -165,7 +166,7 @@ export async function saveProjectPayroll(payrollData: PayrollData): Promise<{ su
         if (staffError) {
           // If we got a column not found error, try with staff_id instead (column name might be different)
           if (staffError.code === '42703' && staffError.message?.includes('staff_id')) {
-            // console.log('Trying alternative column name for staff ID...');
+            // logger.debug('Trying alternative column name for staff ID...');
             // Try with candidate_id (another common column name in the DB)
             const { error: retryError } = await supabase
               .from('project_staff')
@@ -187,18 +188,18 @@ export async function saveProjectPayroll(payrollData: PayrollData): Promise<{ su
                 .eq('user_id', staffEntry.staffId);
                 
                 if (finalRetryError) {
-                  console.error(`Error updating staff with final column attempt ${staffEntry.staffId}:`, finalRetryError);
+                  logger.error(`Error updating staff with final column attempt ${staffEntry.staffId}:`, finalRetryError);
                 }
               } else {
-                console.error(`Error updating staff with alternative ID ${staffEntry.staffId}:`, retryError);
+                logger.error(`Error updating staff with alternative ID ${staffEntry.staffId}:`, retryError);
               }
             }
           } else {
-            console.error(`Error updating staff ${staffEntry.staffId}:`, staffError);
+            logger.error(`Error updating staff ${staffEntry.staffId}:`, staffError);
           }
         }
       } catch (staffErr) {
-        console.error(`Error processing staff ${staffEntry.staffId}:`, staffErr);
+        logger.error(`Error processing staff ${staffEntry.staffId}:`, staffErr);
       }
     }
     
@@ -213,15 +214,15 @@ export async function saveProjectPayroll(payrollData: PayrollData): Promise<{ su
         .eq('id', payrollData.projectId);
       
       if (projectError) {
-        console.error('Error updating project payroll amount:', projectError);
+        logger.error('Error updating project payroll amount:', projectError);
       }
     } catch (projErr) {
-      console.error('Error processing project update:', projErr);
+      logger.error('Error processing project update:', projErr);
     }
     
     return { success: true, message: 'Project payroll saved successfully' };
   } catch (error) {
-    console.error('Error saving project payroll:', error);
+    logger.error('Error saving project payroll:', error);
     return { 
       success: false, 
       message: error instanceof Error ? error.message : 'Failed to save project payroll',
@@ -258,7 +259,7 @@ export async function getProjectPayroll(projectId: string): Promise<{
       } : undefined 
     };
   } catch (error) {
-    console.error('Error fetching project payroll:', error);
+    logger.error('Error fetching project payroll:', error);
     return { 
       success: false, 
       message: error instanceof Error ? error.message : 'Failed to fetch project payroll',

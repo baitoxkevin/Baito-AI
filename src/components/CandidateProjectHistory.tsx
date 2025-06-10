@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
+import { logger } from '../lib/logger';
 import {
   Star,
   Clock,
@@ -152,7 +153,7 @@ export default function CandidateProjectHistory({
           }
         }
       } catch (error) {
-        console.error('Error loading candidate history:', error);
+        logger.error('Error loading candidate history:', error);
         toast({
           title: 'Error',
           description: 'Failed to load candidate history',
@@ -229,7 +230,7 @@ export default function CandidateProjectHistory({
         onHistoryUpdated();
       }
     } catch (error) {
-      console.error('Error submitting rating:', error);
+      logger.error('Error submitting rating:', error);
       toast({
         title: 'Error',
         description: 'Failed to submit rating',
@@ -342,7 +343,7 @@ export default function CandidateProjectHistory({
         onHistoryUpdated();
       }
     } catch (error) {
-      console.error('Error blacklisting candidate:', error);
+      logger.error('Error blacklisting candidate:', error);
       toast({
         title: 'Error',
         description: 'Failed to blacklist candidate',
@@ -375,7 +376,7 @@ export default function CandidateProjectHistory({
         onHistoryUpdated();
       }
     } catch (error) {
-      console.error('Error removing from blacklist:', error);
+      logger.error('Error removing from blacklist:', error);
       toast({
         title: 'Error',
         description: 'Failed to remove candidate from blacklist',

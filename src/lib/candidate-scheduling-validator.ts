@@ -1,6 +1,7 @@
 import { supabase } from "./supabase";
 import { format, parseISO } from "date-fns";
 
+import { logger } from './logger';
 interface CandidateScheduleConflict {
   date: Date;
   projectId: string;
@@ -23,7 +24,7 @@ export async function checkCandidateScheduleConflicts(
   try {
     // Validate inputs
     if (!candidateId || !workingDates || !Array.isArray(workingDates) || workingDates.length === 0) {
-      console.warn("Invalid inputs for candidate schedule conflict check", { candidateId, workingDates });
+      logger.warn("Invalid inputs for candidate schedule conflict check", { candidateId, workingDates });
       return { hasConflicts: false, conflicts: [] };
     }
 
@@ -35,7 +36,7 @@ export async function checkCandidateScheduleConflicts(
       return format(d, 'yyyy-MM-dd');
     });
 
-    console.log(`Checking conflicts for candidate ${candidateId} on dates:`, dateStrings);
+    logger.debug(`Checking conflicts for candidate ${candidateId} on dates:`, dateStrings);
 
     // First try using the RPC function
     try {
@@ -46,7 +47,7 @@ export async function checkCandidateScheduleConflicts(
       });
 
       if (!error && data) {
-        console.log("RPC candidate conflict check results:", data);
+        logger.debug("RPC candidate conflict check results:", { data: data });
         
         // Format the conflicts into our return structure
         const conflicts = data.map((conflict: unknown) => ({
@@ -63,12 +64,12 @@ export async function checkCandidateScheduleConflicts(
 
       // If error is not about missing function, log it
       if (error && !error.message.includes('Could not find the function')) {
-        console.error('Error checking candidate schedule conflicts via RPC:', error);
+        logger.error('Error checking candidate schedule conflicts via RPC:', error);
       } else {
-        console.warn('RPC function not available, falling back to batch check');
+        logger.warn('RPC function not available, falling back to batch check');
       }
     } catch (rpcError) {
-      console.warn('RPC call failed, falling back to batch check:', rpcError);
+      logger.warn('RPC call failed, falling back to batch check:', rpcError);
     }
 
     // Try the batch check function
@@ -79,7 +80,7 @@ export async function checkCandidateScheduleConflicts(
       });
 
       if (!error && data) {
-        console.log("Batch candidate availability check results:", data);
+        logger.debug("Batch candidate availability check results:", { data: data });
         
         // Format the conflicts into our return structure
         const conflicts = data
@@ -97,10 +98,10 @@ export async function checkCandidateScheduleConflicts(
       }
 
       if (error) {
-        console.error('Error checking candidate availability via batch check:', error);
+        logger.error('Error checking candidate availability via batch check:', error);
       }
     } catch (batchError) {
-      console.warn('Batch check failed:', batchError);
+      logger.warn('Batch check failed:', batchError);
     }
 
     // Fallback: Manual conflict check
@@ -108,7 +109,7 @@ export async function checkCandidateScheduleConflicts(
     // Since we've implemented proper database functions, this fallback should not be necessary
     // but is included for completeness
 
-    console.warn("Falling back to manual candidate conflict check");
+    logger.warn("Falling back to manual candidate conflict check");
     
     // Get all projects this candidate is assigned to
     const { data: candidateProjects, error: candidateError } = await supabase
@@ -127,16 +128,16 @@ export async function checkCandidateScheduleConflicts(
       .eq('candidate_id', candidateId);
 
     if (candidateError) {
-      console.error('Error fetching candidate projects:', candidateError);
+      logger.error('Error fetching candidate projects:', candidateError);
       return { hasConflicts: false, conflicts: [] };
     }
 
     if (!candidateProjects || candidateProjects.length === 0) {
-      console.log(`No existing projects found for candidate ${candidateId}`);
+      logger.debug(`No existing projects found for candidate ${candidateId}`);
       return { hasConflicts: false, conflicts: [] };
     }
 
-    console.log(`Found ${candidateProjects.length} projects for candidate ${candidateId}`);
+    logger.debug(`Found ${candidateProjects.length} projects for candidate ${candidateId}`);
 
     // Check for conflicts by examining each date
     const conflicts: CandidateScheduleConflict[] = [];
@@ -186,7 +187,7 @@ export async function checkCandidateScheduleConflicts(
       conflicts
     };
   } catch (error) {
-    console.error('Exception checking candidate schedule conflicts:', error);
+    logger.error('Exception checking candidate schedule conflicts:', error);
     return { hasConflicts: false, conflicts: [] };
   }
 }
@@ -216,14 +217,14 @@ export async function isCandidateAvailable(
         return !!data;
       }
     } catch (error) {
-      console.warn('Error using is_candidate_available function:', error);
+      logger.warn('Error using is_candidate_available function:', error);
     }
     
     // Fallback to batch check
     const { hasConflicts } = await checkCandidateScheduleConflicts(candidateId, [dateStr]);
     return !hasConflicts;
   } catch (error) {
-    console.error('Error checking candidate availability:', error);
+    logger.error('Error checking candidate availability:', error);
     return false;
   }
 }
@@ -250,7 +251,7 @@ export async function getAvailableCandidatesOnDate(
         return data;
       }
     } catch (error) {
-      console.warn('Error using get_available_candidates_on_date function:', error);
+      logger.warn('Error using get_available_candidates_on_date function:', error);
     }
     
     // Fallback to manual query
@@ -261,7 +262,7 @@ export async function getAvailableCandidatesOnDate(
       .eq('is_banned', false);
     
     if (candidatesError || !candidates) {
-      console.error('Error fetching candidates:', candidatesError);
+      logger.error('Error fetching candidates:', candidatesError);
       return [];
     }
     
@@ -277,7 +278,7 @@ export async function getAvailableCandidatesOnDate(
     
     return availableCandidates;
   } catch (error) {
-    console.error('Error getting available candidates:', error);
+    logger.error('Error getting available candidates:', error);
     return [];
   }
 }

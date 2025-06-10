@@ -1,6 +1,7 @@
 // Utility functions for project forms
 import { format } from "date-fns";
 
+import { logger } from '../../lib/logger';
 /**
  * Compares two arrays for equality, handles date objects properly
  */
@@ -109,7 +110,7 @@ export const convertStringsToDates = (staff: unknown[]) => {
         try {
           return dateString ? new Date(dateString) : null;
         } catch (e) {
-          console.error("Error parsing date:", dateString, e);
+          logger.error("Error parsing date:", dateString, e);
           return null;
         }
       }).filter(Boolean);
@@ -127,7 +128,7 @@ export const convertStringsToDates = (staff: unknown[]) => {
             commission: parseFloat(entry.commission) || 0
           };
         } catch (e) {
-          console.error("Error parsing working date with salary:", entry, e);
+          logger.error("Error parsing working date with salary:", entry, e);
           return null;
         }
       }).filter(Boolean);

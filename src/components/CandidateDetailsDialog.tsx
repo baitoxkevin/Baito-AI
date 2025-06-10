@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { logger } from '../lib/logger';
 // import { Separator } from '@/components/ui/separator';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
@@ -90,7 +91,7 @@ export function CandidateDetailsDialog({
               };
             }
           } catch (metricsError) {
-            console.warn('Error loading metrics, using default values:', metricsError);
+            logger.warn('Error loading metrics, using default values:', metricsError);
           }
           
           setMetrics(candidateMetrics);
@@ -100,12 +101,12 @@ export function CandidateDetailsDialog({
           try {
             blacklisted = await isBlacklisted(candidate.id);
           } catch (blacklistError) {
-            console.warn('Error checking blacklist status, using default:', blacklistError);
+            logger.warn('Error checking blacklist status, using default:', blacklistError);
           }
           
           setIsBlacklistedStatus(blacklisted);
         } catch (error) {
-          console.error('Error loading candidate data:', error);
+          logger.error('Error loading candidate data:', error);
           toast({
             title: "Error loading data",
             description: "Some candidate data could not be loaded. Showing partial information.",
@@ -149,7 +150,7 @@ export function CandidateDetailsDialog({
       });
       
       if (error) {
-        console.error('Error generating update link:', error);
+        logger.error('Error generating update link:', error);
         setUpdateLinkError('Could not generate update link. Please try again.');
         return;
       }
@@ -163,7 +164,7 @@ export function CandidateDetailsDialog({
         description: "Copy the link to share with the candidate."
       });
     } catch (error) {
-      console.error('Error in generateUpdateLink:', error);
+      logger.error('Error in generateUpdateLink:', error);
       setUpdateLinkError('An error occurred. Please try again.');
     } finally {
       setUpdateLinkLoading(false);
@@ -177,7 +178,7 @@ export function CandidateDetailsDialog({
       setUpdateLinkCopied(true);
       setTimeout(() => setUpdateLinkCopied(false), 3000);
     } catch (error) {
-      console.error('Error copying to clipboard:', error);
+      logger.error('Error copying to clipboard:', error);
       setUpdateLinkError('Could not copy to clipboard. Please copy manually.');
     }
   };
@@ -238,7 +239,7 @@ export function CandidateDetailsDialog({
       
       return parts.length > 0 ? parts.join(', ') : 'Address details not available';
     } catch (error) {
-      console.error('Error formatting address:', error);
+      logger.error('Error formatting address:', error);
       return 'Invalid address format';
     }
   };
@@ -249,7 +250,7 @@ export function CandidateDetailsDialog({
         try {
           return differenceInYears(new Date(), new Date(candidate.date_of_birth));
         } catch (error) {
-          console.error('Error calculating age:', error);
+          logger.error('Error calculating age:', error);
           return null;
         }
       })()
@@ -669,7 +670,7 @@ export function CandidateDetailsDialog({
                                 try {
                                   return format(new Date(candidate.date_of_birth), 'dd MMM yyyy');
                                 } catch (error) {
-                                  console.error('Error formatting date of birth:', error);
+                                  logger.error('Error formatting date of birth:', error);
                                   return 'Invalid date format';
                                 }
                               })()} ${age !== null ? `(${age} years)` : ''}`
@@ -972,7 +973,7 @@ export function CandidateDetailsDialog({
                                   try {
                                     return format(new Date(expiryDate), 'PP');
                                   } catch (error) {
-                                    console.warn('Error formatting license expiry date:', error);
+                                    logger.warn('Error formatting license expiry date:', error);
                                     return expiryDate;
                                   }
                                 })()}
@@ -1194,7 +1195,7 @@ export function CandidateDetailsDialog({
                             try {
                               return format(new Date(metrics.lastProjectDate), 'PPP');
                             } catch (error) {
-                              console.error('Error formatting last project date:', error);
+                              logger.error('Error formatting last project date:', error);
                               return 'Invalid date format';
                             }
                           })()}
@@ -1313,7 +1314,7 @@ export function CandidateDetailsDialog({
                               try {
                                 return format(new Date(candidate.loyalty_status.tier_achieved_date), 'PPP');
                               } catch (error) {
-                                console.error('Error formatting tier achieved date:', error);
+                                logger.error('Error formatting tier achieved date:', error);
                                 return 'Invalid date format';
                               }
                             })()}
@@ -1332,7 +1333,7 @@ export function CandidateDetailsDialog({
                                     try {
                                       return format(new Date(candidate.loyalty_status.points_expiry_date), 'PPP');
                                     } catch (error) {
-                                      console.error('Error formatting points expiry date:', error);
+                                      logger.error('Error formatting points expiry date:', error);
                                       return 'Invalid date format';
                                     }
                                   })()}
@@ -1345,7 +1346,7 @@ export function CandidateDetailsDialog({
                                       </Badge>
                                     );
                                   } catch (error) {
-                                    console.error('Error comparing points expiry date:', error);
+                                    logger.error('Error comparing points expiry date:', error);
                                     return null;
                                   }
                                 })()}
@@ -1443,7 +1444,7 @@ export function CandidateDetailsDialog({
                                   candidateMetrics = fetchedMetrics;
                                 }
                               } catch (metricsError) {
-                                console.warn('Error refreshing metrics, using default values:', metricsError);
+                                logger.warn('Error refreshing metrics, using default values:', metricsError);
                               }
                               
                               setMetrics(candidateMetrics);
@@ -1453,12 +1454,12 @@ export function CandidateDetailsDialog({
                               try {
                                 blacklisted = await isBlacklisted(candidate.id);
                               } catch (blacklistError) {
-                                console.warn('Error checking blacklist status, using default:', blacklistError);
+                                logger.warn('Error checking blacklist status, using default:', blacklistError);
                               }
                               
                               setIsBlacklistedStatus(blacklisted);
                             } catch (error) {
-                              console.error('Error refreshing metrics:', error);
+                              logger.error('Error refreshing metrics:', error);
                             }
                           };
                           
@@ -1467,7 +1468,7 @@ export function CandidateDetailsDialog({
                       />
                     );
                   } catch (error) {
-                    console.error('Error rendering CandidateProjectHistory:', error);
+                    logger.error('Error rendering CandidateProjectHistory:', error);
                     return (
                       <div className="p-6 text-center">
                         <Briefcase className="h-12 w-12 text-gray-300 dark:text-gray-700 mx-auto mb-3" />
@@ -1929,7 +1930,7 @@ export function CandidateDetailsDialog({
                               try {
                                 return format(new Date(candidate.custom_fields.next_available_date), 'PPP');
                               } catch (error) {
-                                console.error('Error formatting next available date:', error);
+                                logger.error('Error formatting next available date:', error);
                                 return 'Invalid date format';
                               }
                             })() : 
@@ -2170,7 +2171,7 @@ export function CandidateDetailsDialog({
                     return `Created: ${format(new Date(candidate.created_at || Date.now()), 'PPP')}`;
                   }
                 } catch (error) {
-                  console.error('Error formatting date in footer:', error);
+                  logger.error('Error formatting date in footer:', error);
                   return 'Date information unavailable';
                 }
               })()}

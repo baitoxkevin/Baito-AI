@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 
+import { logger } from './logger';
 export interface CandidateUpdateLinkResult {
   success: boolean;
   url?: string;
@@ -30,7 +31,7 @@ export async function generateCandidateUpdateLink(
       });
     
     if (error) {
-      console.error('Error generating candidate update link:', error);
+      logger.error('Error generating candidate update link:', error);
       return {
         success: false,
         error: error.message
@@ -42,7 +43,7 @@ export async function generateCandidateUpdateLink(
       url: data
     };
   } catch (error) {
-    console.error('Error in generateCandidateUpdateLink:', error);
+    logger.error('Error in generateCandidateUpdateLink:', error);
     return {
       success: false,
       error: 'Failed to generate update link'
@@ -68,7 +69,7 @@ export async function generateCandidateToken(
       });
     
     if (error) {
-      console.error('Error generating candidate token:', error);
+      logger.error('Error generating candidate token:', error);
       return {
         success: false,
         error: error.message
@@ -80,7 +81,7 @@ export async function generateCandidateToken(
       token: data
     };
   } catch (error) {
-    console.error('Error in generateCandidateToken:', error);
+    logger.error('Error in generateCandidateToken:', error);
     return {
       success: false,
       error: 'Failed to generate token'
@@ -108,7 +109,7 @@ export async function validateCandidateToken(token: string) {
     
     return data[0];
   } catch (error) {
-    console.error('Error validating candidate token:', error);
+    logger.error('Error validating candidate token:', error);
     return null;
   }
 }
@@ -126,7 +127,7 @@ export async function checkCandidatePublicLink(linkToken: string) {
       });
     
     if (error) {
-      console.error('Error checking public link:', error);
+      logger.error('Error checking public link:', error);
       return {
         isValid: false,
         message: error.message
@@ -146,7 +147,7 @@ export async function checkCandidatePublicLink(linkToken: string) {
       message: 'Invalid link'
     };
   } catch (error) {
-    console.error('Error in checkCandidatePublicLink:', error);
+    logger.error('Error in checkCandidatePublicLink:', error);
     return {
       isValid: false,
       message: 'Failed to validate link'
@@ -175,6 +176,6 @@ export async function logCandidateActivity(
         details
       });
   } catch (error) {
-    console.error('Error logging candidate activity:', error);
+    logger.error('Error logging candidate activity:', error);
   }
 }

@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { format, isSameDay, isWeekend } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
+import { logger } from '../../lib/logger';
 import {
   Table,
   TableBody,
@@ -225,7 +226,7 @@ const handleTableNavigation = (e: React.KeyboardEvent<HTMLInputElement>) => {
         }
       }
     } catch (error) {
-      console.error('Error handling Enter key press:', error);
+      logger.error('Error handling Enter key press:', error);
     }
   } else if (e.key === 'ArrowUp') {
     e.preventDefault();
@@ -263,7 +264,7 @@ export default function PayrollManager({
   
   // Debug logging for dialog state
   useEffect(() => {
-    // console.log('Dialog state changed:', isSetBasicDialogOpen);
+    // logger.debug('Dialog state changed:', { data: isSetBasicDialogOpen });
   }, [isSetBasicDialogOpen]);
   const [tempBasicValue, setTempBasicValue] = useState("");
   const [selectedStaffForBasic, setSelectedStaffForBasic] = useState<string[]>([]);
@@ -282,14 +283,14 @@ export default function PayrollManager({
   
   // Adding debug logging for dialog state changes
   useEffect(() => {
-    // console.log('DuitNow Export dialog state changed:', showDuitNowExport);
+    // logger.debug('DuitNow Export dialog state changed:', { data: showDuitNowExport });
   }, [showDuitNowExport]);
 
   // Project ID validation and fallback logic
   useEffect(() => {
     const validateProjectId = async () => {
       if (!projectId || projectId === "undefined") {
-        // console.warn('Invalid project ID provided:', projectId);
+        // logger.warn('Invalid project ID provided:', projectId);
         
         // Try to find a valid project ID from confirmed staff
         if (confirmedStaff.length > 0) {
@@ -305,7 +306,7 @@ export default function PayrollManager({
               return;
             }
           } catch (error) {
-            console.error('Error finding project ID:', error);
+            logger.error('Error finding project ID:', error);
           }
         }
         
@@ -527,7 +528,7 @@ export default function PayrollManager({
         description: "Payroll data saved successfully",
       });
     } catch (error) {
-      console.error('Error saving payroll:', error);
+      logger.error('Error saving payroll:', error);
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Failed to save payroll data",
@@ -587,15 +588,15 @@ export default function PayrollManager({
       const currentBasicValue = tempBasicValue;
       const currentSelectedStaff = [...selectedStaffForBasic];
       
-      // console.log('setBasicSalaryForAllDates executing', { 
+      // logger.debug('setBasicSalaryForAllDates executing', { data: { 
       //   currentBasicValue, 
       //   staffCount: currentSelectedStaff.length 
-      // });
+      // } });
       
       // Parse amount and validate
       const basicAmount = parseAmount(currentBasicValue);
       if (basicAmount <= 0) {
-        console.error('Invalid basic salary amount:', basicAmount);
+        logger.error('Invalid basic salary amount:', basicAmount);
         toast({
           title: "Invalid Amount",
           description: "Please enter a valid amount",
@@ -605,7 +606,7 @@ export default function PayrollManager({
       }
 
       if (currentSelectedStaff.length === 0) {
-        console.error('No staff selected for basic salary update');
+        logger.error('No staff selected for basic salary update');
         toast({
           title: "No Staff Selected",
           description: "Please select at least one staff member",
@@ -615,12 +616,12 @@ export default function PayrollManager({
       }
 
       // Update staff data with new basic salary
-      // console.log('Updating staff salary data for', currentSelectedStaff.length, 'staff members');
+      // logger.debug('Updating staff salary data for', { data: currentSelectedStaff.length, 'staff members' });
       setConfirmedStaff(prevStaff => {
         return prevStaff.map(staff => {
           // Only update if this staff is selected
           if (currentSelectedStaff.includes(staff.id)) {
-            // console.log('Updating salary for staff:', staff.name || staff.id);
+            // logger.debug('Updating salary for staff:', { data: staff.name || staff.id });
             
             const updatedDates = staff.workingDatesWithSalary?.map(date => ({
               ...date,
@@ -637,15 +638,15 @@ export default function PayrollManager({
       });
       
       // Show success message
-      // console.log('Basic salary update completed');
+      // logger.debug('Basic salary update completed');
       toast({
         title: "Success",
         description: `Basic salary of RM ${basicAmount.toLocaleString()} set for ${currentSelectedStaff.length} staff member(s)`,
       });
       
-      // console.log('setBasicSalaryForAllDates completed successfully');
+      // logger.debug('setBasicSalaryForAllDates completed successfully');
     } catch (error) {
-      console.error('Error in setBasicSalaryForAllDates:', error);
+      logger.error('Error in setBasicSalaryForAllDates:', error);
       toast({
         title: "Error",
         description: "An unexpected error occurred while updating basic salary.",
@@ -837,7 +838,7 @@ export default function PayrollManager({
                   <div className="flex gap-3">
                     <Button
                       onClick={() => {
-                        // console.log("New Set Basic Salary button clicked!");
+                        // logger.debug("New Set Basic Salary button clicked!");
                         // Set default selections
                         setSelectedStaffForBasic(confirmedStaff.map(s => s.id));
                         // Force open the dialog
@@ -888,9 +889,9 @@ export default function PayrollManager({
                   </div>
                   <Button
                     onClick={() => {
-                      // console.log("Push Payment button clicked");
+                      // logger.debug("Push Payment button clicked");
                       handleExportDuitNowPayment();
-                      // console.log("showDuitNowExport set to:", true);
+                      // logger.debug("showDuitNowExport set to:", { data: true });
                     }}
                     className="bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-md hover:shadow-lg"
                     disabled={
@@ -1617,7 +1618,7 @@ export default function PayrollManager({
                 type="button"
                 className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700"
                 onClick={() => {
-                  // console.log("Cancel button clicked");
+                  // logger.debug("Cancel button clicked");
                   setIsSetBasicDialogOpen(false);
                   setSelectedStaffForBasic([]);
                   setTempBasicValue("");
@@ -1634,7 +1635,7 @@ export default function PayrollManager({
                 }`}
                 disabled={selectedStaffForBasic.length === 0 || !tempBasicValue}
                 onClick={() => {
-                  // console.log("Apply button clicked");
+                  // logger.debug("Apply button clicked");
                   
                   // Process data and close dialog
                   try {
@@ -1644,7 +1645,7 @@ export default function PayrollManager({
                     // Then update the data
                     setBasicSalaryForAllDates();
                   } catch (error) {
-                    console.error("Error applying basic salary:", error);
+                    logger.error("Error applying basic salary:", error);
                     toast({
                       title: "Error",
                       description: "Failed to apply basic salary. See console for details.",

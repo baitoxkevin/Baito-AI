@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
+import { logger } from '../../lib/logger';
 import { 
   format, 
   isSameDay, 
@@ -119,7 +120,7 @@ export const CalendarTab = ({ startDate, endDate, confirmedStaff, setConfirmedSt
         });
       }
     } catch (error) {
-      console.error('Error updating location:', error);
+      logger.error('Error updating location:', error);
       toast({
         title: "Error",
         description: "Failed to update location",

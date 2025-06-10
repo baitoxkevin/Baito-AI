@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { logger } from '../lib/logger';
 import {
   Card,
   CardContent,
@@ -138,7 +139,7 @@ function ToastDemo() {
       title: "Success! 🎉",
       description: "Your changes have been saved successfully.",
       action: (
-        <ToastAction altText="Undo action" onClick={() => console.log("Undo clicked")}>
+        <ToastAction altText="Undo action" onClick={() => logger.debug("Undo clicked")}>
           Undo
         </ToastAction>
       ),
@@ -166,7 +167,7 @@ function ToastDemo() {
       title: "New feature available",
       description: "Check out our new dashboard analytics!",
       action: (
-        <ToastAction altText="Learn more about the feature" onClick={() => console.log("Learn more clicked")}>
+        <ToastAction altText="Learn more about the feature" onClick={() => logger.debug("Learn more clicked")}>
           Learn More
         </ToastAction>
       ),
@@ -395,7 +396,7 @@ function GoogleSlidesScraper({ onDataExtracted }: { onDataExtracted: (data: Scra
         description: `Found ${exampleData.length} records`,
       });
     } catch (error) {
-      console.error('Error extracting data:', error);
+      logger.error('Error extracting data:', error);
       toast({
         title: 'Error',
         description: 'Failed to extract data. Please try again.',
@@ -505,7 +506,7 @@ function WhatsAppScraper({ onDataExtracted }: { onDataExtracted: (data: ScrapedD
         description: `Found ${exampleData.length} records`,
       });
     } catch (error) {
-      console.error('Error processing file:', error);
+      logger.error('Error processing file:', error);
       toast({
         title: 'Error',
         description: 'Failed to process file. Please try again.',
@@ -639,7 +640,7 @@ function ExportOptions({ data }: { data: ScrapedData[] }) {
         description: `Data exported as ${format.toUpperCase()}`,
       });
     } catch (error) {
-      console.error('Export error:', error);
+      logger.error('Export error:', error);
       toast({
         title: 'Error',
         description: 'Failed to export data',
@@ -888,7 +889,7 @@ export default function ToolsPage() {
                     projectEndDate={new Date(selectedProject.end_date)}
                     projectId={selectedProject.id}
                     onSave={async (payrollData) => {
-                      console.log('Saving payroll data:', payrollData);
+                      logger.debug('Saving payroll data:', { data: payrollData });
                       toast({
                         title: 'Payroll Saved',
                         description: 'Payroll data has been saved successfully',

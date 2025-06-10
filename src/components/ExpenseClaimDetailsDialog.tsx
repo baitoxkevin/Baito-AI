@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { logger } from '../lib/logger';
 import {
   Dialog,
   DialogContent,
@@ -89,7 +90,7 @@ export function ExpenseClaimDetailsDialog({
     if (open && claimId) {
       // Always try to load from database first
       loadClaim(claimId).catch(_err => {
-        // console.warn('Failed to load claim from database:', err);
+        // logger.warn('Failed to load claim from database:', err);
         // If database fails, try using local claim if available
         if (propLocalClaim) {
           setLocalClaim(propLocalClaim);
@@ -122,7 +123,7 @@ export function ExpenseClaimDetailsDialog({
         const allowed = await canApproveExpenseClaim(currentUser.id, claim.created_by);
         setCanApprove(allowed);
       } catch (error) {
-        console.error('Error checking approval permission:', error);
+        logger.error('Error checking approval permission:', error);
         setCanApprove(false);
       } finally {
         setCheckingApproval(false);
@@ -144,7 +145,7 @@ export function ExpenseClaimDetailsDialog({
     try {
       return format(new Date(dateString), 'MMM d, yyyy');
     } catch (_error) {
-      // console.warn('Invalid date format:', dateString);
+      // logger.warn('Invalid date format:', dateString);
       return 'Invalid Date';
     }
   };
@@ -208,7 +209,7 @@ export function ExpenseClaimDetailsDialog({
       // Trigger a refresh of the expense claims and project data
       window.location.reload(); // Simple refresh for now
     } catch (error) {
-      console.error('Error approving claim:', error);
+      logger.error('Error approving claim:', error);
       toast({
         title: "Error",
         description: "Failed to approve expense claim",

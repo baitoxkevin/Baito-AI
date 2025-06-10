@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
 import type { ExpenseClaim } from './expense-claim-service';
 
+import { logger } from './logger';
 /**
  * Syncs approved expense claims to staff payroll
  * This function will update the staff's working dates with salary to include the expense claim amounts
@@ -41,7 +42,7 @@ export async function syncExpenseClaimToPayroll(expenseClaim: ExpenseClaim): Pro
       .single();
 
     if (projectError || !project) {
-      console.error('Error fetching project:', projectError);
+      logger.error('Error fetching project:', projectError);
       return { 
         success: false, 
         message: 'Failed to fetch project data' 
@@ -102,7 +103,7 @@ export async function syncExpenseClaimToPayroll(expenseClaim: ExpenseClaim): Pro
       .eq('id', projectId);
 
     if (updateError) {
-      console.error('Error updating project staff:', updateError);
+      logger.error('Error updating project staff:', updateError);
       return { 
         success: false, 
         message: 'Failed to update staff payroll data' 
@@ -110,14 +111,14 @@ export async function syncExpenseClaimToPayroll(expenseClaim: ExpenseClaim): Pro
     }
 
     // Log the sync action
-    console.log(`Successfully synced expense claim ${expenseClaim.id} to staff ${staffId} payroll`);
+    logger.debug(`Successfully synced expense claim ${expenseClaim.id} to staff ${staffId} payroll`);
     
     return { 
       success: true, 
       message: `Expense claim of RM ${totalAmount} has been distributed across ${workingDatesWithSalary.length} working days` 
     };
   } catch (error) {
-    console.error('Error syncing expense claim to payroll:', error);
+    logger.error('Error syncing expense claim to payroll:', error);
     return { 
       success: false, 
       message: 'An error occurred while syncing expense claim to payroll' 
@@ -225,7 +226,7 @@ export async function unsyncExpenseClaimFromPayroll(expenseClaim: ExpenseClaim):
       message: `Removed expense claim of RM ${totalAmount} from staff payroll` 
     };
   } catch (error) {
-    console.error('Error unsyncing expense claim from payroll:', error);
+    logger.error('Error unsyncing expense claim from payroll:', error);
     return { 
       success: false, 
       message: 'An error occurred while removing expense claim from payroll' 
@@ -250,13 +251,13 @@ export async function getStaffExpenseClaimsForProject(
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.error('Error fetching staff expense claims:', error);
+      logger.error('Error fetching staff expense claims:', error);
       return [];
     }
 
     return data || [];
   } catch (error) {
-    console.error('Error in getStaffExpenseClaimsForProject:', error);
+    logger.error('Error in getStaffExpenseClaimsForProject:', error);
     return [];
   }
 }

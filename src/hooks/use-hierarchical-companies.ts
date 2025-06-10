@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { fetchHierarchicalCompanies } from '@/lib/utils';
 import type { Company } from '@/lib/types';
 
+import { logger } from '../lib/logger';
 export interface HierarchicalCompany extends Company {
   child_companies?: HierarchicalCompany[];
   level?: number;
@@ -152,7 +153,7 @@ export function useHierarchicalCompanies(): UseHierarchicalCompaniesResult {
       setCompanies(companiesWithLevels);
       setFlatCompanies(flattenTree(companiesWithLevels));
     } catch (err) {
-      console.error('Error loading hierarchical companies:', err);
+      logger.error('Error loading hierarchical companies:', err);
       setError(err instanceof Error ? err : new Error('Failed to load companies'));
       // Set empty arrays to prevent undefined errors in UI
       setCompanies([]);

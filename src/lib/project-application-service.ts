@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase';
 import type { Database } from './database.types';
 
+import { logger } from './logger';
 type Project = Database['public']['Tables']['projects']['Row'];
 type ProjectStaff = Database['public']['Tables']['project_staff']['Row'];
 
@@ -70,7 +71,7 @@ export async function getOpenProjects() {
 
     return { data: openProjects, error: null };
   } catch (error) {
-    console.error('Error fetching open projects:', error);
+    logger.error('Error fetching open projects:', error);
     return { data: null, error };
   }
 }
@@ -96,7 +97,7 @@ export async function hasAppliedToProject(projectId: string, candidateId: string
 
     return { hasApplied: !!data, error: null };
   } catch (error) {
-    console.error('Error checking application status:', error);
+    logger.error('Error checking application status:', error);
     return { hasApplied: false, error };
   }
 }
@@ -171,7 +172,7 @@ export async function applyToProject(application: ProjectApplicationData) {
 
     return { data: staffEntry, error: null };
   } catch (error) {
-    console.error('Error applying to project:', error);
+    logger.error('Error applying to project:', error);
     return { data: null, error };
   }
 }
@@ -229,7 +230,7 @@ export async function updateApplicationStatus(
 
     return { data, error: null };
   } catch (error) {
-    console.error('Error updating application status:', error);
+    logger.error('Error updating application status:', error);
     return { data: null, error };
   }
 }
@@ -262,7 +263,7 @@ export async function getProjectApplications(projectId: string) {
 
     return { data, error: null };
   } catch (error) {
-    console.error('Error fetching project applications:', error);
+    logger.error('Error fetching project applications:', error);
     return { data: null, error };
   }
 }
@@ -294,7 +295,7 @@ export async function getCandidateApplications(candidateId: string) {
 
     return { data, error: null };
   } catch (error) {
-    console.error('Error fetching candidate applications:', error);
+    logger.error('Error fetching candidate applications:', error);
     return { data: null, error };
   }
 }

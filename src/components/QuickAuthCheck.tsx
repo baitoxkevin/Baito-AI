@@ -5,6 +5,7 @@ import { signOut } from '@/lib/auth';
 import { useToast } from '@/hooks/use-toast';
 import { LogOut, User } from 'lucide-react';
 
+import { logger } from '../lib/logger';
 export default function QuickAuthCheck() {
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -19,7 +20,7 @@ export default function QuickAuthCheck() {
       const { data: { user } } = await supabase.auth.getUser();
       setCurrentUser(user);
     } catch (error) {
-      console.error('Auth check error:', error);
+      logger.error('Auth check error:', error);
     } finally {
       setLoading(false);
     }
@@ -34,7 +35,7 @@ export default function QuickAuthCheck() {
       });
       window.location.href = '/login';
     } catch (error) {
-      console.error('Sign out error:', error);
+      logger.error('Sign out error:', error);
       toast({
         title: "Error",
         description: "Failed to sign out. Please try again.",

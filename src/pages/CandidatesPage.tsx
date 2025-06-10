@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { logger } from '../lib/logger';
 import {
   Table,
   TableBody,
@@ -71,7 +72,7 @@ export default function CandidatesPage() {
           setCurrentUser({ name: userName, id: user.id });
         }
       } catch (error) {
-        console.error('Error getting current user:', error);
+        logger.error('Error getting current user:', error);
       }
     };
     
@@ -110,13 +111,13 @@ export default function CandidatesPage() {
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('Supabase error:', error);
+        logger.error('Supabase error:', error);
         throw error;
       }
 
       setCandidates(data || []);
     } catch (error) {
-      console.error('Error loading candidates:', error);
+      logger.error('Error loading candidates:', error);
       toast({
         title: 'Error',
         description: error instanceof Error ? error.message : 'Failed to load candidates. Please try again.',
@@ -217,7 +218,7 @@ export default function CandidatesPage() {
       });
       
       if (error) {
-        console.error('Error generating update link:', error);
+        logger.error('Error generating update link:', error);
         throw new Error('Failed to generate secure update link');
       }
       
@@ -261,7 +262,7 @@ export default function CandidatesPage() {
         setCopiedCandidateId(null);
       }, 2000);
     } catch (error) {
-      console.error('Error sharing secure link:', error);
+      logger.error('Error sharing secure link:', error);
       toast({
         title: "Link Generation Failed",
         description: error instanceof Error ? error.message : "There was an error generating a secure edit link.",

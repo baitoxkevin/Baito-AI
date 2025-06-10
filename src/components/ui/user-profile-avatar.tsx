@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Camera, User, Loader2, Settings, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { logger } from '../../lib/logger';
 import {
   Tooltip,
   TooltipContent,
@@ -64,7 +65,7 @@ export default function UserProfileAvatar({
           avatarUrl: getAvatarUrl(profile),
         });
       } catch (error) {
-        console.error('Error loading user profile:', error);
+        logger.error('Error loading user profile:', error);
         toast({
           title: 'Error',
           description: 'Failed to load your profile. Please try again.',
@@ -117,7 +118,7 @@ export default function UserProfileAvatar({
         description: 'Your profile picture has been updated successfully.',
       });
     } catch (error) {
-      console.error('Error uploading avatar:', error);
+      logger.error('Error uploading avatar:', error);
       
       // Revert to original avatar
       const profile = await getUserProfile();

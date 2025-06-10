@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { format } from 'date-fns';
+import { logger } from '../../../lib/logger';
 import { 
   FileText, 
   Users, 
@@ -256,7 +257,7 @@ export function CompactHistory({ projectId }: { projectId: string }) {
         setActivities(relevantLogs);
         setError(null);
       } catch (err) {
-        console.error('Error fetching activity logs:', err);
+        logger.error('Error fetching activity logs:', err);
         setError('Database unavailable - showing local activity only');
         // Try to get localStorage data as final fallback
         try {

@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
+import { logger } from '../lib/logger';
 import {
   Command,
   CommandDialog,
@@ -270,7 +271,7 @@ export function SpotlightCommand() {
               projectEndDate={new Date(selectedProject.end_date)}
               projectId={selectedProject.id}
               onSave={async (payrollData) => {
-                console.log('Saving payroll data:', payrollData);
+                logger.debug('Saving payroll data:', { data: payrollData });
                 // You can implement custom save logic here
                 // or use the default save behavior
               }}

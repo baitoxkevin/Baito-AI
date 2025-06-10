@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { logger } from '../../lib/logger';
 import { 
   DollarSign, 
   Plus, 
@@ -149,7 +150,7 @@ const ExpensesTab = ({ expenses, setExpenses, projectId }: ExpensesTabProps) => 
         variant: "default"
       });
     } catch (error) {
-      console.error('Error adding expense:', error);
+      logger.error('Error adding expense:', error);
       toast({
         title: "Error",
         description: "Failed to add expense. Please try again.",
@@ -171,7 +172,7 @@ const ExpensesTab = ({ expenses, setExpenses, projectId }: ExpensesTabProps) => 
           .from('expense-receipts')
           .remove([expenseToRemove.receipt_url]);
           
-        if (storageError) console.error('Storage deletion error:', storageError);
+        if (storageError) logger.error('Storage deletion error:', storageError);
       }
       
       // Update local state
@@ -195,7 +196,7 @@ const ExpensesTab = ({ expenses, setExpenses, projectId }: ExpensesTabProps) => 
         variant: "default"
       });
     } catch (error) {
-      console.error('Error removing expense:', error);
+      logger.error('Error removing expense:', error);
       toast({
         title: "Error",
         description: "Failed to remove expense. Please try again.",
@@ -229,7 +230,7 @@ const ExpensesTab = ({ expenses, setExpenses, projectId }: ExpensesTabProps) => 
         variant: "default"
       });
     } catch (error) {
-      console.error('Error updating expense status:', error);
+      logger.error('Error updating expense status:', error);
       toast({
         title: "Error",
         description: "Failed to update expense status",

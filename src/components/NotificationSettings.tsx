@@ -8,6 +8,7 @@ import { notificationService } from '@/lib/notification-service';
 import { getUser } from '@/lib/auth';
 import { useToast } from '@/hooks/use-toast';
 
+import { logger } from '../lib/logger';
 export function NotificationSettings() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -29,7 +30,7 @@ export function NotificationSettings() {
       setEmailNotifications(preferences.emailNotifications);
       setCcOnAllProjects(preferences.ccOnAllProjects);
     } catch (error) {
-      console.error('Error loading preferences:', error);
+      logger.error('Error loading preferences:', error);
       toast({
         title: 'Error',
         description: 'Failed to load notification preferences',
@@ -56,7 +57,7 @@ export function NotificationSettings() {
         description: 'Notification preferences saved successfully'
       });
     } catch (error) {
-      console.error('Error saving preferences:', error);
+      logger.error('Error saving preferences:', error);
       toast({
         title: 'Error',
         description: 'Failed to save notification preferences',

@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
 
+import { logger } from './logger';
 /**
  * Check if a candidate is blacklisted by the current user
  * @param candidateId The ID of the candidate to check
@@ -21,7 +22,7 @@ export async function isBlacklisted(candidateId: string): Promise<boolean> {
     
     // Table doesn't exist
     if (tableCheckError && (tableCheckError.code === '42P01' || tableCheckError.message.includes('does not exist'))) {
-      console.warn('Candidate blacklist table does not exist or cannot be accessed');
+      logger.warn('Candidate blacklist table does not exist or cannot be accessed');
       return false;
     }
 
@@ -40,16 +41,16 @@ export async function isBlacklisted(candidateId: string): Promise<boolean> {
       }
       // Handle table doesn't exist error
       if (error.code === '42P01') {
-        console.error('Candidate blacklist table does not exist in database');
+        logger.error('Candidate blacklist table does not exist in database');
         return false;
       }
-      console.error('Error checking blacklist:', error);
+      logger.error('Error checking blacklist:', error);
       return false;
     }
 
     return !!data;
   } catch (error) {
-    console.error('Error in isBlacklisted:', error);
+    logger.error('Error in isBlacklisted:', error);
     return false;
   }
 }
@@ -74,7 +75,7 @@ export async function getBlacklistedCandidates(): Promise<string[]> {
     
     // Table doesn't exist
     if (tableCheckError && (tableCheckError.code === '42P01' || tableCheckError.message.includes('does not exist'))) {
-      console.warn('Candidate blacklist table does not exist or cannot be accessed');
+      logger.warn('Candidate blacklist table does not exist or cannot be accessed');
       return [];
     }
 
@@ -87,16 +88,16 @@ export async function getBlacklistedCandidates(): Promise<string[]> {
     if (error) {
       // Handle table doesn't exist error
       if (error.code === '42P01') {
-        console.error('Candidate blacklist table does not exist in database');
+        logger.error('Candidate blacklist table does not exist in database');
         return [];
       }
-      console.error('Error getting blacklisted candidates:', error);
+      logger.error('Error getting blacklisted candidates:', error);
       return [];
     }
 
     return data.map(item => item.candidate_id);
   } catch (error) {
-    console.error('Error in getBlacklistedCandidates:', error);
+    logger.error('Error in getBlacklistedCandidates:', error);
     return [];
   }
 }
@@ -134,7 +135,7 @@ export async function blacklistCandidate(
     
     // Table doesn't exist
     if (tableCheckError && (tableCheckError.code === '42P01' || tableCheckError.message.includes('does not exist'))) {
-      console.error('Cannot blacklist candidate: table does not exist');
+      logger.error('Cannot blacklist candidate: table does not exist');
       return false;
     }
 
@@ -152,16 +153,16 @@ export async function blacklistCandidate(
     if (error) {
       // Handle table doesn't exist error
       if (error.code === '42P01') {
-        console.error('Candidate blacklist table does not exist in database');
+        logger.error('Candidate blacklist table does not exist in database');
         return false;
       }
-      console.error('Error blacklisting candidate:', error);
+      logger.error('Error blacklisting candidate:', error);
       return false;
     }
 
     return true;
   } catch (error) {
-    console.error('Error in blacklistCandidate:', error);
+    logger.error('Error in blacklistCandidate:', error);
     return false;
   }
 }
@@ -187,7 +188,7 @@ export async function removeFromBlacklist(candidateId: string): Promise<boolean>
     
     // Table doesn't exist
     if (tableCheckError && (tableCheckError.code === '42P01' || tableCheckError.message.includes('does not exist'))) {
-      console.warn('Cannot remove from blacklist: table does not exist');
+      logger.warn('Cannot remove from blacklist: table does not exist');
       return false;
     }
 
@@ -201,16 +202,16 @@ export async function removeFromBlacklist(candidateId: string): Promise<boolean>
     if (error) {
       // Handle table doesn't exist error
       if (error.code === '42P01') {
-        console.error('Candidate blacklist table does not exist in database');
+        logger.error('Candidate blacklist table does not exist in database');
         return false;
       }
-      console.error('Error removing from blacklist:', error);
+      logger.error('Error removing from blacklist:', error);
       return false;
     }
 
     return true;
   } catch (error) {
-    console.error('Error in removeFromBlacklist:', error);
+    logger.error('Error in removeFromBlacklist:', error);
     return false;
   }
 }
@@ -236,23 +237,23 @@ export async function uploadBlacklistProof(
     const { data: buckets, error: bucketError } = await supabase.storage.listBuckets();
     
     if (bucketError) {
-      console.error('Error checking storage buckets:', bucketError);
+      logger.error('Error checking storage buckets:', bucketError);
       return [];
     }
     
     const blacklistBucketExists = buckets.some(bucket => bucket.name === 'blacklist-evidence');
     
     if (!blacklistBucketExists) {
-      console.error('Blacklist evidence storage bucket does not exist');
+      logger.error('Blacklist evidence storage bucket does not exist');
       
       // Try to create the bucket
       try {
         await supabase.storage.createBucket('blacklist-evidence', {
           public: true
         });
-        console.log('Created blacklist-evidence bucket');
+        logger.debug('Created blacklist-evidence bucket');
       } catch (createError) {
-        console.error('Failed to create blacklist-evidence bucket:', createError);
+        logger.error('Failed to create blacklist-evidence bucket:', createError);
         return [];
       }
     }
@@ -269,7 +270,7 @@ export async function uploadBlacklistProof(
         .upload(filePath, file);
         
       if (error) {
-        console.error('Error uploading file:', error);
+        logger.error('Error uploading file:', error);
         continue;
       }
       
@@ -283,7 +284,7 @@ export async function uploadBlacklistProof(
     
     return uploadedUrls;
   } catch (error) {
-    console.error('Error in uploadBlacklistProof:', error);
+    logger.error('Error in uploadBlacklistProof:', error);
     return [];
   }
 }

@@ -5,6 +5,7 @@ import * as z from 'zod';
 import { format } from 'date-fns';
 import { CalendarIcon, Loader2 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
+import { logger } from '../../lib/logger';
 import {
   Dialog,
   DialogContent,
@@ -122,7 +123,7 @@ export function EditProjectDetailsDialog({
       onProjectUpdate(data);
       onOpenChange(false);
     } catch (error) {
-      console.error('Error updating project:', error);
+      logger.error('Error updating project:', error);
       toast({
         title: "Error",
         description: "Failed to update project details",

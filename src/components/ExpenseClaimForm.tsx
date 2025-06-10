@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { logger } from '../lib/logger';
 import {
   Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle
 } from '@/components/ui/card';
@@ -104,7 +105,7 @@ export function ExpenseClaimForm({
           setAvailableReceipts(receipts);
         }
       } catch (_error) {
-        // console.error('Failed to load receipts:', _error);
+        // logger.error('Failed to load receipts:', _error);
       } finally {
         setLoading(false);
       }
@@ -127,7 +128,7 @@ export function ExpenseClaimForm({
     try {
       return format(new Date(dateString), 'MMM d, yyyy');
     } catch (_error) {
-      // console.warn('Invalid date format:', dateString);
+      // logger.warn('Invalid date format:', dateString);
       return 'Invalid Date';
     }
   };
@@ -141,7 +142,7 @@ export function ExpenseClaimForm({
         // Receipt will be added to currentClaimReceipts via the hook
         // and removed from availableReceipts in the next render
       } catch (error) {
-        console.error('Failed to add receipt:', error);
+        logger.error('Failed to add receipt:', error);
       }
     } else {
       // If creating a new claim, just update the local state
@@ -159,7 +160,7 @@ export function ExpenseClaimForm({
         // Receipt will be removed from currentClaimReceipts via the hook
         // and added back to availableReceipts in the next render
       } catch (error) {
-        console.error('Failed to remove receipt:', error);
+        logger.error('Failed to remove receipt:', error);
       }
     } else {
       // If creating a new claim, just update the local state
@@ -188,7 +189,7 @@ export function ExpenseClaimForm({
         description: `${validatedReceipt.vendor}: ${new Intl.NumberFormat('en-MY', { style: 'currency', currency: 'MYR' }).format(validatedReceipt.amount)}`,
       });
     } catch (error) {
-      console.error('Failed to add validated receipt:', error);
+      logger.error('Failed to add validated receipt:', error);
       toast({
         title: "Failed to add receipt",
         description: "There was an error saving the validated receipt.",
@@ -225,7 +226,7 @@ export function ExpenseClaimForm({
         await onSubmit(values);
         // After the expense claim is created, receipts can be added
       } catch (error) {
-        console.error('Failed to submit form:', error);
+        logger.error('Failed to submit form:', error);
       }
     }
   };
