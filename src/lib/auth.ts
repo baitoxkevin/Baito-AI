@@ -330,7 +330,7 @@ export async function getUserProfile(userId?: string): Promise<UserProfile> {
     if (error || !data) {
       // If profile doesn't exist but we have an auth user, create a basic profile
       if (error?.code === 'PGRST116' && currentUser) {
-        logger.debug('User profile not found, { data: creating basic profile...' });
+        logger.debug('User profile not found, creating basic profile...');
         
         // Get current user data if we don't have it
         if (!currentUser && currentUserId) {
