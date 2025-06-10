@@ -93,6 +93,7 @@ import {
   updatePaymentBatchNotes,
   PaymentBatch,
   PaymentBatchStatus,
+  PaymentBatchFilter,
   PaymentItem,
   PaymentApprovalHistory,
   PaymentBatchDetails,
@@ -227,7 +228,7 @@ export function PaymentApprovalWorkflow({
       const offset = (page - 1) * itemsPerPage;
       
       // Prepare filter params
-      const filterParams: any = {
+      const filterParams: PaymentBatchFilter = {
         limit: itemsPerPage,
         offset
       };

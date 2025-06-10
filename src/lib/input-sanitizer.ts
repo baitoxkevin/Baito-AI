@@ -189,11 +189,11 @@ export class InputSanitizer {
   /**
    * Create a sanitized object from user input
    */
-  static sanitizeObject<T extends Record<string, any>>(
+  static sanitizeObject<T extends Record<string, unknown>>(
     input: T,
     schema?: z.ZodSchema<T>
   ): T {
-    const sanitized: any = {};
+    const sanitized: Record<string, unknown> = {};
     
     for (const [key, value] of Object.entries(input)) {
       if (typeof value === 'string') {

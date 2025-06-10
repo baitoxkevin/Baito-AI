@@ -245,7 +245,7 @@ export default function NewCandidateDialog({
       // For empty email, set to null instead of using a placeholder
       if (!submissionData.email || submissionData.email.trim() === '') {
         submissionData.email = null;
-        logger.debug('Empty email detected, { data: setting to null' });
+        logger.debug('Empty email detected, setting to null');
       }
 
       // Check if the candidate already exists in the system - first by IC number

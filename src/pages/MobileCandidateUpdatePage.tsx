@@ -253,13 +253,13 @@ export default function MobileCandidateUpdatePage() {
   
   // Debug: Log when component renders
   useEffect(() => {
-    logger.debug('Component rendered. isAuthenticated:', { data: isAuthenticated, 'formData.race:', formData.race });
+    logger.debug('Component rendered. isAuthenticated:', { data: isAuthenticated, formDataRace: formData.race });
   });
   
   // Workaround for Radix UI Select not updating properly
   useEffect(() => {
     if (isAuthenticated && formData.race) {
-      logger.debug('Race value exists, { data: forcing update' });
+      logger.debug('Race value exists, forcing update');
       // Force the Select components to recognize the new value
       const timer = setTimeout(() => {
         setFormData(prev => ({ ...prev }));
@@ -470,11 +470,11 @@ export default function MobileCandidateUpdatePage() {
       
       // Initialize form with actual candidate data
       logger.debug('Setting form data after IC verification with:', { data: {
-        race: normalizeDropdownValue(fullCandidateData.race, 'race' }),
+        race: normalizeDropdownValue(fullCandidateData.race, 'race'),
         shirt_size: fullCandidateData.shirt_size,
         emergency_contact_relationship: normalizeDropdownValue(fullCandidateData.emergency_contact_relationship, 'relationship'),
         highest_education: normalizeDropdownValue(fullCandidateData.highest_education, 'education')
-      });
+      }});
       
       const newFormData = {
         full_name: fullCandidateData.full_name || '',
@@ -843,7 +843,7 @@ export default function MobileCandidateUpdatePage() {
       return;
     }
     
-    logger.debug('Validation passed, { data: showing confirmation dialog' });
+    logger.debug('Validation passed, showing confirmation dialog');
     // Show confirmation dialog
     setShowConfirmDialog(true);
   };
@@ -934,8 +934,8 @@ export default function MobileCandidateUpdatePage() {
         shirt_size: formData.shirt_size,
         emergency_contact_relationship: formData.emergency_contact_relationship,
         highest_education: formData.highest_education,
-        languages_spoken: languagesArray.join(',' })
-      });
+        languages_spoken: languagesArray.join(',')
+      }});
       
       // Prepare update data
       const updateData = {

@@ -182,7 +182,7 @@ export default function ProjectsPageRedesign() {
   };
   
   // Handle project refresh after adding or updating
-  const handleProjectsUpdated = (updatedProject?: any) => {
+  const handleProjectsUpdated = (updatedProject?: Project) => {
     if (updatedProject) {
       // If we have an updated project, just update it in place without reloading everything
       setProjects(prev => {

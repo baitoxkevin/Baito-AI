@@ -206,7 +206,7 @@ export function createDialogHandler(
       
       if (isFileInputTrigger(e.target as HTMLElement)) {
         isInFilePicker = true;
-        logger.debug('File picker detected, { data: preventing dialog auto-close' });
+        logger.debug('File picker detected, preventing dialog auto-close');
         
         // Reset the flag after a reasonable time for the file picker to complete
         setTimeout(() => {
@@ -799,7 +799,7 @@ export async function applyCompanyPermissionsFix(): Promise<{ success: boolean; 
         .limit(1);
         
       if (!testError) {
-        logger.debug('Write test succeeded, { data: permissions already work:', testData });
+        logger.debug('Write test succeeded, permissions already work:', { data: testData });
         
         // Clean up the test record
         if (testData && testData.length > 0) {
@@ -815,7 +815,7 @@ export async function applyCompanyPermissionsFix(): Promise<{ success: boolean; 
         };
       }
       
-      logger.debug('Test write failed, { data: proceeding with permissions fix:', testError });
+      logger.debug('Test write failed, proceeding with permissions fix:', { data: testError });
     } catch (testError) {
       logger.debug('Error during test write:', { data: testError });
       // Continue with the fix
@@ -828,7 +828,7 @@ export async function applyCompanyPermissionsFix(): Promise<{ success: boolean; 
       .select('count(*)');
       
     if (!readError) {
-      logger.debug('Can read companies table, { data: fixing INSERT permissions only' });
+      logger.debug('Can read companies table, fixing INSERT permissions only');
       
       // Create a direct API call to create a write policy
       // This should work if the application has permissions to manage policies

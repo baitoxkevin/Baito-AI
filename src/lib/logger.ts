@@ -40,7 +40,7 @@ class SecureLogger {
     return new Set(levels.slice(levelIndex));
   }
 
-  private sanitize(data: any): any {
+  private sanitize(data: unknown): unknown {
     if (typeof data === 'string') {
       // Remove potential sensitive patterns
       return data
@@ -52,7 +52,7 @@ class SecureLogger {
     }
     
     if (typeof data === 'object' && data !== null) {
-      const sanitized: any = Array.isArray(data) ? [] : {};
+      const sanitized: Record<string, unknown> | unknown[] = Array.isArray(data) ? [] : {};
       
       for (const key in data) {
         if (data.hasOwnProperty(key)) {
@@ -76,7 +76,7 @@ class SecureLogger {
     return data;
   }
 
-  private formatMessage(level: LogLevel, message: string, context?: any): LogEntry {
+  private formatMessage(level: LogLevel, message: string, context?: unknown): LogEntry {
     const entry: LogEntry = {
       timestamp: new Date().toISOString(),
       level,
@@ -163,31 +163,31 @@ class SecureLogger {
   }
 
   // Public logging methods
-  debug(message: string, context?: any): void {
+  debug(message: string, context?: unknown): void {
     if (this.enabledLevels.has('debug')) {
       this.output(this.formatMessage('debug', message, context));
     }
   }
 
-  info(message: string, context?: any): void {
+  info(message: string, context?: unknown): void {
     if (this.enabledLevels.has('info')) {
       this.output(this.formatMessage('info', message, context));
     }
   }
 
-  warn(message: string, context?: any): void {
+  warn(message: string, context?: unknown): void {
     if (this.enabledLevels.has('warn')) {
       this.output(this.formatMessage('warn', message, context));
     }
   }
 
-  error(message: string, context?: any): void {
+  error(message: string, context?: unknown): void {
     if (this.enabledLevels.has('error')) {
       this.output(this.formatMessage('error', message, context));
     }
   }
 
-  critical(message: string, context?: any): void {
+  critical(message: string, context?: unknown): void {
     if (this.enabledLevels.has('critical')) {
       this.output(this.formatMessage('critical', message, context));
       // Critical errors should trigger immediate notification
@@ -196,7 +196,7 @@ class SecureLogger {
   }
 
   // Utility method to track user actions for audit trail
-  audit(action: string, details?: any): void {
+  audit(action: string, details?: unknown): void {
     this.info(`AUDIT: ${action}`, {
       ...details,
       timestamp: new Date().toISOString(),
@@ -205,7 +205,7 @@ class SecureLogger {
   }
 
   // Performance logging
-  performance(operation: string, duration: number, metadata?: any): void {
+  performance(operation: string, duration: number, metadata?: unknown): void {
     if (duration > 1000) {
       // Log slow operations
       this.warn(`Slow operation: ${operation}`, {
@@ -221,7 +221,7 @@ class SecureLogger {
   }
 
   // Security event logging
-  security(event: string, details?: any): void {
+  security(event: string, details?: unknown): void {
     this.warn(`SECURITY: ${event}`, {
       ...details,
       timestamp: new Date().toISOString(),

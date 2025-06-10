@@ -651,7 +651,20 @@ export function SpotlightCard({
       // logger.debug('Current user:', { data: user.id, user.email });
       
       // Transform the data from ExpenseClaimFormWithDragDrop format
-      const claimData: any = {
+      const claimData: {
+        title: string;
+        description: string;
+        project_id: string;
+        submitted_by: string;
+        amount: number;
+        status: 'pending';
+        category: string;
+        expense_date: string;
+        receipt_number: string;
+        receipts: never[];
+        user_id?: string;
+        staff_id?: string;
+      } = {
         title: data.title,
         description: data.description,
         project_id: localProject.id,

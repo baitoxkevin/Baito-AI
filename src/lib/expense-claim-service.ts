@@ -238,10 +238,14 @@ export async function createExpenseClaim(claim: Omit<ExpenseClaim, 'total_amount
       throw new Error('Authentication required to create expense claims');
     }
     
-    logger.debug('Authenticated user:', { data: user.id, user.email });
+    logger.debug('Authenticated user:', { data: { id: user.id, email: user.email } });
     // Extract amount from claim data and use it for total_amount
     // Only include the fields that exist in the database table
-    const claimData: any = {
+    const claimData: Partial<ExpenseClaim> & { 
+      user_id?: string; 
+      staff_id?: string;
+      amount?: number;
+    } = {
       title: claim.title,
       description: claim.description || null,
       receipt_number: claim.receipt_number,
@@ -274,7 +278,7 @@ export async function createExpenseClaim(claim: Omit<ExpenseClaim, 'total_amount
     // Generate a receipt number that's unique
     claimData.receipt_number = `REC-${new Date().getFullYear()}-${Date.now()}-${Math.floor(Math.random()*1000)}`;
     
-    logger.debug('Creating expense claim with data:', { data: JSON.stringify(claimData, null, 2 }));
+    logger.debug('Creating expense claim with data:', { data: JSON.stringify(claimData, null, 2) });
     
     let { data, error } = await supabase
       .from('expense_claims')
@@ -327,7 +331,7 @@ export async function createExpenseClaimWithReceipts(
   claim: Omit<ExpenseClaim, 'total_amount' | 'status' | 'receipt_number'>,
   receiptFiles: File[]
 ): Promise<{ claim: ExpenseClaim; receipts: unknown[] }> {
-  logger.debug('createExpenseClaimWithReceipts called with claim:', { data: claim, 'files:', receiptFiles?.length || 0 });
+  logger.debug('createExpenseClaimWithReceipts called with claim:', { data: claim, files: receiptFiles?.length || 0 });
   
   try {
     // First create the expense claim

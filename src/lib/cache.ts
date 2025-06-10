@@ -21,7 +21,7 @@ const globalCache: Record<string, unknown> = {};
  * @param fetchFunction The function to call when data needs to be fetched
  * @param cacheDuration How long to keep data in cache (in ms)
  */
-export function useCache<T, P extends any[]>(
+export function useCache<T, P extends unknown[]>(
   namespace: string,
   fetchFunction: (...args: P) => Promise<T>, 
   cacheDuration: number = DEFAULT_CACHE_DURATION

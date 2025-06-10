@@ -196,7 +196,7 @@ export async function fetchProjectsByMonthOptimized(month: number): Promise<Proj
     
     // If no supabase client or in development mode without proper connection
     if (!supabase) {
-      logger.debug("No supabase client, { data: returning mock data" });
+      logger.debug("No supabase client, returning mock data");
       return mockData;
     }
     
@@ -229,7 +229,7 @@ export async function fetchProjectsByMonthOptimized(month: number): Promise<Proj
       }
 
       if (!data) {
-        logger.debug('No data returned, { data: falling back to mock data' });
+        logger.debug('No data returned, falling back to mock data');
         return mockData;
       }
       

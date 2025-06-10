@@ -81,7 +81,7 @@ export default function EditCandidateDialog({
   // Additional state for photo uploads
   const [fullBodyPhotos, setFullBodyPhotos] = useState<string[]>([]);
   const [halfBodyPhotos, setHalfBodyPhotos] = useState<string[]>([]);
-  const [photoValidation, _setPhotoValidation] = useState({
+  const [photoValidation, setPhotoValidation] = useState({
     profilePhoto: true,
     fullBodyPhotos: true,
     halfBodyPhotos: true
@@ -655,7 +655,7 @@ export default function EditCandidateDialog({
     { id: 'cantonese', name: 'Cantonese' },
   ];
 
-  // const entityTypes = [
+  const entityTypes = [
     { value: 'individual', label: 'Individual' },
     { value: 'sole_proprietor', label: 'Sole Proprietor' },
     { value: 'partnership', label: 'Partnership' },
@@ -665,7 +665,7 @@ export default function EditCandidateDialog({
     { value: 'non_profit', label: 'Non-Profit' },
   ];
 
-  // const registrationTypes = [
+  const registrationTypes = [
     { value: 'nric', label: 'National Registration ID Card (NRIC)' },
     { value: 'passport', label: 'Passport' },
     { value: 'business_registration', label: 'Business Registration' },
