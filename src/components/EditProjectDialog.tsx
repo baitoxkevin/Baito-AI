@@ -4,7 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { format } from 'date-fns';
 import { motion } from 'framer-motion';
-import { CalendarIcon, Loader2, MapPin, Users, Clock, DollarSign, Building } from 'lucide-react';
+import { CalendarIcon, Loader2, MapPin, Users, Clock, DollarSign, Building, Check, ChevronDown } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -40,6 +40,17 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
+import { notificationService } from '@/lib/notification-service';
+import { getUser } from '@/lib/auth';
+import { X } from 'lucide-react';
+import { Badge } from "@/components/ui/badge";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+} from "@/components/ui/command";
 import { ShineBorder } from "@/components/ui/shine-border";
 import { MagicCard } from "@/components/ui/magic-card";
 import { TextAnimate } from "@/components/ui/text-animate";
@@ -49,7 +60,7 @@ const editProjectSchema = z.object({
   title: z.string().min(1, 'Project name is required'),
   client_id: z.string().min(1, 'Customer is required'),
   manager_id: z.string().min(1, 'Person in charge is required'),
-  status: z.enum(['new', 'in-progress', 'completed', 'cancelled', 'pending']),
+  status: z.enum(['planning', 'active', 'completed', 'cancelled', 'new', 'in-progress', 'pending']),
   priority: z.enum(['low', 'medium', 'high']),
   event_type: z.string().min(1, 'Event type is required'),
   description: z.string().optional(),
@@ -64,6 +75,8 @@ const editProjectSchema = z.object({
   budget: z.number().min(0).optional(),
   project_type: z.string().optional(),
   schedule_type: z.string().optional(),
+  cc_client_ids: z.array(z.string()).optional(), // CC contact IDs from company_contacts table
+  cc_user_ids: z.array(z.string()).optional(),
 });
 
 type EditProjectFormValues = z.infer<typeof editProjectSchema>;
@@ -121,32 +134,61 @@ export function EditProjectDialog({
 }: EditProjectDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [customers, setCustomers] = useState<{ id: string; full_name: string; company_name?: string }[]>([]);
+  const [contacts, setContacts] = useState<{ id: string; name: string; company_id: string; company_name: string; email?: string; designation?: string }[]>([]);
   const [managers, setManagers] = useState<{ id: string; full_name: string; }[]>([]);
   const { toast } = useToast();
 
   const form = useForm<EditProjectFormValues>({
     resolver: zodResolver(editProjectSchema),
     defaultValues: {
-      title: project.title,
+      title: project.title || '',
       client_id: project.client_id || '',
       manager_id: project.manager_id || '',
-      status: project.status,
-      priority: project.priority,
+      status: project.status || 'planning',
+      priority: project.priority || 'medium',
       event_type: project.event_type || '',
       description: 'description' in project ? (project as { description?: string }).description || '' : '',
-      venue_address: project.venue_address,
+      venue_address: project.venue_address || '',
       venue_details: project.venue_details || '',
-      start_date: new Date(project.start_date),
+      start_date: project.start_date ? new Date(project.start_date) : new Date(),
       end_date: project.end_date ? new Date(project.end_date) : undefined,
-      working_hours_start: project.working_hours_start,
-      working_hours_end: project.working_hours_end,
-      crew_count: project.crew_count,
+      working_hours_start: project.working_hours_start || '09:00',
+      working_hours_end: project.working_hours_end || '17:00',
+      crew_count: project.crew_count || 1,
       supervisors_required: project.supervisors_required || 0,
       budget: project.budget || 0,
       project_type: project.project_type || 'recruitment',
       schedule_type: project.schedule_type || 'single',
+      cc_client_ids: (project as any).cc_client_ids || [],
+      cc_user_ids: (project as any).cc_user_ids || [],
     },
   });
+
+  // Reset form when project changes
+  useEffect(() => {
+    form.reset({
+      title: project.title || '',
+      client_id: project.client_id || '',
+      manager_id: project.manager_id || '',
+      status: project.status || 'planning',
+      priority: project.priority || 'medium',
+      event_type: project.event_type || '',
+      description: 'description' in project ? (project as { description?: string }).description || '' : '',
+      venue_address: project.venue_address || '',
+      venue_details: project.venue_details || '',
+      start_date: project.start_date ? new Date(project.start_date) : new Date(),
+      end_date: project.end_date ? new Date(project.end_date) : undefined,
+      working_hours_start: project.working_hours_start || '09:00',
+      working_hours_end: project.working_hours_end || '17:00',
+      crew_count: project.crew_count || 1,
+      supervisors_required: project.supervisors_required || 0,
+      budget: project.budget || 0,
+      project_type: project.project_type || 'recruitment',
+      schedule_type: project.schedule_type || 'single',
+      cc_client_ids: (project as any).cc_client_ids || [],
+      cc_user_ids: (project as any).cc_user_ids || [],
+    });
+  }, [project, form]);
 
   const fetchCustomersAndManagers = useCallback(async () => {
     try {
@@ -162,6 +204,32 @@ export function EditProjectDialog({
         id: company.id,
         full_name: company.company_name,
         company_name: company.company_name
+      })) || []);
+
+      // Fetch company contacts
+      const { data: contactsData, error: contactsError } = await supabase
+        .from('company_contacts')
+        .select(`
+          id,
+          name,
+          email,
+          designation,
+          company_id,
+          companies!company_contacts_company_id_fkey (
+            company_name
+          )
+        `)
+        .order('name');
+
+      if (contactsError) throw contactsError;
+
+      setContacts(contactsData?.map(contact => ({
+        id: contact.id,
+        name: contact.name,
+        email: contact.email,
+        designation: contact.designation,
+        company_id: contact.company_id,
+        company_name: contact.companies?.company_name || ''
       })) || []);
 
       // Fetch managers (admin and super_admin users)
@@ -191,13 +259,51 @@ export function EditProjectDialog({
     }
   }, [open, fetchCustomersAndManagers]);
 
+  // Clear CC contacts when customer changes
+  useEffect(() => {
+    const subscription = form.watch((value, { name }) => {
+      if (name === 'client_id') {
+        // Clear CC contacts when customer changes
+        form.setValue('cc_client_ids', []);
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [form]);
+
   const onSubmit = async (values: EditProjectFormValues) => {
     setIsSubmitting(true);
     try {
+      // Get current user for notification
+      const currentUser = await getUser();
+      const userName = currentUser?.full_name || currentUser?.email || 'Someone';
+
+      // Track changed fields for notification
+      const changedFields: Record<string, { old: any; new: any }> = {};
+      
+      // Compare values with original project data
+      Object.entries(values).forEach(([key, value]) => {
+        const originalValue = project[key as keyof Project];
+        
+        // Special handling for dates
+        if (key === 'start_date' || key === 'end_date') {
+          const formattedNew = value ? format(value as Date, 'yyyy-MM-dd') : null;
+          const formattedOld = originalValue ? format(new Date(originalValue as string), 'yyyy-MM-dd') : null;
+          if (formattedNew !== formattedOld) {
+            changedFields[key] = { old: formattedOld, new: formattedNew };
+          }
+        } 
+        // Handle other fields
+        else if (value !== originalValue) {
+          changedFields[key] = { old: originalValue, new: value };
+        }
+      });
+
       const updateData = {
         ...values,
         start_date: format(values.start_date, 'yyyy-MM-dd'),
         end_date: values.end_date ? format(values.end_date, 'yyyy-MM-dd') : null,
+        cc_client_ids: values.cc_client_ids || [],
+        cc_user_ids: values.cc_user_ids || [],
         updated_at: new Date().toISOString(),
       };
 
@@ -210,6 +316,27 @@ export function EditProjectDialog({
 
       if (error) throw error;
 
+      // Send notification to client and CC to person in charge
+      if (Object.keys(changedFields).length > 0) {
+        try {
+          const { subject, body } = notificationService.formatProjectUpdateEmail(
+            project.title,
+            changedFields,
+            userName
+          );
+          
+          await notificationService.notifyProjectStakeholders(
+            project.id,
+            subject,
+            body,
+            'project_update'
+          );
+        } catch (notifError) {
+          console.error('Failed to send notification:', notifError);
+          // Don't fail the update if notification fails
+        }
+      }
+
       toast({
         title: "Success",
         description: "Project updated successfully",
@@ -221,7 +348,7 @@ export function EditProjectDialog({
       console.error('Error updating project:', error);
       toast({
         title: "Error",
-        description: "Failed to update project",
+        description: error.message || "Failed to update project",
         variant: "destructive",
       });
     } finally {
@@ -346,11 +473,13 @@ export function EditProjectDialog({
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
+                          <SelectItem value="planning">Planning</SelectItem>
+                          <SelectItem value="active">Active</SelectItem>
+                          <SelectItem value="completed">Completed</SelectItem>
+                          <SelectItem value="cancelled">Cancelled</SelectItem>
                           <SelectItem value="new">New</SelectItem>
                           <SelectItem value="pending">Pending</SelectItem>
                           <SelectItem value="in-progress">In Progress</SelectItem>
-                          <SelectItem value="completed">Completed</SelectItem>
-                          <SelectItem value="cancelled">Cancelled</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -463,6 +592,210 @@ export function EditProjectDialog({
               />
             </SectionCard>
 
+            {/* Additional Stakeholders (CC) */}
+            <SectionCard title="Additional Stakeholders (CC)" icon={Users} delay={0.15}>
+              <div className="space-y-4">
+                {/* CC Contacts */}
+                <FormField
+                  control={form.control}
+                  name="cc_client_ids"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>CC Contacts</FormLabel>
+                      <FormDescription>
+                        {form.watch('client_id') 
+                          ? "Add additional client contacts to keep informed about this project"
+                          : "Select a customer first to see their contacts"}
+                      </FormDescription>
+                      <Popover modal={true}>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant="outline"
+                              role="combobox"
+                              disabled={!form.watch('client_id')}
+                              className={cn(
+                                "w-full justify-between",
+                                !field.value?.length && "text-muted-foreground"
+                              )}
+                            >
+                              {!form.watch('client_id') 
+                                ? "Select a customer first"
+                                : field.value?.length
+                                  ? `${field.value.length} contact${field.value.length > 1 ? 's' : ''} selected`
+                                  : "Select additional contacts"}
+                              <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-full p-0">
+                          <Command>
+                            <CommandInput placeholder="Search contacts..." />
+                            <CommandEmpty>
+                              {form.watch('client_id') 
+                                ? "No contacts found for this company" 
+                                : "No contact found"}
+                            </CommandEmpty>
+                            <CommandGroup>
+                              {contacts
+                                .filter(contact => contact.company_id === form.getValues('client_id'))
+                                .map((contact) => (
+                                <CommandItem
+                                  key={contact.id}
+                                  value={contact.id}
+                                  onSelect={() => {
+                                    const currentValue = field.value || [];
+                                    const isSelected = currentValue.includes(contact.id);
+                                    const newValue = isSelected
+                                      ? currentValue.filter((id) => id !== contact.id)
+                                      : [...currentValue, contact.id];
+                                    field.onChange(newValue);
+                                  }}
+                                >
+                                  <div className="flex items-center">
+                                    <div className={cn(
+                                      "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
+                                      field.value?.includes(contact.id)
+                                        ? "bg-primary text-primary-foreground"
+                                        : "opacity-50 [&_svg]:invisible"
+                                    )}>
+                                      <Check className="h-4 w-4" />
+                                    </div>
+                                    <div>
+                                      <div className="font-medium">{contact.name}</div>
+                                      <div className="text-xs text-muted-foreground">
+                                        {contact.designation || 'Contact'}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+                      {field.value?.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mt-2">
+                          {field.value.map((contactId) => {
+                            const contact = contacts.find(c => c.id === contactId);
+                            return contact ? (
+                              <Badge key={contactId} variant="secondary">
+                                <span>{contact.name}</span>
+                                {contact.designation && (
+                                  <span className="text-xs text-muted-foreground ml-1">({contact.designation})</span>
+                                )}
+                                <button
+                                  type="button"
+                                  className="ml-1 ring-offset-background rounded-full outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                                  onClick={() => {
+                                    field.onChange(field.value.filter(id => id !== contactId));
+                                  }}
+                                >
+                                  <X className="h-3 w-3" />
+                                </button>
+                              </Badge>
+                            ) : null;
+                          })}
+                        </div>
+                      )}
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {/* CC Users */}
+                <FormField
+                  control={form.control}
+                  name="cc_user_ids"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>CC Users</FormLabel>
+                      <FormDescription>
+                        Add additional team members to keep informed about this project
+                      </FormDescription>
+                      <Popover modal={true}>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant="outline"
+                              role="combobox"
+                              className={cn(
+                                "w-full justify-between",
+                                !field.value?.length && "text-muted-foreground"
+                              )}
+                            >
+                              {field.value?.length
+                                ? `${field.value.length} user${field.value.length > 1 ? 's' : ''} selected`
+                                : "Select additional users"}
+                              <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-full p-0">
+                          <Command>
+                            <CommandInput placeholder="Search users..." />
+                            <CommandEmpty>No user found.</CommandEmpty>
+                            <CommandGroup>
+                              {managers
+                                .filter(m => m.id !== form.getValues('manager_id'))
+                                .map((manager) => (
+                                  <CommandItem
+                                    key={manager.id}
+                                    value={manager.id}
+                                    onSelect={() => {
+                                      const currentValue = field.value || [];
+                                      const isSelected = currentValue.includes(manager.id);
+                                      const newValue = isSelected
+                                        ? currentValue.filter((id) => id !== manager.id)
+                                        : [...currentValue, manager.id];
+                                      field.onChange(newValue);
+                                    }}
+                                  >
+                                    <div className="flex items-center">
+                                      <div className={cn(
+                                        "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
+                                        field.value?.includes(manager.id)
+                                          ? "bg-primary text-primary-foreground"
+                                          : "opacity-50 [&_svg]:invisible"
+                                      )}>
+                                        <Check className="h-4 w-4" />
+                                      </div>
+                                      {manager.full_name}
+                                    </div>
+                                  </CommandItem>
+                                ))}
+                            </CommandGroup>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+                      {field.value?.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mt-2">
+                          {field.value.map((userId) => {
+                            const user = managers.find(m => m.id === userId);
+                            return user ? (
+                              <Badge key={userId} variant="secondary">
+                                {user.full_name}
+                                <button
+                                  type="button"
+                                  className="ml-1 ring-offset-background rounded-full outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                                  onClick={() => {
+                                    field.onChange(field.value.filter(id => id !== userId));
+                                  }}
+                                >
+                                  <X className="h-3 w-3" />
+                                </button>
+                              </Badge>
+                            ) : null;
+                          })}
+                        </div>
+                      )}
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </SectionCard>
+
             {/* Location Details */}
             <SectionCard title="Location Details" icon={MapPin} delay={0.2}>
               
@@ -509,7 +842,7 @@ export function EditProjectDialog({
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Start Date</FormLabel>
-                      <Popover>
+                      <Popover modal={true}>
                         <PopoverTrigger asChild>
                           <FormControl>
                             <Button
@@ -532,7 +865,9 @@ export function EditProjectDialog({
                           <Calendar
                             mode="single"
                             selected={field.value}
-                            onSelect={field.onChange}
+                            onSelect={(date) => {
+                              field.onChange(date);
+                            }}
                             initialFocus
                           />
                         </PopoverContent>

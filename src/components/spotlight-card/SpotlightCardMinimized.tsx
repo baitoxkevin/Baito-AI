@@ -4,10 +4,14 @@ import {
   Calendar, 
   Clock, 
   MapPin, 
-  CheckSquare, 
+  ChartBar,
   Users, 
-  FileText
+  FileText,
+  ArrowUpRight
 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { formatDate } from '@/lib/utils';
 import type { Project } from '@/lib/types';
 
@@ -26,105 +30,194 @@ export function SpotlightCardMinimized({
   tasks = [],
   expenseClaims = []
 }: SpotlightCardMinimizedProps) {
-  // Format date range
-  const startDate = new Date(project.start_date);
-  const endDate = project.end_date ? new Date(project.end_date) : startDate;
-  const dateRange = project.end_date 
-    ? `${startDate.getDate()} ${startDate.toLocaleDateString('en-US', { month: 'short' })} - ${endDate.getDate()} ${endDate.toLocaleDateString('en-US', { month: 'short' })}`
-    : formatDate(project.start_date);
+  // Format dates
+  const startDate = formatDate(project.start_date);
+  const endDate = project.end_date ? formatDate(project.end_date) : null;
 
-  // Get logo from client or company
-  const clientLogo = (project.client as unknown)?.logo || (project.brand_client as unknown)?.logo;
-  const clientName = (project.client as unknown)?.name || (project.client as unknown)?.company_name || (project.brand_client as unknown)?.name || 'Brand';
-  const clientInitial = clientName ? clientName.charAt(0).toUpperCase() : 'B';
+  // Get logos
+  const brandLogo = (project as any).brand_logo || null;
+  const clientLogo = project.client && (project.client as any).logo_url || null;
+
+  // Get initials for fallback
+  const getInitials = (name: string) => {
+    if (!name) return '';
+    const parts = name.split(' ').filter(part => part.trim() !== '');
+    if (parts.length === 0) return '';
+    if (parts.length === 1) {
+      return parts[0].substring(0, 2).toUpperCase();
+    }
+    return (parts[0][0] + parts[1][0]).toUpperCase();
+  };
 
   return (
     <motion.div
-      className="max-w-sm bg-white dark:bg-gray-900 rounded-xl shadow-lg overflow-hidden cursor-pointer"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      whileHover={{ y: -5 }}
-      transition={{ duration: 0.3 }}
-      onClick={onClick}
+      whileHover={{ y: -2 }}
+      transition={{ duration: 0.2 }}
     >
-      {/* Purple header bar */}
-      <div className="h-2 bg-gradient-to-r from-purple-400 to-blue-500"></div>
-      
-      {/* Main content */}
-      <div className="p-6">
-        {/* Header section with brand and title */}
-        <div className="flex items-start justify-between mb-4">
-          <div className="flex items-center space-x-3">
-            {/* Brand logo */}
-            <div className="relative">
-              {clientLogo ? (
-                <img 
-                  src={clientLogo} 
-                  alt={clientName}
-                  className="w-12 h-12 object-contain rounded-lg bg-gray-100"
-                />
-              ) : (
-                <div className="w-12 h-12 bg-gray-200 rounded-lg flex items-center justify-center">
-                  <span className="text-gray-500 font-medium text-xs">Brand</span>
+      <div 
+        className="relative border shadow-sm hover:shadow-lg transition-all duration-300 bg-white dark:bg-slate-900 overflow-hidden cursor-pointer rounded-lg"
+        onClick={onClick}
+      >
+        {/* Top accent bar */}
+        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500" />
+        
+        <div className="p-5">
+          <div className="flex flex-col gap-4">
+            {/* Header with Logo and Title */}
+            <div className="flex items-center gap-3">
+              {/* Brand Logo with Client Logo overlay */}
+              <div className="relative shrink-0">
+                {/* Main square for brand logo */}
+                <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-800 flex items-center justify-center overflow-hidden shadow-sm">
+                  {brandLogo ? (
+                    <img
+                      src={brandLogo}
+                      alt={`${project.title} logo`}
+                      className="w-full h-full object-contain p-1.5"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = 'none';
+                        (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
+                      }}
+                    />
+                  ) : null}
+                  <span className={cn(
+                    "text-lg font-bold text-slate-600 dark:text-slate-300",
+                    brandLogo ? "hidden" : ""
+                  )}>
+                    {getInitials(project.title).charAt(0)}
+                  </span>
+                </div>
+                
+                {/* Client logo overlay - bottom right corner (always shown) */}
+                <div className="absolute -bottom-1 -right-1 h-5 w-5 rounded-full bg-white dark:bg-slate-800 p-0.5 shadow-sm transition-all duration-200 hover:h-8 hover:w-8 hover:-bottom-2 hover:-right-2 hover:z-10 cursor-pointer group">
+                  <div className="h-full w-full rounded-full bg-gray-100 dark:bg-gray-800 overflow-hidden flex items-center justify-center">
+                    {clientLogo ? (
+                      <img
+                        src={clientLogo}
+                        alt={`${(project.client as any)?.company_name || 'Client'} logo`}
+                        className="w-full h-full object-contain"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = 'none';
+                          (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
+                        }}
+                      />
+                    ) : null}
+                    <span className={cn(
+                      "text-[8px] font-bold text-slate-600 dark:text-slate-300 transition-all group-hover:text-[10px]",
+                      clientLogo ? "hidden" : ""
+                    )}>
+                      {project.client ? 
+                        getInitials((project.client as any)?.company_name || (project.client as any)?.name || 'C').charAt(0) 
+                        : 'C'
+                      }
+                    </span>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Title and PICs */}
+              <div className="flex-1 min-w-0">
+                <h3 className="text-base font-bold text-slate-900 dark:text-white truncate text-left mb-2">
+                  {project.title}
+                </h3>
+                
+                {/* PIC Badges below title */}
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="px-2 py-0.5 text-xs bg-slate-50 dark:bg-slate-800">
+                    {(project.client as any)?.pic_name || (project as any).client_pic || 'Not assigned'}
+                  </Badge>
+                  
+                  <Badge variant="outline" className="px-2 py-0.5 text-xs bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300">
+                    {(project as any).manager?.full_name || 'Not assigned'}
+                  </Badge>
+                </div>
+              </div>
+              
+              {/* Action Button */}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onClick();
+                }}
+              >
+                <ArrowUpRight className="h-4 w-4" />
+              </Button>
+            </div>
+            
+            {/* Divider */}
+            <div className="h-px bg-slate-200 dark:bg-slate-700" />
+            
+            {/* Date, Time and Location with additional details */}
+            <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+              <div className="flex items-center gap-3 text-sm">
+                <Calendar className="h-4 w-4 text-blue-500 shrink-0" />
+                <span className="text-slate-700 dark:text-slate-300">
+                  {startDate} - {endDate || startDate}
+                </span>
+              </div>
+              
+              <div className="flex items-center gap-3 text-sm">
+                <Users className="h-4 w-4 text-green-500 shrink-0" />
+                <span className="text-slate-700 dark:text-slate-300">
+                  {project.filled_positions || 0} / {project.crew_count || 0} filled
+                </span>
+              </div>
+              
+              <div className="flex items-center gap-3 text-sm">
+                <Clock className="h-4 w-4 text-indigo-500 shrink-0" />
+                <span className="text-slate-700 dark:text-slate-300">
+                  {project.working_hours_start} - {project.working_hours_end}
+                </span>
+              </div>
+              
+              {project.budget && (
+                <div className="flex items-center gap-3 text-sm">
+                  <span className="text-green-600 font-semibold">RM {(project as any).budget?.toLocaleString()}</span>
                 </div>
               )}
-              <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-gray-400 rounded-full flex items-center justify-center">
-                <span className="text-white text-xs font-bold">{clientInitial}</span>
+              
+              <div className="flex items-center gap-3 text-sm col-span-2">
+                <MapPin className="h-4 w-4 text-red-500 shrink-0" />
+                <span className="text-slate-700 dark:text-slate-300 truncate">
+                  {project.venue_address || 'To be confirmed'}
+                </span>
               </div>
             </div>
             
-            {/* Title */}
-            <div>
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white line-clamp-1">{project.title}</h2>
+            {/* Divider */}
+            <div className="h-px bg-slate-200 dark:bg-slate-700" />
+            
+            {/* Stats - Centered */}
+            <div className="flex items-center justify-center gap-6">
+              <div className="flex items-center gap-2">
+                <ChartBar className="h-4 w-4 text-blue-500" />
+                <div className="text-sm">
+                  <span className="font-semibold text-slate-900 dark:text-white">{tasks.length}</span>
+                  <span className="text-slate-500 dark:text-slate-400 ml-1">Tasks</span>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <Users className="h-4 w-4 text-indigo-500" />
+                <div className="text-sm">
+                  <span className="font-semibold text-slate-900 dark:text-white">{project.crew_count || 0}</span>
+                  <span className="text-slate-500 dark:text-slate-400 ml-1">Crew</span>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <FileText className="h-4 w-4 text-purple-500" />
+                <div className="text-sm">
+                  <span className="font-semibold text-slate-900 dark:text-white">{expenseClaims.length}</span>
+                  <span className="text-slate-500 dark:text-slate-400 ml-1">Claims</span>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
-        
-        {/* Event details */}
-        <div className="space-y-3 mb-6 ml-4">
-          {/* Date */}
-          <div className="flex items-center space-x-3">
-            <Calendar className="w-5 h-5 text-blue-500" />
-            <span className="text-gray-700 dark:text-gray-300">{dateRange}</span>
-          </div>
-          
-          {/* Time */}
-          <div className="flex items-center space-x-3">
-            <Clock className="w-5 h-5 text-blue-500" />
-            <span className="text-gray-700 dark:text-gray-300">{project.working_hours_start} - {project.working_hours_end}</span>
-          </div>
-          
-          {/* Location */}
-          <div className="flex items-center space-x-3">
-            <MapPin className="w-5 h-5 text-red-500" />
-            <span className="text-gray-700 dark:text-gray-300 line-clamp-1">{project.venue_address}</span>
-          </div>
-        </div>
-        
-        {/* Bottom metrics */}
-        <div className="flex items-center justify-center space-x-6 pt-4 border-t border-gray-100 dark:border-gray-800">
-          {/* Tasks */}
-          <div className="flex items-center space-x-2">
-            <CheckSquare className="w-5 h-5 text-purple-500" />
-            <span className="text-gray-700 dark:text-gray-300">
-              <span className="font-semibold">{tasks.length}</span> Tasks
-            </span>
-          </div>
-          
-          {/* Crew */}
-          <div className="flex items-center space-x-2">
-            <Users className="w-5 h-5 text-blue-500" />
-            <span className="text-gray-700 dark:text-gray-300">
-              <span className="font-semibold">{project.filled_positions || 0}</span> Crew
-            </span>
-          </div>
-          
-          {/* Claims */}
-          <div className="flex items-center space-x-2">
-            <FileText className="w-5 h-5 text-purple-500" />
-            <span className="text-gray-700 dark:text-gray-300">
-              <span className="font-semibold">{expenseClaims.length}</span> Claims
-            </span>
           </div>
         </div>
       </div>

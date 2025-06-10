@@ -171,8 +171,8 @@ export function AddCandidateRedesigned({
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] p-0 overflow-hidden border-0 bg-gradient-to-br from-white via-slate-50/50 to-indigo-50/30 dark:from-slate-900 dark:via-slate-900/95 dark:to-indigo-950/20">
-        <DialogHeader className="p-6 pb-0 relative overflow-hidden">
+      <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col p-0 overflow-hidden border-0 bg-gradient-to-br from-white via-slate-50/50 to-indigo-50/30 dark:from-slate-900 dark:via-slate-900/95 dark:to-indigo-950/20">
+        <DialogHeader className="p-6 pb-0 relative overflow-hidden shrink-0">
           <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/10 via-purple-500/5 to-pink-500/10 dark:from-indigo-500/20 dark:via-purple-500/10 dark:to-pink-500/20 blur-3xl" />
           <DialogTitle className="text-xl font-bold flex items-center gap-3 relative z-10">
             <div className="p-2.5 bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 rounded-xl shadow-lg shadow-indigo-500/25 animate-pulse">
@@ -187,7 +187,7 @@ export function AddCandidateRedesigned({
           </p>
         </DialogHeader>
 
-        <div className="p-6 pt-4 space-y-4">
+        <div className="p-6 pt-4 space-y-4 shrink-0">
           <div className="relative group">
             <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/20 via-purple-500/20 to-pink-500/20 blur-xl opacity-0 group-focus-within:opacity-100 transition-opacity duration-500 rounded-xl" />
             <div className="relative bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm rounded-xl border border-slate-200/50 dark:border-slate-700/50 shadow-sm transition-all duration-200 group-focus-within:shadow-lg group-focus-within:border-indigo-300 dark:group-focus-within:border-indigo-700">
@@ -224,7 +224,7 @@ export function AddCandidateRedesigned({
           </div>
         </div>
 
-      <ScrollArea className="h-[380px] px-6">
+      <ScrollArea className="flex-1 px-6 min-h-0 overflow-y-auto">
         {loading ? (
           <div className="flex flex-col items-center justify-center py-16 space-y-4">
             <div className="relative">
@@ -335,7 +335,7 @@ export function AddCandidateRedesigned({
       </ScrollArea>
 
       {selectedCandidate && (
-        <div className="p-6 pt-4 border-t border-slate-200/50 dark:border-slate-700/50 bg-gradient-to-br from-slate-50 via-indigo-50/30 to-purple-50/30 dark:from-slate-900/50 dark:via-indigo-950/20 dark:to-purple-950/20">
+        <div className="p-6 pt-4 border-t border-slate-200/50 dark:border-slate-700/50 bg-gradient-to-br from-slate-50 via-indigo-50/30 to-purple-50/30 dark:from-slate-900/50 dark:via-indigo-950/20 dark:to-purple-950/20 shrink-0">
           <div className="bg-white dark:bg-slate-900/80 rounded-xl p-4 shadow-sm border border-slate-200/50 dark:border-slate-700/50">
             <div className="flex items-center gap-4 mb-4">
               <div className="relative">

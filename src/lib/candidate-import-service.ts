@@ -104,6 +104,10 @@ export async function createCandidate(candidateInfo: CandidateInfo) {
       nationality: 'Malaysian', // Default value
       unique_id: uniqueId, // Add the unique ID
       
+      // Emergency contact fields - required in database
+      emergency_contact_name: candidateInfo.emergency_contact_name || 'Not Provided',
+      emergency_contact_number: candidateInfo.emergency_contact_number || '0000000000',
+      
       // Work related fields
       has_vehicle: hasVehicle,
       vehicle_type: vehicleType,
@@ -137,8 +141,6 @@ export async function createCandidate(candidateInfo: CandidateInfo) {
       resume_text: candidateInfo.raw_resume,
       profile_photo: candidateInfo.profile_photo || '',
       full_body_photo: candidateInfo.full_body_photo || '',
-      emergency_contact_name: candidateInfo.emergency_contact_name || '',
-      emergency_contact_number: candidateInfo.emergency_contact_number || '',
     };
     
     // Try to include custom_fields if supported

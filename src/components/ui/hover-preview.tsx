@@ -132,7 +132,11 @@ export function HoverPreview({
           className="w-full h-auto max-h-[300px] object-contain rounded"
           onError={(e) => {
             e.currentTarget.style.display = 'none';
-            e.currentTarget.parentElement!.innerHTML = '<div class="text-center text-slate-500 p-12">Unable to load image</div>';
+            // Safe alternative to innerHTML - create error message without XSS risk
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'text-center text-slate-500 p-12';
+            errorDiv.textContent = 'Unable to load image';
+            e.currentTarget.parentElement?.appendChild(errorDiv);
           }}
         />
       );

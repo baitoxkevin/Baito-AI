@@ -49,7 +49,6 @@ class ActivityLogger {
         this.userId = user.id;
         this.userName = user.full_name || user.email || 'Unknown User';
         this.isInitialized = true;
-        console.log('ActivityLogger: User initialized:', { id: this.userId, name: this.userName });
       }
     } catch (error) {
       console.warn('ActivityLogger: Could not initialize user', error);
@@ -61,7 +60,6 @@ class ActivityLogger {
   }
 
   public setProjectId(projectId: string) {
-    console.log('ActivityLogger: Setting project ID to:', projectId);
     this.projectId = projectId;
     // Don't log project focus events - we only want actual user actions
   }

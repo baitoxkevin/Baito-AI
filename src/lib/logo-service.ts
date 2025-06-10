@@ -272,3 +272,125 @@ export class LogoService {
 
 // Export convenience function
 export const fetchBrandLogo = LogoService.smartFetchLogo;
+
+/**
+ * Fetch multiple logo options from different sources
+ * Returns an array of logo options for user to choose from
+ * Simplified to use only Clearbit and Google for fast performance
+ */
+export async function fetchMultipleBrandLogos(brandName: string): Promise<Array<{ url: string; source: string }>> {
+  const logos: Array<{ url: string; source: string }> = [];
+  
+  // Normalize brand name - handle common patterns
+  const normalizedBrand = brandName
+    .trim()
+    .replace(/\s+(sdn|bhd|ltd|limited|inc|corp|corporation|company|co\.|llc|plc)\.?$/i, '') // Remove company suffixes
+    .replace(/^(pt|cv)\s+/i, '') // Remove Indonesian prefixes
+    .trim();
+  
+  // Clean brand name for domain guessing
+  const cleanBrand = normalizedBrand.toLowerCase().replace(/[^a-z0-9]/g, '');
+  
+  // Generate a few likely domains
+  const possibleDomains = [
+    `${cleanBrand}.com`,
+    `${cleanBrand}.net`, 
+    `${cleanBrand}.org`,
+    `${cleanBrand}.co`,
+    `${cleanBrand}.io`,
+    `${cleanBrand}.com.my`,
+    `${normalizedBrand.toLowerCase().replace(/\s+/g, '-')}.com`, // Try hyphenated
+  ];
+  
+  // Check known brand mappings for common brands (simplified list)
+  const brandMappings: Record<string, string> = {
+    'nike': 'nike.com',
+    'adidas': 'adidas.com',
+    'coca cola': 'coca-cola.com',
+    'coca-cola': 'coca-cola.com',
+    'pepsi': 'pepsi.com',
+    'colgate': 'colgate.com',
+    'mcdonalds': 'mcdonalds.com',
+    'kfc': 'kfc.com',
+    'starbucks': 'starbucks.com',
+    'apple': 'apple.com',
+    'google': 'google.com',
+    'microsoft': 'microsoft.com',
+    'amazon': 'amazon.com',
+    'facebook': 'facebook.com',
+    'samsung': 'samsung.com',
+    'sony': 'sony.com',
+    'lg': 'lg.com',
+    'nestle': 'nestle.com',
+    'unilever': 'unilever.com',
+    'loreal': 'loreal.com',
+    'dove': 'dove.com',
+    'pantene': 'pantene.com',
+    'gillette': 'gillette.com',
+    'oral-b': 'oralb.com',
+    'huggies': 'huggies.com',
+    'pampers': 'pampers.com',
+    // Malaysian brands
+    'maybank': 'maybank.com',
+    'cimb': 'cimb.com',
+    'public bank': 'publicbank.com.my',
+    'petronas': 'petronas.com',
+    'airasia': 'airasia.com',
+    'grab': 'grab.com',
+    'shopee': 'shopee.com.my',
+  };
+  
+  const lowerBrand = normalizedBrand.toLowerCase().trim();
+  if (brandMappings[lowerBrand]) {
+    possibleDomains.unshift(brandMappings[lowerBrand]); // Put known domain first
+  }
+  
+  // Only check the first 5 domains to keep it fast
+  const domainsToCheck = possibleDomains.slice(0, 5);
+  
+  // Try Clearbit for each domain (in parallel for speed)
+  const clearbitPromises = domainsToCheck.map(async (domain) => {
+    try {
+      const clearbitUrl = `https://logo.clearbit.com/${domain}`;
+      const response = await fetch(clearbitUrl, { method: 'HEAD' });
+      if (response.ok) {
+        return { url: clearbitUrl, source: 'clearbit' };
+      }
+    } catch (error) {
+      // Silent fail
+    }
+    return null;
+  });
+  
+  // Wait for all Clearbit checks
+  const clearbitResults = await Promise.all(clearbitPromises);
+  clearbitResults.forEach(result => {
+    if (result) logos.push(result);
+  });
+  
+  // Try Brandfetch for well-known brands (very reliable)
+  try {
+    const brandFetchUrl = `https://cdn.brandfetch.io/${cleanBrand}.com/w/400/h/400`;
+    logos.push({ 
+      url: brandFetchUrl, 
+      source: 'brandfetch' 
+    });
+  } catch (error) {
+    // Silent fail
+  }
+  
+  // Add Google favicons for the first few domains (Google always returns something)
+  domainsToCheck.slice(0, 3).forEach(domain => {
+    logos.push({ 
+      url: `https://www.google.com/s2/favicons?domain=${domain}&sz=128`, 
+      source: 'google' 
+    });
+  });
+  
+  // Remove duplicates based on URL
+  const uniqueLogos = logos.filter((logo, index, self) => 
+    index === self.findIndex((l) => l.url === logo.url)
+  );
+  
+  return uniqueLogos;
+}

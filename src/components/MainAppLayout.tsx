@@ -3,6 +3,7 @@ import { useParams, useLocation, Navigate } from 'react-router-dom';
 import { useTheme } from 'next-themes';
 import SidebarAdapter from '@/components/SidebarAdapter';
 import { WavesBackground } from '@/components/ui/waves-background';
+import QuickAuthCheck from '@/components/QuickAuthCheck';
 import { getSession } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 
@@ -175,6 +176,9 @@ const MainAppLayout = ({ effectActive }: MainAppLayoutProps) => {
           )}
         </SidebarAdapter>
       </div>
+      
+      {/* Quick auth check widget - disabled */}
+      {/* {import.meta.env.DEV && <QuickAuthCheck />} */}
     </div>
   );
 };

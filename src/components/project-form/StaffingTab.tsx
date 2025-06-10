@@ -1106,8 +1106,8 @@ const StaffingTab = ({
   const statusCounts = getStatusCounts();
 
   return (
-    <div className="w-full py-4 max-h-[calc(100vh-300px)] overflow-auto">
-      <div>
+    <div className="w-full py-4">
+      <div className="max-h-[calc(100vh-350px)] overflow-y-auto px-1">
       {/* Assigned Staff Members */}
       <div className="mb-8">
         <div className="flex items-center justify-between mb-4">

@@ -60,11 +60,8 @@ export function useCache<T, P extends any[]>(
     
     // Check if a request for this data is already in flight
     if (pendingRequests.current[cacheKey]) {
-      console.log(`PENDING REQUEST: ${namespace}/${cacheKey}`);
       return pendingRequests.current[cacheKey];
     }
-    
-    console.log(`CACHE MISS: ${namespace}/${cacheKey}`);
     setIsLoading(true);
     
     // Create the promise for this request
@@ -113,7 +110,6 @@ export function useCache<T, P extends any[]>(
       return;
     }
     
-    console.log(`PREFETCHING: ${namespace}/${cacheKey}`);
     
     // Create the promise for this request
     const requestPromise = (async () => {

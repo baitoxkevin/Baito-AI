@@ -7,10 +7,8 @@ import MainAppLayout from './components/MainAppLayout';
 import { EnhancedToaster } from './components/ui/enhanced-toaster';
 // StaticCandidateUpdatePage was removed
 import ReceiptScannerPage from './pages/ReceiptScannerPage';
-import TestPage from './pages/TestPage';
-import IntegratedStaffingPayrollDemo from './pages/IntegratedStaffingPayrollDemo';
-import PaymentQueueDemo from './pages/PaymentQueueDemo';
 import MobileCandidateUpdatePage from './pages/MobileCandidateUpdatePage';
+import SetPasswordPage from './pages/SetPasswordPage';
 import { renderCanvas } from './components/ui/canvas';
 import { SpotlightCommand } from './components/SpotlightCommand';
 
@@ -81,8 +79,8 @@ function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/set-password" element={<SetPasswordPage />} />
           <Route path="/receipt-scanner" element={<ReceiptScannerPage />} />
-          <Route path="/test-button" element={<TestPage />} />
           {/* Candidate update routes with secure token */}
           <Route path="/candidate-update-mobile/:candidateId" element={<MobileCandidateUpdatePage />} />
           <Route path="/candidate-form/:token" element={<Navigate to="/login" replace />} />
@@ -90,14 +88,6 @@ function App() {
           <Route 
             path="/dashboard" 
             element={<MainAppLayout effectActive={effectActive} />} 
-          />
-          <Route 
-            path="/staffing-payroll-demo" 
-            element={<IntegratedStaffingPayrollDemo />} 
-          />
-          <Route 
-            path="/payment-queue" 
-            element={<PaymentQueueDemo />} 
           />
           {/* Routes that work both in localhost and production */}
           <Route 

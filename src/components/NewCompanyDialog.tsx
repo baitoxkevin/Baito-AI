@@ -179,7 +179,6 @@ export default function NewCompanyDialog({
         ]);
       }
       
-      console.log('Dialog opened, form reset with company data:', company);
     }
   }, [open, company]);
   
@@ -343,7 +342,6 @@ export default function NewCompanyDialog({
       // This would be implemented once the company_contacts table is created
       
       // For demonstration purposes, let's log what we would save
-      console.log('Company contacts to save:', contacts.map(c => ({ ...c, company_id: companyId })));
       
       // This is a placeholder for the actual implementation
       // If the company_contacts table exists, we would:
@@ -364,8 +362,6 @@ export default function NewCompanyDialog({
 
     try {
       // Log current dialog state
-      console.log('Form submission - Company data:', formData);
-      console.log('Contacts to save:', contacts);
       
       // Validate required fields
       if (!formData.company_name || !formData.company_phone_no) {
@@ -382,11 +378,9 @@ export default function NewCompanyDialog({
         try {
           const checkResult = await supabase.from('companies').select('count(*)');
           if (checkResult.error && checkResult.error.message.includes('permission denied')) {
-            console.log('Preemptively applying permissions fix for companies table');
             await applyCompanyPermissionsFix();
           }
         } catch (e) {
-          console.log('Preemptive permission check failed', e);
         }
       }
       
@@ -427,7 +421,6 @@ export default function NewCompanyDialog({
         await saveCompanyContacts(company.id, contacts);
       } else {
         // Creating new company
-        console.log('Creating new company:', formData);
         
         const companyData = {
           company_name: formData.company_name,
@@ -444,7 +437,6 @@ export default function NewCompanyDialog({
           updated_at: new Date().toISOString()
         };
         
-        console.log('Formatted company data:', companyData);
         
         const { data, error } = await supabase
           .from('companies')
@@ -456,7 +448,6 @@ export default function NewCompanyDialog({
           throw new Error(`Failed to create company: ${error.message || 'Unknown error'}`);
         }
 
-        console.log('Company created:', data);
         
         // If company was created successfully and we have its ID, save contacts
         if (data && data.length > 0) {
