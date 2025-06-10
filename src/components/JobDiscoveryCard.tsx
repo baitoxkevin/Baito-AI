@@ -94,4 +94,3 @@ export default JobDiscoveryCard;
 // Other relevant fields for job discovery.
 // If not, they need to be added or this component needs to be adapted.
 // The component currently provides fallbacks for missing optional fields.
-```

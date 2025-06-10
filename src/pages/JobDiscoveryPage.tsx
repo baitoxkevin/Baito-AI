@@ -194,4 +194,3 @@ const JobDiscoveryPage: React.FC = () => {
 };
 
 export default JobDiscoveryPage;
-```
