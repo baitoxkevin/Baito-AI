@@ -1,20 +1,19 @@
 import * as React from 'react';
-import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useState, useEffect, useCallback } from 'react';
+import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+// import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Switch } from '@/components/ui/switch';
+// import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
-import { logger } from '../lib/logger';
+// import { logger } from '../lib/logger';
 import { 
-  Loader2, PlusIcon, Edit2, Trash2, Building, Image, AlertCircle,
-  User as UserIcon, Briefcase, Mail, Phone, Search, ShieldAlert,
-  RefreshCcw, Database, Users2, Shield, CheckCircle2, Settings,
-  UserPlus, Sparkles, Building2, Users, ShieldCheck, Activity, Lock,
-  ChevronDown, ChevronRight, Share2, Copy, Check
+  Loader2, PlusIcon, Edit2, Trash2, Building,
+  User as UserIcon, Mail, Search, Settings,
+  UserPlus, Sparkles, Building2, Users, Activity, Lock,
+  ChevronDown, ChevronRight, Share2, Check
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { 
@@ -26,12 +25,11 @@ import {
   TableRow 
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+// import { AlertDescription } from '@/components/ui/alert';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import NewCompanyDialog from '@/components/NewCompanyDialog';
 import NewCandidateDialog from '@/components/NewCandidateDialog';
 import NewUserDialog from '@/components/NewUserDialog';
-import UserConfigurationPage from './UserConfigurationPage';
 import { NotificationSettings } from '@/components/NotificationSettings';
 import type { Company, Candidate, User } from '@/lib/types';
 import { getUserProfile } from '@/lib/auth';
@@ -42,9 +40,7 @@ import { AnimatedGradientText } from '@/components/ui/animated-gradient-text';
 import { BorderBeam } from '@/components/ui/border-beam';
 import { MagicCard } from '@/components/ui/magic-card';
 import { NeonGradientCard } from '@/components/ui/neon-gradient-card';
-import { Meteors } from '@/components/ui/meteors';
 import { SparklesText } from '@/components/ui/sparkles-text';
-import { DotPattern } from '@/components/ui/dot-pattern';
 import { cn } from '@/lib/utils';
 
 export default function SettingsPage() {
@@ -58,7 +54,14 @@ export default function SettingsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   
   // Auth check state
-  const [authStatus, setAuthStatus] = useState<unknown>({
+  const [, setAuthStatus] = useState<{
+    loading: boolean;
+    user: any; // Using any for Supabase user type
+    session: any; // Using any for Supabase session type
+    error: string | null;
+    canAccessExpenseClaims: boolean;
+    testResult: string | null;
+  }>({
     loading: true,
     user: null,
     session: null,
@@ -109,7 +112,7 @@ export default function SettingsPage() {
         }
 
         // Try to access expense_claims table
-        const { data: claims, error: claimsError } = await supabase
+        const { error: claimsError } = await supabase
           .from('expense_claims')
           .select('id')
           .limit(1);
@@ -126,7 +129,7 @@ export default function SettingsPage() {
         });
 
       } catch (err) {
-        logger.error('Auth check error:', err);
+        // logger.error('Auth check error:', err);
         setAuthStatus(prev => ({ 
           ...prev, 
           loading: false, 
@@ -144,7 +147,7 @@ export default function SettingsPage() {
     });
   }, []);
 
-  const fetchCompanies = async () => {
+  const fetchCompanies = useCallback(async () => {
     try {
       setCompanyLoading(true);
       const { data, error } = await supabase
@@ -157,8 +160,8 @@ export default function SettingsPage() {
 
       if (error) throw error;
       setCompanies(data || []);
-    } catch (error) {
-      logger.error('Error fetching companies:', error);
+    } catch {
+      // logger.error('Error fetching companies:', error);
       toast({
         title: 'Error',
         description: 'Failed to fetch companies',
@@ -167,9 +170,9 @@ export default function SettingsPage() {
     } finally {
       setCompanyLoading(false);
     }
-  };
+  }, [toast]);
 
-  const fetchCandidates = async () => {
+  const fetchCandidates = useCallback(async () => {
     try {
       setCandidateLoading(true);
       const { data, error } = await supabase
@@ -179,8 +182,8 @@ export default function SettingsPage() {
 
       if (error) throw error;
       setCandidates(data || []);
-    } catch (error) {
-      logger.error('Error fetching candidates:', error);
+    } catch {
+      // logger.error('Error fetching candidates:', error);
       toast({
         title: 'Error',
         description: 'Failed to fetch candidates',
@@ -189,9 +192,9 @@ export default function SettingsPage() {
     } finally {
       setCandidateLoading(false);
     }
-  };
+  }, [toast]);
 
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     try {
       setUsersLoading(true);
       const { data, error } = await supabase
@@ -201,8 +204,8 @@ export default function SettingsPage() {
 
       if (error) throw error;
       setUsers(data || []);
-    } catch (error) {
-      logger.error('Error fetching users:', error);
+    } catch {
+      // logger.error('Error fetching users:', error);
       toast({
         title: 'Error',
         description: 'Failed to fetch users',
@@ -211,13 +214,13 @@ export default function SettingsPage() {
     } finally {
       setUsersLoading(false);
     }
-  };
+  }, [toast]);
 
   useEffect(() => {
     fetchCompanies();
     fetchCandidates();
     fetchUsers();
-  }, []);
+  }, [fetchCompanies, fetchCandidates, fetchUsers]);
 
   const handleDeleteCompany = async (id: string) => {
     try {
@@ -234,8 +237,8 @@ export default function SettingsPage() {
       });
       
       fetchCompanies();
-    } catch (error) {
-      logger.error('Error deleting company:', error);
+    } catch {
+      // logger.error('Error deleting company:', error);
       toast({
         title: 'Error',
         description: 'Failed to delete company',
@@ -259,8 +262,8 @@ export default function SettingsPage() {
       });
       
       fetchCandidates();
-    } catch (error) {
-      logger.error('Error deleting candidate:', error);
+    } catch {
+      // logger.error('Error deleting candidate:', error);
       toast({
         title: 'Error',
         description: 'Failed to delete candidate',
@@ -284,8 +287,8 @@ export default function SettingsPage() {
       });
       
       fetchUsers();
-    } catch (error) {
-      logger.error('Error deleting user:', error);
+    } catch {
+      // logger.error('Error deleting user:', error);
       toast({
         title: 'Error',
         description: 'Failed to delete user',
@@ -315,7 +318,7 @@ export default function SettingsPage() {
         });
         
       if (tokenError) {
-        logger.error("Error creating password token:", tokenError);
+        // logger.error("Error creating password token:", tokenError);
         // Check if it's a table not found error
         if (tokenError.message?.includes('relation') && tokenError.message?.includes('does not exist')) {
           throw new Error("Password reset tokens table not found. Please run the migration script in Supabase SQL Editor.");
@@ -339,8 +342,8 @@ export default function SettingsPage() {
       setTimeout(() => {
         setCopiedUserId(null);
       }, 3000);
-    } catch (error) {
-      logger.error('Error generating password link:', error);
+    } catch {
+      // logger.error('Error generating password link:', error);
       toast({
         title: 'Error',
         description: 'Failed to generate password setup link',

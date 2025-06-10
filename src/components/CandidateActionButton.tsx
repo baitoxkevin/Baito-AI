@@ -19,7 +19,6 @@ import {
 interface CandidateActionButtonProps {
   candidateId: string;
   candidateIc?: string;
-  candidateName?: string;
   className?: string;
   showDropdown?: boolean;
 }
@@ -27,7 +26,6 @@ interface CandidateActionButtonProps {
 export function CandidateActionButton({
   candidateId,
   candidateIc,
-  candidateName: _candidateName,
   className = "",
   showDropdown = false
 }: CandidateActionButtonProps) {

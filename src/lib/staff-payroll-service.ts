@@ -283,7 +283,7 @@ export async function saveStaffPaymentDetails(
         }
 
         // For other types of errors, try a simple update
-        logger.debug(`Insert failed, { data: attempting update instead...` });
+        logger.debug(`Insert failed, attempting update instead...`);
         const { error: updateError } = await supabase
           .from('project_staff')
           .update({

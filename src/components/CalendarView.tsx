@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, differenceInDays } from 'date-fns';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { format, startOfMonth, eachDayOfInterval, isSameMonth, isSameDay, differenceInDays } from 'date-fns';
 import { cn, eventColors, getBestTextColor, formatTimeString, projectsOverlap } from '@/lib/utils';
 import { Card } from '@/components/ui/card';
 import {
@@ -85,29 +85,18 @@ const CalendarView = React.forwardRef<HTMLDivElement, CalendarViewProps>(({
   const [selectedDates, setSelectedDates] = useState<Date[]>([]);
   const [eventTypeFilter, setEventTypeFilter] = useState<string[]>([]);
   const [isHoveringProject, setIsHoveringProject] = useState(false);
-  const [containerSize, setContainerSize] = useState({ height: 0 });
+  const [, setContainerSize] = useState({ height: 0 });
   const calendarRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Safety check for required props
-  if (!date) {
-    // Error: date prop is required
-    return (
-      <div className="p-4 bg-red-50 border border-red-200 rounded-md">
-        <p className="text-red-600">Error: date prop is required</p>
-      </div>
-    );
-  }
+  // Use default values if props are invalid
+  const safeDate = useMemo(() => date || new Date(), [date]);
+  const safeProjects = useMemo(() => Array.isArray(projects) ? projects : [], [projects]);
   
-  if (!Array.isArray(projects)) {
-    // Error: projects prop must be an array
-    return (
-      <div className="p-4 bg-red-50 border border-red-200 rounded-md">
-        <p className="text-red-600">Error: invalid projects data</p>
-      </div>
-    );
-  }
-  
+  // Safety check for required props - show error state if needed
+  const hasDateError = !date;
+  const hasProjectsError = !Array.isArray(projects);
+
   // Add CSS for project segment hover effects and proper z-index hierarchy
   useEffect(() => {
     // Add style element if it doesn't exist
@@ -213,8 +202,8 @@ const CalendarView = React.forwardRef<HTMLDivElement, CalendarViewProps>(({
 
   // Memoize these calculations to prevent unnecessary re-renders
   const { calendarStart, calendarEnd, daysInMonth } = useMemo(() => {
-    const monthStart = startOfMonth(date);
-    const monthEnd = endOfMonth(date);
+    const monthStart = startOfMonth(safeDate);
+    // const monthEnd = endOfMonth(safeDate); // Not used
     
     // Always create a 6-week calendar for consistency
     // Start on Monday (1) of the week containing the 1st of the month
@@ -231,10 +220,10 @@ const CalendarView = React.forwardRef<HTMLDivElement, CalendarViewProps>(({
     });
     
     // Should always be 6 weeks
-    const weeks = 6;
+    // const weeks = 6; // Not used
     
     return { calendarStart, calendarEnd, daysInMonth };
-  }, [date]);
+  }, [safeDate]);
   
   // Monitor scroll position to adjust month indicators for better visibility
   useEffect(() => {
@@ -251,7 +240,7 @@ const CalendarView = React.forwardRef<HTMLDivElement, CalendarViewProps>(({
       
       // Apply different styles based on scroll position
       // When scrolled past 50%, show month name to the right instead of above
-      monthIndicators.forEach((element, i) => {
+      monthIndicators.forEach((element) => {
         const indicator = element as HTMLElement;
         const tooltipTrigger = indicator.closest('[role="button"]');
         const isFirstInView = indicator.classList.contains('first-in-view');
@@ -323,14 +312,15 @@ const CalendarView = React.forwardRef<HTMLDivElement, CalendarViewProps>(({
   
   // Filter projects based on selected event types
   const filteredProjects = useMemo(() => {
-    if (eventTypeFilter.length === 0) return projects;
-    return projects.filter(project => 
+    if (eventTypeFilter.length === 0) return safeProjects;
+    return safeProjects.filter(project => 
       eventTypeFilter.includes(project.event_type)
     );
-  }, [projects, eventTypeFilter]);
+  }, [safeProjects, eventTypeFilter]);
 
   // Create a data structure for tracking day occupancy for both multi-day and single-day events
-  const dayOccupancyMap = useMemo(() => {
+  // Not currently used but kept for future reference
+  // const dayOccupancyMap = useMemo(() => {
     // Create a map to track which events are on which days
     // This is used for collision detection between multi-day and single-day events
     const occupancyMap = new Map<number, {
@@ -369,8 +359,8 @@ const CalendarView = React.forwardRef<HTMLDivElement, CalendarViewProps>(({
       }
     });
     
-    return occupancyMap;
-  }, [filteredProjects, daysInMonth, calendarStart, calendarEnd]);
+  //   return occupancyMap;
+  // }, [filteredProjects, daysInMonth, calendarStart, calendarEnd]);
 
   // Enhanced multi-day project rendering with consistent positioning and debugging
   const processedProjects = useMemo(() => {
@@ -533,7 +523,7 @@ const CalendarView = React.forwardRef<HTMLDivElement, CalendarViewProps>(({
     }
   };
 
-  const handleMouseUp = (day?: Date) => {
+  const handleMouseUp = useCallback((day?: Date) => {
     // If we were dragging between dates, handle as date range selection
     if (isDragging && dragStartDate && dragEndDate && 
         (dragStartDate.getTime() !== dragEndDate.getTime())) {
@@ -563,7 +553,7 @@ const CalendarView = React.forwardRef<HTMLDivElement, CalendarViewProps>(({
     setDragStartDate(null);
     setDragEndDate(null);
     setSelectedDates([]);
-  };
+  }, [isDragging, dragStartDate, dragEndDate, onDateRangeSelect, onDateClick, filteredProjects]);
 
   useEffect(() => {
     const handleGlobalMouseUp = () => {
@@ -578,14 +568,14 @@ const CalendarView = React.forwardRef<HTMLDivElement, CalendarViewProps>(({
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === '<' || e.key === ',') {
         // Navigate to previous month
-        const prevMonth = new Date(date);
+        const prevMonth = new Date(safeDate);
         prevMonth.setMonth(prevMonth.getMonth() - 1);
         // Create a custom event to notify parent component
         const customEvent = new CustomEvent('calendarPrevMonth', { detail: prevMonth });
         calendarRef.current?.dispatchEvent(customEvent);
       } else if (e.key === '>' || e.key === '.') {
         // Navigate to next month
-        const nextMonth = new Date(date);
+        const nextMonth = new Date(safeDate);
         nextMonth.setMonth(nextMonth.getMonth() + 1);
         // Create a custom event to notify parent component
         const customEvent = new CustomEvent('calendarNextMonth', { detail: nextMonth });
@@ -599,7 +589,7 @@ const CalendarView = React.forwardRef<HTMLDivElement, CalendarViewProps>(({
       document.removeEventListener('mouseup', handleGlobalMouseUp);
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [isDragging, dragStartDate, dragEndDate, date]);
+  }, [isDragging, dragStartDate, dragEndDate, safeDate, handleMouseUp]);
 
   const isDateSelected = (day: Date) => {
     return selectedDates.some(selectedDate => 
@@ -635,18 +625,18 @@ const CalendarView = React.forwardRef<HTMLDivElement, CalendarViewProps>(({
   }, []);
   
   // Static calendar height as requested - no calculations
-  const calendarHeight = 120; // Fixed height value
+  // const calendarHeight = 120; // Fixed height value - Not used
 
   // Get unique event types for filters, sorted alphabetically
   const eventTypes = useMemo(() => {
     const types = new Set<string>();
-    projects.forEach(project => {
+    safeProjects.forEach(project => {
       if (project.event_type) {
         types.add(project.event_type);
       }
     });
     return Array.from(types).sort();
-  }, [projects]);
+  }, [safeProjects]);
 
   // State for tracking project hover
   // Hook moved to top of component
@@ -659,6 +649,17 @@ const CalendarView = React.forwardRef<HTMLDivElement, CalendarViewProps>(({
   const handleProjectMouseLeave = () => {
     setIsHoveringProject(false);
   };
+
+  // If there are errors, show error state
+  if (hasDateError || hasProjectsError) {
+    return (
+      <div className="p-4 bg-red-50 border border-red-200 rounded-md">
+        <p className="text-red-600">
+          {hasDateError ? 'Error: date prop is required' : 'Error: invalid projects data'}
+        </p>
+      </div>
+    );
+  }
 
   return (
     <Card ref={(el) => {
@@ -772,7 +773,7 @@ const CalendarView = React.forwardRef<HTMLDivElement, CalendarViewProps>(({
           {/* Current Month Display Header - Fixed at top of calendar */}
           <div className="col-span-7 text-center py-1 bg-primary/10 border-b border-primary/20 rounded-t-lg">
             <h3 className="text-sm font-semibold text-primary">
-              {format(date, 'MMMM yyyy')}
+              {format(safeDate, 'MMMM yyyy')}
             </h3>
           </div>
           
@@ -792,7 +793,7 @@ const CalendarView = React.forwardRef<HTMLDivElement, CalendarViewProps>(({
           {/* Calendar days */}
           {daysInMonth.map((day, index) => {
             const isToday = isSameDay(day, today);
-            const isCurrentMonth = isSameMonth(day, date);
+            const isCurrentMonth = isSameMonth(day, safeDate);
             const isHighlighted = isDateSelected(day);
             
             return (
@@ -892,7 +893,7 @@ const CalendarView = React.forwardRef<HTMLDivElement, CalendarViewProps>(({
                       
                     // All visible projects (single-day + multi-day)
                     const visibleProjects = [...visibleSingleDayProjects, ...visibleMultiDayProjects];
-                    const visibleProjectIds = new Set(visibleProjects.map(p => p.id));
+                    // const visibleProjectIds = new Set(visibleProjects.map(p => p.id)); // Not used
                     
                     // Find ALL projects for this day (for tooltip)
                     const allDayProjects = filteredProjects.filter(project => {
@@ -901,10 +902,10 @@ const CalendarView = React.forwardRef<HTMLDivElement, CalendarViewProps>(({
                       return startDate <= day && endDate >= day;
                     });
                     
-                    // Find hidden projects (ones not visible in the cell)
-                    const hiddenProjects = allDayProjects.filter(project => 
-                      !visibleProjectIds.has(project.id)
-                    );
+                    // Find hidden projects (ones not visible in the cell) - Not used
+                    // const hiddenProjects = allDayProjects.filter(project => 
+                    //   !visibleProjectIds.has(project.id)
+                    // );
                     
                     // Show dots for ANY day with events
                     if (allDayProjects.length > 0) {
@@ -1002,20 +1003,20 @@ const CalendarView = React.forwardRef<HTMLDivElement, CalendarViewProps>(({
                     const groups = groupOverlappingProjects(dayProjects);
                     
                     // Calculate which multi-day events affect this day
-                    const dayMultiDayEvents = processedProjects.filter(item => {
-                      return cellIndex >= item.startIndex && cellIndex <= item.endIndex;
-                    });
+                    // const dayMultiDayEvents = processedProjects.filter(item => {
+                    //   return cellIndex >= item.startIndex && cellIndex <= item.endIndex;
+                    // }); // Not used
                     
                     // Check if this day has a start or end of any multi-day event
                     // We'll need to be more careful with positioning single-day events in these cells
-                    const hasMultiDayEventStart = dayMultiDayEvents.some(item => cellIndex === item.startIndex);
-                    const hasMultiDayEventEnd = dayMultiDayEvents.some(item => cellIndex === item.endIndex);
+                    // const hasMultiDayEventStart = dayMultiDayEvents.some(item => cellIndex === item.startIndex); // Not used
+                    // const hasMultiDayEventEnd = dayMultiDayEvents.some(item => cellIndex === item.endIndex); // Not used
                     
                     // For multi-day events, calculate how many rows they'll take up
                     // Limit to the configured maximum in processedProjects
-                    const multiDayRows = dayMultiDayEvents.length > 0 
-                      ? Math.max(...dayMultiDayEvents.map(item => item.row + 1))
-                      : 0;
+                    // const multiDayRows = dayMultiDayEvents.length > 0 
+                    //   ? Math.max(...dayMultiDayEvents.map(item => item.row + 1))
+                    //   : 0; // Not used
                     
                     // Calculate position offset for single-day events based on multi-day events
                     // This ensures proper spacing between multi-day and single-day events
@@ -1131,7 +1132,7 @@ const CalendarView = React.forwardRef<HTMLDivElement, CalendarViewProps>(({
           
           {/* Multi-day project bars (absolute positioned across grid) */}
           {processedProjects.map((projectItem) => {
-            const { project, startIndex, endIndex, row } = projectItem;
+            const { project, startIndex, endIndex } = projectItem;
             
             // Calculate grid layout
             const startCol = startIndex % 7;  // column (0-6)
@@ -1198,7 +1199,7 @@ const CalendarView = React.forwardRef<HTMLDivElement, CalendarViewProps>(({
                         
                         // For each week, use the exact same positions
                         // Calculate which week this is
-                        const weekPosition = span.row * 120; // Fixed 120px per week
+                        // const weekPosition = span.row * 120; // Fixed 120px per week - Not used
                         
                         // Fixed positions for each project row - same for all weeks
                         const rowPositions = [
@@ -1209,9 +1210,9 @@ const CalendarView = React.forwardRef<HTMLDivElement, CalendarViewProps>(({
                         
                         // Always use a valid row position - ensure no row is undefined
                         // If row is somehow invalid, default to first row
-                        const rowPosition = projectItem.row >= 0 && projectItem.row < rowPositions.length 
-                            ? rowPositions[projectItem.row] 
-                            : rowPositions[0];
+                        // const rowPosition = projectItem.row >= 0 && projectItem.row < rowPositions.length 
+                        //     ? rowPositions[projectItem.row] 
+                        //     : rowPositions[0]; // Not used
                         
                         // Fixed positioning using exact formula specified
                         const topOffset = headerHeight + (span.row * 120) + rowPositions[projectItem.row];
@@ -1227,7 +1228,7 @@ const CalendarView = React.forwardRef<HTMLDivElement, CalendarViewProps>(({
                         const widthPerc = (span.width * (100 / 7)) - 1.0; // Greater reduction to avoid overflow
                         
                         // Extract color values for gradient
-                        const colorName = colorClass.split(' ')[0].replace('bg-', '');
+                        // const colorName = colorClass.split(' ')[0].replace('bg-', ''); // Not used
                         
                         return (
                           <div

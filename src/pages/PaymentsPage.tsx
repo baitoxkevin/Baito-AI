@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { logger } from '../lib/logger';
+// import { logger } from '../lib/logger';
 import { 
   Table, 
   TableBody, 
@@ -31,12 +31,9 @@ import {
   MoreVertical,
   Users,
   Building2,
-  CreditCard,
-  Banknote,
   Eye,
   Loader2,
   FileSpreadsheet,
-  Check,
   ArrowUp,
   ArrowDown,
   ChevronsUpDown
@@ -54,7 +51,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { format } from 'date-fns';
 import { useToast } from "@/hooks/use-toast";
-import { getPaymentBatches, approvePaymentBatch, rejectPaymentBatch, getPaymentBatchDetails } from '@/lib/payment-queue-service';
+import { approvePaymentBatch, rejectPaymentBatch } from '@/lib/payment-queue-service';
 import { supabase } from '@/lib/supabase';
 import {
   Tooltip,
@@ -182,7 +179,7 @@ export default function PaymentsPage() {
         
         setPaymentBatches(transformedBatches);
       } catch (error) {
-        logger.error('Error fetching payment batches:', error);
+        console.error('Error fetching payment batches:', error);
         toast({
           title: "Error",
           description: "Failed to fetch payment batches",
@@ -215,7 +212,7 @@ export default function PaymentsPage() {
           }
         }
       } catch (error) {
-        logger.error('Error fetching user role:', error);
+        console.error('Error fetching user role:', error);
       }
     };
 
@@ -434,7 +431,7 @@ export default function PaymentsPage() {
             
           if (error) {
             // If payment_items table doesn't exist, try to get data from payments column
-            logger.debug('payment_items table not found, checking payments column');
+            console.log('payment_items table not found, checking payments column');
             const batch = paymentBatches.find(b => b.id === batchId);
             
             if (batch?.payments && Array.isArray(batch.payments)) {
@@ -467,7 +464,7 @@ export default function PaymentsPage() {
             }));
           }
         } catch (error) {
-          logger.error('Error fetching payment items:', error);
+          console.error('Error fetching payment items:', error);
           // Don't show error toast, just set empty array
           setPaymentItems(prev => ({
             ...prev,
@@ -1047,7 +1044,7 @@ export default function PaymentsPage() {
                                                     notes: 'Payment cancelled and moved back to project payroll'
                                                   });
                                               } catch (historyError) {
-                                                logger.debug('Could not log cancellation history:', { data: historyError });
+                                                console.log('Could not log cancellation history:', { data: historyError });
                                               }
                                               
                                               // Update the project's confirmed_staff to remove paymentStatus
@@ -1096,7 +1093,7 @@ export default function PaymentsPage() {
                                                   reason: 'Payment cancelled by user'
                                                 });
                                               } catch (logError) {
-                                                logger.debug('Could not log cancellation:', { data: logError });
+                                                console.log('Could not log cancellation:', { data: logError });
                                               }
                                               
                                               toast({
@@ -1104,7 +1101,7 @@ export default function PaymentsPage() {
                                                 description: "The payment has been cancelled and moved back to project payroll"
                                               });
                                             } catch (error) {
-                                              logger.error('Error cancelling payment:', error);
+                                              console.error('Error cancelling payment:', error);
                                               toast({
                                                 title: "Error",
                                                 description: "Failed to cancel payment",

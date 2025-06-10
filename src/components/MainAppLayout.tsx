@@ -3,7 +3,6 @@ import { useParams, useLocation, Navigate } from 'react-router-dom';
 import { useTheme } from 'next-themes';
 import SidebarAdapter from '@/components/SidebarAdapter';
 import { WavesBackground } from '@/components/ui/waves-background';
-import QuickAuthCheck from '@/components/QuickAuthCheck';
 import { getSession } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 
@@ -66,7 +65,7 @@ const MainAppLayout = ({ effectActive }: MainAppLayoutProps) => {
     checkAuth();
     
     // Listen for auth state changes
-    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: authListener } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'SIGNED_OUT') {
         setIsAuthenticated(false);
       } else if (event === 'SIGNED_IN') {

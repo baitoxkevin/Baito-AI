@@ -11,7 +11,7 @@ import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { logger } from '../lib/logger';
 import { 
-  Loader2, Camera, X, Check, RefreshCcw, Upload, Trash2, User, 
+  Loader2, Camera, X, Check, RefreshCcw, Upload, Trash2, User as UserIcon, 
   Mail, AtSign, Calendar, Settings, Languages, Save, BellRing 
 } from 'lucide-react';
 
@@ -663,7 +663,7 @@ export default function ProfileConfigDialog({ open, onOpenChange }: ProfileConfi
                         <Label htmlFor="fullName">Full Name</Label>
                         <div className="flex">
                           <div className="flex items-center bg-muted px-3 rounded-l-md border border-r-0 border-input">
-                            <User className="h-4 w-4 text-muted-foreground" />
+                            <UserIcon className="h-4 w-4 text-muted-foreground" />
                           </div>
                           <Input 
                             id="fullName" 

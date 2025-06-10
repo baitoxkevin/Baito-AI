@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { logger } from '../lib/logger';
+// import { logger } from '../lib/logger';
 import { 
   Activity, 
   CheckCircle, 
@@ -24,15 +24,8 @@ import {
   XCircle,
   CalendarDays,
   CalendarRange,
-  SlidersHorizontal,
-  ListFilter,
-  PanelTopClose,
   ChevronDown,
-  ChevronUp,
-  MinusSquare,
-  PlusSquare,
-  Minimize2,
-  Maximize2
+  ChevronUp
 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -61,7 +54,6 @@ import {
   DropdownMenuLabel
 } from "@/components/ui/dropdown-menu";
 import { MetricCard } from '@/components/ui/metric-card';
-// import { ProjectCardSleek } from '@/components/ui/project-card-sleek';
 // Removed EnhancedProjectCard - using SpotlightCard for all projects
 import { SpotlightCard } from '@/components/spotlight-card';
 import { EnhancedMonthDropdown } from '@/components/ui/enhanced-month-dropdown';
@@ -72,7 +64,7 @@ import { usePersistentState } from '@/hooks/use-persistent-state';
 import { useToast } from '@/hooks/use-toast';
 import { deleteProject } from '@/lib/projects';
 // import { dummyProjects } from '@/lib/dummy-data';
-import { isFeatureWorthy, groupProjects, getGroupIcon, sortProjects, filterProjects, ProjectGroupType } from '@/lib/project-utils';
+import { sortProjects, filterProjects, groupProjects, getGroupIcon, ProjectGroupType } from '@/lib/project-utils';
 
 export default function ProjectsPageRedesign() {
   // State for project data and UI
@@ -80,22 +72,22 @@ export default function ProjectsPageRedesign() {
   const [activeMonth, setActiveMonth] = usePersistentState('projects-active-month', new Date().getMonth());
   const [newProjectDialogOpen, setNewProjectDialogOpen] = useState(false);
   // editDialogOpen removed
-  const [selectedProject, setSelectedProject] = useState<unknown>(null);
+  const [selectedProject] = useState<unknown>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [, setError] = useState<string | null>(null);
   const [useDummyData, setUseDummyData] = usePersistentState('projects-use-dummy', false);
   
   // UI state for filtering, grouping, and display
   const [searchQuery, setSearchQuery] = useState('');
-  const [groupBy, setGroupBy] = usePersistentState<ProjectGroupType>('projects-group-by-v2', 'none' as ProjectGroupType);
-  const [sortBy, setSortBy] = usePersistentState('projects-sort-by', 'priority');
+  const [, setGroupBy] = usePersistentState<ProjectGroupType>('projects-group-by-v2', 'none' as ProjectGroupType);
+  const [sortBy] = usePersistentState('projects-sort-by', 'priority');
   const [activeFilter, setActiveFilter] = usePersistentState('projects-active-filter-v2', 'all');
   const [isBannerVisible, setIsBannerVisible] = useState(true);
-  const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
+  const [, setIsFilterMenuOpen] = useState(false);
   const [isDashboardMinimized, setIsDashboardMinimized] = usePersistentState('projects-dashboard-minimized', false);
   
   // Reference for featured project section (no longer needed but kept for compatibility)
-  const featuredSectionRef = React.useRef<HTMLDivElement>(null);
+  // const featuredSectionRef = React.useRef<HTMLDivElement>(null);
   
   // Hooks for project data
   const { getProjectsByMonth, isLoading, prefetchAdjacentMonths } = useProjectsByMonth();
@@ -126,7 +118,7 @@ export default function ProjectsPageRedesign() {
       // Prefetch adjacent months for smoother navigation
       prefetchAdjacentMonths(monthIndex);
     } catch (err) {
-      logger.error('Error fetching projects:', err);
+      // logger.error('Error fetching projects:', err);
       setError('Failed to load projects. Using dummy data as fallback.');
       toast({
         title: 'Database Connection Error',
@@ -237,7 +229,7 @@ export default function ProjectsPageRedesign() {
       handleProjectsUpdated();
       
     } catch (error) {
-      logger.error('Error deleting project:', error);
+      // logger.error('Error deleting project:', error);
       toast({
         title: "Error",
         description: "Failed to delete project. Please try again.",

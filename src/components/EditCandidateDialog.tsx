@@ -5,7 +5,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  // DialogFooter,
   DialogDescription,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -25,18 +24,13 @@ import { supabase } from '@/lib/supabase';
 import { 
   CheckCircle, 
   Building, 
-  // FileText, 
   Home, 
   CreditCard, 
   User, 
-  // UserCheck, 
-  // Car, 
-  // Languages, 
   Camera, 
   Upload, 
   Link, 
   Copy,
-  // Share2,
   ShieldAlert,
   Lock,
   X,
@@ -44,7 +38,6 @@ import {
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { ProfileUpload } from '@/components/ui/profile-upload';
 import { Switch } from '@/components/ui/switch';
-// import { Separator } from '@/components/ui/separator';
 import { 
   Tooltip,
   TooltipContent,

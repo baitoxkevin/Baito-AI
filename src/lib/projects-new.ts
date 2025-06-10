@@ -256,7 +256,7 @@ export async function getProjectById(id: string): Promise<Project | null> {
           projectData.client = clientData;
         } else {
           // Try clients table if it exists
-          logger.debug('Client not found in users table, { data: trying clients table' });
+          logger.debug('Client not found in users table, trying clients table');
           const { data: clientData2, error: clientError2 } = await supabase
             .from('clients')
             .select('*')

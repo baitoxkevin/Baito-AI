@@ -160,8 +160,8 @@ export function EditProjectDialog({
       budget: project.budget || 0,
       project_type: project.project_type || 'recruitment',
       schedule_type: project.schedule_type || 'single',
-      cc_client_ids: (project as any).cc_client_ids || [],
-      cc_user_ids: (project as any).cc_user_ids || [],
+      cc_client_ids: 'cc_client_ids' in project ? (project as Project & { cc_client_ids?: string[] }).cc_client_ids || [] : [],
+      cc_user_ids: 'cc_user_ids' in project ? (project as Project & { cc_user_ids?: string[] }).cc_user_ids || [] : [],
     },
   });
 
@@ -186,8 +186,8 @@ export function EditProjectDialog({
       budget: project.budget || 0,
       project_type: project.project_type || 'recruitment',
       schedule_type: project.schedule_type || 'single',
-      cc_client_ids: (project as any).cc_client_ids || [],
-      cc_user_ids: (project as any).cc_user_ids || [],
+      cc_client_ids: 'cc_client_ids' in project ? (project as Project & { cc_client_ids?: string[] }).cc_client_ids || [] : [],
+      cc_user_ids: 'cc_user_ids' in project ? (project as Project & { cc_user_ids?: string[] }).cc_user_ids || [] : [],
     });
   }, [project, form]);
 
