@@ -1,15 +1,16 @@
 import * as React from 'react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
+// import { logger } from '../lib/logger';
 import { 
-  Loader2, Search, UserPlus, Edit2, Trash2, Shield, Mail, 
-  User as UserIcon, CheckCircle, XCircle, AlertCircle,
-  Users, ShieldCheck, UserCheck, Building, PlusIcon,
+  Loader2, Search, Edit2, Trash2, Shield, Mail, 
+  User as UserIcon, CheckCircle, XCircle,
+  Users, Building, PlusIcon,
   Briefcase, Phone
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
@@ -99,7 +100,7 @@ export default function UserConfigurationPage() {
   });
 
   // Load users data
-  const loadUsers = async () => {
+  const loadUsers = useCallback(async () => {
     try {
       setLoading(true);
       
@@ -143,10 +144,10 @@ export default function UserConfigurationPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
   // Load companies data
-  const loadCompaniesData = async () => {
+  const loadCompaniesData = useCallback(async () => {
     try {
       setCompanyLoading(true);
       const { data, error } = await supabase
@@ -175,7 +176,7 @@ export default function UserConfigurationPage() {
     } finally {
       setCompanyLoading(false);
     }
-  };
+  }, [toast]);
 
   // Handle company deletion
   const handleDeleteCompany = async (id: string) => {
@@ -210,12 +211,12 @@ export default function UserConfigurationPage() {
     } else if (activeTab === 'companies') {
       loadCompaniesData();
     }
-  }, [activeTab]);
+  }, [activeTab, loadUsers, loadCompaniesData]);
 
   // Load companies for user form dropdown
   useEffect(() => {
     loadCompaniesData();
-  }, []);
+  }, [loadCompaniesData]);
 
   // Filter users based on search and role
   const filteredUsers = users.filter(user => {

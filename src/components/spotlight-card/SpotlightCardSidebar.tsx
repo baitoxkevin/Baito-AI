@@ -7,11 +7,13 @@ import { ShimmerButton } from "@/components/ui/shimmer-button";
 import { TextAnimate } from "@/components/ui/text-animate";
 import { SpotlightCardDropdown } from "./SpotlightCardDropdown";
 import { EditProjectDialogStepped } from "@/components/EditProjectDialogStepped";
+import { JobPostGeneratorDialog } from "@/components/JobPostGeneratorDialog";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { formatRecurringDates, getGoogleMapsLink, getWazeLink } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
 import type { Project } from '@/lib/types';
+import { logger } from '../../lib/logger';
 import {
   Shield,
   CalendarDays,
@@ -32,7 +34,9 @@ import {
   User,
   Activity,
   AlertCircle,
-  Edit
+  Edit,
+  History,
+  Megaphone
 } from "lucide-react";
 
 interface SpotlightCardSidebarProps {
@@ -42,6 +46,7 @@ interface SpotlightCardSidebarProps {
   claimsCount: number;
   activeTab?: string;
   onTabChange?: (value: string) => void;
+  onProjectUpdated?: (updatedProject: Project) => void;
 }
 
 export function SpotlightCardSidebar({
@@ -50,7 +55,8 @@ export function SpotlightCardSidebar({
   staffCount,
   claimsCount,
   activeTab = 'schedule',
-  onTabChange = () => {}
+  onTabChange = () => {},
+  onProjectUpdated
 }: SpotlightCardSidebarProps) {
   
   const [brandLogoUrl, setBrandLogoUrl] = React.useState<string | null>((project as unknown).brand_logo || null);
@@ -60,6 +66,7 @@ export function SpotlightCardSidebar({
   const [activeOverviewTab, setActiveOverviewTab] = React.useState<'staffing' | 'details'>('staffing');
   const [isDropdownOpen, setIsDropdownOpen] = React.useState(false);
   const [editDialogOpen, setEditDialogOpen] = React.useState(false);
+  const [jobPostDialogOpen, setJobPostDialogOpen] = React.useState(false);
   const [currentProject, setCurrentProject] = React.useState(project);
   const [customerLogo, setCustomerLogo] = React.useState<string | null>(null);
   const [customerName, setCustomerName] = React.useState<string>('');
@@ -75,7 +82,7 @@ export function SpotlightCardSidebar({
     // Also update the brand logo URL from the new project data
     setBrandLogoUrl((project as unknown).brand_logo || null);
     setLogoError(false); // Reset logo error state
-  }, [project]);
+  }, [project, project.start_date, project.end_date, project.working_hours_start, project.working_hours_end]);
   
   // Fetch customer logo when component mounts or project changes
   React.useEffect(() => {
@@ -125,7 +132,7 @@ export function SpotlightCardSidebar({
           }
         }
       } catch (error) {
-        console.error('Error fetching customer info:', error);
+        logger.error('Error fetching customer info:', error);
         // Set fallback name from project client if available
         if ((project as unknown).client?.name) {
           setCustomerName((project as unknown).client.name);
@@ -141,8 +148,8 @@ export function SpotlightCardSidebar({
     // Update brand logo from the updated project
     setBrandLogoUrl((updatedProject as unknown).brand_logo || null);
     setLogoError(false); // Reset logo error state
-    // You might want to propagate this update to parent component
-    // if (onProjectUpdated) onProjectUpdated(updatedProject);
+    // Propagate this update to parent component
+    onProjectUpdated?.(updatedProject);
   };
   
   // Close dropdown when clicking outside
@@ -228,6 +235,32 @@ export function SpotlightCardSidebar({
               >
                 <Edit className="h-4 w-4" />
                 Edit Project Details
+              </button>
+              
+              {/* Job Post Generator */}
+              <button
+                className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setJobPostDialogOpen(true);
+                  setIsDropdownOpen(false);
+                }}
+              >
+                <Megaphone className="h-4 w-4" />
+                Generate Job Post
+              </button>
+              
+              {/* View History */}
+              <button
+                className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onTabChange('history');
+                  setIsDropdownOpen(false);
+                }}
+              >
+                <History className="h-4 w-4" />
+                View History
               </button>
               
               {/* Copy Project ID */}
@@ -561,8 +594,16 @@ export function SpotlightCardSidebar({
                             title: "Logo Updated",
                             description: "Brand logo URL has been updated."
                           });
+                          
+                          // Update the parent component
+                          if (onProjectUpdated) {
+                            onProjectUpdated({
+                              ...project,
+                              brand_logo: tempBrandUrl
+                            });
+                          }
                         } catch (error) {
-                          console.error('Error updating brand logo:', error);
+                          logger.error('Error updating brand logo:', error);
                           toast({
                             title: "Error",
                             description: "Failed to update brand logo. Please try again.",
@@ -599,8 +640,16 @@ export function SpotlightCardSidebar({
                           title: "Logo Removed",
                           description: "Brand logo has been removed."
                         });
+                        
+                        // Update the parent component
+                        if (onProjectUpdated) {
+                          onProjectUpdated({
+                            ...project,
+                            brand_logo: null
+                          });
+                        }
                       } catch (error) {
-                        console.error('Error removing brand logo:', error);
+                        logger.error('Error removing brand logo:', error);
                         toast({
                           title: "Error",
                           description: "Failed to remove brand logo. Please try again.",
@@ -717,6 +766,13 @@ export function SpotlightCardSidebar({
         open={editDialogOpen}
         onOpenChange={setEditDialogOpen}
         onProjectUpdated={handleProjectUpdate}
+      />
+      
+      {/* Job Post Generator Dialog */}
+      <JobPostGeneratorDialog
+        project={currentProject}
+        open={jobPostDialogOpen}
+        onOpenChange={setJobPostDialogOpen}
       />
       
       {/* Removed duplicate client logo from container bottom */}

@@ -1,5 +1,6 @@
 import { useRef, useCallback, useState, useEffect } from 'react';
 
+import { logger } from './logger';
 interface CacheOptions {
   expireAfter?: number;   // Time in ms after which cache is considered completely expired
   staleAfter?: number;    // Time in ms after which cache is considered stale but usable
@@ -34,7 +35,7 @@ const cacheAccessTimes: Record<string, Record<string, number>> = {};
  * @param fetchFunction The function to call when data needs to be fetched
  * @param options Caching configuration options
  */
-export function useCache<T, P extends any[]>(
+export function useCache<T, P extends unknown[]>(
   namespace: string,
   fetchFunction: (...args: P) => Promise<T>, 
   options: CacheOptions = {}
@@ -153,7 +154,7 @@ export function useCache<T, P extends any[]>(
         if (cachedEntry) {
           delete cachedEntry.fetchingPromise;
         }
-        console.error(`Error fetching ${namespace} data:`, error);
+        logger.error(`Error fetching ${namespace} data:`, error);
         throw error;
       } finally {
         setIsLoading(false);
@@ -162,7 +163,6 @@ export function useCache<T, P extends any[]>(
     
     // 3. Handle stale cache - return stale data but refresh in background
     if (isCacheStale(cachedEntry)) {
-      console.log(`STALE CACHE: ${namespace}/${cacheKey}, returning stale data and refreshing`);
       
       // Start refresh in background (fire and forget)
       if (!cachedEntry.fetchingPromise) {
@@ -180,7 +180,7 @@ export function useCache<T, P extends any[]>(
             return data;
           })
           .catch(error => {
-            console.error(`Error refreshing stale ${namespace} data:`, error);
+            logger.error(`Error refreshing stale ${namespace} data:`, error);
             // Keep using the stale data on refresh failure
             return cachedEntry.data;
           })
@@ -194,7 +194,6 @@ export function useCache<T, P extends any[]>(
     }
     
     // 4. Return fresh cached data
-    console.log(`CACHE HIT: ${namespace}/${cacheKey}`);
     return cachedEntry.data;
   }, [
     namespace, 
@@ -220,7 +219,6 @@ export function useCache<T, P extends any[]>(
       return; // Already fetching
     }
     
-    console.log(`PREFETCHING: ${namespace}/${cacheKey}`);
     
     // Create or update the fetching promise
     const fetchPromise = fetchFunction(...args)
@@ -240,7 +238,7 @@ export function useCache<T, P extends any[]>(
         return data;
       })
       .catch(error => {
-        console.error(`Error prefetching ${namespace} data:`, error);
+        logger.error(`Error prefetching ${namespace} data:`, error);
         throw error;
       })
       .finally(() => {
@@ -312,7 +310,6 @@ export function useCache<T, P extends any[]>(
 
 // App-wide preloading function to call on initial app load
 export async function preloadAppData() {
-  console.log('Preloading application data with optimized cache...');
   
   try {
     // Import data fetching functions dynamically to avoid circular dependencies
@@ -332,7 +329,6 @@ export async function preloadAppData() {
     const results = await Promise.all(
       preloadTasks.map(async task => {
         try {
-          console.log(`Starting preload of ${task.namespace}...`);
           const startTime = performance.now();
           
           const data = await task.fn(...task.args);
@@ -357,7 +353,6 @@ export async function preloadAppData() {
           cacheAccessTimes[task.namespace][cacheKey] = Date.now();
           
           const endTime = performance.now();
-          console.log(`Preloaded ${task.namespace} data in ${(endTime - startTime).toFixed(2)}ms`);
           
           // After preloading projects, queue up preloading of adjacent months
           if (task.namespace === 'projectsByMonth') {
@@ -380,7 +375,6 @@ export async function preloadAppData() {
                       timestamp: Date.now()
                     };
                     cacheAccessTimes['projectsByMonth'][cacheKey] = Date.now();
-                    console.log(`Background preloaded previous month (${prevMonth}) data`);
                   });
                   
                   // Next month
@@ -397,18 +391,17 @@ export async function preloadAppData() {
                       timestamp: Date.now()
                     };
                     cacheAccessTimes['projectsByMonth'][cacheKey] = Date.now();
-                    console.log(`Background preloaded next month (${nextMonth}) data`);
                   });
                 });
               } catch (err) {
-                console.error('Error during background preloading:', err);
+                logger.error('Error during background preloading:', err);
               }
             }, 2000); // Wait 2 seconds before trying to load adjacent months
           }
           
           return { namespace: task.namespace, success: true };
         } catch (error) {
-          console.error(`Failed to preload ${task.namespace} data:`, error);
+          logger.error(`Failed to preload ${task.namespace} data:`, error);
           return { namespace: task.namespace, success: false, error };
         }
       })
@@ -419,12 +412,12 @@ export async function preloadAppData() {
       const { setActiveView } = await import('./view-cache');
       setActiveView('dashboard');
     } catch (error) {
-      console.error('Error initializing view cache:', error);
+      logger.error('Error initializing view cache:', error);
     }
     
     return results;
   } catch (error) {
-    console.error('Error in preloadAppData:', error);
+    logger.error('Error in preloadAppData:', error);
     return [];
   }
 }

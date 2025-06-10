@@ -4,6 +4,7 @@ import { isWeekend, format, parseISO } from 'date-fns';
 import type { Project } from '@/lib/types';
 import { supabase } from '@/lib/supabase';
 
+import { logger } from './logger';
 // Global declaration for file picker state
 declare global {
   interface Window {
@@ -40,7 +41,7 @@ export function formatDate(dateString: string | null | undefined): string {
     const date = parseISO(dateString);
     return format(date, 'd MMM');
   } catch (error) {
-    console.error('Error formatting date:', error);
+    logger.error('Error formatting date:', error);
     return dateString || '-';
   }
 }
@@ -205,7 +206,7 @@ export function createDialogHandler(
       
       if (isFileInputTrigger(e.target as HTMLElement)) {
         isInFilePicker = true;
-        console.log('File picker detected, preventing dialog auto-close');
+        logger.debug('File picker detected, preventing dialog auto-close');
         
         // Reset the flag after a reasonable time for the file picker to complete
         setTimeout(() => {
@@ -222,7 +223,7 @@ export function createDialogHandler(
     if (!newOpen) {
       // Check both our file picker detection and the global flag
       if (isInFilePicker || window.__filePickerActive) {
-        console.log('Preventing automatic dialog close during file picker operation');
+        logger.debug('Preventing automatic dialog close during file picker operation');
         return;
       }
       
@@ -777,7 +778,7 @@ export function getProjectShareLink(projectId: string): string {
 // Function to apply the company permissions fix directly to the database
 export async function applyCompanyPermissionsFix(): Promise<{ success: boolean; message: string }> {
   try {
-    console.log('Starting company permissions fix...');
+    logger.debug('Starting company permissions fix...');
     
     // First try a simpler approach - just try to write a test record
     // If we can write, the permissions are already working and we don't need the fix
@@ -798,7 +799,7 @@ export async function applyCompanyPermissionsFix(): Promise<{ success: boolean; 
         .limit(1);
         
       if (!testError) {
-        console.log('Write test succeeded, permissions already work:', testData);
+        logger.debug('Write test succeeded, permissions already work:', { data: testData });
         
         // Clean up the test record
         if (testData && testData.length > 0) {
@@ -814,9 +815,9 @@ export async function applyCompanyPermissionsFix(): Promise<{ success: boolean; 
         };
       }
       
-      console.log('Test write failed, proceeding with permissions fix:', testError);
+      logger.debug('Test write failed, proceeding with permissions fix:', { data: testError });
     } catch (testError) {
-      console.log('Error during test write:', testError);
+      logger.debug('Error during test write:', { data: testError });
       // Continue with the fix
     }
     
@@ -827,7 +828,7 @@ export async function applyCompanyPermissionsFix(): Promise<{ success: boolean; 
       .select('count(*)');
       
     if (!readError) {
-      console.log('Can read companies table, fixing INSERT permissions only');
+      logger.debug('Can read companies table, fixing INSERT permissions only');
       
       // Create a direct API call to create a write policy
       // This should work if the application has permissions to manage policies
@@ -837,30 +838,11 @@ export async function applyCompanyPermissionsFix(): Promise<{ success: boolean; 
         policy_definition: 'FOR INSERT TO authenticated WITH CHECK (true)'
       });
       
-      console.log('Policy creation result:', policyResult);
+      logger.debug('Policy creation result:', { data: policyResult });
       
-      // Also try to add PIC fields and logo_url if possible
-      try {
-        // Try to run SQL directly to add fields
-        const { error: sqlError } = await supabase.rpc('exec_sql', {
-          sql: `
-            ALTER TABLE companies
-            ADD COLUMN IF NOT EXISTS pic_name text,
-            ADD COLUMN IF NOT EXISTS pic_designation text,
-            ADD COLUMN IF NOT EXISTS pic_email text,
-            ADD COLUMN IF NOT EXISTS pic_phone text,
-            ADD COLUMN IF NOT EXISTS logo_url text;
-          `
-        });
-        
-        if (sqlError) {
-          console.log('Error adding fields to companies table:', sqlError);
-        } else {
-          console.log('Successfully added fields to companies table');
-        }
-      } catch (sqlExecError) {
-        console.log('Error executing SQL for adding fields:', sqlExecError);
-      }
+      // REMOVED: Direct SQL execution that used dangerous exec_sql RPC
+      // This was a security vulnerability - database schema changes should be done through migrations
+      logger.debug('Note: Database schema changes should be done through Supabase migrations');
       
       // Try to create logos bucket
       try {
@@ -875,15 +857,15 @@ export async function applyCompanyPermissionsFix(): Promise<{ success: boolean; 
           });
           
           if (bucketError) {
-            console.log('Error creating logos bucket:', bucketError);
+            logger.debug('Error creating logos bucket:', { data: bucketError });
           } else {
-            console.log('Successfully created logos bucket');
+            logger.debug('Successfully created logos bucket');
           }
         } else {
-          console.log('Logos bucket already exists');
+          logger.debug('Logos bucket already exists');
         }
       } catch (bucketError) {
-        console.log('Error checking/creating logos bucket:', bucketError);
+        logger.debug('Error checking/creating logos bucket:', { data: bucketError });
       }
       
       return {
@@ -892,7 +874,7 @@ export async function applyCompanyPermissionsFix(): Promise<{ success: boolean; 
       };
     }
     
-    console.log('Cannot read companies table:', readError);
+    logger.debug('Cannot read companies table:', { data: readError });
     
     // If we get here, we need a full permission fix, but direct SQL isn't working
     // This is likely an environmental issue where we can't execute RPC commands
@@ -901,7 +883,7 @@ export async function applyCompanyPermissionsFix(): Promise<{ success: boolean; 
       message: 'Unable to fix permissions automatically. Try using the fix-company-logo.html tool.'
     };
   } catch (error) {
-    console.error('Error in applyCompanyPermissionsFix:', error);
+    logger.error('Error in applyCompanyPermissionsFix:', error);
     return {
       success: false,
       message: error instanceof Error ? error.message : 'Unknown error occurred'
@@ -915,13 +897,11 @@ export async function applyCompanyPermissionsFix(): Promise<{ success: boolean; 
  */
 export async function ensureLogosBucketExists(): Promise<{ success: boolean; message: string }> {
   try {
-    console.log('Checking for logos bucket...');
     
     // Check if bucket exists
     const { error: bucketCheckError } = await supabase.storage.getBucket('logos');
     
     if (bucketCheckError && bucketCheckError.message.includes('not found')) {
-      console.log('Logos bucket not found, creating...');
       
       // Create bucket
       const { data: bucketData, error: bucketError } = await supabase.storage.createBucket('logos', {
@@ -930,7 +910,7 @@ export async function ensureLogosBucketExists(): Promise<{ success: boolean; mes
       });
       
       if (bucketError) {
-        console.error('Error creating logos bucket:', bucketError);
+        logger.error('Error creating logos bucket:', bucketError);
         return { 
           success: false,
           message: `Bucket creation failed: ${bucketError.message}` 
@@ -943,10 +923,10 @@ export async function ensureLogosBucketExists(): Promise<{ success: boolean; mes
           .from('logos')
           .upload('company-logos/.folder', new Blob(['']));
           
-        console.log('Created company-logos folder');
+        logger.debug('Created company-logos folder');
       } catch (folderError) {
         // Ignore errors from folder creation
-        console.warn('Error creating folder structure:', folderError);
+        logger.warn('Error creating folder structure:', folderError);
       }
       
       return { 
@@ -960,7 +940,7 @@ export async function ensureLogosBucketExists(): Promise<{ success: boolean; mes
       };
     }
   } catch (error) {
-    console.error('Error ensuring logos bucket:', error);
+    logger.error('Error ensuring logos bucket:', error);
     return {
       success: false,
       message: error instanceof Error ? error.message : 'Unknown error occurred'
@@ -989,7 +969,7 @@ export async function fetchHierarchicalCompanies() {
     
     if (contactsError) {
       // If company_contacts table doesn't exist yet, just continue without contacts
-      console.warn('Could not fetch contacts. Table might not exist yet:', contactsError);
+      logger.warn('Could not fetch contacts. Table might not exist yet:', contactsError);
     }
     
     // Process companies to include standard field names
@@ -1019,7 +999,7 @@ export async function fetchHierarchicalCompanies() {
     
     return buildCompanyTree(processedCompanies);
   } catch (error) {
-    console.error('Error fetching hierarchical companies:', error);
+    logger.error('Error fetching hierarchical companies:', error);
     throw error;
   }
 }

@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { logger } from '../lib/logger';
 import {
   Table,
   TableBody,
@@ -225,7 +226,7 @@ export function ProjectDocumentsManager({ projectId, projectTitle }: ProjectDocu
       
       setDocuments(documentsWithCategories);
     } catch (error) {
-      console.error('Error fetching documents:', error);
+      logger.error('Error fetching documents:', error);
       toast({
         title: "Error",
         description: "Failed to load documents",
@@ -298,22 +299,22 @@ export function ProjectDocumentsManager({ projectId, projectTitle }: ProjectDocu
         const fileExt = uploadFile!.name.split('.').pop();
         const fileName = `${projectId}/${Date.now()}_${uploadFile!.name}`;
         
-        console.log('Uploading file to storage bucket: public-docs');
-        console.log('File name:', fileName);
+        logger.debug('Uploading file to storage bucket: public-docs');
+        logger.debug('File name:', { data: fileName });
         
         const { data: uploadData, error: uploadError } = await freshSupabase.storage
           .from('public-docs')
           .upload(fileName, uploadFile!);
 
         if (uploadError) {
-          console.error('Storage upload error:', uploadError);
+          logger.error('Storage upload error:', uploadError);
           if (uploadError.message === 'Bucket not found') {
             throw new Error('Storage bucket not configured. Please contact your administrator to set up the project documents storage.');
           }
           throw new Error(`Storage error: ${uploadError.message}`);
         }
         
-        console.log('File uploaded successfully to storage');
+        logger.debug('File uploaded successfully to storage');
 
         // Get public URL
         const { data: { publicUrl } } = freshSupabase.storage
@@ -372,8 +373,8 @@ export function ProjectDocumentsManager({ projectId, projectTitle }: ProjectDocu
       // Save document metadata - documentData is now defined above
       
       // Use RPC function to bypass all RLS
-      console.log('Using direct insert function');
-      console.log('Document data:', documentData);
+      logger.debug('Using direct insert function');
+      logger.debug('Document data:', { data: documentData });
       
       try {
         const { data: insertedDoc, error: insertError } = await freshSupabase
@@ -389,13 +390,13 @@ export function ProjectDocumentsManager({ projectId, projectTitle }: ProjectDocu
           });
           
         if (insertError) {
-          console.error('RPC error:', insertError);
+          logger.error('RPC error:', insertError);
           throw insertError;
         }
         
-        console.log('Document inserted successfully via RPC:', insertedDoc);
+        logger.debug('Document inserted successfully via RPC:', { data: insertedDoc });
       } catch (rpcError) {
-        console.error('RPC call failed:', rpcError);
+        logger.error('RPC call failed:', rpcError);
         throw rpcError;
       }
 
@@ -413,7 +414,7 @@ export function ProjectDocumentsManager({ projectId, projectTitle }: ProjectDocu
       setUploadType('file');
       fetchDocuments();
     } catch (error: unknown) {
-      console.error('Upload error:', error);
+      logger.error('Upload error:', error);
       toast({
         title: "Upload Error",
         description: error.message || "Failed to upload document",
@@ -446,7 +447,7 @@ export function ProjectDocumentsManager({ projectId, projectTitle }: ProjectDocu
           .remove([doc.file_path]);
         
         if (storageError) {
-          console.error('Storage delete error:', storageError);
+          logger.error('Storage delete error:', storageError);
           // Continue with database deletion even if storage deletion fails
         }
       }
@@ -469,7 +470,7 @@ export function ProjectDocumentsManager({ projectId, projectTitle }: ProjectDocu
       setShowDeleteDialog(false);
       setDocumentToDelete(null);
     } catch (error: unknown) {
-      console.error('Delete error:', error);
+      logger.error('Delete error:', error);
       toast({
         title: "Delete Error",
         description: error.message || "Failed to delete document",

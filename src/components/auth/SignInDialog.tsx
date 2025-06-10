@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { logger } from '../../lib/logger';
 import {
   Dialog,
   DialogContent,
@@ -60,7 +61,7 @@ function TestAccountButtons() {
           });
           
           if (error) {
-            console.error(`Error creating ${account.role} account:`, error);
+            logger.error(`Error creating ${account.role} account:`, error);
             continue;
           }
           
@@ -79,7 +80,7 @@ function TestAccountButtons() {
               }]);
               
             if (profileError) {
-              console.error(`Error creating ${account.role} profile:`, profileError);
+              logger.error(`Error creating ${account.role} profile:`, profileError);
             }
           }
         }
@@ -90,7 +91,7 @@ function TestAccountButtons() {
         description: 'Test accounts have been created or already exist',
       });
     } catch (error) {
-      console.error('Error creating test accounts:', error);
+      logger.error('Error creating test accounts:', error);
       toast({
         title: 'Error',
         description: 'Failed to create test accounts',
@@ -165,7 +166,7 @@ export default function SignInDialog({ open, onOpenChange, onSignedIn }: SignInD
       setEmail('');
       setErrorMessage(null);
     } catch (error) {
-      console.error('Password reset error:', error);
+      logger.error('Password reset error:', error);
       let message = 'An unexpected error occurred';
       
       if (error instanceof Error) {
@@ -253,7 +254,7 @@ export default function SignInDialog({ open, onOpenChange, onSignedIn }: SignInD
         }
       }
     } catch (error) {
-      console.error('Authentication error:', error);
+      logger.error('Authentication error:', error);
       let message = 'An unexpected error occurred';
       
       if (error instanceof Error) {

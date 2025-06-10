@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
 import { getCandidateAvatarUrl } from '@/lib/avatar-service';
 
+import { logger } from '../../lib/logger';
 // Create our own AvatarImage component to fix issues with profile image loading
 const AvatarImage = ({ src, alt, className }: { src: string, alt: string, className?: string }) => {
   return (
@@ -46,7 +47,7 @@ export function CandidateAvatar({
       // Ensure actualId is a string
       if (!actualId || typeof actualId !== 'string' || src) {
         if (actualId && typeof actualId !== 'string') {
-          console.error('CandidateAvatar: candidateId must be a string, received:', candidateId);
+          logger.error('CandidateAvatar: candidateId must be a string, received:', candidateId);
         }
         return;
       }
@@ -80,7 +81,7 @@ export function CandidateAvatar({
             setProfilePhoto(photoUrl);
           }
         } catch (error) {
-          console.error('Error checking blacklist or fetching photo:', error);
+          logger.error('Error checking blacklist or fetching photo:', error);
         }
       }
     };

@@ -1,26 +1,25 @@
 import { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogClose } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-// import { Separator } from '@/components/ui/separator';
+import { logger } from '../lib/logger';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import { format, differenceInYears } from 'date-fns';
 import { 
-  User, Phone, Mail, MapPin, Briefcase, Star, Calendar, CreditCard, 
+  User, Phone, Mail, MapPin, Briefcase, Star, Calendar, 
   Activity, Award, Shield, Clock, AlertCircle,
-  Copy, CheckCircle, HistoryIcon, Building, FileText, Ban, X,
-  Wallet, DollarSign, Receipt, BanknoteIcon, CalendarDays, 
-  Coffee, CheckSquare, ArrowUpDown, CalendarClock, Users2,
-  Sparkles, GraduationCap, BarChart, Link,
-  Flame, Film, Zap, 
+  Copy, HistoryIcon, Building, FileText, Ban, X,
+  CheckSquare, CalendarClock, Users2,
+  Sparkles, GraduationCap, Link,
+  Flame, Film, Zap, Languages,
   LucideIcon, CheckCircle2, CircleDashed, Pencil
 } from 'lucide-react';
-// import { CandidateActionButton } from './CandidateActionButton';
 import CandidateProjectHistory from './CandidateProjectHistory';
 import NewCandidateDialog from './NewCandidateDialog';
+import { CandidateProjectApplications } from './CandidateProjectApplications';
 import { getCandidateMetrics } from '@/lib/candidate-history-service';
 import { isBlacklisted } from '@/lib/blacklist-service';
 import { supabase } from '@/lib/supabase';
@@ -50,9 +49,6 @@ export function CandidateDetailsDialog({
   const [updateLinkError, setUpdateLinkError] = useState('');
   const [updateLink, setUpdateLink] = useState('');
   const { toast } = useToast();
-  
-  // For debugging
-  console.log("CandidateDetailsDialog received:", candidate);
   
   // Load candidate metrics and blacklist status
   useEffect(() => {
@@ -92,7 +88,7 @@ export function CandidateDetailsDialog({
               };
             }
           } catch (metricsError) {
-            console.warn('Error loading metrics, using default values:', metricsError);
+            logger.warn('Error loading metrics, using default values:', metricsError);
           }
           
           setMetrics(candidateMetrics);
@@ -102,12 +98,12 @@ export function CandidateDetailsDialog({
           try {
             blacklisted = await isBlacklisted(candidate.id);
           } catch (blacklistError) {
-            console.warn('Error checking blacklist status, using default:', blacklistError);
+            logger.warn('Error checking blacklist status, using default:', blacklistError);
           }
           
           setIsBlacklistedStatus(blacklisted);
         } catch (error) {
-          console.error('Error loading candidate data:', error);
+          logger.error('Error loading candidate data:', error);
           toast({
             title: "Error loading data",
             description: "Some candidate data could not be loaded. Showing partial information.",
@@ -151,7 +147,7 @@ export function CandidateDetailsDialog({
       });
       
       if (error) {
-        console.error('Error generating update link:', error);
+        logger.error('Error generating update link:', error);
         setUpdateLinkError('Could not generate update link. Please try again.');
         return;
       }
@@ -165,7 +161,7 @@ export function CandidateDetailsDialog({
         description: "Copy the link to share with the candidate."
       });
     } catch (error) {
-      console.error('Error in generateUpdateLink:', error);
+      logger.error('Error in generateUpdateLink:', error);
       setUpdateLinkError('An error occurred. Please try again.');
     } finally {
       setUpdateLinkLoading(false);
@@ -179,7 +175,7 @@ export function CandidateDetailsDialog({
       setUpdateLinkCopied(true);
       setTimeout(() => setUpdateLinkCopied(false), 3000);
     } catch (error) {
-      console.error('Error copying to clipboard:', error);
+      logger.error('Error copying to clipboard:', error);
       setUpdateLinkError('Could not copy to clipboard. Please copy manually.');
     }
   };
@@ -240,7 +236,7 @@ export function CandidateDetailsDialog({
       
       return parts.length > 0 ? parts.join(', ') : 'Address details not available';
     } catch (error) {
-      console.error('Error formatting address:', error);
+      logger.error('Error formatting address:', error);
       return 'Invalid address format';
     }
   };
@@ -251,19 +247,19 @@ export function CandidateDetailsDialog({
         try {
           return differenceInYears(new Date(), new Date(candidate.date_of_birth));
         } catch (error) {
-          console.error('Error calculating age:', error);
+          logger.error('Error calculating age:', error);
           return null;
         }
       })()
     : null;
 
-  const loyaltyTierColors = {
-    bronze: 'bg-orange-500/10 text-orange-500',
-    silver: 'bg-slate-500/10 text-slate-500',
-    gold: 'bg-yellow-500/10 text-yellow-500',
-    platinum: 'bg-purple-500/10 text-purple-500',
-    diamond: 'bg-blue-500/10 text-blue-500',
-  } as const;
+  // const loyaltyTierColors = {
+  //   bronze: 'bg-orange-500/10 text-orange-500',
+  //   silver: 'bg-slate-500/10 text-slate-500',
+  //   gold: 'bg-yellow-500/10 text-yellow-500',
+  //   platinum: 'bg-purple-500/10 text-purple-500',
+  //   diamond: 'bg-blue-500/10 text-blue-500',
+  // } as const;
 
   // Interface for the info card component
   interface InfoCardProps {
@@ -279,7 +275,7 @@ export function CandidateDetailsDialog({
     icon: Icon, 
     title, 
     value, 
-    color: _color = "bg-blue-500", // Keep parameter for backward compatibility
+    // color: _color = "bg-blue-500", // Keep parameter for backward compatibility - not used
     className 
   }: InfoCardProps) => {
     return (
@@ -307,7 +303,7 @@ export function CandidateDetailsDialog({
     value, 
     maxValue = 100,
     suffix = "",
-    color: _color = "from-blue-500 to-indigo-600" // Keep parameter for backward compatibility
+    // color: _color = "from-blue-500 to-indigo-600" // Keep parameter for backward compatibility - not used
   }: {
     icon: LucideIcon;
     title: string;
@@ -631,6 +627,18 @@ export function CandidateDetailsDialog({
                   <span className="font-medium text-xs">Availability</span>
                 </div>
               </TabsTrigger>
+              
+              <TabsTrigger 
+                value="applications"
+                className="relative px-2 py-1 border-l-2 data-[state=active]:border-blue-600 dark:data-[state=active]:border-blue-500 data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 rounded-r-md data-[state=active]:shadow-sm transition-all duration-200"
+              >
+                <div className="flex items-center gap-1.5">
+                  <div className={`${activeTab === 'applications' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'} transition-colors`}>
+                    <Briefcase className="h-4 w-4" />
+                  </div>
+                  <span className="font-medium text-xs">Applications</span>
+                </div>
+              </TabsTrigger>
             </TabsList>
           </div>
           
@@ -659,7 +667,7 @@ export function CandidateDetailsDialog({
                                 try {
                                   return format(new Date(candidate.date_of_birth), 'dd MMM yyyy');
                                 } catch (error) {
-                                  console.error('Error formatting date of birth:', error);
+                                  logger.error('Error formatting date of birth:', error);
                                   return 'Invalid date format';
                                 }
                               })()} ${age !== null ? `(${age} years)` : ''}`
@@ -962,7 +970,7 @@ export function CandidateDetailsDialog({
                                   try {
                                     return format(new Date(expiryDate), 'PP');
                                   } catch (error) {
-                                    console.warn('Error formatting license expiry date:', error);
+                                    logger.warn('Error formatting license expiry date:', error);
                                     return expiryDate;
                                   }
                                 })()}
@@ -1184,7 +1192,7 @@ export function CandidateDetailsDialog({
                             try {
                               return format(new Date(metrics.lastProjectDate), 'PPP');
                             } catch (error) {
-                              console.error('Error formatting last project date:', error);
+                              logger.error('Error formatting last project date:', error);
                               return 'Invalid date format';
                             }
                           })()}
@@ -1303,7 +1311,7 @@ export function CandidateDetailsDialog({
                               try {
                                 return format(new Date(candidate.loyalty_status.tier_achieved_date), 'PPP');
                               } catch (error) {
-                                console.error('Error formatting tier achieved date:', error);
+                                logger.error('Error formatting tier achieved date:', error);
                                 return 'Invalid date format';
                               }
                             })()}
@@ -1322,7 +1330,7 @@ export function CandidateDetailsDialog({
                                     try {
                                       return format(new Date(candidate.loyalty_status.points_expiry_date), 'PPP');
                                     } catch (error) {
-                                      console.error('Error formatting points expiry date:', error);
+                                      logger.error('Error formatting points expiry date:', error);
                                       return 'Invalid date format';
                                     }
                                   })()}
@@ -1335,7 +1343,7 @@ export function CandidateDetailsDialog({
                                       </Badge>
                                     );
                                   } catch (error) {
-                                    console.error('Error comparing points expiry date:', error);
+                                    logger.error('Error comparing points expiry date:', error);
                                     return null;
                                   }
                                 })()}
@@ -1433,7 +1441,7 @@ export function CandidateDetailsDialog({
                                   candidateMetrics = fetchedMetrics;
                                 }
                               } catch (metricsError) {
-                                console.warn('Error refreshing metrics, using default values:', metricsError);
+                                logger.warn('Error refreshing metrics, using default values:', metricsError);
                               }
                               
                               setMetrics(candidateMetrics);
@@ -1443,12 +1451,12 @@ export function CandidateDetailsDialog({
                               try {
                                 blacklisted = await isBlacklisted(candidate.id);
                               } catch (blacklistError) {
-                                console.warn('Error checking blacklist status, using default:', blacklistError);
+                                logger.warn('Error checking blacklist status, using default:', blacklistError);
                               }
                               
                               setIsBlacklistedStatus(blacklisted);
                             } catch (error) {
-                              console.error('Error refreshing metrics:', error);
+                              logger.error('Error refreshing metrics:', error);
                             }
                           };
                           
@@ -1457,7 +1465,7 @@ export function CandidateDetailsDialog({
                       />
                     );
                   } catch (error) {
-                    console.error('Error rendering CandidateProjectHistory:', error);
+                    logger.error('Error rendering CandidateProjectHistory:', error);
                     return (
                       <div className="p-6 text-center">
                         <Briefcase className="h-12 w-12 text-gray-300 dark:text-gray-700 mx-auto mb-3" />
@@ -1919,7 +1927,7 @@ export function CandidateDetailsDialog({
                               try {
                                 return format(new Date(candidate.custom_fields.next_available_date), 'PPP');
                               } catch (error) {
-                                console.error('Error formatting next available date:', error);
+                                logger.error('Error formatting next available date:', error);
                                 return 'Invalid date format';
                               }
                             })() : 
@@ -2086,6 +2094,28 @@ export function CandidateDetailsDialog({
               </div>
             </div>
           </TabsContent>
+          
+          {/* Applications Tab */}
+          <TabsContent value="applications" className="flex-1 overflow-y-auto pb-4">
+            <div className="space-y-4">
+              <div className="mb-2">
+                <h3 className="text-sm font-semibold flex items-center gap-1.5 mb-2 text-gray-800 dark:text-gray-200">
+                  <div className="p-1.5 bg-gray-100 dark:bg-gray-800 text-blue-600 dark:text-blue-400 rounded-lg">
+                    <Briefcase className="h-4 w-4" />
+                  </div>
+                  Project Applications
+                </h3>
+                <p className="text-gray-500 dark:text-gray-400 ml-10">
+                  View and manage applications to open projects
+                </p>
+              </div>
+              
+              <CandidateProjectApplications 
+                candidateId={candidate.id}
+                candidateName={candidate.full_name}
+              />
+            </div>
+          </TabsContent>
         </Tabs>
         
         {/* Secure update link section */}
@@ -2138,7 +2168,7 @@ export function CandidateDetailsDialog({
                     return `Created: ${format(new Date(candidate.created_at || Date.now()), 'PPP')}`;
                   }
                 } catch (error) {
-                  console.error('Error formatting date in footer:', error);
+                  logger.error('Error formatting date in footer:', error);
                   return 'Date information unavailable';
                 }
               })()}
@@ -2184,7 +2214,76 @@ export function CandidateDetailsDialog({
             setEditDialogOpen(open);
             // When dialog closes, we'll just update the state without showing a toast
           }}
-          initialData={candidate}
+          initialData={{
+            // Map candidate fields to form fields
+            legal_name: candidate.full_name || '',
+            entity_type: candidate.custom_fields?.entity_type || 'individual',
+            registration_type: candidate.custom_fields?.registration_type || 'nric',
+            registration_id: candidate.ic_number || '',
+            old_registration_id: candidate.custom_fields?.old_registration_id || '',
+            unique_id: candidate.unique_id || '',
+            tin: candidate.custom_fields?.tin || '',
+            sst_registration_no: candidate.custom_fields?.sst_registration_no || '',
+            is_customer: candidate.custom_fields?.is_customer || false,
+            is_supplier: candidate.custom_fields?.is_supplier || false,
+            
+            // Contact Information
+            phone_number: candidate.phone_number || '',
+            email: candidate.email || '',
+            
+            // Address fields - extract from JSON structure if available
+            street_business: candidate.address_business?.street || '',
+            city_business: candidate.address_business?.city || '',
+            state_business: candidate.address_business?.state || '',
+            postcode_business: candidate.address_business?.postcode || '',
+            country_code_business: candidate.address_business?.country_code || 'MY',
+            
+            street_mailing: candidate.address_mailing?.street || '',
+            city_mailing: candidate.address_mailing?.city || '',
+            state_mailing: candidate.address_mailing?.state || '',
+            postcode_mailing: candidate.address_mailing?.postcode || '',
+            country_code_mailing: candidate.address_mailing?.country_code || 'MY',
+            use_business_address: !candidate.address_mailing?.street, // Assume using business address if no mailing street
+            
+            // Financial Information 
+            receivable_ac_code: candidate.custom_fields?.receivable_ac_code || '',
+            payable_ac_code: candidate.custom_fields?.payable_ac_code || '',
+            income_ac_code: candidate.custom_fields?.income_ac_code || '',
+            expense_ac_code: candidate.custom_fields?.expense_ac_code || '',
+            
+            // Additional information
+            gender: candidate.gender || 'male',
+            date_of_birth: candidate.date_of_birth ? new Date(candidate.date_of_birth).toISOString().split('T')[0] : '',
+            nationality: candidate.nationality || 'Malaysian',
+            emergency_contact_name: candidate.emergency_contact_name || '',
+            emergency_contact_number: candidate.emergency_contact_number || '',
+            
+            // Additional candidate fields from custom_fields
+            age: candidate.custom_fields?.age || '',
+            race: candidate.custom_fields?.race || '',
+            tshirt_size: candidate.custom_fields?.tshirt_size || '',
+            transportation: candidate.vehicle_type || candidate.custom_fields?.transportation || '',
+            spoken_languages: candidate.custom_fields?.spoken_languages || '',
+            height: candidate.custom_fields?.height || '',
+            typhoid: candidate.custom_fields?.typhoid || 'no',
+            work_experience: candidate.custom_fields?.experience_summary || candidate.custom_fields?.work_experience || '',
+            
+            // Photos
+            profile_photo: candidate.custom_fields?.profile_photo || candidate.profile_photo || '',
+            full_body_photo: candidate.custom_fields?.full_body_photo || '',
+            
+            // Include the candidate ID for update operations
+            id: candidate.id
+          }}
+          onCandidateAdded={() => {
+            // Close and reopen the dialog to refresh data
+            setEditDialogOpen(false);
+            // Trigger a refresh by notifying parent component
+            onOpenChange(false);
+            setTimeout(() => {
+              onOpenChange(true);
+            }, 100);
+          }}
         />
       )}
     </Dialog>

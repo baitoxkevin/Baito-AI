@@ -9,6 +9,7 @@ import { signIn } from '@/lib/auth';
 import { Toaster } from '@/components/ui/toaster';
 import { motion } from 'framer-motion';
 
+import { logger } from '../lib/logger';
 const LOGO_URL = "https://i.postimg.cc/28D4j6hk/Submark-Alternative-Colour.png";
 
 export default function LoginPage() {
@@ -42,7 +43,7 @@ export default function LoginPage() {
         }, 100);
       }
     } catch (error) {
-      console.error('Sign in error:', error);
+      logger.error('Sign in error:', error);
       
       const message = error instanceof Error 
         ? error.message 
@@ -66,30 +67,30 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
+    <div className="min-h-screen w-full flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
       <Toaster />
       
       {/* Background decoration */}
-      <div className="absolute inset-0 overflow-hidden">
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-40 -right-40 w-80 h-80 bg-purple-300 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob" />
         <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-blue-300 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob animation-delay-2000" />
         <div className="absolute top-40 left-40 w-80 h-80 bg-pink-300 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob animation-delay-4000" />
       </div>
       
-      {/* Centered container - using absolute positioning for perfect centering */}
-      <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-full max-w-lg px-4">
+      {/* Centered container - using flexbox for better centering */}
+      <div className="relative z-10 w-full max-w-lg px-4">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-10"
+          className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 sm:p-10"
         >
           {/* Logo */}
           <motion.div
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
-            className="flex justify-center mb-10"
+            className="flex justify-center mb-8"
           >
             <img
               src={LOGO_URL}
@@ -103,7 +104,7 @@ export default function LoginPage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.3 }}
-            className="text-center mb-10"
+            className="text-center mb-8"
           >
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
               Welcome back
@@ -207,7 +208,7 @@ export default function LoginPage() {
       </div>
 
       {/* Animations */}
-      <style jsx>{`
+      <style>{`
         @keyframes blob {
           0% {
             transform: translate(0px, 0px) scale(1);

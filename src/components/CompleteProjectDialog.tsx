@@ -11,6 +11,7 @@ import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { Card } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
+import { logger } from '../lib/logger';
 import { 
   Star, 
   CheckCircle, 
@@ -177,7 +178,7 @@ export default function CompleteProjectDialog({
       setCandidates(mockCandidates);
       setFilteredCandidates(mockCandidates);
     } catch (error) {
-      console.error('Error loading candidates:', error);
+      logger.error('Error loading candidates:', error);
       toast({
         title: 'Error',
         description: 'Failed to load project candidates',
@@ -272,7 +273,7 @@ export default function CompleteProjectDialog({
           .insert(candidateHistories);
           
         if (historyError) {
-          console.error('Error recording candidate histories:', historyError);
+          logger.error('Error recording candidate histories:', historyError);
           // Continue execution even if this fails
         }
       }
@@ -288,7 +289,7 @@ export default function CompleteProjectDialog({
       
       onOpenChange(false);
     } catch (error) {
-      console.error('Error completing project:', error);
+      logger.error('Error completing project:', error);
       toast({
         title: 'Error',
         description: 'Failed to complete project',

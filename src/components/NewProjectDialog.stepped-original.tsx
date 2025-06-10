@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
+import { logger } from '../lib/logger';
 import { 
   CalendarIcon, 
   Loader2, 
@@ -199,7 +200,7 @@ export function NewProjectDialog({
 
       setManagers(managersResult.data || []);
     } catch (error) {
-      console.error('Error fetching data:', error);
+      logger.error('Error fetching data:', error);
       toast({
         title: "Error",
         description: "Failed to load customers and managers",
@@ -277,7 +278,7 @@ export function NewProjectDialog({
       form.reset();
       setCurrentStep('project-info');
     } catch (error) {
-      console.error('Error creating project:', error);
+      logger.error('Error creating project:', error);
       toast({
         title: "Error",
         description: "Failed to create project",

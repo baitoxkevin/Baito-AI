@@ -12,6 +12,7 @@ import { Clock, Calendar, PlusCircle, Edit, Trash2 } from 'lucide-react';
 import type { TaskTemplate } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 
+import { logger } from '../lib/logger';
 interface TaskTemplateDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -76,7 +77,7 @@ export function TaskTemplateDialog({
         setShowAddForm(false);
       }
     } catch (error) {
-      console.error('Error adding template:', error);
+      logger.error('Error adding template:', error);
     } finally {
       setIsSubmitting(false);
     }

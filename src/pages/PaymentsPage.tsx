@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+// import { logger } from '../lib/logger';
 import { 
   Table, 
   TableBody, 
@@ -30,12 +31,9 @@ import {
   MoreVertical,
   Users,
   Building2,
-  CreditCard,
-  Banknote,
   Eye,
   Loader2,
   FileSpreadsheet,
-  Check,
   ArrowUp,
   ArrowDown,
   ChevronsUpDown
@@ -53,7 +51,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { format } from 'date-fns';
 import { useToast } from "@/hooks/use-toast";
-import { getPaymentBatches, approvePaymentBatch, rejectPaymentBatch, getPaymentBatchDetails } from '@/lib/payment-queue-service';
+import { approvePaymentBatch, rejectPaymentBatch } from '@/lib/payment-queue-service';
 import { supabase } from '@/lib/supabase';
 import {
   Tooltip,
@@ -1046,7 +1044,7 @@ export default function PaymentsPage() {
                                                     notes: 'Payment cancelled and moved back to project payroll'
                                                   });
                                               } catch (historyError) {
-                                                console.log('Could not log cancellation history:', historyError);
+                                                console.log('Could not log cancellation history:', { data: historyError });
                                               }
                                               
                                               // Update the project's confirmed_staff to remove paymentStatus
@@ -1095,7 +1093,7 @@ export default function PaymentsPage() {
                                                   reason: 'Payment cancelled by user'
                                                 });
                                               } catch (logError) {
-                                                console.log('Could not log cancellation:', logError);
+                                                console.log('Could not log cancellation:', { data: logError });
                                               }
                                               
                                               toast({

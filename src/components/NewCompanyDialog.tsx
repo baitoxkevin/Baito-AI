@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { logger } from '../lib/logger';
 import {
   Dialog,
   DialogContent,
@@ -11,14 +12,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { 
-  Loader2, Mail, Phone, Building, User, Briefcase, 
-  ShieldAlert, Image, Upload, GitBranchPlus, UsersRound, 
+  Loader2, Phone, Building, 
+  ShieldAlert, Upload, GitBranchPlus, UsersRound, 
   Plus as PlusIcon, Edit2 
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabase';
 import { applyCompanyPermissionsFix, ensureLogosBucketExists } from '@/lib/utils';
-import { formatDate } from '@/lib/utils';
 import type { Company } from '@/lib/types';
 import ContactPersonForm, { ContactPerson } from './ContactPersonForm';
 import {
@@ -50,12 +50,12 @@ export default function NewCompanyDialog({
   // File upload state
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string>('');
-  const [isUploading, setIsUploading] = useState(false);
+  const [isUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Parent company state
   const [parentCompanies, setParentCompanies] = useState<Company[]>([]);
-  const [isLoadingParents, setIsLoadingParents] = useState(false);
+  const [isLoadingParents] = useState(false);
 
   // Contact persons state
   const [contacts, setContacts] = useState<ContactPerson[]>([
@@ -93,7 +93,7 @@ export default function NewCompanyDialog({
       
       setParentCompanies(data || []);
     } catch (error) {
-      console.error('Error loading parent companies:', error);
+      logger.error('Error loading parent companies:', error);
       toast({
         title: 'Error',
         description: 'Failed to load parent companies',
@@ -104,32 +104,32 @@ export default function NewCompanyDialog({
     }
   };
 
-  // Load company contacts
-  const loadCompanyContacts = async (companyId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('company_contacts')
-        .select('*')
-        .eq('company_id', companyId);
-      
-      if (error) throw error;
-      
-      if (data && data.length > 0) {
-        setContacts(data);
-      } else {
-        // If no contacts found, initialize with single empty contact
-        setContacts([
-          { name: '', designation: '', email: '', phone: '', is_primary: true }
-        ]);
-      }
-    } catch (error) {
-      console.error('Error loading company contacts:', error);
-      // Default to a single empty contact
-      setContacts([
-        { name: '', designation: '', email: '', phone: '', is_primary: true }
-      ]);
-    }
-  };
+  // // Load company contacts - Not currently used - kept for future reference
+  // // const loadCompanyContacts = async (companyId: string) => {
+  // //   try {
+  // //     const { data, error } = await supabase
+  // //       .from('company_contacts')
+  // //       .select('*')
+  // //       .eq('company_id', companyId);
+  // //     
+  // //     if (error) throw error;
+  // //     
+  // //     if (data && data.length > 0) {
+  // //       setContacts(data);
+  // //     } else {
+  // //       // If no contacts found, initialize with single empty contact
+  // //       setContacts([
+  // //         { name: '', designation: '', email: '', phone: '', is_primary: true }
+  // //       ]);
+  // //     }
+  // //   } catch (error) {
+  // //     logger.error('Error loading company contacts:', error);
+  // //     // Default to a single empty contact
+  // //     setContacts([
+  // //       { name: '', designation: '', email: '', phone: '', is_primary: true }
+  // //     ]);
+  // //   }
+  // // };
   
   // Reset form when dialog opens or company prop changes
   useEffect(() => {
@@ -179,7 +179,6 @@ export default function NewCompanyDialog({
         ]);
       }
       
-      console.log('Dialog opened, form reset with company data:', company);
     }
   }, [open, company]);
   
@@ -227,7 +226,7 @@ export default function NewCompanyDialog({
       // First, try to ensure the bucket exists
       const bucketResult = await ensureLogosBucketExists();
       if (!bucketResult.success) {
-        console.warn('Error ensuring logos bucket:', bucketResult.message);
+        logger.warn('Error ensuring logos bucket:', bucketResult.message);
         // Continue anyway, in case it's just a permission issue but the bucket actually exists
       }
       
@@ -238,19 +237,19 @@ export default function NewCompanyDialog({
       
       // Create company-logos folder if needed
       try {
-        const { data: folderData, error: folderError } = await supabase.storage
+        const { error: folderError } = await supabase.storage
           .from('logos')
           .upload('company-logos/.folder', new Blob(['']));
           
         if (folderError && !folderError.message.includes('already exists')) {
-          console.warn('Error creating folder:', folderError);
+          logger.warn('Error creating folder:', folderError);
         }
       } catch (folderError) {
-        console.warn('Error creating folder:', folderError);
+        logger.warn('Error creating folder:', folderError);
       }
       
       // Upload the file
-      const { data, error } = await supabase.storage
+      const { error } = await supabase.storage
         .from('logos')
         .upload(filePath, logoFile, {
           cacheControl: '3600',
@@ -277,7 +276,7 @@ export default function NewCompanyDialog({
       // Return the public URL
       return urlData.publicUrl;
     } catch (error) {
-      console.error('Error uploading logo:', error);
+      logger.error('Error uploading logo:', error);
       toast({
         title: 'Upload failed',
         description: 'Failed to upload company logo. Check console for details.',
@@ -310,7 +309,7 @@ export default function NewCompanyDialog({
         });
       }
     } catch (error) {
-      console.error('Error applying fix:', error);
+      logger.error('Error applying fix:', error);
       toast({
         title: 'Error',
         description: 'Failed to apply permissions fix',
@@ -343,7 +342,6 @@ export default function NewCompanyDialog({
       // This would be implemented once the company_contacts table is created
       
       // For demonstration purposes, let's log what we would save
-      console.log('Company contacts to save:', contacts.map(c => ({ ...c, company_id: companyId })));
       
       // This is a placeholder for the actual implementation
       // If the company_contacts table exists, we would:
@@ -352,7 +350,7 @@ export default function NewCompanyDialog({
       
       return true;
     } catch (error) {
-      console.error('Error saving company contacts:', error);
+      logger.error('Error saving company contacts:', error);
       return false;
     }
   };
@@ -364,8 +362,6 @@ export default function NewCompanyDialog({
 
     try {
       // Log current dialog state
-      console.log('Form submission - Company data:', formData);
-      console.log('Contacts to save:', contacts);
       
       // Validate required fields
       if (!formData.company_name || !formData.company_phone_no) {
@@ -382,11 +378,10 @@ export default function NewCompanyDialog({
         try {
           const checkResult = await supabase.from('companies').select('count(*)');
           if (checkResult.error && checkResult.error.message.includes('permission denied')) {
-            console.log('Preemptively applying permissions fix for companies table');
             await applyCompanyPermissionsFix();
           }
         } catch (e) {
-          console.log('Preemptive permission check failed', e);
+          // Permission check failed silently - will be handled by next operation
         }
       }
       
@@ -419,7 +414,7 @@ export default function NewCompanyDialog({
           .eq('id', company.id);
 
         if (error) {
-          console.error('Update error:', error);
+          logger.error('Update error:', error);
           throw new Error(`Failed to update company: ${error.message || 'Unknown error'}`);
         }
         
@@ -427,7 +422,6 @@ export default function NewCompanyDialog({
         await saveCompanyContacts(company.id, contacts);
       } else {
         // Creating new company
-        console.log('Creating new company:', formData);
         
         const companyData = {
           company_name: formData.company_name,
@@ -444,7 +438,6 @@ export default function NewCompanyDialog({
           updated_at: new Date().toISOString()
         };
         
-        console.log('Formatted company data:', companyData);
         
         const { data, error } = await supabase
           .from('companies')
@@ -452,11 +445,10 @@ export default function NewCompanyDialog({
           .select();
 
         if (error) {
-          console.error('Insert error:', error);
+          logger.error('Insert error:', error);
           throw new Error(`Failed to create company: ${error.message || 'Unknown error'}`);
         }
 
-        console.log('Company created:', data);
         
         // If company was created successfully and we have its ID, save contacts
         if (data && data.length > 0) {
@@ -491,7 +483,7 @@ export default function NewCompanyDialog({
         description: `Company has been ${company ? 'updated' : 'created'} successfully.`,
       });
     } catch (error) {
-      console.error('Error saving company:', error);
+      logger.error('Error saving company:', error);
       
       // More informative error handling
       let errorMessage = 'Failed to save company. Please try again.';
@@ -511,11 +503,11 @@ export default function NewCompanyDialog({
         } else if (errorMessage.includes('null value in column')) {
           // Handle missing required fields
           errorMessage = 'Missing required field. Please check all required fields are filled.';
-          console.error('SQL Error details:', errorMessage);
+          logger.error('SQL Error details:', errorMessage);
         } else if (errorMessage.includes('violated not-null constraint')) {
           // Handle missing required fields
           errorMessage = 'Required field cannot be empty. Please check all required fields.';
-          console.error('SQL Error details:', errorMessage);
+          logger.error('SQL Error details:', errorMessage);
         }
       }
       

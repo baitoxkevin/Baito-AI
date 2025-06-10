@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+// import { logger } from '../lib/logger';
 import {
   Card,
   CardContent,
@@ -199,11 +200,11 @@ function ToastDemo() {
         title: "Creating project...",
         description: "Setting up your new project",
       },
-      success: (data: unknown) => ({
+      success: (data: any) => ({ // Using any for demo data
         title: `Project "${data.name}" created!`,
         description: "You can now start adding team members.",
       }),
-      error: (err: unknown) => ({
+      error: (err: any) => ({ // Using any for error type
         title: "Failed to create project",
         description: err?.message || "Please check your connection and try again.",
       }),
@@ -354,7 +355,7 @@ function ToastDemo() {
 function GoogleSlidesScraper({ onDataExtracted }: { onDataExtracted: (data: ScrapedData[]) => void }) {
   const [isLoading, setIsLoading] = useState(false);
   const [slideUrl, setSlideUrl] = useState('');
-  const [file, setFile] = useState<File | null>(null);
+  const [, setFile] = useState<File | null>(null);
   const [credentials, setCredentials] = useState({ clientId: '', apiKey: '' });
   const { toast } = useToast();
 
@@ -698,10 +699,10 @@ function ExportOptions({ data }: { data: ScrapedData[] }) {
 export default function ToolsPage() {
   const [activeComponent, setActiveComponent] = useState<string | null>(null);
   const [scrapedData, setScrapedData] = useState<ScrapedData[]>([]);
-  const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
+  const [, setReceiptData] = useState<ReceiptData | null>(null);
   const [selectedProject, setSelectedProject] = useState<unknown>(null);
-  const [projectStaff, setProjectStaff] = useState<any[]>([]);
-  const [projects, setProjects] = useState<any[]>([]);
+  const [projectStaff, setProjectStaff] = useState<any[]>([]); // Using any for project staff type
+  const [projects, setProjects] = useState<any[]>([]); // Using any for project type
   const { toast } = useToast();
 
   // Check if we have a saved active tool component from navigation
@@ -888,7 +889,7 @@ export default function ToolsPage() {
                     projectEndDate={new Date(selectedProject.end_date)}
                     projectId={selectedProject.id}
                     onSave={async (payrollData) => {
-                      console.log('Saving payroll data:', payrollData);
+                      console.log('Saving payroll data:', { data: payrollData });
                       toast({
                         title: 'Payroll Saved',
                         description: 'Payroll data has been saved successfully',

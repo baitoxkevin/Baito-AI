@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
+import { logger } from '../lib/logger';
 import { 
   fetchProjectsOptimized, 
   fetchProjectsByMonthOptimized,
@@ -28,7 +29,7 @@ export function useProjectsOptimized() {
         const data = await getData();
         setProjects(data);
       } catch (error) {
-        console.error('Error loading projects:', error);
+        logger.error('Error loading projects:', error);
       }
     };
 
@@ -43,7 +44,7 @@ export function useProjectsOptimized() {
       invalidateCache(); // Invalidate cache after creating a new project
       return newProject;
     } catch (error) {
-      console.error('Error adding project:', error);
+      logger.error('Error adding project:', error);
       throw error;
     }
   }, [invalidateCache]);
@@ -58,7 +59,7 @@ export function useProjectsOptimized() {
       invalidateCache(); // Invalidate cache after updating a project
       return updatedProject;
     } catch (error) {
-      console.error('Error updating project:', error);
+      logger.error('Error updating project:', error);
       throw error;
     }
   }, [invalidateCache]);
@@ -70,7 +71,7 @@ export function useProjectsOptimized() {
       setProjects(prevProjects => prevProjects.filter(project => project.id !== id));
       invalidateCache(); // Invalidate cache after deleting a project
     } catch (error) {
-      console.error('Error removing project:', error);
+      logger.error('Error removing project:', error);
       throw error;
     }
   }, [invalidateCache]);
@@ -94,7 +95,7 @@ export function useProjectsOptimized() {
       
       return result;
     } catch (error) {
-      console.error('Error removing multiple projects:', error);
+      logger.error('Error removing multiple projects:', error);
       throw error;
     }
   }, [invalidateCache]);
@@ -108,7 +109,7 @@ export function useProjectsOptimized() {
       // Clear selections on refresh
       setSelectedProjects([]);
     } catch (error) {
-      console.error('Error refreshing projects:', error);
+      logger.error('Error refreshing projects:', error);
     }
   }, [getData, invalidateCache]);
 
@@ -166,13 +167,13 @@ export function useProjectsByMonthOptimized() {
   const { getData, isLoading, invalidateCache, prefetch } = useCache<Project[], [number]>(
     'projectsByMonth', 
     async (month: number) => {
-      // console.log(`Fetching projects for month ${month}`);
+      // logger.debug(`Fetching projects for month ${month}`);
       try {
         const result = await fetchProjectsByMonthOptimized(month);
-        // console.log(`Successfully fetched ${result.length} projects for month ${month}`);
+        // logger.debug(`Successfully fetched ${result.length} projects for month ${month}`);
         return result;
       } catch (err) {
-        console.error(`Error fetching projects for month ${month}:`, err);
+        logger.error(`Error fetching projects for month ${month}:`, err);
         throw err;
       }
     },

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { updateProject } from '@/lib/projects';
 import { toast } from '@/hooks/use-toast';
 
+import { logger } from '../lib/logger';
 interface UseAutosaveProjectOptions {
   projectId: string;
   data: unknown;
@@ -58,7 +59,7 @@ export function useAutosaveProject({
         onSuccess?.();
       } catch (error) {
         setSaveStatus('error');
-        console.error('Autosave error:', error);
+        logger.error('Autosave error:', error);
         
         toast({
           title: 'Failed to save changes',

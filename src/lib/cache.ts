@@ -1,5 +1,6 @@
 import { useRef, useCallback, useState, useEffect } from 'react';
 
+import { logger } from './logger';
 interface CacheEntry<T> {
   data: T;
   timestamp: number;
@@ -20,7 +21,7 @@ const globalCache: Record<string, unknown> = {};
  * @param fetchFunction The function to call when data needs to be fetched
  * @param cacheDuration How long to keep data in cache (in ms)
  */
-export function useCache<T, P extends any[]>(
+export function useCache<T, P extends unknown[]>(
   namespace: string,
   fetchFunction: (...args: P) => Promise<T>, 
   cacheDuration: number = DEFAULT_CACHE_DURATION
@@ -54,17 +55,14 @@ export function useCache<T, P extends any[]>(
     
     // Check if we have valid cached data
     if (cache.current[cacheKey] && isCacheValid(cache.current[cacheKey])) {
-      console.log(`CACHE HIT: ${namespace}/${cacheKey}`);
+      logger.debug(`CACHE HIT: ${namespace}/${cacheKey}`);
       return cache.current[cacheKey].data;
     }
     
     // Check if a request for this data is already in flight
     if (pendingRequests.current[cacheKey]) {
-      console.log(`PENDING REQUEST: ${namespace}/${cacheKey}`);
       return pendingRequests.current[cacheKey];
     }
-    
-    console.log(`CACHE MISS: ${namespace}/${cacheKey}`);
     setIsLoading(true);
     
     // Create the promise for this request
@@ -84,7 +82,7 @@ export function useCache<T, P extends any[]>(
         
         return data;
       } catch (error) {
-        console.error(`Error fetching ${namespace} data:`, error);
+        logger.error(`Error fetching ${namespace} data:`, error);
         throw error;
       } finally {
         setIsLoading(false);
@@ -113,7 +111,6 @@ export function useCache<T, P extends any[]>(
       return;
     }
     
-    console.log(`PREFETCHING: ${namespace}/${cacheKey}`);
     
     // Create the promise for this request
     const requestPromise = (async () => {
@@ -128,7 +125,7 @@ export function useCache<T, P extends any[]>(
         
         return data;
       } catch (error) {
-        console.error(`Error prefetching ${namespace} data:`, error);
+        logger.error(`Error prefetching ${namespace} data:`, error);
         throw error;
       } finally {
         // Remove from pending requests
@@ -164,7 +161,7 @@ export function useCache<T, P extends any[]>(
 
 // App-wide preloading function to call on initial app load
 export async function preloadAppData() {
-  console.log('Preloading application data...');
+  logger.debug('Preloading application data...');
   
   // Import data fetching functions dynamically to avoid circular dependencies
   const projectsModule = await import('./projects');
@@ -199,10 +196,10 @@ export async function preloadAppData() {
           timestamp: Date.now()
         };
         
-        console.log(`Preloaded ${task.namespace} data: ${cacheKey}`);
+        logger.debug(`Preloaded ${task.namespace} data: ${cacheKey}`);
         return { namespace: task.namespace, success: true };
       } catch (error) {
-        console.error(`Failed to preload ${task.namespace} data:`, error);
+        logger.error(`Failed to preload ${task.namespace} data:`, error);
         return { namespace: task.namespace, success: false, error };
       }
     })

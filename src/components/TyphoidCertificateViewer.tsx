@@ -4,6 +4,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/componen
 import { Download, FileText, ShieldAlert } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
+import { logger } from '../lib/logger';
 interface TyphoidCertificateViewerProps {
   candidateId: string;
 }
@@ -34,7 +35,7 @@ export function TyphoidCertificateViewer({ candidateId }: TyphoidCertificateView
           setCertificateData(typhoiCert || null);
         }
       } catch (err) {
-        console.error('Error fetching certificate:', err);
+        logger.error('Error fetching certificate:', err);
         setError('Could not retrieve the certificate data');
       } finally {
         setLoading(false);
@@ -69,7 +70,7 @@ export function TyphoidCertificateViewer({ candidateId }: TyphoidCertificateView
       link.click();
       document.body.removeChild(link);
     } catch (err) {
-      console.error('Error downloading certificate:', err);
+      logger.error('Error downloading certificate:', err);
       setError('Failed to download the certificate');
     }
   };

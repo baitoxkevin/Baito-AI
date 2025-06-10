@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { logger } from '../lib/logger';
 import {
   Table,
   TableBody,
@@ -51,12 +52,36 @@ export default function CandidatesPage() {
   const [expandedIssues, setExpandedIssues] = useState<{[key: string]: boolean}>({});
   const [sortField, setSortField] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [currentUser, setCurrentUser] = useState<{ name: string; id: string } | null>(null);
   const { toast } = useToast();
+  
+  // Get current user info on component mount
+  useEffect(() => {
+    const getCurrentUserInfo = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          // Try to get user's full name from users table
+          const { data: userData } = await supabase
+            .from('users')
+            .select('full_name')
+            .eq('id', user.id)
+            .single();
+          
+          const userName = userData?.full_name || user.email?.split('@')[0] || 'Unknown User';
+          setCurrentUser({ name: userName, id: user.id });
+        }
+      } catch (error) {
+        logger.error('Error getting current user:', error);
+      }
+    };
+    
+    getCurrentUserInfo();
+  }, []);
 
   const loadCandidates = async () => {
     try {
       setIsLoading(true);
-      console.log('Fetching candidates...');
       const { data, error } = await supabase
         .from('candidates')
         .select(`
@@ -86,20 +111,13 @@ export default function CandidatesPage() {
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('Supabase error:', error);
+        logger.error('Supabase error:', error);
         throw error;
-      }
-
-      console.log('Candidates data:', data);
-
-      if (!data || data.length === 0) {
-        console.log('No candidates found in the database');
-        // Removed unnecessary toast notification
       }
 
       setCandidates(data || []);
     } catch (error) {
-      console.error('Error loading candidates:', error);
+      logger.error('Error loading candidates:', error);
       toast({
         title: 'Error',
         description: error instanceof Error ? error.message : 'Failed to load candidates. Please try again.',
@@ -185,11 +203,11 @@ export default function CandidatesPage() {
     setNewDialogOpen(true);
   };
   
-  // Function to generate and copy candidate edit link with secure token
-  const copyEditLink = async (e: React.MouseEvent, candidate: Candidate) => {
+  // Function to generate and share candidate edit link via WhatsApp
+  const shareEditLinkViaWhatsApp = async (e: React.MouseEvent, candidate: Candidate) => {
     e.stopPropagation(); // Prevent row click event
     
-    // Set copying animation
+    // Set sharing animation
     setCopiedCandidateId(candidate.id);
     
     try {
@@ -200,7 +218,7 @@ export default function CandidatesPage() {
       });
       
       if (error) {
-        console.error('Error generating update link:', error);
+        logger.error('Error generating update link:', error);
         throw new Error('Failed to generate secure update link');
       }
       
@@ -211,21 +229,40 @@ export default function CandidatesPage() {
       // URL is already complete with the correct origin
       const secureUrl = url;
       
-      // Copy to clipboard
-      await navigator.clipboard.writeText(secureUrl);
+      // Create WhatsApp message text with candidate name, link, and current user's signature
+      const senderName = currentUser?.name || 'Team';
+      const whatsAppMessage = encodeURIComponent(
+        `Hi ${candidate.full_name},\n\nPlease update your information using this link:\n${secureUrl}\n\nThank you!\n- by ${senderName}`
+      );
+      
+      // Format phone number (remove all non-digit characters and ensure it starts with 60 for Malaysia)
+      let phoneNumber = candidate.phone_number.replace(/[^\d]/g, '');
+      if (!phoneNumber.startsWith('60')) {
+        // If number starts with 0, replace with 60
+        if (phoneNumber.startsWith('0')) {
+          phoneNumber = '60' + phoneNumber.substring(1);
+        } else {
+          // Add 60 prefix if not present
+          phoneNumber = '60' + phoneNumber;
+        }
+      }
+      
+      // Open WhatsApp with the message
+      const whatsAppUrl = `https://api.whatsapp.com/send?phone=${phoneNumber}&text=${whatsAppMessage}`;
+      window.open(whatsAppUrl, '_blank');
       
       // Show success message
       toast({
-        title: "Secure Link Copied!",
-        description: "Secure candidate update link has been copied to clipboard.",
+        title: "Opening WhatsApp",
+        description: "Sharing secure update link via WhatsApp.",
       });
       
-      // Reset the copied status after 2 seconds
+      // Reset the status after 2 seconds
       setTimeout(() => {
         setCopiedCandidateId(null);
       }, 2000);
     } catch (error) {
-      console.error('Error copying secure link:', error);
+      logger.error('Error sharing secure link:', error);
       toast({
         title: "Link Generation Failed",
         description: error instanceof Error ? error.message : "There was an error generating a secure edit link.",
@@ -802,7 +839,7 @@ export default function CandidatesPage() {
                                 <Button
                                   variant="outline"
                                   size="icon"
-                                  onClick={(e) => copyEditLink(e, candidate)}
+                                  onClick={(e) => shareEditLinkViaWhatsApp(e, candidate)}
                                   className="h-8 w-8 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-blue-900/20 dark:hover:text-blue-400"
                                 >
                                   {copiedCandidateId === candidate.id ? (
@@ -814,7 +851,7 @@ export default function CandidatesPage() {
                                 </Button>
                               </TooltipTrigger>
                               <TooltipContent side="top">
-                                <p>Copy secure update link</p>
+                                <p>Share via WhatsApp</p>
                               </TooltipContent>
                             </Tooltip>
                           </TooltipProvider>

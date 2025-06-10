@@ -136,6 +136,8 @@ export interface Candidate {
   custom_fields?: unknown;
   created_at: string;
   updated_at: string;
+  created_by?: string;
+  created_by_user_id?: string;
   address?: string;
   address_home?: string;
   performance_metrics?: {

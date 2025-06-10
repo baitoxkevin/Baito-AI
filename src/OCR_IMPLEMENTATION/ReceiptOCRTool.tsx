@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { analyzeReceiptImage } from './receipt-ocr-service';
 
+import { logger } from '../lib/logger';
 export interface ReceiptData {
   id?: string;
   amount: number;
@@ -50,7 +51,7 @@ export default function ReceiptOCRTool({ onReceiptScanned, userId }: ReceiptOCRT
         user_id: userId
       };
     } catch (error) {
-      console.error("Error in OCR processing:", error);
+      logger.error("Error in OCR processing:", error);
       
       // Fallback to simulated data if OCR fails
       return {

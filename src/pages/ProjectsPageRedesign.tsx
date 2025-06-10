@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+// import { logger } from '../lib/logger';
 import { 
   Activity, 
   CheckCircle, 
@@ -23,15 +24,8 @@ import {
   XCircle,
   CalendarDays,
   CalendarRange,
-  SlidersHorizontal,
-  ListFilter,
-  PanelTopClose,
   ChevronDown,
-  ChevronUp,
-  MinusSquare,
-  PlusSquare,
-  Minimize2,
-  Maximize2
+  ChevronUp
 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -60,7 +54,6 @@ import {
   DropdownMenuLabel
 } from "@/components/ui/dropdown-menu";
 import { MetricCard } from '@/components/ui/metric-card';
-import { ProjectCard3D } from '@/components/ui/project-card-3d';
 // Removed EnhancedProjectCard - using SpotlightCard for all projects
 import { SpotlightCard } from '@/components/spotlight-card';
 import { EnhancedMonthDropdown } from '@/components/ui/enhanced-month-dropdown';
@@ -71,7 +64,7 @@ import { usePersistentState } from '@/hooks/use-persistent-state';
 import { useToast } from '@/hooks/use-toast';
 import { deleteProject } from '@/lib/projects';
 // import { dummyProjects } from '@/lib/dummy-data';
-import { isFeatureWorthy, groupProjects, getGroupIcon, sortProjects, filterProjects, ProjectGroupType } from '@/lib/project-utils';
+import { sortProjects, filterProjects, groupProjects, getGroupIcon, ProjectGroupType } from '@/lib/project-utils';
 
 export default function ProjectsPageRedesign() {
   // State for project data and UI
@@ -79,25 +72,32 @@ export default function ProjectsPageRedesign() {
   const [activeMonth, setActiveMonth] = usePersistentState('projects-active-month', new Date().getMonth());
   const [newProjectDialogOpen, setNewProjectDialogOpen] = useState(false);
   // editDialogOpen removed
-  const [selectedProject, setSelectedProject] = useState<unknown>(null);
+  const [selectedProject] = useState<unknown>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [, setError] = useState<string | null>(null);
   const [useDummyData, setUseDummyData] = usePersistentState('projects-use-dummy', false);
   
   // UI state for filtering, grouping, and display
   const [searchQuery, setSearchQuery] = useState('');
-  const [groupBy, setGroupBy] = usePersistentState<ProjectGroupType>('projects-group-by', 'status');
-  const [sortBy, setSortBy] = usePersistentState('projects-sort-by', 'priority');
-  const [activeFilter, setActiveFilter] = usePersistentState('projects-active-filter', 'all');
+  const [, setGroupBy] = usePersistentState<ProjectGroupType>('projects-group-by-v2', 'none' as ProjectGroupType);
+  const [sortBy] = usePersistentState('projects-sort-by', 'priority');
+  const [activeFilter, setActiveFilter] = usePersistentState('projects-active-filter-v2', 'all');
   const [isBannerVisible, setIsBannerVisible] = useState(true);
-  const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
+  const [, setIsFilterMenuOpen] = useState(false);
   const [isDashboardMinimized, setIsDashboardMinimized] = usePersistentState('projects-dashboard-minimized', false);
   
   // Reference for featured project section (no longer needed but kept for compatibility)
-  const featuredSectionRef = React.useRef<HTMLDivElement>(null);
+  // const featuredSectionRef = React.useRef<HTMLDivElement>(null);
   
   // Hooks for project data
   const { getProjectsByMonth, isLoading, prefetchAdjacentMonths } = useProjectsByMonth();
+  
+  // Ensure 'all' is the default filter on mount
+  useEffect(() => {
+    if (!activeFilter || activeFilter === '') {
+      setActiveFilter('all');
+    }
+  }, []);
   const { toast } = useToast();
   
   // Load projects for a specific month
@@ -112,13 +112,13 @@ export default function ProjectsPageRedesign() {
       
       // If no projects are returned, it might be a connection issue
       if (fetchedProjects.length === 0) {
-        // console.warn('No projects returned from database, check connection');
+        // logger.warn('No projects returned from database, check connection');
       }
       
       // Prefetch adjacent months for smoother navigation
       prefetchAdjacentMonths(monthIndex);
     } catch (err) {
-      console.error('Error fetching projects:', err);
+      // logger.error('Error fetching projects:', err);
       setError('Failed to load projects. Using dummy data as fallback.');
       toast({
         title: 'Database Connection Error',
@@ -174,16 +174,35 @@ export default function ProjectsPageRedesign() {
   };
   
   // Handle project refresh after adding or updating
-  const handleProjectsUpdated = () => {
-    // Clear the projects cache for the current month to force a reload
-    setProjects(prev => {
-      const newProjects = { ...prev };
-      delete newProjects[activeMonth];
-      return newProjects;
-    });
-    
-    // Reload projects for the current month
-    loadProjects(activeMonth);
+  const handleProjectsUpdated = (updatedProject?: Project) => {
+    if (updatedProject) {
+      // If we have an updated project, just update it in place without reloading everything
+      setProjects(prev => {
+        const newProjects = { ...prev };
+        
+        // Update the project in all months where it appears
+        Object.keys(newProjects).forEach(monthKey => {
+          const monthIndex = parseInt(monthKey);
+          if (newProjects[monthIndex]) {
+            newProjects[monthIndex] = newProjects[monthIndex].map(p => 
+              p.id === updatedProject.id ? updatedProject : p
+            );
+          }
+        });
+        
+        return newProjects;
+      });
+    } else {
+      // Clear the projects cache for the current month to force a reload
+      setProjects(prev => {
+        const newProjects = { ...prev };
+        delete newProjects[activeMonth];
+        return newProjects;
+      });
+      
+      // Reload projects for the current month
+      loadProjects(activeMonth);
+    }
   };
   
   // Handle project deletion
@@ -210,7 +229,7 @@ export default function ProjectsPageRedesign() {
       handleProjectsUpdated();
       
     } catch (error) {
-      console.error('Error deleting project:', error);
+      // logger.error('Error deleting project:', error);
       toast({
         title: "Error",
         description: "Failed to delete project. Please try again.",
@@ -251,20 +270,31 @@ export default function ProjectsPageRedesign() {
   
   // Generate filtered and processed project lists
   const filteredProjects = useMemo(() => {
+    // Map filter values to actual database status values
+    let statusFilter = {};
+    if (activeFilter !== 'all') {
+      // Map 'active' filter to include both 'active' and 'in_progress' statuses
+      if (activeFilter === 'active') {
+        statusFilter = { status: ['active', 'in_progress', 'confirmed'] };
+      } else {
+        statusFilter = { status: [activeFilter] };
+      }
+    }
+    
     const filtered = filterProjects(
       currentMonthProjects,
       searchQuery,
-      activeFilter === 'all' ? {} : { status: [activeFilter] }
+      statusFilter
     );
-    // console.log(`Month ${activeMonth}: Found ${currentMonthProjects.length} projects, filtered to ${filtered.length}`);
+    // logger.debug(`Month ${activeMonth}: Found ${currentMonthProjects.length} projects, filtered to ${filtered.length}`);
     return filtered;
   }, [currentMonthProjects, searchQuery, activeFilter, activeMonth]);
   
   // Get project metrics
   const metrics = useMemo(() => {
     const activeProjects = filteredProjects.filter(p => {
-      const normalizedStatus = p.status.toLowerCase().replace(/_/g, '-');
-      return ['in-progress', 'new', 'pending', 'scheduled', 'planning'].includes(normalizedStatus);
+      const normalizedStatus = p.status.toLowerCase();
+      return ['active', 'in_progress', 'confirmed', 'planning'].includes(normalizedStatus);
     });
     
     const completedProjects = filteredProjects.filter(p => 
@@ -272,8 +302,8 @@ export default function ProjectsPageRedesign() {
     );
     
     const delayedProjects = filteredProjects.filter(p => {
-      const normalizedStatus = p.status.toLowerCase().replace(/_/g, '-');
-      return ['in-progress', 'pending'].includes(normalizedStatus) && 
+      const normalizedStatus = p.status.toLowerCase();
+      return ['active', 'in_progress'].includes(normalizedStatus) && 
         (p as unknown).is_delayed === true;
     });
     
@@ -353,16 +383,17 @@ export default function ProjectsPageRedesign() {
     const myProjectIds = new Set(myProjects.map(p => p.id));
     const projectsWithoutMine = filteredProjects.filter(p => !myProjectIds.has(p.id));
       
+    // Always use 'none' grouping to show all projects together
     return groupProjects(
       // Sort projects within each group
       sortProjects(projectsWithoutMine, sortBy as unknown),
-      groupBy
+      'none'
     );
-  }, [filteredProjects, myProjects, groupBy, sortBy]);
+  }, [filteredProjects, myProjects, sortBy]);
   
   // Helper function to render the appropriate icon for group headers
   const renderGroupIcon = (groupName: string) => {
-    const iconName = getGroupIcon(groupName, groupBy);
+    const iconName = getGroupIcon(groupName, 'none');
     const icons: Record<string, React.ReactNode> = {
       'Sparkles': <Sparkles className="h-5 w-5 text-amber-500 mr-2" />,
       'Clock': <Clock className="h-5 w-5 text-blue-500 mr-2" />,
@@ -397,10 +428,10 @@ export default function ProjectsPageRedesign() {
   // Tab options for status filtering
   const statusOptions = [
     { value: 'all', label: 'All', icon: <Circle className="h-3.5 w-3.5" /> },
-    { value: 'in-progress', label: 'In Progress', icon: <Clock className="h-3.5 w-3.5" /> },
-    { value: 'pending', label: 'Pending', icon: <Hourglass className="h-3.5 w-3.5" /> },
-    { value: 'new', label: 'New', icon: <Sparkles className="h-3.5 w-3.5" /> },
-    { value: 'completed', label: 'Completed', icon: <CheckCircle className="h-3.5 w-3.5" /> }
+    { value: 'planning', label: 'Planning', icon: <Calendar className="h-3.5 w-3.5" /> },
+    { value: 'active', label: 'Active', icon: <Activity className="h-3.5 w-3.5" /> },
+    { value: 'completed', label: 'Completed', icon: <CheckCircle className="h-3.5 w-3.5" /> },
+    { value: 'cancelled', label: 'Cancelled', icon: <XCircle className="h-3.5 w-3.5" /> }
   ];
   
   const months = [
@@ -621,51 +652,6 @@ export default function ProjectsPageRedesign() {
                           </DropdownMenuRadioItem>
                         ))}
                     </DropdownMenuRadioGroup>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-                </div>
-                
-                {/* View dropdown */}
-                <div className="flex items-center h-10 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 px-3">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="h-8 gap-2 border-0 p-0 hover:bg-transparent"
-                      >
-                        <SlidersHorizontal className="h-4 w-4 text-slate-500" />
-                        <span>View</span>
-                        <ChevronDown className="h-3.5 w-3.5 text-slate-500 ml-1" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-56 p-0">
-                    <div className="p-3 bg-gradient-to-r from-indigo-50 to-blue-50 dark:from-indigo-950/40 dark:to-blue-950/40 border-b">
-                      <h3 className="font-medium text-slate-900 dark:text-white text-sm">Display Options</h3>
-                      <p className="text-xs text-slate-500 dark:text-slate-400">Customize project layout</p>
-                    </div>
-                    
-                    <div className="p-2">
-                      <h4 className="text-xs font-medium px-2 py-1.5 text-slate-500 dark:text-slate-400">Group By</h4>
-                      <DropdownMenuRadioGroup value={groupBy} onValueChange={(value) => setGroupBy(value as ProjectGroupType)}>
-                        <DropdownMenuRadioItem value="status" className="text-sm rounded-md">Status</DropdownMenuRadioItem>
-                        <DropdownMenuRadioItem value="priority" className="text-sm rounded-md">Priority</DropdownMenuRadioItem>
-                        <DropdownMenuRadioItem value="client" className="text-sm rounded-md">Client</DropdownMenuRadioItem>
-                        <DropdownMenuRadioItem value="time" className="text-sm rounded-md">Time Period</DropdownMenuRadioItem>
-                      </DropdownMenuRadioGroup>
-                    </div>
-                    
-                    <DropdownMenuSeparator />
-                    
-                    <div className="p-2">
-                      <h4 className="text-xs font-medium px-2 py-1.5 text-slate-500 dark:text-slate-400">Sort By</h4>
-                      <DropdownMenuRadioGroup value={sortBy} onValueChange={setSortBy}>
-                        <DropdownMenuRadioItem value="priority" className="text-sm rounded-md">Priority</DropdownMenuRadioItem>
-                        <DropdownMenuRadioItem value="date" className="text-sm rounded-md">Date</DropdownMenuRadioItem>
-                        <DropdownMenuRadioItem value="progress" className="text-sm rounded-md">Progress</DropdownMenuRadioItem>
-                        <DropdownMenuRadioItem value="title" className="text-sm rounded-md">Title</DropdownMenuRadioItem>
-                      </DropdownMenuRadioGroup>
-                    </div>
                   </DropdownMenuContent>
                 </DropdownMenu>
                 </div>

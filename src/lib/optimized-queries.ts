@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
 import type { Project } from './types';
 
+import { logger } from './logger';
 // Color mapping table for project themes
 const eventColors = {
   'nestle': '#FCA5A5', // Light red for Nestle Choy Sun
@@ -51,7 +52,7 @@ export async function fetchProjectsOptimized(): Promise<Project[]> {
       .order('start_date', { ascending: true });
 
     if (error) {
-      console.error('Error fetching projects:', error);
+      logger.error('Error fetching projects:', error);
       throw new Error(error.message);
     }
 
@@ -67,27 +68,54 @@ export async function fetchProjectsOptimized(): Promise<Project[]> {
     // Only fetch if we have IDs to look up
     if (clientIds.length > 0) {
       try {
-        const { data: clientsData } = await supabase
+        // First try to fetch from companies table
+        const { data: companiesData } = await supabase
+          .from('companies')
+          .select('*')
+          .in('id', clientIds);
+          
+        // Then try to fetch from users table for any remaining IDs
+        const { data: usersData } = await supabase
           .from('users')
           .select('*')
           .in('id', clientIds);
           
-        if (clientsData && clientsData.length > 0) {
-          // Create a map for quick lookup
-          const clientMap = clientsData.reduce((map, client) => {
-            map[client.id] = client;
-            return map;
-          }, {} as Record<string, unknown>);
-          
-          // Add client data to projects
-          projects.forEach(project => {
-            if (project.client_id && clientMap[project.client_id]) {
-              project.client = clientMap[project.client_id];
+        // Create a combined map for quick lookup
+        const clientMap: Record<string, unknown> = {};
+        
+        // Add company data first
+        if (companiesData && companiesData.length > 0) {
+          companiesData.forEach(company => {
+            clientMap[company.id] = {
+              ...company,
+              name: company.name || company.company_name,
+              // Add logo_url if available
+              logo_url: company.logo_url
+            };
+          });
+        }
+        
+        // Then add user data (for clients that are users, not companies)
+        if (usersData && usersData.length > 0) {
+          usersData.forEach(user => {
+            // Only add if not already in map (companies take precedence)
+            if (!clientMap[user.id]) {
+              clientMap[user.id] = {
+                ...user,
+                name: user.full_name || user.company_name
+              };
             }
           });
         }
+        
+        // Add client data to projects
+        projects.forEach(project => {
+          if (project.client_id && clientMap[project.client_id]) {
+            project.client = clientMap[project.client_id];
+          }
+        });
       } catch (error) {
-        console.warn('Error fetching client data:', error);
+        logger.warn('Error fetching client data:', error);
       }
     }
     
@@ -114,13 +142,13 @@ export async function fetchProjectsOptimized(): Promise<Project[]> {
           });
         }
       } catch (error) {
-        console.warn('Error fetching manager data:', error);
+        logger.warn('Error fetching manager data:', error);
       }
     }
     
     return projects;
   } catch (error) {
-    console.error('Failed to fetch projects:', error);
+    logger.error('Failed to fetch projects:', error);
     return [];
   }
 }
@@ -130,7 +158,7 @@ export async function fetchProjectsOptimized(): Promise<Project[]> {
  */
 export async function fetchProjectsByMonthOptimized(month: number): Promise<Project[]> {
   try {
-    console.log(`Starting fetchProjectsByMonthOptimized for month ${month}`);
+    logger.debug(`Starting fetchProjectsByMonthOptimized for month ${month}`);
     
     // Return mock data for testing or when there are Supabase connection issues
     const mockData = [
@@ -168,7 +196,7 @@ export async function fetchProjectsByMonthOptimized(month: number): Promise<Proj
     
     // If no supabase client or in development mode without proper connection
     if (!supabase) {
-      console.log("No supabase client, returning mock data");
+      logger.debug("No supabase client, returning mock data");
       return mockData;
     }
     
@@ -177,7 +205,7 @@ export async function fetchProjectsByMonthOptimized(month: number): Promise<Proj
       const startOfMonth = new Date(year, month, 1).toISOString();
       const endOfMonth = new Date(year, month + 1, 0, 23, 59, 59, 999).toISOString();
       
-      console.log(`Querying for projects between ${startOfMonth} and ${endOfMonth}`);
+      logger.debug(`Querying for projects between ${startOfMonth} and ${endOfMonth}`);
 
       // Use simplified query without joins
       const { data, error } = await supabase
@@ -195,13 +223,13 @@ export async function fetchProjectsByMonthOptimized(month: number): Promise<Proj
         .order('start_date', { ascending: true });
 
       if (error) {
-        console.error('Error fetching projects with simple query:', error);
-        console.log('Falling back to mock data due to database error');
+        logger.error('Error fetching projects with simple query:', error);
+        logger.debug('Falling back to mock data due to database error');
         return mockData;
       }
 
       if (!data) {
-        console.log('No data returned, falling back to mock data');
+        logger.debug('No data returned, falling back to mock data');
         return mockData;
       }
       
@@ -224,27 +252,54 @@ export async function fetchProjectsByMonthOptimized(month: number): Promise<Proj
       // Only fetch if we have IDs to look up
       if (clientIds.length > 0) {
         try {
-          const { data: clientsData } = await supabase
+          // First try to fetch from companies table
+          const { data: companiesData } = await supabase
+            .from('companies')
+            .select('*')
+            .in('id', clientIds);
+            
+          // Then try to fetch from users table for any remaining IDs
+          const { data: usersData } = await supabase
             .from('users')
             .select('*')
             .in('id', clientIds);
             
-          if (clientsData && clientsData.length > 0) {
-            // Create a map for quick lookup
-            const clientMap = clientsData.reduce((map, client) => {
-              map[client.id] = client;
-              return map;
-            }, {} as Record<string, unknown>);
-            
-            // Add client data to projects
-            projects.forEach(project => {
-              if (project.client_id && clientMap[project.client_id]) {
-                project.client = clientMap[project.client_id];
+          // Create a combined map for quick lookup
+          const clientMap: Record<string, unknown> = {};
+          
+          // Add company data first
+          if (companiesData && companiesData.length > 0) {
+            companiesData.forEach(company => {
+              clientMap[company.id] = {
+                ...company,
+                name: company.name || company.company_name,
+                // Add logo_url if available
+                logo_url: company.logo_url
+              };
+            });
+          }
+          
+          // Then add user data (for clients that are users, not companies)
+          if (usersData && usersData.length > 0) {
+            usersData.forEach(user => {
+              // Only add if not already in map (companies take precedence)
+              if (!clientMap[user.id]) {
+                clientMap[user.id] = {
+                  ...user,
+                  name: user.full_name || user.company_name
+                };
               }
             });
           }
+          
+          // Add client data to projects
+          projects.forEach(project => {
+            if (project.client_id && clientMap[project.client_id]) {
+              project.client = clientMap[project.client_id];
+            }
+          });
         } catch (error) {
-          console.warn('Error fetching client data:', error);
+          logger.warn('Error fetching client data:', error);
         }
       }
       
@@ -271,21 +326,21 @@ export async function fetchProjectsByMonthOptimized(month: number): Promise<Proj
             });
           }
         } catch (error) {
-          console.warn('Error fetching manager data:', error);
+          logger.warn('Error fetching manager data:', error);
         }
       }
       
-      console.log(`Successfully processed ${projects.length} projects for month ${month}`);
+      logger.debug(`Successfully processed ${projects.length} projects for month ${month}`);
       return projects;
       
     } catch (innerError) {
-      console.error(`Error in database query for month ${month}:`, innerError);
-      console.log('Falling back to mock data due to query error');
+      logger.error(`Error in database query for month ${month}:`, innerError);
+      logger.debug('Falling back to mock data due to query error');
       return mockData;
     }
   } catch (outerError) {
-    console.error(`Failed to fetch projects for month ${month}:`, outerError);
-    console.log('Falling back to mock data due to general error');
+    logger.error(`Failed to fetch projects for month ${month}:`, outerError);
+    logger.debug('Falling back to mock data due to general error');
     return mockData;
   }
 }
@@ -319,7 +374,7 @@ export async function deleteMultipleProjectsOptimized(
       .select('id');
     
     if (error) {
-      console.error('Error batch deleting projects:', error);
+      logger.error('Error batch deleting projects:', error);
       result.failed = projectIds;
       return result;
     }
@@ -333,7 +388,7 @@ export async function deleteMultipleProjectsOptimized(
     
     return result;
   } catch (error) {
-    console.error('Failed to batch delete projects:', error);
+    logger.error('Failed to batch delete projects:', error);
     result.failed = projectIds;
     return result;
   }
@@ -345,14 +400,14 @@ export async function deleteMultipleProjectsOptimized(
  */
 export async function prefetchProjects(): Promise<void> {
   try {
-    console.log('Prefetching projects data in background...');
+    logger.debug('Prefetching projects data in background...');
     
     // Start the network request but don't wait for the result
     fetchProjectsOptimized()
-      .then(() => console.log('Projects data prefetched successfully'))
-      .catch(error => console.error('Error prefetching projects:', error));
+      .then(() => logger.debug('Projects data prefetched successfully'))
+      .catch(error => logger.error('Error prefetching projects:', error));
   } catch (error) {
-    console.error('Failed to initiate projects prefetch:', error);
+    logger.error('Failed to initiate projects prefetch:', error);
   }
 }
 
@@ -362,13 +417,13 @@ export async function prefetchProjects(): Promise<void> {
  */
 export async function prefetchCalendarMonth(month: number): Promise<void> {
   try {
-    console.log(`Prefetching calendar data for month ${month} in background...`);
+    logger.debug(`Prefetching calendar data for month ${month} in background...`);
     
     // Start the network request but don't wait for the result
     fetchProjectsByMonthOptimized(month)
-      .then(() => console.log(`Calendar data for month ${month} prefetched successfully`))
-      .catch(error => console.error(`Error prefetching calendar month ${month}:`, error));
+      .then(() => logger.debug(`Calendar data for month ${month} prefetched successfully`))
+      .catch(error => logger.error(`Error prefetching calendar month ${month}:`, error));
   } catch (error) {
-    console.error(`Failed to initiate calendar month ${month} prefetch:`, error);
+    logger.error(`Failed to initiate calendar month ${month} prefetch:`, error);
   }
 }

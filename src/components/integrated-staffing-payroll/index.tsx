@@ -15,6 +15,7 @@ import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 
+import { logger } from '../../lib/logger';
 // Import original components so they can still be used separately
 import StaffingTab from '@/components/project-form/StaffingTab';
 import { ProjectPayroll } from '@/components/project-payroll';
@@ -106,7 +107,7 @@ export function IntegratedStaffingPayroll({
         // Use dummy data if no staff found
         setStaffMembers(transformedStaff.length > 0 ? transformedStaff : getDummyStaffData());
       } catch (error) {
-        console.error('Error fetching staff:', error);
+        logger.error('Error fetching staff:', error);
         setStaffMembers(getDummyStaffData());
         toast({
           title: "Error loading staff data",

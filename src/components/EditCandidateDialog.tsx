@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
+import { logger } from '../lib/logger';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  // DialogFooter,
   DialogDescription,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -24,18 +24,13 @@ import { supabase } from '@/lib/supabase';
 import { 
   CheckCircle, 
   Building, 
-  // FileText, 
   Home, 
   CreditCard, 
   User, 
-  // UserCheck, 
-  // Car, 
-  // Languages, 
   Camera, 
   Upload, 
   Link, 
   Copy,
-  // Share2,
   ShieldAlert,
   Lock,
   X,
@@ -43,7 +38,6 @@ import {
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { ProfileUpload } from '@/components/ui/profile-upload';
 import { Switch } from '@/components/ui/switch';
-// import { Separator } from '@/components/ui/separator';
 import { 
   Tooltip,
   TooltipContent,
@@ -80,7 +74,7 @@ export default function EditCandidateDialog({
   // Additional state for photo uploads
   const [fullBodyPhotos, setFullBodyPhotos] = useState<string[]>([]);
   const [halfBodyPhotos, setHalfBodyPhotos] = useState<string[]>([]);
-  const [photoValidation, _setPhotoValidation] = useState({
+  const [photoValidation, setPhotoValidation] = useState({
     profilePhoto: true,
     fullBodyPhotos: true,
     halfBodyPhotos: true
@@ -248,7 +242,7 @@ export default function EditCandidateDialog({
       
       if (error && error.code !== 'PGRST116') {
         // PGRST116 is "not found" error, which is expected if no link exists
-        console.error('Error checking for existing public link:', error);
+        logger.error('Error checking for existing public link:', error);
         return;
       }
       
@@ -257,7 +251,7 @@ export default function EditCandidateDialog({
         setPublicLink(`${window.location.origin}/candidate-form/${data.token}`);
       }
     } catch (err) {
-      console.error('Error checking for public link:', err);
+      logger.error('Error checking for public link:', err);
     }
   };
   
@@ -316,7 +310,7 @@ export default function EditCandidateDialog({
       setTimeout(() => setLinkCopied(false), 3000);
       
     } catch (error) {
-      console.error('Error generating public link:', error);
+      logger.error('Error generating public link:', error);
       toast({
         title: 'Error',
         description: 'Failed to generate public link. Please try again.',
@@ -348,7 +342,7 @@ export default function EditCandidateDialog({
       });
       
     } catch (error) {
-      console.error('Error deactivating public link:', error);
+      logger.error('Error deactivating public link:', error);
       toast({
         title: 'Error',
         description: 'Failed to deactivate public link. Please try again.',
@@ -490,7 +484,7 @@ export default function EditCandidateDialog({
       onCandidateUpdated();
       onOpenChange(false);
     } catch (error) {
-      console.error('Error updating candidate:', error);
+      logger.error('Error updating candidate:', error);
       toast({
         title: 'Error',
         description: 'Failed to update candidate. Please try again.',
@@ -654,7 +648,7 @@ export default function EditCandidateDialog({
     { id: 'cantonese', name: 'Cantonese' },
   ];
 
-  // const entityTypes = [
+  const entityTypes = [
     { value: 'individual', label: 'Individual' },
     { value: 'sole_proprietor', label: 'Sole Proprietor' },
     { value: 'partnership', label: 'Partnership' },
@@ -664,7 +658,7 @@ export default function EditCandidateDialog({
     { value: 'non_profit', label: 'Non-Profit' },
   ];
 
-  // const registrationTypes = [
+  const registrationTypes = [
     { value: 'nric', label: 'National Registration ID Card (NRIC)' },
     { value: 'passport', label: 'Passport' },
     { value: 'business_registration', label: 'Business Registration' },

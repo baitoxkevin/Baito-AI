@@ -35,6 +35,7 @@ import { SpotlightCardSegmentedControl } from './SpotlightCardSegmentedControl';
 import { CompactHistory } from './history-options/CompactHistory';
 import { ProjectStatsTabCard } from './ProjectStatsCard';
 
+import { logger } from '../../lib/logger';
 // Tab content components
 import { CalendarTab, StaffingTab } from '@/components/project-form';
 import { SpotlightCardDocuments } from './SpotlightCardDocuments';
@@ -213,7 +214,13 @@ export function SpotlightCard({
   documents = [],
   expenseClaims = []
 }: SpotlightCardProps) {
-  const [isMinimized, setIsMinimized] = React.useState(true);
+  // Store expanded state in localStorage to persist across re-renders
+  const storageKey = `spotlight-expanded-${project.id}`;
+  const [isMinimized, setIsMinimized] = React.useState(() => {
+    const stored = localStorage.getItem(storageKey);
+    return stored !== 'true';
+  });
+  
   const [mousePosition, setMousePosition] = React.useState({ x: 0, y: 0 });
   const { toast } = useToast();
   const [showExpenseClaimForm, setShowExpenseClaimForm] = React.useState(false);
@@ -224,6 +231,14 @@ export function SpotlightCard({
   const [activeTab, setActiveTab] = React.useState('schedule');
   const isScheduleTabActive = activeTab === 'schedule';
   
+  // Local project state to handle updates from child components
+  const [localProject, setLocalProject] = React.useState(project);
+  
+  // Update localStorage when minimized state changes
+  React.useEffect(() => {
+    localStorage.setItem(storageKey, (!isMinimized).toString());
+  }, [isMinimized, storageKey]);
+  
   // Simple tab change handler
   const handleTabChange = React.useCallback((newTab: string) => {
     setActiveTab(newTab);
@@ -232,16 +247,16 @@ export function SpotlightCard({
   // Manual refresh function for expense claims
   const refreshExpenseClaims = React.useCallback(async () => {
     try {
-      // console.log('Manually refreshing expense claims for project:', project.id);
-      const updatedClaims = await fetchProjectExpenseClaimsWithFallback(project.id);
-      // console.log('Manual refresh found claims:', updatedClaims);
+      // logger.debug('Manually refreshing expense claims for project:', { data: localProject.id });
+      const updatedClaims = await fetchProjectExpenseClaimsWithFallback(localProject.id);
+      // logger.debug('Manual refresh found claims:', { data: updatedClaims });
       setLocalExpenseClaims(updatedClaims);
       return updatedClaims;
     } catch (error) {
-      console.error('Error refreshing expense claims:', error);
+      logger.error('Error refreshing expense claims:', error);
       return [];
     }
-  }, [project.id]);
+  }, [localProject.id]);
   const [localDocuments, setLocalDocuments] = React.useState(
     documents.length > 0 ? documents : dummyDocuments
   );
@@ -266,16 +281,20 @@ export function SpotlightCard({
   const [selectedStaffForBasic, setSelectedStaffForBasic] = React.useState<string[]>([]);
   const [tempBasicValue, setTempBasicValue] = React.useState("");
   
+  // Update local project when prop changes
+  React.useEffect(() => {
+    setLocalProject(project);
+  }, [project]);
   
   // Fetch project details including staff when component mounts or project changes
   React.useEffect(() => {
     let isMounted = true;
     
     const fetchProjectDetails = async () => {
-      if (!project.id) return;
+      if (!localProject.id) return;
       
       // Initialize activity logging for this project
-      activityLogger.setProjectId(project.id);
+      activityLogger.setProjectId(localProject.id);
       
       try {
         // Batch fetch all data in parallel for better performance
@@ -284,14 +303,14 @@ export function SpotlightCard({
           supabase
             .from('projects')
             .select('*')
-            .eq('id', project.id)
+            .eq('id', localProject.id)
             .single(),
           
           // Fetch expense claims
-          fetchProjectExpenseClaimsWithFallback(project.id),
+          fetchProjectExpenseClaimsWithFallback(localProject.id),
           
           // Fetch documents
-          getProjectDocuments(project.id)
+          getProjectDocuments(localProject.id)
         ]);
         
         // Check if component is still mounted before processing results
@@ -300,7 +319,7 @@ export function SpotlightCard({
         // Process project data
         if (projectResult.status === 'rejected' || projectResult.value.error) {
           const error = projectResult.status === 'rejected' ? projectResult.reason : projectResult.value.error;
-          console.error('Failed to fetch project data:', error);
+          logger.error('Failed to fetch project data:', error);
           throw new Error(`Failed to load project: ${error.message || 'Unknown error'}`);
         }
         
@@ -311,11 +330,11 @@ export function SpotlightCard({
         
         // Process expense claims
         if (expenseResult.status === 'fulfilled') {
-          // console.log('Initial expense claims fetch successful:', expenseResult.value.length);
-          // console.log('Expense claims data:', expenseResult.value);
+          // logger.debug('Initial expense claims fetch successful:', { data: expenseResult.value.length });
+          // logger.debug('Expense claims data:', { data: expenseResult.value });
           setLocalExpenseClaims(expenseResult.value);
         } else {
-          console.error('Error fetching expense claims:', expenseResult.reason);
+          logger.error('Error fetching expense claims:', expenseResult.reason);
           // Don't fall back to dummy data - keep it empty
           setLocalExpenseClaims([]);
         }
@@ -323,9 +342,9 @@ export function SpotlightCard({
         // Process documents
         if (documentsResult.status === 'fulfilled') {
           setLocalDocuments(documentsResult.value);
-          // console.log('Fetched project documents:', documentsResult.value.length);
+          // logger.debug('Fetched project documents:', { data: documentsResult.value.length });
         } else {
-          console.error('Error fetching documents:', documentsResult.reason);
+          logger.error('Error fetching documents:', documentsResult.reason);
           setLocalDocuments(dummyDocuments);
         }
         
@@ -333,12 +352,12 @@ export function SpotlightCard({
         const projectConfirmedStaff = projectData?.confirmed_staff || [];
         const projectApplicants = projectData?.applicants || [];
         
-        // console.log('Fetched project data:', {
+        // logger.debug('Fetched project data:', { data: {
         //   confirmedStaff: projectConfirmedStaff,
         //   applicants: projectApplicants,
         //   confirmedStaffCount: projectConfirmedStaff.length,
         //   applicantsCount: projectApplicants.length
-        // });
+        // } });
         
         // Set the combined staff for other components that expect staffDetails
         setStaffDetails([...projectConfirmedStaff, ...projectApplicants]);
@@ -395,7 +414,7 @@ export function SpotlightCard({
             const id = s.candidate_id || s.id;
             // Debug log to understand the structure
             if (typeof id !== 'string' && id) {
-              // console.warn('Non-string ID found in confirmed staff:', { id, type: typeof id, staff: s });
+              // logger.warn('Non-string ID found in confirmed staff:', { id, type: typeof id, staff: s });
             }
             // Ensure we extract string ID from potential object
             return typeof id === 'string' ? id : (id?.id || null);
@@ -404,7 +423,7 @@ export function SpotlightCard({
             const id = a.candidate_id || a.id;
             // Debug log to understand the structure
             if (typeof id !== 'string' && id) {
-              // console.warn('Non-string ID found in applicants:', { 
+              // logger.warn('Non-string ID found in applicants:', { 
               //   id, 
               //   type: typeof id, 
               //   applicant: a,
@@ -427,7 +446,7 @@ export function SpotlightCard({
               .in('id', allStaffIds);
               
             if (candidatesError) {
-              console.error('Failed to fetch candidate details:', candidatesError);
+              logger.error('Failed to fetch candidate details:', candidatesError);
               // Continue with partial data instead of throwing
             }
             
@@ -490,7 +509,7 @@ export function SpotlightCard({
             }
           }
           } catch (staffError) {
-            console.error('Error processing staff data:', staffError);
+            logger.error('Error processing staff data:', staffError);
             // Continue with basic staff data
             if (isMounted) {
               setConfirmedStaff(transformStaffData(projectConfirmedStaff));
@@ -507,7 +526,7 @@ export function SpotlightCard({
           }
         }
       } catch (error) {
-        console.error('Error fetching project details:', error);
+        logger.error('Error fetching project details:', error);
         if (isMounted) {
           toast({
             title: "Error",
@@ -524,7 +543,7 @@ export function SpotlightCard({
     return () => {
       isMounted = false;
     };
-  }, [project.id, toast]);
+  }, [localProject.id, toast]);
 
   const handleMouseMove = (event: React.MouseEvent<HTMLDivElement>) => {
     const rect = event.currentTarget.getBoundingClientRect();
@@ -534,7 +553,14 @@ export function SpotlightCard({
   };
 
   const handleViewDetails = () => {
-    onViewDetails?.(project);
+    onViewDetails?.(localProject);
+  };
+  
+  // Handle project updates from child components
+  const handleProjectUpdate = (updatedProject: Project) => {
+    setLocalProject(updatedProject);
+    // Propagate to parent if callback provided
+    onProjectUpdated?.(updatedProject);
   };
   
   // Handle removing an expense claim
@@ -596,7 +622,7 @@ export function SpotlightCard({
         });
       }
     } catch (error) {
-      console.error('Error removing expense claim:', error);
+      logger.error('Error removing expense claim:', error);
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Failed to delete expense claim",
@@ -614,21 +640,34 @@ export function SpotlightCard({
   };
 
   const handleCreateExpenseClaim = async (data: unknown) => {
-    // console.log('SpotlightCard: Creating expense claim', data);
-    // console.log('Project ID:', project.id);
-    // console.log('Project object:', project);
+    // logger.debug('SpotlightCard: Creating expense claim', { data: data });
+    // logger.debug('Project ID:', { data: localProject.id });
+    // logger.debug('Project object:', { data: localProject });
     
     try {
       const user = await getUser();
       if (!user) throw new Error('User not found');
       
-      // console.log('Current user:', user.id, user.email);
+      // logger.debug('Current user:', { data: user.id, user.email });
       
       // Transform the data from ExpenseClaimFormWithDragDrop format
-      const claimData: any = {
+      const claimData: {
+        title: string;
+        description: string;
+        project_id: string;
+        submitted_by: string;
+        amount: number;
+        status: 'pending';
+        category: string;
+        expense_date: string;
+        receipt_number: string;
+        receipts: never[];
+        user_id?: string;
+        staff_id?: string;
+      } = {
         title: data.title,
         description: data.description,
-        project_id: project.id,
+        project_id: localProject.id,
         submitted_by: data.is_own_claim ? 'Self' : 'On behalf',
         amount: parseFloat(data.amount),
         status: 'pending' as const,
@@ -646,7 +685,7 @@ export function SpotlightCard({
         // Don't set user_id for staff claims
       }
       
-      // console.log('Claim data to be created:', claimData);
+      // logger.debug('Claim data to be created:', { data: claimData });
       
       const result = await createExpenseClaimWithReceipts(claimData, data.documents || []);
       
@@ -674,24 +713,24 @@ export function SpotlightCard({
         
         // Refresh expense claims from database
         try {
-          // console.log('Refreshing expense claims after creation...');
-          const updatedClaims = await fetchProjectExpenseClaimsWithFallback(project.id);
-          // console.log('Updated claims after creation:', updatedClaims);
+          // logger.debug('Refreshing expense claims after creation...');
+          const updatedClaims = await fetchProjectExpenseClaimsWithFallback(localProject.id);
+          // logger.debug('Updated claims after creation:', { data: updatedClaims });
           setLocalExpenseClaims(updatedClaims);
           
           // Also try a direct query to debug
           const { data: directQuery, error: directError } = await supabase
             .from('expense_claims')
             .select('*')
-            .eq('project_id', project.id);
+            .eq('project_id', localProject.id);
           
-          // console.log('Direct query result:', directQuery, 'error:', directError);
+          // logger.debug('Direct query result:', { data: directQuery, 'error:', directError });
         } catch (error) {
-          console.error('Error refreshing expense claims:', error);
+          logger.error('Error refreshing expense claims:', error);
         }
       }
     } catch (error) {
-      console.error('Failed to create expense claim:', error);
+      logger.error('Failed to create expense claim:', error);
       
       // Log failed expense claim creation
       logUtils.action('create_expense_claim', false, {
@@ -716,12 +755,20 @@ export function SpotlightCard({
   const handleMinimize = React.useCallback(() => {
     setIsMinimized(true);
   }, []);
+  
+  // Clean up on unmount (optional - remove if you want state to persist between page navigations)
+  React.useEffect(() => {
+    return () => {
+      // Optionally clear the expanded state on unmount
+      // localStorage.removeItem(storageKey);
+    };
+  }, [storageKey]);
 
   // Render minimized view
   if (isMinimized) {
     return (
       <SpotlightCardMinimized
-        project={project}
+        project={localProject}
         onClick={handleExpand}
         onMouseMove={handleMouseMove}
         mousePosition={mousePosition}
@@ -761,12 +808,13 @@ export function SpotlightCard({
               
               <div className="flex h-full">
                 <SpotlightCardSidebar
-                  project={project}
+                  project={localProject}
                   onViewDetails={() => {}} // Remove view details functionality
                   staffCount={staffDetails.length}
                   claimsCount={localExpenseClaims.length}
                   activeTab={activeTab}
                   onTabChange={handleTabChange}
+                  onProjectUpdated={handleProjectUpdate}
                 />
                 
                 {/* Main Content Area */}
@@ -793,8 +841,7 @@ export function SpotlightCard({
                         'staffing',
                         'payroll',
                         'expenses',
-                        'documents',
-                        'history'
+                        'documents'
                       ];
                       const currentIndex = tabs.indexOf(activeTab);
                       let newIndex;
@@ -836,8 +883,7 @@ export function SpotlightCard({
                           { value: 'staffing' },
                           { value: 'payroll' },
                           { value: 'expenses' },
-                          { value: 'documents' },
-                          { value: 'history' }
+                          { value: 'documents' }
                         ];
                         const currentIndex = tabs.findIndex(tab => tab.value === activeTab);
                         const prevIndex = (currentIndex - 1 + tabs.length) % tabs.length;
@@ -862,8 +908,7 @@ export function SpotlightCard({
                           { value: 'staffing' },
                           { value: 'payroll' },
                           { value: 'expenses' },
-                          { value: 'documents' },
-                          { value: 'history' }
+                          { value: 'documents' }
                         ];
                         const currentIndex = tabs.findIndex(tab => tab.value === activeTab);
                         const nextIndex = (currentIndex + 1) % tabs.length;
@@ -904,7 +949,7 @@ export function SpotlightCard({
                         <StaffingTab
                           confirmedStaff={confirmedStaff}
                           setConfirmedStaff={(newConfirmedStaff) => {
-                            // console.log('Setting new confirmed staff:', newConfirmedStaff);
+                            // logger.debug('Setting new confirmed staff:', { data: newConfirmedStaff });
                             
                             // Log staff changes
                             const oldStaffIds = confirmedStaff.map(s => s.id);
@@ -917,7 +962,7 @@ export function SpotlightCard({
                                 staff_name: staff.name,
                                 staff_position: staff.designation,
                                 staff_id: staff.id
-                              }, project.id);
+                              }, localProject.id);
                             });
                             
                             // Find removed staff
@@ -927,7 +972,7 @@ export function SpotlightCard({
                                 staff_name: staff.name,
                                 staff_position: staff.designation,
                                 staff_id: staff.id
-                              }, project.id);
+                              }, localProject.id);
                             });
                             
                             setConfirmedStaff(newConfirmedStaff);
@@ -953,11 +998,11 @@ export function SpotlightCard({
                                     })),
                                     updated_at: new Date().toISOString()
                                   })
-                                  .eq('id', project.id);
+                                  .eq('id', localProject.id);
                                   
                                 if (error) throw error;
                               } catch (error) {
-                                console.error('Error updating confirmed staff:', error);
+                                logger.error('Error updating confirmed staff:', error);
                                 toast({
                                   title: "Error saving staff",
                                   description: "Failed to update project staff",
@@ -970,7 +1015,7 @@ export function SpotlightCard({
                           }}
                           applicants={applicants}
                           setApplicants={(newApplicants) => {
-                            // console.log('Setting new applicants:', newApplicants);
+                            // logger.debug('Setting new applicants:', { data: newApplicants });
                             setApplicants(newApplicants);
                             
                             // Update the project in the database
@@ -988,11 +1033,11 @@ export function SpotlightCard({
                                       applied_date: applicant.appliedDate
                                     }))
                                   })
-                                  .eq('id', project.id);
+                                  .eq('id', localProject.id);
                                   
                                 if (error) throw error;
                               } catch (error) {
-                                console.error('Error updating applicants:', error);
+                                logger.error('Error updating applicants:', error);
                                 toast({
                                   title: "Error saving applicants",
                                   description: "Failed to update project applicants",
@@ -1006,12 +1051,12 @@ export function SpotlightCard({
                           showAddStaffForm={false}
                           setShowAddStaffForm={() => {}}
                           handleRemoveStaff={(staffId) => {
-                            // console.log('Removing staff:', staffId);
+                            // logger.debug('Removing staff:', { data: staffId });
                             
                             // Find the staff member being removed
                             const staffMember = confirmedStaff.find(s => s.id === staffId);
                             if (!staffMember) {
-                              console.error('Staff member not found:', staffId);
+                              logger.error('Staff member not found:', staffId);
                               return;
                             }
                             
@@ -1021,7 +1066,7 @@ export function SpotlightCard({
                               staff_position: staffMember.designation,
                               staff_id: staffId,
                               moved_to: 'applicants'
-                            }, project.id);
+                            }, localProject.id);
                             
                             // Create a new applicant from the removed staff
                             const newApplicant = {
@@ -1077,7 +1122,7 @@ export function SpotlightCard({
                                       applied_date: applicant.appliedDate
                                     }))
                                   })
-                                  .eq('id', project.id);
+                                  .eq('id', localProject.id);
                                   
                                 if (error) throw error;
                                 
@@ -1087,7 +1132,7 @@ export function SpotlightCard({
                                   variant: "default"
                                 });
                               } catch (error) {
-                                console.error('Error updating project:', error);
+                                logger.error('Error updating project:', error);
                                 toast({
                                   title: "Error",
                                   description: "Failed to update project staff",
@@ -1098,9 +1143,9 @@ export function SpotlightCard({
                             
                             updateProject();
                           }}
-                          projectStartDate={new Date(project.start_date)}
-                          projectEndDate={project.end_date ? new Date(project.end_date) : undefined}
-                          projectId={project.id}
+                          projectStartDate={new Date(localProject.start_date)}
+                          projectEndDate={localProject.end_date ? new Date(localProject.end_date) : undefined}
+                          projectId={localProject.id}
                           isAutosaving={false}
                         />
                       </div>
@@ -1109,29 +1154,30 @@ export function SpotlightCard({
                     {activeTab === 'schedule' && (
                       <div className="h-full bg-white dark:bg-slate-800 rounded-lg p-6 flex flex-col">
                         <ScheduleTabContent 
-                          project={project} 
+                          project={localProject} 
                           confirmedStaff={confirmedStaff}
+                          onProjectUpdated={handleProjectUpdate}
                         />
                       </div>
                     )}
                     
                     {activeTab === 'history' && (
-                      <div className="h-full w-full flex">
-                        <CompactHistory projectId={project.id} />
+                      <div className="h-full bg-white dark:bg-slate-800 rounded-lg overflow-hidden">
+                        <CompactHistory projectId={localProject.id} />
                       </div>
                     )}
                     
                     {activeTab === 'payroll' && (
                       <ProjectPayroll
-                        project={project}
+                        project={localProject}
                         confirmedStaff={confirmedStaff}
                         setConfirmedStaff={setConfirmedStaff}
-                        projectStartDate={new Date(project.start_date)}
-                        projectEndDate={project.end_date ? new Date(project.end_date) : new Date(project.start_date)}
+                        projectStartDate={new Date(localProject.start_date)}
+                        projectEndDate={localProject.end_date ? new Date(localProject.end_date) : new Date(localProject.start_date)}
                         onEditDialogOpenChange={setIsPayrollEditDialogOpen}
                         onProjectUpdate={(updatedProject) => {
                           // Update the local project state
-                          setProject(updatedProject);
+                          handleProjectUpdate(updatedProject);
                         }}
                       />
                     )}
@@ -1139,7 +1185,7 @@ export function SpotlightCard({
                     {activeTab === 'expenses' && (
                       <div className="bg-white dark:bg-slate-800 rounded-lg p-6 h-full flex flex-col">
                         <SpotlightCardExpenses
-                          project={project}
+                          project={localProject}
                           expenseClaims={localExpenseClaims}
                           onShowExpenseClaimForm={() => setShowExpenseClaimForm(true)}
                           onShowClaimDetails={(claimId) => {
@@ -1160,7 +1206,7 @@ export function SpotlightCard({
                       <div className="flex items-center">
                         <span className="text-xs font-medium text-gray-700 dark:text-gray-300">Status:</span>
                         <span className="ml-1 inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-                          {project.status || 'Active'}
+                          {localProject.status || 'Active'}
                         </span>
                       </div>
                       
@@ -1184,7 +1230,7 @@ export function SpotlightCard({
         open={showExpenseClaimForm}
         onOpenChange={setShowExpenseClaimForm}
         onSubmit={handleCreateExpenseClaim}
-        projectId={project.id}
+        projectId={localProject.id}
         confirmedStaff={confirmedStaff}
       />
       
@@ -1349,7 +1395,7 @@ export function SpotlightCard({
                       try {
                         // Use the document service to upload the file
                         const uploadedDoc = await uploadProjectDocument(
-                          project.id,
+                          localProject.id,
                           file,
                           fileDescription
                         );
@@ -1364,7 +1410,7 @@ export function SpotlightCard({
                           document_category: fileCategory
                         });
                       } catch (error) {
-                        console.error(`Error uploading ${file.name}:`, error);
+                        logger.error(`Error uploading ${file.name}:`, error);
                         failedUploads.push(file.name);
                         
                         // Log failed upload
@@ -1395,7 +1441,7 @@ export function SpotlightCard({
                       });
                     }
                   } catch (error) {
-                    console.error('Document upload error:', error);
+                    logger.error('Document upload error:', error);
                     toast({
                       title: "Upload Failed",
                       description: "There was an error uploading your documents.",
@@ -1457,7 +1503,7 @@ export function SpotlightCard({
                     
                     // Use the addProjectLink function to add the link
                     const uploadedLink = await addProjectLink(
-                      project.id,
+                      localProject.id,
                       googleDriveLink,
                       linkName,
                       fileDescription
@@ -1488,7 +1534,7 @@ export function SpotlightCard({
                       variant: "default"
                     });
                   } catch (error) {
-                    console.error('Error adding Google Drive link:', error);
+                    logger.error('Error adding Google Drive link:', error);
                     
                     // Log failed Google Drive link addition
                     logUtils.action('upload_document', false, {
@@ -1541,8 +1587,17 @@ export function SpotlightCard({
 }
 
 // Separate component for Schedule tab to improve performance
-function ScheduleTabContent({ project, confirmedStaff }: { project: Project, confirmedStaff: unknown[] }) {
+function ScheduleTabContent({ 
+  project, 
+  confirmedStaff, 
+  onProjectUpdated 
+}: { 
+  project: Project, 
+  confirmedStaff: unknown[],
+  onProjectUpdated?: (updatedProject: Project) => void
+}) {
   const { staffDetails } = useProjectStaff(project.id, true);
+  const { toast } = useToast();
   
   // Use optimized staff data if available, fall back to passed-in data
   const staffToDisplay = staffDetails.length > 0 ? staffDetails : confirmedStaff;
@@ -1554,7 +1609,7 @@ function ScheduleTabContent({ project, confirmedStaff }: { project: Project, con
       confirmedStaff={staffToDisplay}
       location={project.venue_address}
       onLocationEdit={async (newLocation) => {
-        // console.log('Location updated:', newLocation);
+        // logger.debug('Location updated:', { data: newLocation });
         
         const oldLocation = project.venue_address;
         
@@ -1583,7 +1638,7 @@ function ScheduleTabContent({ project, confirmedStaff }: { project: Project, con
             description: "Project location has been updated successfully.",
           });
         } catch (error) {
-          console.error('Error updating location:', error);
+          logger.error('Error updating location:', error);
           toast({
             title: "Error",
             description: "Failed to update project location",

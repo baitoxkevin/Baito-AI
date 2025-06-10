@@ -3,6 +3,7 @@ import { startOfMonth, endOfMonth, subMonths, addMonths } from 'date-fns';
 import type { Project } from '@/lib/types';
 import { supabase } from '@/lib/supabase';
 
+import { logger } from '../lib/logger';
 interface CacheEntry {
   data: Project[];
   timestamp: number;
@@ -59,7 +60,7 @@ export function useCalendarCache() {
       // Database fetch complete
 
       if (error) {
-        console.error('Error fetching projects from DB:', error);
+        logger.error('Error fetching projects from DB:', error);
         return [];
       }
 
@@ -149,7 +150,7 @@ export function useCalendarCache() {
             });
           }
         } catch {
-          // console.warn('Error fetching client data');
+          // logger.warn('Error fetching client data');
         }
       }
       
@@ -176,15 +177,15 @@ export function useCalendarCache() {
             });
           }
         } catch {
-          // console.warn('Error fetching manager data');
+          // logger.warn('Error fetching manager data');
         }
       }
       
-      // console.log(`Filtered to ${filteredProjects.length} unique projects in date range`);
+      // logger.debug(`Filtered to ${filteredProjects.length} unique projects in date range`);
       
       return filteredProjects;
     } catch (error) {
-      console.error('Error fetching projects:', error);
+      logger.error('Error fetching projects:', error);
       return [];
     }
   };
@@ -219,7 +220,7 @@ export function useCalendarCache() {
           return;
         }
 
-        // console.log(`Prefetching month: ${cacheKey}`);
+        // logger.debug(`Prefetching month: ${cacheKey}`);
         
         // Mark as being fetched
         cache.current[cacheKey] = {
@@ -262,7 +263,7 @@ export function useCalendarCache() {
             if (error instanceof Error && error.name === 'AbortError') {
               return [];
             }
-            console.error(`Error prefetching calendar data for ${cacheKey}:`, error);
+            logger.error(`Error prefetching calendar data for ${cacheKey}:`, error);
             delete cache.current[cacheKey]; // Remove failed entry
             return [];
           } finally {
@@ -278,7 +279,7 @@ export function useCalendarCache() {
       if (error instanceof Error && error.name === 'AbortError') {
         return;
       }
-      console.error('Error in prefetch operation:', error);
+      logger.error('Error in prefetch operation:', error);
     }
   };
 
@@ -287,13 +288,13 @@ export function useCalendarCache() {
     
     // Check if we have valid cached data
     if (cache.current[cacheKey] && isCacheValid(cache.current[cacheKey]) && !cache.current[cacheKey].loading) {
-      // console.log(`CACHE HIT: ${cacheKey}`);
+      // logger.debug(`CACHE HIT: ${cacheKey}`);
       return cache.current[cacheKey].data;
     }
     
     // Check if a request for this data is already in flight
     if (pendingRequests[cacheKey]) {
-      // console.log(`PENDING REQUEST: ${cacheKey}`);
+      // logger.debug(`PENDING REQUEST: ${cacheKey}`);
       setIsLoading(true);
       try {
         return await pendingRequests[cacheKey];
@@ -302,7 +303,7 @@ export function useCalendarCache() {
       }
     }
     
-    // console.log(`CACHE MISS: ${cacheKey}`);
+    // logger.debug(`CACHE MISS: ${cacheKey}`);
     setIsLoading(true);
     
     // Create the promise for this request
@@ -347,7 +348,7 @@ export function useCalendarCache() {
         
         return uniqueProjects;
       } catch (error) {
-        console.error('Error in getMonthData:', error);
+        logger.error('Error in getMonthData:', error);
         delete cache.current[cacheKey]; // Remove failed entry
         throw error;
       } finally {
@@ -408,7 +409,7 @@ export function useCalendarCache() {
         setIsLoading(false);
       })
       .catch(error => {
-        console.error('Error during initial calendar prefetch:', error);
+        logger.error('Error during initial calendar prefetch:', error);
         initialLoadDone = true; // Mark as done anyway to avoid blocking UI
         setIsLoading(false);
       });

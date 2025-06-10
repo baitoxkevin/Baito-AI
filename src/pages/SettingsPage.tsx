@@ -1,15 +1,19 @@
 import * as React from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+// import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Switch } from '@/components/ui/switch';
+// import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
+// import { logger } from '../lib/logger';
 import { 
-  Loader2, PlusIcon, Edit2, Trash2, Building, Image, AlertCircle,
-  User as UserIcon, Briefcase, Mail, Phone, Search, ShieldAlert,
-  RefreshCcw, Database, Users2, Shield, CheckCircle2, Settings
+  Loader2, PlusIcon, Edit2, Trash2, Building,
+  User as UserIcon, Mail, Search, Settings,
+  UserPlus, Sparkles, Building2, Users, Activity, Lock,
+  ChevronDown, ChevronRight, Share2, Check
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { 
@@ -21,13 +25,23 @@ import {
   TableRow 
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+// import { AlertDescription } from '@/components/ui/alert';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import NewCompanyDialog from '@/components/NewCompanyDialog';
 import NewCandidateDialog from '@/components/NewCandidateDialog';
 import NewUserDialog from '@/components/NewUserDialog';
-import UserConfigurationPage from './UserConfigurationPage';
+import { NotificationSettings } from '@/components/NotificationSettings';
 import type { Company, Candidate, User } from '@/lib/types';
 import { getUserProfile } from '@/lib/auth';
+
+// Import MagicUI components
+import { ShimmerButton } from '@/components/ui/shimmer-button';
+import { AnimatedGradientText } from '@/components/ui/animated-gradient-text';
+import { BorderBeam } from '@/components/ui/border-beam';
+import { MagicCard } from '@/components/ui/magic-card';
+import { NeonGradientCard } from '@/components/ui/neon-gradient-card';
+import { SparklesText } from '@/components/ui/sparkles-text';
+import { cn } from '@/lib/utils';
 
 export default function SettingsPage() {
   const { toast } = useToast();
@@ -40,7 +54,14 @@ export default function SettingsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   
   // Auth check state
-  const [authStatus, setAuthStatus] = useState<unknown>({
+  const [, setAuthStatus] = useState<{
+    loading: boolean;
+    user: any; // Using any for Supabase user type
+    session: any; // Using any for Supabase session type
+    error: string | null;
+    canAccessExpenseClaims: boolean;
+    testResult: string | null;
+  }>({
     loading: true,
     user: null,
     session: null,
@@ -49,207 +70,159 @@ export default function SettingsPage() {
     testResult: null
   });
 
-  // Admin states
-  const [currentUserRole, setCurrentUserRole] = useState<string>('staff');
-  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
-  const [adminLoading, setAdminLoading] = useState(false);
-  
-  // Secondary sections state
-  const [activeTab, setActiveTab] = useState("candidates");
-  
-  // Candidate state
+  // Candidates state
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [candidateLoading, setCandidateLoading] = useState(true);
   const [candidateFormOpen, setCandidateFormOpen] = useState(false);
   const [editingCandidate, setEditingCandidate] = useState<Candidate | null>(null);
-  
-  // Users/Staff state
+  const [candidateSearchQuery, setCandidateSearchQuery] = useState('');
+
+  // Users state
   const [users, setUsers] = useState<User[]>([]);
   const [usersLoading, setUsersLoading] = useState(true);
   const [userFormOpen, setUserFormOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
-  
-  // Current user state for permission checks
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [isUserLoading, setIsUserLoading] = useState(true);
+  const [userSearchQuery, setUserSearchQuery] = useState('');
+  const [copiedUserId, setCopiedUserId] = useState<string | null>(null);
 
-  // Load companies data
-  const loadCompanies = async () => {
+  // New state for active tab
+  const [activeTab, setActiveTab] = useState('companies');
+  const [userRole, setUserRole] = useState<string>('staff');
+  const [expandedCompanies, setExpandedCompanies] = useState<Set<string>>(new Set());
+
+
+
+  // Auth check
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        setAuthStatus(prev => ({ ...prev, loading: true }));
+        
+        const { data: { user, session }, error } = await supabase.auth.getUser();
+        
+        if (error || !user) {
+          setAuthStatus(prev => ({ 
+            ...prev, 
+            loading: false, 
+            error: error?.message || 'Not authenticated',
+            user: null,
+            session: null 
+          }));
+          return;
+        }
+
+        // Try to access expense_claims table
+        const { error: claimsError } = await supabase
+          .from('expense_claims')
+          .select('id')
+          .limit(1);
+
+        const canAccessExpenseClaims = !claimsError;
+
+        setAuthStatus({
+          loading: false,
+          user,
+          session,
+          error: null,
+          canAccessExpenseClaims,
+          testResult: canAccessExpenseClaims ? 'Success' : claimsError?.message
+        });
+
+      } catch (err) {
+        // logger.error('Auth check error:', err);
+        setAuthStatus(prev => ({ 
+          ...prev, 
+          loading: false, 
+          error: err instanceof Error ? err.message : 'Unknown error' 
+        }));
+      }
+    };
+
+    checkAuth();
+    // Get user role
+    getUserProfile().then(profile => {
+      setUserRole(profile.role || 'staff');
+    }).catch(() => {
+      setUserRole('staff');
+    });
+  }, []);
+
+  const fetchCompanies = useCallback(async () => {
     try {
       setCompanyLoading(true);
       const { data, error } = await supabase
         .from('companies')
-        .select('*')
-        .order('company_name');
+        .select(`
+          *,
+          contacts:company_contacts(*)
+        `)
+        .order('created_at', { ascending: false });
 
       if (error) throw error;
-      
-      // Map database fields to the expected interface fields for compatibility
-      const mappedCompanies = data?.map(company => ({
-        ...company,
-        name: company.company_name,
-        contact_email: company.company_email,
-        contact_phone: company.company_phone_no
-      })) || [];
-      
-      setCompanies(mappedCompanies);
-    } catch (error) {
-      console.error('Error loading companies:', error);
+      setCompanies(data || []);
+    } catch {
+      // logger.error('Error fetching companies:', error);
       toast({
         title: 'Error',
-        description: 'Failed to load companies. Please try again.',
+        description: 'Failed to fetch companies',
         variant: 'destructive',
       });
     } finally {
       setCompanyLoading(false);
     }
-  };
+  }, [toast]);
 
-  // Load candidates data
-  const loadCandidates = async () => {
+  const fetchCandidates = useCallback(async () => {
     try {
       setCandidateLoading(true);
       const { data, error } = await supabase
         .from('candidates')
-        .select(`
-          *,
-          performance_metrics (
-            reliability_score,
-            response_rate,
-            avg_rating,
-            total_gigs_completed
-          ),
-          language_proficiency (
-            language,
-            proficiency_level,
-            is_primary
-          ),
-          loyalty_status (
-            tier_level,
-            current_points
-          )
-        `)
-        .order('full_name');
+        .select('*')
+        .order('created_at', { ascending: false });
 
       if (error) throw error;
-      
       setCandidates(data || []);
-    } catch (error) {
-      console.error('Error loading candidates:', error);
+    } catch {
+      // logger.error('Error fetching candidates:', error);
       toast({
         title: 'Error',
-        description: 'Failed to load candidates. Please try again.',
+        description: 'Failed to fetch candidates',
         variant: 'destructive',
       });
     } finally {
       setCandidateLoading(false);
     }
-  };
+  }, [toast]);
 
-  // Load users/staff data
-  const loadUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     try {
       setUsersLoading(true);
       const { data, error } = await supabase
         .from('users')
         .select('*')
-        .order('full_name');
+        .order('created_at', { ascending: false });
 
       if (error) throw error;
-      
-      // Add avatar URLs
-      const usersWithAvatars = (data || []).map(user => ({
-        ...user,
-        avatar_url: '' // Using initials instead
-      }));
-      
-      setUsers(usersWithAvatars);
-    } catch (error) {
-      console.error('Error loading users:', error);
+      setUsers(data || []);
+    } catch {
+      // logger.error('Error fetching users:', error);
       toast({
         title: 'Error',
-        description: 'Failed to load users. Please try again.',
+        description: 'Failed to fetch users',
         variant: 'destructive',
       });
     } finally {
       setUsersLoading(false);
     }
-  };
+  }, [toast]);
 
-  // Load current user info to check permissions
-  const loadCurrentUser = async () => {
-    try {
-      setIsUserLoading(true);
-      const profile = await getUserProfile();
-      setCurrentUser(profile as User);
-    } catch (error) {
-      console.error('Error loading current user:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to verify your permissions.',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsUserLoading(false);
-    }
-  };
-
-  // Load data on initial render
   useEffect(() => {
-    loadCurrentUser();
-    loadCompanies();
-    loadCurrentUserRole(); // Load user role on mount to check super admin status
-  }, []);
-  
-  // Load other sections data when tab changes
-  useEffect(() => {
-    if (activeTab === "candidates") {
-      loadCandidates();
-    } else if (activeTab === "staff") {
-      loadUsers();
-    } else if (activeTab === "auth") {
-      checkAuth();
-    } else if (activeTab === "admin") {
-      loadCurrentUserRole();
-    }
-  }, [activeTab]);
+    fetchCompanies();
+    fetchCandidates();
+    fetchUsers();
+  }, [fetchCompanies, fetchCandidates, fetchUsers]);
 
-  // Load current user role
-  const loadCurrentUserRole = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data: userData } = await supabase
-          .from('users')
-          .select('role, is_super_admin')
-          .eq('id', user.id)
-          .single();
-        
-        if (userData) {
-          setCurrentUserRole(userData.role || 'staff');
-          setIsSuperAdmin(userData.is_super_admin || false);
-        }
-      }
-    } catch (error) {
-      console.error('Error loading user role:', error);
-      // Set defaults on error
-      setCurrentUserRole('staff');
-      setIsSuperAdmin(false);
-    }
-  };
-
-  // Handle company deletion - restricted to super_admin only
   const handleDeleteCompany = async (id: string) => {
-    // Check if user is a super admin
-    if (!isSuperAdmin) {
-      toast({
-        title: 'Permission Denied',
-        description: 'Only super admins can delete companies.',
-        variant: 'destructive',
-      });
-      return;
-    }
-    
     try {
       const { error } = await supabase
         .from('companies')
@@ -257,24 +230,23 @@ export default function SettingsPage() {
         .eq('id', id);
 
       if (error) throw error;
-      
+
       toast({
-        title: 'Company deleted',
-        description: 'The company has been deleted successfully',
+        title: 'Success',
+        description: 'Company deleted successfully',
       });
       
-      loadCompanies();
-    } catch (error) {
-      console.error('Error deleting company:', error);
+      fetchCompanies();
+    } catch {
+      // logger.error('Error deleting company:', error);
       toast({
         title: 'Error',
-        description: 'Failed to delete company. Please try again.',
+        description: 'Failed to delete company',
         variant: 'destructive',
       });
     }
   };
 
-  // Handle candidate deletion
   const handleDeleteCandidate = async (id: string) => {
     try {
       const { error } = await supabase
@@ -283,35 +255,24 @@ export default function SettingsPage() {
         .eq('id', id);
 
       if (error) throw error;
-      
+
       toast({
-        title: 'Candidate deleted',
-        description: 'The candidate has been deleted successfully',
+        title: 'Success',
+        description: 'Candidate deleted successfully',
       });
       
-      loadCandidates();
-    } catch (error) {
-      console.error('Error deleting candidate:', error);
+      fetchCandidates();
+    } catch {
+      // logger.error('Error deleting candidate:', error);
       toast({
         title: 'Error',
-        description: 'Failed to delete candidate. Please try again.',
+        description: 'Failed to delete candidate',
         variant: 'destructive',
       });
     }
   };
 
-  // Handle user/staff deletion
   const handleDeleteUser = async (id: string) => {
-    // Check if user is a super admin
-    if (!isSuperAdmin) {
-      toast({
-        title: 'Permission Denied',
-        description: 'Only super admins can delete staff members.',
-        variant: 'destructive',
-      });
-      return;
-    }
-    
     try {
       const { error } = await supabase
         .from('users')
@@ -319,856 +280,811 @@ export default function SettingsPage() {
         .eq('id', id);
 
       if (error) throw error;
-      
+
       toast({
-        title: 'User deleted',
-        description: 'The user has been deleted successfully',
+        title: 'Success',
+        description: 'User deleted successfully',
       });
       
-      loadUsers();
-    } catch (error) {
-      console.error('Error deleting user:', error);
+      fetchUsers();
+    } catch {
+      // logger.error('Error deleting user:', error);
       toast({
         title: 'Error',
-        description: 'Failed to delete user. Please try again.',
+        description: 'Failed to delete user',
         variant: 'destructive',
       });
     }
   };
 
+  const handleSharePasswordLink = async (user: User) => {
+    try {
+      setCopiedUserId(user.id);
+      
+      // Generate a unique token for password setup
+      const token = crypto.randomUUID();
+      const expiresAt = new Date();
+      expiresAt.setHours(expiresAt.getHours() + 24); // 24 hour expiry
+      
+      // Store the token in password_reset_tokens table
+      const { error: tokenError } = await supabase
+        .from("password_reset_tokens")
+        .insert({
+          user_id: user.id,
+          token: token,
+          email: user.email,
+          expires_at: expiresAt.toISOString(),
+          used: false
+        });
+        
+      if (tokenError) {
+        // logger.error("Error creating password token:", tokenError);
+        // Check if it's a table not found error
+        if (tokenError.message?.includes('relation') && tokenError.message?.includes('does not exist')) {
+          throw new Error("Password reset tokens table not found. Please run the migration script in Supabase SQL Editor.");
+        }
+        throw new Error(tokenError.message || "Failed to create password reset token");
+      }
+      
+      // Generate the password setup link
+      const baseUrl = window.location.origin;
+      const setupLink = `${baseUrl}/set-password?token=${token}&email=${encodeURIComponent(user.email)}`;
+      
+      // Copy to clipboard
+      await navigator.clipboard.writeText(setupLink);
+      
+      toast({
+        title: "Password Link Copied!",
+        description: `Password setup link for ${user.full_name || user.email} has been copied to clipboard. Share this link with the user - they should open it in a private/incognito window to avoid conflicts.`,
+      });
+      
+      // Reset copied state after 3 seconds
+      setTimeout(() => {
+        setCopiedUserId(null);
+      }, 3000);
+    } catch {
+      // logger.error('Error generating password link:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to generate password setup link',
+        variant: 'destructive',
+      });
+      setCopiedUserId(null);
+    }
+  };
 
-  // Filter companies based on search query
-  const filteredCompanies = companies.filter(company =>
-    searchQuery === "" ||
+  const filteredCompanies = companies.filter(company => 
     company.company_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    company.pic_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     company.company_email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     company.company_phone_no?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Check authentication status
-  const checkAuth = async () => {
-    try {
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      
-      if (sessionError) {
-        setAuthStatus({ loading: false, error: sessionError.message });
-        return;
-      }
+  const filteredCandidates = candidates.filter(candidate => 
+    candidate.full_name.toLowerCase().includes(candidateSearchQuery.toLowerCase()) ||
+    candidate.email?.toLowerCase().includes(candidateSearchQuery.toLowerCase()) ||
+    candidate.ic_number?.toLowerCase().includes(candidateSearchQuery.toLowerCase())
+  );
 
-      if (!session) {
-        setAuthStatus({ loading: false, user: null, session: null });
-        return;
-      }
+  const filteredUsers = users.filter(user => 
+    user.full_name?.toLowerCase().includes(userSearchQuery.toLowerCase()) ||
+    user.email?.toLowerCase().includes(userSearchQuery.toLowerCase()) ||
+    user.role?.toLowerCase().includes(userSearchQuery.toLowerCase())
+  );
 
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      
-      // Test expense_claims access
-      const { data: claims, error: claimsError } = await supabase
-        .from('expense_claims')
-        .select('id')
-        .eq('user_id', session.user.id)
-        .limit(1);
-
-      setAuthStatus({
-        loading: false,
-        user: user,
-        session: session,
-        error: userError?.message || claimsError?.message,
-        canAccessExpenseClaims: !claimsError
-      });
-    } catch (error) {
-      setAuthStatus({ loading: false, error: error.message });
+  const stats = [
+    { 
+      title: 'Total Companies', 
+      value: companies.length, 
+      icon: Building2,
+      color: 'from-blue-500 to-cyan-500'
+    },
+    { 
+      title: 'Total Candidates', 
+      value: candidates.length, 
+      icon: Users,
+      color: 'from-purple-500 to-pink-500'
+    },
+    { 
+      title: 'Total Users', 
+      value: users.length, 
+      icon: UserIcon,
+      color: 'from-green-500 to-emerald-500'
+    },
+    { 
+      title: 'System Health', 
+      value: '98%', 
+      icon: Activity,
+      color: 'from-orange-500 to-red-500'
     }
-  };
-
-  // Test insert to expense claims
-  const testInsert = async () => {
-    if (!authStatus.session) {
-      toast({
-        title: 'Not logged in',
-        description: 'You must be logged in to test insert',
-        variant: 'destructive'
-      });
-      return;
-    }
-
-    const testClaim = {
-      title: 'Settings Auth Test',
-      description: 'Testing from Settings page',
-      receipt_number: 'SETTINGS-TEST-001',
-      amount: 25.00,
-      total_amount: 25.00,
-      user_id: authStatus.session.user.id,
-      expense_date: new Date().toISOString().split('T')[0],
-      category: 'transport',
-      status: 'pending',
-      submitted_at: new Date().toISOString(),
-      submitted_by: 'Settings Test'
-    };
-
-    const { data, error } = await supabase
-      .from('expense_claims')
-      .insert([testClaim])
-      .select()
-      .single();
-
-    if (error) {
-      setAuthStatus(prev => ({ 
-        ...prev, 
-        testResult: `Insert failed: ${error.message}` 
-      }));
-      toast({
-        title: 'Test failed',
-        description: error.message,
-        variant: 'destructive'
-      });
-    } else {
-      // Clean up test record
-      await supabase.from('expense_claims').delete().eq('id', data.id);
-      setAuthStatus(prev => ({ 
-        ...prev, 
-        testResult: 'Insert test successful!' 
-      }));
-      toast({
-        title: 'Test successful',
-        description: 'Expense claim test completed successfully'
-      });
-    }
-  };
+  ];
 
   return (
-    <div className="flex-1 p-4 space-y-8">
-      <div className="flex items-center justify-between border-b pb-4">
-        <h1 className="text-2xl font-bold">Settings</h1>
-      </div>
-
-      {/* Companies Management Section - Only visible to non-super admins */}
-      {!isSuperAdmin && (
-      <div className="bg-card rounded-lg border shadow-sm">
-        <div className="p-6">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-            <div>
-              <h2 className="text-xl font-semibold">Companies</h2>
-              <p className="text-muted-foreground text-sm mt-1">
-                Manage client companies and their contact information
-              </p>
-            </div>
-            <Button onClick={() => {
-              setCompanyEditId(null);
-              setCompanyFormOpen(true);
-            }} size="sm">
-              <PlusIcon className="h-4 w-4 mr-1" />
-              Add
-            </Button>
-          </div>
-          
-          <div className="flex items-center w-full max-w-sm mb-6">
-            <div className="relative w-full">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search companies, contacts..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 w-full"
-              />
-            </div>
-          </div>
-          
-          {companyLoading ? (
-            <div className="flex justify-center p-8">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            </div>
-          ) : (
-            <div className="rounded-md border overflow-hidden">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-muted/50">
-                    <TableHead className="w-1/3">Company / Logo</TableHead>
-                    <TableHead className="w-1/5">Contact Info</TableHead>
-                    <TableHead className="w-1/3">Primary Contact Person</TableHead>
-                    <TableHead className="text-right w-1/6">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredCompanies.length > 0 ? (
-                    filteredCompanies.map((company) => (
-                      <TableRow key={company.id} className="cursor-pointer hover:bg-muted/20" onClick={() => {
-                        setCompanyEditId(company.id);
-                        setCompanyFormOpen(true);
-                      }}>
-                        <TableCell>
-                          <div className="flex items-center gap-3">
-                            {company.logo_url ? (
-                              <div className="h-12 w-12 rounded-md border border-gray-200 dark:border-gray-700 overflow-hidden flex-shrink-0 bg-white">
-                                <img 
-                                  src={company.logo_url} 
-                                  alt={`${company.name} logo`} 
-                                  className="h-full w-full object-contain"
-                                  onError={(e) => {
-                                    (e.target as HTMLImageElement).src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0OCIgaGVpZ2h0PSI0OCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9ImN1cnJlbnRDb2xvciIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiIGNsYXNzPSJsdWNpZGUtYnVpbGRpbmciPjxyZWN0IHg9IjQiIHk9IjIiIHdpZHRoPSIxNiIgaGVpZ2h0PSIyMCIgcng9IjIiLz48cGF0aCBkPSJNOSAyMnYtNGg2djQiLz48cGF0aCBkPSJNOCA2aDQuMDEiLz48cGF0aCBkPSJNMTIgNmg0Ii8+PHBhdGggZD0iTTggMTBoNy45OSIvPjxwYXRoIGQ9Ik04IDE0aDgiLz48L3N2Zz4='
-                                  }}
-                                />
-                              </div>
-                            ) : (
-                              <div className="h-12 w-12 rounded-md border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 flex items-center justify-center flex-shrink-0">
-                                <Building className="h-6 w-6 text-gray-400" />
-                              </div>
-                            )}
-                            <div className="flex flex-col">
-                              <span className="font-medium text-base">
-                                {company.name?.replace(/ Sdn Bhd| Enterprise|Enterprise| Bhd| Company| LLC| Ltd| Inc\.|, Inc\.|, Inc| Limited| Corporation/gi, '')}
-                              </span>
-                              {company.parent_id && (
-                                <Badge variant="outline" className="mt-1 w-fit text-xs">
-                                  Sub-company
-                                </Badge>
-                              )}
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex flex-col gap-1 text-sm">
-                            <div className="flex items-center gap-1.5">
-                              <Mail className="h-3.5 w-3.5 text-muted-foreground" />
-                              <span>{company.contact_email || '—'}</span>
-                            </div>
-                            <div className="flex items-center gap-1.5">
-                              <Phone className="h-3.5 w-3.5 text-muted-foreground" />
-                              <span>{company.contact_phone || '—'}</span>
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          {company.pic_name ? (
-                            <div className="flex flex-col gap-1 text-sm">
-                              <div className="flex items-center gap-2">
-                                <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center">
-                                  <UserIcon className="h-3.5 w-3.5 text-primary" />
-                                </div>
-                                <span className="font-medium">{company.pic_name}</span>
-                              </div>
-                              {company.pic_designation && (
-                                <div className="flex items-center gap-1.5 text-xs text-muted-foreground ml-8">
-                                  <Briefcase className="h-3 w-3" />
-                                  <span>{company.pic_designation}</span>
-                                </div>
-                              )}
-                              {company.pic_email && (
-                                <div className="flex items-center gap-1.5 text-xs text-muted-foreground ml-8">
-                                  <Mail className="h-3 w-3" />
-                                  <span>{company.pic_email}</span>
-                                </div>
-                              )}
-                              {company.pic_phone && (
-                                <div className="flex items-center gap-1.5 text-xs text-muted-foreground ml-8">
-                                  <Phone className="h-3 w-3" />
-                                  <span>{company.pic_phone}</span>
-                                </div>
-                              )}
-                            </div>
-                          ) : (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="text-xs"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setCompanyEditId(company.id);
-                                setCompanyFormOpen(true);
-                              }}
-                            >
-                              <PlusIcon className="h-3 w-3 mr-1" />
-                              Add Contact
-                            </Button>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
-                            <Button 
-                              variant="ghost" 
-                              size="icon"
-                              className="h-8 w-8"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setCompanyEditId(company.id);
-                                setCompanyFormOpen(true);
-                              }}
-                            >
-                              <Edit2 className="h-4 w-4" />
-                              <span className="sr-only">Edit</span>
-                            </Button>
-                            {/* Only show delete button for super admins */}
-                            {isSuperAdmin && (
-                              <Button 
-                                variant="ghost" 
-                                size="icon"
-                                className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDeleteCompany(company.id);
-                                }}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                                <span className="sr-only">Delete</span>
-                              </Button>
-                            )}
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  ) : (
-                    <TableRow>
-                      <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
-                        {searchQuery ? 'No companies found matching your search criteria.' : 'No companies found. Add a new company to get started.'}
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-          
-          {/* Company Form Dialog */}
-          {companyFormOpen && (
-            <NewCompanyDialog 
-              open={companyFormOpen}
-              onOpenChange={setCompanyFormOpen}
-              company={companies.find(c => c.id === companyEditId)}
-              onCompanyAdded={loadCompanies}
+    <div className="min-h-screen w-full bg-gray-50 dark:bg-gray-900">
+      <div className="h-full p-4 sm:p-6 lg:p-8">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          {/* Header */}
+          <div className="mb-8 text-center">
+            <SparklesText
+              text="Settings & Configuration"
+              className="text-4xl md:text-5xl font-bold mb-2 text-gray-900 dark:text-white"
+              sparklesCount={10}
             />
-          )}
-        </div>
-      </div>
-      )}
-      
-      {/* User Configuration Section - Only visible to super_admin */}
-      {isSuperAdmin && (
-        <div className="mt-8">
-          <UserConfigurationPage />
-        </div>
-      )}
-      
-      {/* Other Settings (Tabs) - Admin tab visible to all, others to super_admin */}
-      <div className="mt-8 space-y-6">
-        <div>
-          <h3 className="text-2xl font-bold">Advanced Settings</h3>
-          <p className="text-muted-foreground text-sm mt-1">
-            Additional configuration options and system tools
-          </p>
-        </div>
-        
-        <Card className="overflow-hidden">
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <div className="border-b bg-muted/50">
-              <TabsList className={isSuperAdmin ? "grid w-full grid-cols-4 h-auto p-0 bg-transparent" : "grid w-full grid-cols-1 h-auto p-0 bg-transparent"}>
-                {isSuperAdmin && (
-                  <>
-                    <TabsTrigger 
-                      value="candidates" 
-                      className="rounded-none border-r data-[state=active]:bg-background data-[state=active]:shadow-none h-16 flex flex-col gap-1"
-                    >
-                      <Users2 className="h-5 w-5" />
-                      <span className="text-xs">Candidates</span>
-                    </TabsTrigger>
-                    <TabsTrigger 
-                      value="staff" 
-                      className="rounded-none border-r data-[state=active]:bg-background data-[state=active]:shadow-none h-16 flex flex-col gap-1"
-                    >
-                      <Shield className="h-5 w-5" />
-                      <span className="text-xs">Staff</span>
-                    </TabsTrigger>
-                    <TabsTrigger 
-                      value="auth" 
-                      className="rounded-none border-r data-[state=active]:bg-background data-[state=active]:shadow-none h-16 flex flex-col gap-1"
-                    >
-                      <CheckCircle2 className="h-5 w-5" />
-                      <span className="text-xs">Auth Check</span>
-                    </TabsTrigger>
-                  </>
-                )}
-                <TabsTrigger 
-                  value="admin" 
-                  className="rounded-none data-[state=active]:bg-background data-[state=active]:shadow-none h-16 flex flex-col gap-1"
+            <AnimatedGradientText className="text-lg">
+              <span className={cn(
+                "inline animate-gradient bg-gradient-to-r from-[#ffaa40] via-[#9c40ff] to-[#ffaa40] bg-[length:var(--bg-size)_100%] bg-clip-text text-transparent"
+              )}>
+                Manage your workspace, users, and system preferences
+              </span>
+            </AnimatedGradientText>
+          </div>
+
+          {/* Stats Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            {stats.map((stat, index) => (
+              <motion.div
+                key={stat.title}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: index * 0.1 }}
+              >
+                <NeonGradientCard
+                  className="relative overflow-hidden"
+                  borderRadius={16}
+                  borderSize={1.5}
+                  neonColors={{ 
+                    firstColor: stat.color.split(' ')[1].replace('to-', ''), 
+                    secondColor: stat.color.split(' ')[0].replace('from-', '') 
+                  }}
                 >
-                  <Settings className="h-5 w-5" />
-                  <span className="text-xs">Admin</span>
+                  <div className="p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className={cn(
+                        "p-3 rounded-lg bg-gradient-to-r",
+                        stat.color,
+                        "bg-opacity-20"
+                      )}>
+                        <stat.icon className="h-6 w-6 text-white" />
+                      </div>
+                      <Sparkles className="h-4 w-4 text-yellow-400 animate-pulse" />
+                    </div>
+                    <p className="text-3xl font-bold text-gray-900 dark:text-white mb-1">{stat.value}</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">{stat.title}</p>
+                  </div>
+                  <BorderBeam size={60} duration={3} />
+                </NeonGradientCard>
+              </motion.div>
+            ))}
+          </div>
+
+          {/* Main Content */}
+          <MagicCard 
+            className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700"
+            gradientColor="rgba(120, 119, 198, 0.1)"
+          >
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+              <TabsList className="grid grid-cols-5 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+                <TabsTrigger 
+                  value="companies" 
+                  className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-cyan-500 data-[state=active]:text-white"
+                  disabled={userRole !== 'super_admin' && userRole !== 'admin'}
+                >
+                  {userRole !== 'super_admin' && userRole !== 'admin' && <Lock className="h-3 w-3 mr-1" />}
+                  <Building2 className="h-4 w-4 mr-2" />
+                  Companies
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="candidates"
+                  className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-pink-500 data-[state=active]:text-white"
+                  disabled={userRole !== 'super_admin' && userRole !== 'admin' && userRole !== 'pm'}
+                >
+                  {userRole !== 'super_admin' && userRole !== 'admin' && userRole !== 'pm' && <Lock className="h-3 w-3 mr-1" />}
+                  <Users className="h-4 w-4 mr-2" />
+                  Candidates
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="users"
+                  className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-500 data-[state=active]:to-emerald-500 data-[state=active]:text-white"
+                  disabled={userRole !== 'super_admin' && userRole !== 'admin'}
+                >
+                  {userRole !== 'super_admin' && userRole !== 'admin' && <Lock className="h-3 w-3 mr-1" />}
+                  <UserIcon className="h-4 w-4 mr-2" />
+                  Users
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="notifications"
+                  className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-indigo-500 data-[state=active]:to-purple-500 data-[state=active]:text-white"
+                >
+                  <Mail className="h-4 w-4 mr-2" />
+                  Notifications
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="system"
+                  className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500 data-[state=active]:to-red-500 data-[state=active]:text-white"
+                  disabled={userRole !== 'super_admin'}
+                >
+                  {userRole !== 'super_admin' && <Lock className="h-3 w-3 mr-1" />}
+                  <Settings className="h-4 w-4 mr-2" />
+                  System
                 </TabsTrigger>
               </TabsList>
-            </div>
-          
-            {/* Candidates Tab - Only for super admins */}
-            {isSuperAdmin && (
-            <TabsContent value="candidates" className="p-0 m-0">
-              <div className="p-6 space-y-6">
-                <div className="flex justify-between items-center">
-                  <div>
-                    <h2 className="text-xl font-semibold">Candidates Management</h2>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      Manage candidate profiles and information
-                    </p>
-                  </div>
-                  <Button onClick={() => {
-                    setEditingCandidate(null);
-                    setCandidateFormOpen(true);
-                  }}>
-                    <UserPlus className="h-4 w-4 mr-2" />
-                    Add Candidate
-                  </Button>
-                </div>
-          
-                {candidateLoading ? (
-                  <div className="flex justify-center p-12 bg-muted/20 rounded-lg">
-                    <div className="text-center space-y-2">
-                      <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
-                      <p className="text-sm text-muted-foreground">Loading candidates...</p>
-                    </div>
-                  </div>
-                ) : (
-                  <Card>
-                    <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Full Name</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Phone</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {candidates.length > 0 ? (
-                    candidates.map((candidate) => (
-                      <TableRow key={candidate.id}>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <img
-                              className="rounded-full"
-                              src={''}  // Using initials instead
-                              width={32}
-                              height={32}
-                              alt={candidate.full_name}
-                            />
-                            <span className="font-medium">{candidate.full_name}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell>{candidate.email}</TableCell>
-                        <TableCell>{candidate.phone_number}</TableCell>
-                        <TableCell>
-                          <Badge
-                            variant={candidate.is_banned ? "destructive" : "success"}
-                            className="font-normal"
-                          >
-                            {candidate.is_banned ? "Banned" : "Active"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
-                            <Button 
-                              variant="ghost" 
-                              size="icon"
-                              className="h-8 w-8"
-                              onClick={() => {
-                                setEditingCandidate(candidate);
-                                setCandidateFormOpen(true);
-                              }}
-                            >
-                              <Edit2 className="h-4 w-4" />
-                              <span className="sr-only">Edit</span>
-                            </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="icon"
-                              className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20"
-                              onClick={() => handleDeleteCandidate(candidate.id)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                              <span className="sr-only">Delete</span>
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  ) : (
-                    <TableRow>
-                      <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                        No candidates found. Add a new candidate to get started.
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </Card>
-          )}
-          
-          {/* Candidate Form Dialog */}
-          {candidateFormOpen && (
-            <NewCandidateDialog 
-              open={candidateFormOpen}
-              onOpenChange={setCandidateFormOpen}
-              candidate={editingCandidate}
-              onCandidateAdded={loadCandidates}
-            />
-          )}
-              </div>
-            </TabsContent>
-            )}
-        
-        {/* Staff Management Tab - Only for super admins */}
-        {isSuperAdmin && (
-        <TabsContent value="staff" className="p-0 m-0">
-          <div className="p-6 space-y-6">
-            <div className="flex justify-between items-center">
-              <div>
-                <h2 className="text-xl font-semibold">Staff Management</h2>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Manage system users and their permissions
-                </p>
-              </div>
-            
-              {/* All users can add new staff */}
-              <Button onClick={() => {
-                setEditingUser(null);
-                setUserFormOpen(true);
-              }}>
-                <UserPlus className="h-4 w-4 mr-2" />
-                Add Staff
-              </Button>
-            </div>
-          
-          {/* Show permission notice for non-admin users */}
-          {!isSuperAdmin && (
-            <Alert className="bg-yellow-50 border-yellow-100 dark:bg-yellow-900/20 dark:border-yellow-800 mb-4">
-              <AlertCircle className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
-              <AlertDescription className="text-yellow-600 dark:text-yellow-400">
-                You can add new staff members, but only super admins can edit or delete existing staff.
-              </AlertDescription>
-            </Alert>
-          )}
-          
-          {/* Add User Dialog - accessible to all users */}
-          <NewUserDialog
-            open={userFormOpen}
-            onOpenChange={setUserFormOpen}
-            user={editingUser || undefined}
-            onUserAdded={loadUsers}
-          />
-          
-            {usersLoading || isUserLoading ? (
-              <div className="flex justify-center p-12 bg-muted/20 rounded-lg">
-                <div className="text-center space-y-2">
-                  <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
-                  <p className="text-sm text-muted-foreground">Loading staff members...</p>
-                </div>
-              </div>
-            ) : (
-              <Card>
-                <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Role</TableHead>
-                    <TableHead>Admin</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {users.length > 0 ? (
-                    users.map((user) => (
-                      <TableRow key={user.id}>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <img
-                              className="rounded-full"
-                              src={user.avatar_url}
-                              width={32}
-                              height={32}
-                              alt={user.full_name}
-                            />
-                            <span className="font-medium">{user.full_name}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell>{user.email}</TableCell>
-                        <TableCell>
-                          <Badge variant="outline">
-                            {user.role}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          {user.is_super_admin ? (
-                            <Badge variant="secondary">Super Admin</Badge>
-                          ) : (
-                            <span className="text-muted-foreground">-</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {isSuperAdmin ? (
-                            <div className="flex justify-end gap-2">
-                              <Button 
-                                variant="ghost" 
-                                size="icon"
-                                className="h-8 w-8"
-                                onClick={() => {
-                                  setEditingUser(user);
-                                  setUserFormOpen(true);
-                                }}
-                              >
-                                <Edit2 className="h-4 w-4" />
-                                <span className="sr-only">Edit</span>
-                              </Button>
-                              {/* Only show delete for non-super admin users */}
-                              {!user.is_super_admin && (
-                                <Button 
-                                  variant="ghost" 
-                                  size="icon"
-                                  className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20"
-                                  onClick={() => handleDeleteUser(user.id)}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                  <span className="sr-only">Delete</span>
-                                </Button>
-                              )}
-                            </div>
-                          ) : (
-                            <span className="text-muted-foreground text-sm">No actions available</span>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  ) : (
-                    <TableRow>
-                      <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                        No staff users found.
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-              </Card>
-            )}
-              </div>
-            </TabsContent>
-            )}
-        
-        {/* Auth Check Tab - Only for super admins */}
-        {isSuperAdmin && (
-        <TabsContent value="auth" className="p-0 m-0">
-          <div className="p-6">
-            <Card>
-              <CardHeader>
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="h-5 w-5 text-primary" />
-                  <CardTitle>Authentication Status Check</CardTitle>
-                </div>
-                <CardDescription>
-                  Check your authentication status and test database access
-                </CardDescription>
-              </CardHeader>
-            <CardContent className="space-y-4">
-              {authStatus.loading ? (
-                <div className="flex justify-center p-8">
-                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                </div>
-              ) : (
-                <>
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <strong>Logged In:</strong> 
-                      {authStatus.user ? (
-                        <Badge variant="success">✅ Yes</Badge>
-                      ) : (
-                        <Badge variant="destructive">❌ No</Badge>
-                      )}
-                    </div>
-                    {authStatus.user && (
-                      <>
-                        <div>
-                          <strong>User ID:</strong> <code className="text-sm bg-gray-100 dark:bg-gray-800 p-1 rounded">{authStatus.user.id}</code>
-                        </div>
-                        <div>
-                          <strong>Email:</strong> {authStatus.user.email}
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <strong>Can Access Expense Claims:</strong> 
-                          {authStatus.canAccessExpenseClaims ? (
-                            <Badge variant="success">✅ Yes</Badge>
-                          ) : (
-                            <Badge variant="destructive">❌ No</Badge>
-                          )}
-                        </div>
-                      </>
-                    )}
-                    {authStatus.error && (
-                      <Alert variant="destructive">
-                        <AlertCircle className="h-4 w-4" />
-                        <AlertDescription>
-                          <strong>Error:</strong> {authStatus.error}
-                        </AlertDescription>
-                      </Alert>
-                    )}
-                  </div>
-                  
-                  <div className="space-x-2">
-                    <Button onClick={checkAuth} variant="outline">
-                      <RefreshCcw className="h-4 w-4 mr-2" />
-                      Refresh Status
-                    </Button>
-                    <Button 
-                      onClick={testInsert} 
-                      disabled={!authStatus.user}
-                      variant="default"
-                    >
-                      <Database className="h-4 w-4 mr-2" />
-                      Test Database Insert
-                    </Button>
-                  </div>
-                  
-                  {authStatus.testResult && (
-                    <Alert className={authStatus.testResult.includes('successful') ? 'border-green-500' : 'border-red-500'}>
-                      <AlertDescription>
-                        <strong>Test Result:</strong> {authStatus.testResult}
-                      </AlertDescription>
-                    </Alert>
-                  )}
-                </>
-              )}
-            </CardContent>
-          </Card>
-          </div>
-        </TabsContent>
-        )}
 
-        {/* Admin Tab - Available to all users */}
-        <TabsContent value="admin" className="p-0 m-0">
-          <div className="p-6">
-            <Card>
-              <CardHeader>
-                <div className="flex items-center gap-2">
-                  <Shield className="h-5 w-5 text-primary" />
-                  <CardTitle>Admin Controls</CardTitle>
-                </div>
-                <CardDescription>
-                  Manage admin permissions and roles for your account
-                </CardDescription>
-              </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-6">
-                <div className="p-4 rounded-lg bg-muted/50 border">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Label htmlFor="admin-role" className="text-base font-medium">Admin Role</Label>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        Grant admin privileges to access the Payments page
-                      </p>
-                    </div>
-                    <Switch
-                  id="admin-role"
-                  checked={currentUserRole === 'admin'}
-                  onCheckedChange={async (checked) => {
-                    setAdminLoading(true);
-                    try {
-                      const { data: { user } } = await supabase.auth.getUser();
-                      if (user) {
-                        const { error } = await supabase
-                          .from('users')
-                          .update({ role: checked ? 'admin' : 'staff' })
-                          .eq('id', user.id);
-                        
-                        if (error) throw error;
-                        
-                        setCurrentUserRole(checked ? 'admin' : 'staff');
-                        
-                        toast({
-                          title: 'Role Updated',
-                          description: `User role changed to ${checked ? 'admin' : 'staff'}. Please refresh the page to see sidebar changes.`,
-                        });
-                      }
-                    } catch (error) {
-                      console.error('Error updating role:', error);
-                      toast({
-                        title: 'Error',
-                        description: 'Failed to update user role',
-                        variant: 'destructive'
-                      });
-                    } finally {
-                      setAdminLoading(false);
-                    }
-                  }}
-                  disabled={adminLoading}
-                />
-                  </div>
-                </div>
-                
-                <div className="p-4 rounded-lg bg-muted/50 border">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Label htmlFor="super-admin" className="text-base font-medium">Super Admin</Label>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        Grant full system access and configuration privileges
-                      </p>
-                    </div>
-                    <Switch
-                  id="super-admin"
-                  checked={isSuperAdmin}
-                  onCheckedChange={async (checked) => {
-                    setAdminLoading(true);
-                    try {
-                      const { data: { user } } = await supabase.auth.getUser();
-                      if (user) {
-                        const { error } = await supabase
-                          .from('users')
-                          .update({ is_super_admin: checked })
-                          .eq('id', user.id);
-                        
-                        if (error) throw error;
-                        
-                        setIsSuperAdmin(checked);
-                        
-                        toast({
-                          title: 'Super Admin Updated',
-                          description: `Super admin status ${checked ? 'granted' : 'revoked'}. Please refresh the page to see changes.`,
-                        });
-                      }
-                    } catch (error) {
-                      console.error('Error updating super admin:', error);
-                      toast({
-                        title: 'Error',
-                        description: 'Failed to update super admin status',
-                        variant: 'destructive'
-                      });
-                    } finally {
-                      setAdminLoading(false);
-                    }
-                  }}
-                  disabled={adminLoading}
-                />
-                  </div>
-                </div>
-              </div>
-              
-              <Card className="bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800">
-                <CardContent className="pt-6">
-                <p className="text-sm text-muted-foreground">
-                  Current role: <span className="font-medium">{currentUserRole}</span>
-                  {isSuperAdmin && <span className="text-blue-600 ml-2">(Super Admin)</span>}
-                </p>
-                <p className="text-xs text-muted-foreground mt-2">
-                  <AlertCircle className="h-3 w-3 inline mr-1" />
-                  Admin users can access the Payments page to view and export payment submissions from projects.
-                </p>
-                </CardContent>
-              </Card>
-            </CardContent>
-          </Card>
-          </div>
-        </TabsContent>
-      </Tabs>
-      </Card>
+              <TabsContent value="companies" className="mt-6">
+                <motion.div
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+                    <CardHeader>
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <CardTitle className="text-gray-900 dark:text-white flex items-center gap-2">
+                            <Building2 className="h-5 w-5" />
+                            Company Management
+                          </CardTitle>
+                          <CardDescription className="text-gray-600 dark:text-gray-400">
+                            Manage companies in your system
+                          </CardDescription>
+                        </div>
+                        <ShimmerButton 
+                          type="button"
+                          className="relative z-10"
+                          onClick={() => {
+                            setCompanyEditId(null);
+                            setCompanyFormOpen(true);
+                          }}
+                        >
+                          <PlusIcon className="h-4 w-4 mr-2" />
+                          Add Company
+                        </ShimmerButton>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="mb-4">
+                        <div className="relative">
+                          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                          <Input
+                            placeholder="Search companies..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="pl-10 bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+                          />
+                        </div>
+                      </div>
+
+                      {companyLoading ? (
+                        <div className="flex justify-center items-center py-12">
+                          <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+                        </div>
+                      ) : filteredCompanies.length === 0 ? (
+                        <div className="text-center py-12">
+                          <Building className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+                          <p className="text-gray-600 dark:text-gray-400">No companies found</p>
+                        </div>
+                      ) : (
+                        <div className="overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700">
+                          <Table>
+                            <TableHeader>
+                              <TableRow className="border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800">
+                                <TableHead className="text-gray-700 dark:text-gray-400 w-12"></TableHead>
+                                <TableHead className="text-gray-700 dark:text-gray-400">Name</TableHead>
+                                <TableHead className="text-gray-700 dark:text-gray-400">Email</TableHead>
+                                <TableHead className="text-gray-700 dark:text-gray-400">Phone</TableHead>
+                                <TableHead className="text-gray-700 dark:text-gray-400 text-right">Actions</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {filteredCompanies.map((company) => {
+                                const isExpanded = expandedCompanies.has(company.id);
+                                const hasContacts = company.contacts && company.contacts.length > 0;
+                                
+                                return (
+                                  <React.Fragment key={company.id}>
+                                    <TableRow 
+                                      className="border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                                    >
+                                      <TableCell className="w-12">
+                                        {hasContacts && (
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-6 w-6 p-0"
+                                            onClick={() => {
+                                              const newExpanded = new Set(expandedCompanies);
+                                              if (isExpanded) {
+                                                newExpanded.delete(company.id);
+                                              } else {
+                                                newExpanded.add(company.id);
+                                              }
+                                              setExpandedCompanies(newExpanded);
+                                            }}
+                                          >
+                                            {isExpanded ? (
+                                              <ChevronDown className="h-4 w-4" />
+                                            ) : (
+                                              <ChevronRight className="h-4 w-4" />
+                                            )}
+                                          </Button>
+                                        )}
+                                      </TableCell>
+                                      <TableCell>
+                                        <div className="flex items-center space-x-3">
+                                          {company.logo_url ? (
+                                            <img
+                                              src={company.logo_url}
+                                              alt={company.company_name}
+                                              className="h-8 w-8 rounded-full object-cover"
+                                            />
+                                          ) : (
+                                            <div className="h-8 w-8 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center">
+                                              <Building className="h-4 w-4 text-white" />
+                                            </div>
+                                          )}
+                                          <div className="text-left">
+                                            <p className="font-medium text-gray-900 dark:text-white">{company.company_name}</p>
+                                            {hasContacts && (
+                                              <p className="text-xs text-gray-500 dark:text-gray-400">
+                                                {company.contacts.length} contact{company.contacts.length > 1 ? 's' : ''}
+                                              </p>
+                                            )}
+                                          </div>
+                                        </div>
+                                      </TableCell>
+                                      <TableCell className="text-gray-700 dark:text-gray-300">{company.company_email || '-'}</TableCell>
+                                      <TableCell className="text-gray-700 dark:text-gray-300">{company.company_phone_no || '-'}</TableCell>
+                                      <TableCell className="text-right">
+                                        <div className="flex justify-end space-x-2">
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => {
+                                              setCompanyEditId(company.id);
+                                              setCompanyFormOpen(true);
+                                            }}
+                                            className="text-blue-400 hover:text-blue-300 hover:bg-blue-500/20"
+                                          >
+                                            <Edit2 className="h-4 w-4" />
+                                          </Button>
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => handleDeleteCompany(company.id)}
+                                            className="text-red-400 hover:text-red-300 hover:bg-red-500/20"
+                                          >
+                                            <Trash2 className="h-4 w-4" />
+                                          </Button>
+                                        </div>
+                                      </TableCell>
+                                    </TableRow>
+                                    {isExpanded && hasContacts && company.contacts.map((contact, index) => (
+                                      <TableRow 
+                                        key={`${company.id}-contact-${contact.id || index}`}
+                                        className="bg-gray-50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700"
+                                      >
+                                        <TableCell></TableCell>
+                                        <TableCell className="pl-14">
+                                          <div className="flex items-center space-x-3">
+                                            <div className="h-8 w-8 rounded-full bg-gradient-to-br from-gray-400 to-gray-500 flex items-center justify-center">
+                                              <UserIcon className="h-4 w-4 text-white" />
+                                            </div>
+                                            <div>
+                                              <div className="flex items-center gap-2">
+                                                <p className="font-medium text-gray-900 dark:text-white">{contact.name}</p>
+                                                {contact.is_primary && (
+                                                  <Badge className="text-xs bg-blue-100 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400">Primary</Badge>
+                                                )}
+                                              </div>
+                                              {contact.designation && (
+                                                <p className="text-xs text-gray-500 dark:text-gray-400">{contact.designation}</p>
+                                              )}
+                                            </div>
+                                          </div>
+                                        </TableCell>
+                                        <TableCell className="text-gray-700 dark:text-gray-300">{contact.email || '-'}</TableCell>
+                                        <TableCell className="text-gray-700 dark:text-gray-300">{contact.phone || '-'}</TableCell>
+                                        <TableCell></TableCell>
+                                      </TableRow>
+                                    ))}
+                                  </React.Fragment>
+                                );
+                              })}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              </TabsContent>
+
+              <TabsContent value="candidates" className="mt-6">
+                <motion.div
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+                    <CardHeader>
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <CardTitle className="text-gray-900 dark:text-white flex items-center gap-2">
+                            <Users className="h-5 w-5" />
+                            Candidate Management
+                          </CardTitle>
+                          <CardDescription className="text-gray-600 dark:text-gray-400">
+                            Manage candidates and crew members
+                          </CardDescription>
+                        </div>
+                        <ShimmerButton 
+                          type="button"
+                          className="relative z-10"
+                          onClick={() => {
+                            setEditingCandidate(null);
+                            setCandidateFormOpen(true);
+                          }}
+                        >
+                          <UserPlus className="h-4 w-4 mr-2" />
+                          Add Candidate
+                        </ShimmerButton>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="mb-4">
+                        <div className="relative">
+                          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                          <Input
+                            placeholder="Search candidates..."
+                            value={candidateSearchQuery}
+                            onChange={(e) => setCandidateSearchQuery(e.target.value)}
+                            className="pl-10 bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+                          />
+                        </div>
+                      </div>
+
+                      {candidateLoading ? (
+                        <div className="flex justify-center items-center py-12">
+                          <Loader2 className="h-8 w-8 animate-spin text-purple-500" />
+                        </div>
+                      ) : filteredCandidates.length === 0 ? (
+                        <div className="text-center py-12">
+                          <Users className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+                          <p className="text-gray-600 dark:text-gray-400">No candidates found</p>
+                        </div>
+                      ) : (
+                        <div className="overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700">
+                          <Table>
+                            <TableHeader>
+                              <TableRow className="border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800">
+                                <TableHead className="text-gray-700 dark:text-gray-400">Name</TableHead>
+                                <TableHead className="text-gray-700 dark:text-gray-400">Email</TableHead>
+                                <TableHead className="text-gray-700 dark:text-gray-400">Phone</TableHead>
+                                <TableHead className="text-gray-700 dark:text-gray-400">IC Number</TableHead>
+                                <TableHead className="text-gray-700 dark:text-gray-400">Status</TableHead>
+                                <TableHead className="text-gray-700 dark:text-gray-400 text-right">Actions</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {filteredCandidates.map((candidate) => (
+                                <TableRow 
+                                  key={candidate.id} 
+                                  className="border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                                >
+                                  <TableCell>
+                                    <div className="flex items-center space-x-3">
+                                      {candidate.profile_photo ? (
+                                        <img
+                                          src={candidate.profile_photo}
+                                          alt={candidate.full_name}
+                                          className="h-8 w-8 rounded-full object-cover"
+                                        />
+                                      ) : (
+                                        <div className="h-8 w-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+                                          <UserIcon className="h-4 w-4 text-white" />
+                                        </div>
+                                      )}
+                                      <p className="font-medium text-gray-900 dark:text-white">{candidate.full_name}</p>
+                                    </div>
+                                  </TableCell>
+                                  <TableCell className="text-gray-700 dark:text-gray-300">{candidate.email || '-'}</TableCell>
+                                  <TableCell className="text-gray-700 dark:text-gray-300">{candidate.phone_number || '-'}</TableCell>
+                                  <TableCell className="text-gray-700 dark:text-gray-300">{candidate.ic_number || '-'}</TableCell>
+                                  <TableCell>
+                                    <Badge 
+                                      className={cn(
+                                        "border-none",
+                                        candidate.is_active 
+                                          ? "bg-green-500/20 text-green-400" 
+                                          : "bg-gray-500/20 text-gray-400"
+                                      )}
+                                    >
+                                      {candidate.is_active ? 'Active' : 'Inactive'}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell className="text-right">
+                                    <div className="flex justify-end space-x-2">
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => {
+                                          setEditingCandidate(candidate);
+                                          setCandidateFormOpen(true);
+                                        }}
+                                        className="text-purple-400 hover:text-purple-300 hover:bg-purple-500/20"
+                                      >
+                                        <Edit2 className="h-4 w-4" />
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => handleDeleteCandidate(candidate.id)}
+                                        className="text-red-400 hover:text-red-300 hover:bg-red-500/20"
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              </TabsContent>
+
+              <TabsContent value="users" className="mt-6">
+                <motion.div
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+                    <CardHeader>
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <CardTitle className="text-gray-900 dark:text-white flex items-center gap-2">
+                            <UserIcon className="h-5 w-5" />
+                            User Management
+                          </CardTitle>
+                          <CardDescription className="text-gray-600 dark:text-gray-400">
+                            Manage system users and permissions
+                          </CardDescription>
+                        </div>
+                        <ShimmerButton 
+                          type="button"
+                          className="relative z-10"
+                          onClick={() => {
+                            setEditingUser(null);
+                            setUserFormOpen(true);
+                          }}
+                        >
+                          <UserPlus className="h-4 w-4 mr-2" />
+                          Add User
+                        </ShimmerButton>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="mb-4">
+                        <div className="relative">
+                          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                          <Input
+                            placeholder="Search users..."
+                            value={userSearchQuery}
+                            onChange={(e) => setUserSearchQuery(e.target.value)}
+                            className="pl-10 bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+                          />
+                        </div>
+                      </div>
+
+                      {usersLoading ? (
+                        <div className="flex justify-center items-center py-12">
+                          <Loader2 className="h-8 w-8 animate-spin text-green-500" />
+                        </div>
+                      ) : filteredUsers.length === 0 ? (
+                        <div className="text-center py-12">
+                          <UserIcon className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+                          <p className="text-gray-600 dark:text-gray-400">No users found</p>
+                        </div>
+                      ) : (
+                        <div className="overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700">
+                          <Table>
+                            <TableHeader>
+                              <TableRow className="border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800">
+                                <TableHead className="text-gray-700 dark:text-gray-400">Name</TableHead>
+                                <TableHead className="text-gray-700 dark:text-gray-400">Email</TableHead>
+                                <TableHead className="text-gray-700 dark:text-gray-400">Role</TableHead>
+                                <TableHead className="text-gray-700 dark:text-gray-400">Company</TableHead>
+                                <TableHead className="text-gray-700 dark:text-gray-400">Status</TableHead>
+                                <TableHead className="text-gray-700 dark:text-gray-400 text-right">Actions</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {filteredUsers.map((user) => (
+                                <TableRow 
+                                  key={user.id} 
+                                  className="border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                                >
+                                  <TableCell>
+                                    <div className="flex items-center space-x-3">
+                                      {user.avatar_url ? (
+                                        <img
+                                          src={user.avatar_url}
+                                          alt={user.full_name || ''}
+                                          className="h-8 w-8 rounded-full object-cover"
+                                        />
+                                      ) : (
+                                        <div className="h-8 w-8 rounded-full bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center">
+                                          <UserIcon className="h-4 w-4 text-white" />
+                                        </div>
+                                      )}
+                                      <p className="font-medium text-gray-900 dark:text-white">{user.full_name || user.email}</p>
+                                    </div>
+                                  </TableCell>
+                                  <TableCell className="text-gray-700 dark:text-gray-300">{user.email}</TableCell>
+                                  <TableCell>
+                                    <Badge 
+                                      className={cn(
+                                        "border-none",
+                                        user.role === 'super_admin' 
+                                          ? "bg-red-500/20 text-red-400"
+                                          : user.role === 'admin'
+                                          ? "bg-orange-500/20 text-orange-400"
+                                          : user.role === 'manager'
+                                          ? "bg-blue-500/20 text-blue-400"
+                                          : user.role === 'client'
+                                          ? "bg-green-500/20 text-green-400"
+                                          : "bg-gray-500/20 text-gray-400"
+                                      )}
+                                    >
+                                      {user.role || 'User'}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell className="text-gray-700 dark:text-gray-300">{user.company_name || '-'}</TableCell>
+                                  <TableCell>
+                                    <Badge 
+                                      className={cn(
+                                        "border-none",
+                                        user.is_active !== false
+                                          ? "bg-green-500/20 text-green-400" 
+                                          : "bg-gray-500/20 text-gray-400"
+                                      )}
+                                    >
+                                      {user.is_active !== false ? 'Active' : 'Inactive'}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell className="text-right">
+                                    <div className="flex justify-end space-x-2">
+                                      <TooltipProvider>
+                                        <Tooltip>
+                                          <TooltipTrigger asChild>
+                                            <Button
+                                              variant="ghost"
+                                              size="sm"
+                                              onClick={() => handleSharePasswordLink(user)}
+                                              className="text-blue-400 hover:text-blue-300 hover:bg-blue-500/20"
+                                              disabled={copiedUserId === user.id}
+                                            >
+                                              {copiedUserId === user.id ? (
+                                                <Check className="h-4 w-4 text-green-400" />
+                                              ) : (
+                                                <Share2 className="h-4 w-4" />
+                                              )}
+                                            </Button>
+                                          </TooltipTrigger>
+                                          <TooltipContent>
+                                            <p>Generate password setup link</p>
+                                          </TooltipContent>
+                                        </Tooltip>
+                                      </TooltipProvider>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => {
+                                          setEditingUser(user);
+                                          setUserFormOpen(true);
+                                        }}
+                                        className="text-green-400 hover:text-green-300 hover:bg-green-500/20"
+                                      >
+                                        <Edit2 className="h-4 w-4" />
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => handleDeleteUser(user.id)}
+                                        className="text-red-400 hover:text-red-300 hover:bg-red-500/20"
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              </TabsContent>
+
+              <TabsContent value="notifications" className="mt-6">
+                <motion.div
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <NotificationSettings />
+                </motion.div>
+              </TabsContent>
+
+              <TabsContent value="system" className="mt-6">
+                <motion.div
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <Card className="bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+                    <CardHeader>
+                      <CardTitle className="text-gray-900 dark:text-white flex items-center gap-2">
+                        <Settings className="h-5 w-5" />
+                        System Configuration
+                      </CardTitle>
+                      <CardDescription className="text-gray-600 dark:text-gray-400">
+                        Configure system settings and preferences
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-center py-12">
+                        <Settings className="h-12 w-12 text-gray-400 mx-auto mb-3 animate-pulse" />
+                        <p className="text-gray-600 dark:text-gray-400">System configuration coming soon</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              </TabsContent>
+            </Tabs>
+          </MagicCard>
+        </motion.div>
       </div>
+
+      {/* Dialogs */}
+      <NewCompanyDialog
+        open={companyFormOpen}
+        onOpenChange={setCompanyFormOpen}
+        onCompanyAdded={() => {
+          fetchCompanies();
+          setCompanyFormOpen(false);
+        }}
+        company={companies.find(c => c.id === companyEditId)}
+      />
+
+      <NewCandidateDialog
+        open={candidateFormOpen}
+        onOpenChange={setCandidateFormOpen}
+        onCandidateAdded={() => {
+          fetchCandidates();
+          setCandidateFormOpen(false);
+        }}
+        initialData={editingCandidate}
+      />
+
+      
+      <NewUserDialog
+        open={userFormOpen}
+        onOpenChange={setUserFormOpen}
+        onUserAdded={() => {
+          fetchUsers();
+          setUserFormOpen(false);
+        }}
+        user={editingUser}
+      />
     </div>
   );
 }
-
-// Add missing React import for hooks
-const { useState, useEffect } = React;

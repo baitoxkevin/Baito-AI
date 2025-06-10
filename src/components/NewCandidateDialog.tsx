@@ -8,6 +8,7 @@
  * - Comprehensive form with business, personal, and contact details
  */
 import { useState, useEffect } from 'react';
+import { logger } from '../lib/logger';
 import {
   Dialog,
   DialogContent,
@@ -30,7 +31,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabase';
-import { CheckCircle, Building, FileText, Home, CreditCard, User, UserCheck, Car, Languages, Camera, Upload, X } from 'lucide-react';
+import { CheckCircle, Building, FileText, Home, CreditCard, User, UserCheck, Car, Languages, Camera, Upload, X, Trash2 } from 'lucide-react';
 import { ProfileUpload } from '@/components/ui/profile-upload';
 
 interface NewCandidateDialogProps {
@@ -48,7 +49,32 @@ export default function NewCandidateDialog({
 }: NewCandidateDialogProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<string>("basic");
+  const [currentUser, setCurrentUser] = useState<{ name: string; id: string } | null>(null);
   const { toast } = useToast();
+  
+  // Get current user info on component mount
+  useEffect(() => {
+    const getCurrentUserInfo = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          // Try to get user's full name from users table
+          const { data: userData } = await supabase
+            .from('users')
+            .select('full_name')
+            .eq('id', user.id)
+            .single();
+          
+          const userName = userData?.full_name || user.email?.split('@')[0] || 'Unknown User';
+          setCurrentUser({ name: userName, id: user.id });
+        }
+      } catch (error) {
+        logger.error('Error getting current user:', error);
+      }
+    };
+    
+    getCurrentUserInfo();
+  }, []);
   
   // Generate a unique short ID using a-z prefix followed by 5 digits
   const generateUniqueId = () => {
@@ -214,12 +240,12 @@ export default function NewCandidateDialog({
     }
 
     try {
-      console.log('Submitting candidate data:', submissionData);
+      logger.debug('Submitting candidate data:', { data: submissionData });
       
       // For empty email, set to null instead of using a placeholder
       if (!submissionData.email || submissionData.email.trim() === '') {
         submissionData.email = null;
-        console.log('Empty email detected, setting to null');
+        logger.debug('Empty email detected, setting to null');
       }
 
       // Check if the candidate already exists in the system - first by IC number
@@ -377,7 +403,7 @@ export default function NewCandidateDialog({
                     onCandidateAdded();
                     onOpenChange(false);
                   } catch (updateError) {
-                    console.error('Error updating candidate:', updateError);
+                    logger.error('Error updating candidate:', updateError);
                     toast({
                       title: 'Error',
                       description: 'Failed to update candidate. Please try again.',
@@ -397,6 +423,119 @@ export default function NewCandidateDialog({
         return;
       }
       
+      // Check if we're updating an existing candidate (from edit mode)
+      if (formData.id) {
+        // We're in edit mode, perform an update
+        try {
+          // Prepare photo data for storage
+          const photoData = {
+            profile_photo: formData.profile_photo,
+            full_body_photos: fullBodyPhotos.length > 0 ? fullBodyPhotos : (formData.full_body_photo ? [formData.full_body_photo] : []),
+            half_body_photos: halfBodyPhotos
+          };
+          
+          // Prepare the custom fields data
+          const customFields = {
+            // Basic candidate custom fields
+            age: submissionData.age || '',
+            race: submissionData.race || '',
+            tshirt_size: submissionData.tshirt_size || '',
+            transportation: submissionData.transportation || '',
+            spoken_languages: submissionData.spoken_languages || '',
+            height: submissionData.height || '',
+            typhoid: submissionData.typhoid || 'no',
+            work_experience: submissionData.work_experience || '',
+            
+            // Photo information
+            profile_photo: photoData.profile_photo || '',
+            full_body_photos: photoData.full_body_photos || [],
+            half_body_photos: photoData.half_body_photos || [],
+            
+            // Entity and registration fields not in the schema
+            entity_type: submissionData.entity_type || 'individual',
+            registration_type: submissionData.registration_type || 'nric',
+            old_registration_id: submissionData.old_registration_id || '',
+            tin: submissionData.tin || '',
+            sst_registration_no: submissionData.sst_registration_no || '',
+            
+            // Business/finance fields not in the schema
+            is_customer: submissionData.is_customer || false,
+            is_supplier: submissionData.is_supplier || false,
+            receivable_ac_code: submissionData.receivable_ac_code || '',
+            payable_ac_code: submissionData.payable_ac_code || '',
+            income_ac_code: submissionData.income_ac_code || '',
+            expense_ac_code: submissionData.expense_ac_code || '',
+          };
+      
+          // Update the existing candidate
+          const { error: updateError } = await supabase
+            .from('candidates')
+            .update({
+              full_name: submissionData.legal_name,
+              ic_number: submissionData.registration_id,
+              date_of_birth: submissionData.date_of_birth || null,
+              phone_number: submissionData.phone_number,
+              gender: submissionData.gender,
+              email: submissionData.email,
+              nationality: submissionData.nationality,
+              emergency_contact_name: submissionData.emergency_contact_name,
+              emergency_contact_number: submissionData.emergency_contact_number,
+              
+              // All custom fields in the JSONB column
+              custom_fields: customFields,
+              
+              // Photo field that's in the schema
+              profile_photo: photoData.profile_photo,
+              
+              // Address information
+              address_business: {
+                street: submissionData.street_business,
+                city: submissionData.city_business,
+                state: submissionData.state_business,
+                postcode: submissionData.postcode_business,
+                country_code: submissionData.country_code_business,
+              },
+              address_mailing: {
+                street: submissionData.street_mailing,
+                city: submissionData.city_mailing,
+                state: submissionData.state_mailing,
+                postcode: submissionData.postcode_mailing,
+                country_code: submissionData.country_code_mailing,
+              },
+              
+              // Vehicle information
+              has_vehicle: submissionData.transportation === 'Car' || submissionData.transportation === 'Motorcycle',
+              vehicle_type: submissionData.transportation === 'Car' ? 'Car' : 
+                            submissionData.transportation === 'Motorcycle' ? 'Motorcycle' : null,
+              
+              // Update timestamp
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', formData.id);
+          
+          if (updateError) throw updateError;
+          
+          toast({
+            title: 'Candidate Updated',
+            description: 'The candidate has been successfully updated.',
+          });
+          
+          onCandidateAdded();
+          onOpenChange(false);
+        } catch (updateError) {
+          logger.error('Error updating candidate:', updateError);
+          toast({
+            title: 'Error',
+            description: 'Failed to update candidate. Please try again.',
+            variant: 'destructive',
+          });
+        } finally {
+          setIsLoading(false);
+        }
+        return; // Exit early after update
+      }
+
+      // If not updating, continue with insert logic
       // Prepare photo data for storage
       const photoData = {
         profile_photo: formData.profile_photo,
@@ -478,13 +617,17 @@ export default function NewCandidateDialog({
           vehicle_type: submissionData.transportation === 'Car' ? 'Car' : 
                         submissionData.transportation === 'Motorcycle' ? 'Motorcycle' : null,
           is_banned: false,
+          
+          // Track who created this profile
+          created_by: currentUser?.name || 'Unknown',
+          created_by_user_id: currentUser?.id || null,
         },
       ]).select();
 
       if (error) {
         // If there was an error despite our duplicate checking
         if (error.code === '23505') { // Unique constraint violation
-          console.error('Duplicate key error despite our checks:', error);
+          logger.error('Duplicate key error despite our checks:', error);
           
           // Try one more approach - use upsert instead
           const { data: upsertData, error: upsertError } = await supabase
@@ -530,6 +673,10 @@ export default function NewCandidateDialog({
                 vehicle_type: submissionData.transportation === 'Car' ? 'Car' : 
                               submissionData.transportation === 'Motorcycle' ? 'Motorcycle' : null,
                 is_banned: false,
+                
+                // Track who created this profile
+                created_by: currentUser?.name || 'Unknown',
+                created_by_user_id: currentUser?.id || null,
               },
               {
                 // Use registration_id (IC number) as conflict target instead of email
@@ -542,7 +689,7 @@ export default function NewCandidateDialog({
             
           if (upsertError) throw upsertError;
           
-          console.log('Candidate upserted successfully:', upsertData);
+          logger.debug('Candidate upserted successfully:', { data: upsertData });
           
           toast({
             title: 'Candidate updated',
@@ -553,7 +700,7 @@ export default function NewCandidateDialog({
           throw error;
         }
       } else {
-        console.log('Candidate added successfully:', data);
+        logger.debug('Candidate added successfully:', { data: data });
         
         toast({
           title: 'Candidate added',
@@ -561,11 +708,11 @@ export default function NewCandidateDialog({
         });
       }
 
-      console.log('Calling onCandidateAdded callback');
+      logger.debug('Calling onCandidateAdded callback');
       onCandidateAdded();
       onOpenChange(false);
     } catch (error) {
-      console.error('Error adding candidate:', error);
+      logger.error('Error adding candidate:', error);
       toast({
         title: 'Error',
         description: error.message || 'Failed to add candidate. Please try again.',
@@ -765,9 +912,9 @@ export default function NewCandidateDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Add New Candidate</DialogTitle>
+          <DialogTitle>{formData.id ? 'Edit Candidate' : 'Add New Candidate'}</DialogTitle>
           <DialogDescription>
-            Enter candidate information across all required tabs.
+            {formData.id ? 'Update the candidate\'s information below.' : 'Enter candidate information across all required tabs.'}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit}>

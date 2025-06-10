@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase';
 import { Project } from '@/lib/types';
 
+import { logger } from './logger';
 export interface ProjectChange {
   id: string;
   project_id: string;
@@ -120,7 +121,7 @@ export async function recordProjectChanges(
         .single();
       
       if (error) {
-        console.error('Error recording project change:', error);
+        logger.error('Error recording project change:', error);
       } else if (data) {
         changeIds.push(data.id);
       }
@@ -128,7 +129,7 @@ export async function recordProjectChanges(
     
     return changeIds;
   } catch (error) {
-    console.error('Failed to record project changes:', error);
+    logger.error('Failed to record project changes:', error);
     return [];
   }
 }
@@ -197,13 +198,13 @@ export async function saveProjectChangeContext(
       });
     
     if (error) {
-      console.error('Error saving project change context:', error);
+      logger.error('Error saving project change context:', error);
       return false;
     }
     
     return true;
   } catch (error) {
-    console.error('Failed to save project change context:', error);
+    logger.error('Failed to save project change context:', error);
     return false;
   }
 }
@@ -224,7 +225,7 @@ export async function getProjectChangeHistory(projectId: string): Promise<{chang
       .order('created_at', { ascending: false });
     
     if (changesError) {
-      console.error('Error fetching project changes:', changesError);
+      logger.error('Error fetching project changes:', changesError);
       return { changes: [], context: [] };
     }
     
@@ -261,7 +262,7 @@ export async function getProjectChangeHistory(projectId: string): Promise<{chang
       .order('created_at', { ascending: false });
     
     if (contextError) {
-      console.error('Error fetching project context:', contextError);
+      logger.error('Error fetching project context:', contextError);
       return { changes: formattedChanges, context: [] };
     }
     
@@ -270,7 +271,7 @@ export async function getProjectChangeHistory(projectId: string): Promise<{chang
       context: context || [] 
     };
   } catch (error) {
-    console.error('Failed to get project change history:', error);
+    logger.error('Failed to get project change history:', error);
     return { changes: [], context: [] };
   }
 }
@@ -334,13 +335,13 @@ export async function saveAIInsights(
       });
     
     if (error) {
-      console.error('Error saving AI insights:', error);
+      logger.error('Error saving AI insights:', error);
       return false;
     }
     
     return true;
   } catch (error) {
-    console.error('Failed to save AI insights:', error);
+    logger.error('Failed to save AI insights:', error);
     return false;
   }
 }

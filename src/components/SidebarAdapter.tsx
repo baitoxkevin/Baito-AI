@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useEffect } from "react";
 import { Sidebar, SidebarBody, SidebarLink } from "@/components/ui/sidebar";
 import { useNavigate, useLocation } from "react-router-dom";
+import { logger } from '../lib/logger';
 import {
   Settings,
   LogOut,
@@ -109,7 +110,7 @@ function UserProfileButton({ open, setOpen }: UserProfileButtonProps) {
               setAvatarUrl(userData.raw_user_meta_data.avatar_url);
             }
           } catch (e) {
-            console.error('Error parsing user metadata:', e);
+            logger.error('Error parsing user metadata:', e);
           }
         } else {
           // Fallback to auth user data if no public user record exists
@@ -120,7 +121,7 @@ function UserProfileButton({ open, setOpen }: UserProfileButtonProps) {
         }
       }
     } catch (error) {
-      console.error('Error fetching user data:', error);
+      logger.error('Error fetching user data:', error);
     }
   };
 
@@ -245,7 +246,7 @@ export function SidebarAdapter({ children }: SidebarAdapterProps) {
         }
       }
     } catch (error) {
-      console.error('Error fetching user role:', error);
+      logger.error('Error fetching user role:', error);
     }
   };
 
@@ -273,7 +274,7 @@ export function SidebarAdapter({ children }: SidebarAdapterProps) {
       // Force navigation to login page
       navigate('/login');
     } catch (error) {
-      console.error('Error signing out:', error);
+      logger.error('Error signing out:', error);
       toast({
         title: "Error",
         description: "Failed to sign out. Please try again.",

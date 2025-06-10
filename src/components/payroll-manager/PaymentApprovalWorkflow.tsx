@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { format, parseISO } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
+import { logger } from '../../lib/logger';
 import {
   Card,
   CardContent,
@@ -92,6 +93,7 @@ import {
   updatePaymentBatchNotes,
   PaymentBatch,
   PaymentBatchStatus,
+  PaymentBatchFilter,
   PaymentItem,
   PaymentApprovalHistory,
   PaymentBatchDetails,
@@ -226,7 +228,7 @@ export function PaymentApprovalWorkflow({
       const offset = (page - 1) * itemsPerPage;
       
       // Prepare filter params
-      const filterParams: any = {
+      const filterParams: PaymentBatchFilter = {
         limit: itemsPerPage,
         offset
       };
@@ -259,7 +261,7 @@ export function PaymentApprovalWorkflow({
       
       setTotalBatches(result.count);
     } catch (error) {
-      console.error('Error loading payment batches:', error);
+      logger.error('Error loading payment batches:', error);
       toast({
         title: "Error",
         description: "Failed to load payment batches",
@@ -291,7 +293,7 @@ export function PaymentApprovalWorkflow({
         // Also fetch batch history
         const historyResult = await getPaymentBatchHistory(batchId);
         if (historyResult.error) {
-          console.error('Error loading batch history:', historyResult.error);
+          logger.error('Error loading batch history:', historyResult.error);
         } else {
           setBatchHistory(historyResult.data);
         }
@@ -307,7 +309,7 @@ export function PaymentApprovalWorkflow({
         throw new Error('Batch not found');
       }
     } catch (error) {
-      console.error('Error loading batch details:', error);
+      logger.error('Error loading batch details:', error);
       setDetailsError(error.message || 'Failed to load batch details');
       toast({
         title: "Error",
@@ -348,7 +350,7 @@ export function PaymentApprovalWorkflow({
       // Reset notes
       setApprovalNotes('');
     } catch (error) {
-      console.error('Error approving batch:', error);
+      logger.error('Error approving batch:', error);
       toast({
         title: "Approval Failed",
         description: error.message || 'Failed to approve batch',
@@ -388,7 +390,7 @@ export function PaymentApprovalWorkflow({
       // Reset notes
       setApprovalNotes('');
     } catch (error) {
-      console.error('Error rejecting batch:', error);
+      logger.error('Error rejecting batch:', error);
       toast({
         title: "Rejection Failed",
         description: error.message || 'Failed to reject batch',
@@ -428,7 +430,7 @@ export function PaymentApprovalWorkflow({
       // Reset notes
       setApprovalNotes('');
     } catch (error) {
-      console.error('Error marking batch as exported:', error);
+      logger.error('Error marking batch as exported:', error);
       toast({
         title: "Export Failed",
         description: error.message || 'Failed to mark batch as exported',
@@ -468,7 +470,7 @@ export function PaymentApprovalWorkflow({
       // Reset notes
       setApprovalNotes('');
     } catch (error) {
-      console.error('Error marking batch as completed:', error);
+      logger.error('Error marking batch as completed:', error);
       toast({
         title: "Completion Failed",
         description: error.message || 'Failed to mark batch as completed',
@@ -508,7 +510,7 @@ export function PaymentApprovalWorkflow({
       // Reset notes
       setApprovalNotes('');
     } catch (error) {
-      console.error('Error cancelling batch:', error);
+      logger.error('Error cancelling batch:', error);
       toast({
         title: "Cancellation Failed",
         description: error.message || 'Failed to cancel batch',
@@ -545,7 +547,7 @@ export function PaymentApprovalWorkflow({
       // Exit editing mode
       setEditingNotes(false);
     } catch (error) {
-      console.error('Error updating notes:', error);
+      logger.error('Error updating notes:', error);
       toast({
         title: "Update Failed",
         description: error.message || 'Failed to update notes',
@@ -583,7 +585,7 @@ export function PaymentApprovalWorkflow({
         description: `Generated payment file with ${selectedBatch.payment_items?.length || 0} entries`,
       });
     } catch (error) {
-      console.error('Error generating CSV:', error);
+      logger.error('Error generating CSV:', error);
       toast({
         title: "Error",
         description: "Failed to generate CSV file",
@@ -607,7 +609,7 @@ export function PaymentApprovalWorkflow({
         });
       })
       .catch(err => {
-        console.error('Failed to copy batch ID:', err);
+        logger.error('Failed to copy batch ID:', err);
       });
   };
   

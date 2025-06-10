@@ -6,6 +6,7 @@ import { WavesBackground } from '@/components/ui/waves-background';
 import { getSession } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 
+import { logger } from '../lib/logger';
 // Import pages
 import DashboardPage from '@/pages/DashboardPage';
 import CalendarPage from '@/pages/CalendarPage';
@@ -56,7 +57,7 @@ const MainAppLayout = ({ effectActive }: MainAppLayoutProps) => {
         const session = await getSession();
         setIsAuthenticated(!!session);
       } catch (error) {
-        console.error('Auth check failed:', error);
+        logger.error('Auth check failed:', error);
         setIsAuthenticated(false);
       }
     };
@@ -64,7 +65,7 @@ const MainAppLayout = ({ effectActive }: MainAppLayoutProps) => {
     checkAuth();
     
     // Listen for auth state changes
-    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: authListener } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'SIGNED_OUT') {
         setIsAuthenticated(false);
       } else if (event === 'SIGNED_IN') {
@@ -175,6 +176,9 @@ const MainAppLayout = ({ effectActive }: MainAppLayoutProps) => {
           )}
         </SidebarAdapter>
       </div>
+      
+      {/* Quick auth check widget - disabled */}
+      {/* {import.meta.env.DEV && <QuickAuthCheck />} */}
     </div>
   );
 };

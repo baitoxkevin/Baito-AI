@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { format, isSameDay } from 'date-fns';
 import { motion } from 'framer-motion';
+import { logger } from '../../lib/logger';
 import {
   Table,
   TableBody,
@@ -360,7 +361,7 @@ export default function ProjectPayroll({
                 
                 setEditingStaffId(null);
               } catch (error) {
-                console.error('Error saving payroll details:', error);
+                logger.error('Error saving payroll details:', error);
                 toast({
                   title: "Error",
                   description: "Failed to save payroll details",
@@ -379,7 +380,7 @@ export default function ProjectPayroll({
             newRowIndex = rowIndex + 1;
           }
         } catch (error) {
-          console.error('Error on Enter key action:', error);
+          logger.error('Error on Enter key action:', error);
         }
         break;
       default:
@@ -531,7 +532,7 @@ export default function ProjectPayroll({
           description: `Basic salary of RM ${basicAmount.toLocaleString()} set for ${selectedStaffForBasic.length} staff member(s)`,
         });
       } catch (error) {
-        console.error('Error updating staff salaries:', error);
+        logger.error('Error updating staff salaries:', error);
         toast({
           title: "Error",
           description: "Failed to update basic salaries",
@@ -1346,7 +1347,7 @@ export default function ProjectPayroll({
                         
                         setEditingStaffId(null);
                       } catch (error) {
-                        console.error('Error updating staff payment details:', error);
+                        logger.error('Error updating staff payment details:', error);
                         toast({
                           title: "Error",
                           description: "Failed to update staff payment details",

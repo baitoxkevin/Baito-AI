@@ -1,29 +1,26 @@
 import { supabase } from './supabase';
 import { ensureExpenseClaimsTable } from './ensure-expense-claims-table';
 
+import { logger } from './logger';
 /**
  * Simplified function to handle expense claims with robust error handling
  */
 export async function fetchProjectExpenseClaimsWithFallback(projectId: string): Promise<any[]> {
-  console.log('fetchProjectExpenseClaimsWithFallback called with projectId:', projectId);
-  
   try {
     // Check if table exists
     const tableExists = await ensureExpenseClaimsTable();
     if (!tableExists) {
-      console.warn('Expense claims table does not exist');
+      logger.warn('Expense claims table does not exist');
       return []; // Return empty array if table doesn't exist
     }
     
     // Check authentication
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
-      console.warn('Not authenticated for expense claims');
+      logger.warn('Not authenticated for expense claims');
       return [];
     }
 
-    console.log('Fetching expense claims for project:', projectId);
-    
     // Query with joins to get staff and user names
     const { data, error } = await supabase
       .from('expense_claims')
@@ -37,17 +34,15 @@ export async function fetchProjectExpenseClaimsWithFallback(projectId: string): 
       .eq('project_id', projectId)
       .order('created_at', { ascending: false });
 
-    console.log('Supabase response - data:', data, 'error:', error);
-
     // If table doesn't exist, return empty array
     if (error && error.code === '42P01') {
-      console.warn('Expense claims table does not exist');
+      logger.warn('Expense claims table does not exist');
       return [];
     }
 
     // If any other error, return empty array
     if (error) {
-      console.error('Error fetching expense claims:', error);
+      logger.error('Error fetching expense claims:', error);
       return [];
     }
 
@@ -68,7 +63,7 @@ export async function fetchProjectExpenseClaimsWithFallback(projectId: string): 
           return map;
         }, {} as Record<string, unknown>);
       } catch (userError) {
-        console.warn('Could not fetch user details for claims:', userError);
+        logger.warn('Could not fetch user details for claims:', userError);
         // Continue without user data
       }
     }
@@ -88,7 +83,7 @@ export async function fetchProjectExpenseClaimsWithFallback(projectId: string): 
       title: claim.title || 'Untitled',
     }));
   } catch (error) {
-    console.error('Unexpected error fetching expense claims:', error);
+    logger.error('Unexpected error fetching expense claims:', error);
     return [];
   }
 }

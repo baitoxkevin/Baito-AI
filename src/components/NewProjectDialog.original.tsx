@@ -6,6 +6,7 @@ import { format } from 'date-fns';
 import { getSession } from '@/lib/auth';
 import { CalendarIcon, ChevronLeft, ChevronRight, Loader2, Shield, Palette, Sparkles, Wand2, Calendar as CalendarLucide, Building, Info, Users, Plus, MapPin, Clock, PlusCircle, Briefcase, ClipboardList, ListTodo, FileSpreadsheet } from 'lucide-react';
 import { Button } from "@/components/ui/button";
+import { logger } from '../lib/logger';
 import {
   Dialog,
   DialogContent,
@@ -178,7 +179,7 @@ export default function NewProjectDialog({
           }
         }
       } catch (err) {
-        console.error('Error loading saved locations:', err);
+        logger.error('Error loading saved locations:', err);
       }
     }
   }, [open, scheduleType]);
@@ -435,7 +436,7 @@ export default function NewProjectDialog({
       if (data && data.length > 0) {
         setCustomers(data);
       } else {
-        // console.log('No users with role "client" found, trying to load from companies table...');
+        // logger.debug('No users with role "client" found, { data: trying to load from companies table...' });
         
         // If no clients, try loading from companies table as fallback
         const { data: companyData, error: companyError } = await supabase
@@ -453,7 +454,7 @@ export default function NewProjectDialog({
         setCustomers(companiesAsCustomers);
       }
     } catch (error) {
-      console.error('Error loading customers:', error);
+      logger.error('Error loading customers:', error);
       toast({
         title: 'Error loading customers',
         description: error instanceof Error ? error.message : 'An unexpected error occurred',
@@ -475,7 +476,7 @@ export default function NewProjectDialog({
       if (data && data.length > 0) {
         setManagers(data);
       } else {
-        // console.log('No users with role "manager" found, loading all users as fallback...');
+        // logger.debug('No users with role "manager" found, { data: loading all users as fallback...' });
         
         // If no managers, try loading all users as fallback
         const { data: allUsers, error: usersError } = await supabase
@@ -495,7 +496,7 @@ export default function NewProjectDialog({
         }
       }
     } catch (error) {
-      console.error('Error loading managers:', error);
+      logger.error('Error loading managers:', error);
       toast({
         title: 'Error loading managers',
         description: error instanceof Error ? error.message : 'An unexpected error occurred',
@@ -570,7 +571,7 @@ export default function NewProjectDialog({
       // First, try to ensure the bucket exists
       const bucketResult = await ensureLogosBucketExists();
       if (!bucketResult.success) {
-        // console.warn('Error ensuring logos bucket:', bucketResult.message);
+        // logger.warn('Error ensuring logos bucket:', bucketResult.message);
         // Continue anyway, in case it's just a permission issue but the bucket actually exists
       }
       
@@ -586,10 +587,10 @@ export default function NewProjectDialog({
           .upload('project-logos/.folder', new Blob(['']));
           
         if (folderError && !folderError.message.includes('already exists')) {
-          // console.warn('Error creating folder:', folderError);
+          // logger.warn('Error creating folder:', folderError);
         }
       } catch (folderError) {
-        // console.warn('Error creating folder:', folderError);
+        // logger.warn('Error creating folder:', folderError);
       }
       
       // Upload the file
@@ -620,7 +621,7 @@ export default function NewProjectDialog({
       // Return the public URL
       return urlData.publicUrl;
     } catch (error) {
-      console.error('Error uploading logo:', error);
+      logger.error('Error uploading logo:', error);
       toast({
         title: 'Upload failed',
         description: 'Failed to upload project logo. Check console for details.',
@@ -761,7 +762,7 @@ export default function NewProjectDialog({
       });
       
     } catch (error) {
-      console.error('Error getting suggestions:', error);
+      logger.error('Error getting suggestions:', error);
       toast({
         title: 'Error getting suggestions',
         description: 'Failed to generate task suggestions. Please try again.',
@@ -799,13 +800,13 @@ export default function NewProjectDialog({
   };
 
   const onSubmit = async (data: ProjectFormValues) => {
-    // console.log('[NewProjectDialog] onSubmit - Function start. Initial data:', JSON.stringify(data, null, 2));
+    // logger.debug('[NewProjectDialog] onSubmit - Function start. Initial data:', { data: JSON.stringify(data, null, 2 }));
     setIsLoading(true);
     
     try {
-      // console.log("[NewProjectDialog] onSubmit - Form submission started with data (raw object):", data);
-      // console.log("[NewProjectDialog] onSubmit - Current form.getValues():", JSON.stringify(form.getValues(), null, 2));
-      // console.log("[NewProjectDialog] onSubmit - Form validation state (form.formState.errors):", JSON.stringify(form.formState.errors, null, 2));
+      // logger.debug("[NewProjectDialog] onSubmit - Form submission started with data (raw object):", data);
+      // logger.debug("[NewProjectDialog] onSubmit - Current form.getValues():", JSON.stringify(form.getValues(), null, 2));
+      // logger.debug("[NewProjectDialog] onSubmit - Form validation state (form.formState.errors):", JSON.stringify(form.formState.errors, null, 2));
       
       // Get automatic color for event type if not provided
       const eventColors = {
@@ -852,13 +853,13 @@ export default function NewProjectDialog({
       
       // Upload logo if one was selected
       let logoUrl = data.logo_url;
-      // console.log('[NewProjectDialog] onSubmit - Initial logoUrl from data:', logoUrl);
+      // logger.debug('[NewProjectDialog] onSubmit - Initial logoUrl from data:', { data: logoUrl });
       if (logoFile) {
-        // console.log('[NewProjectDialog] onSubmit - logoFile is present. Attempting to upload.');
+        // logger.debug('[NewProjectDialog] onSubmit - logoFile is present. Attempting to upload.');
         const uploadedLogoUrl = await uploadLogo();
-        // console.log('[NewProjectDialog] onSubmit - uploadLogo() returned:', uploadedLogoUrl);
+        // logger.debug('[NewProjectDialog] onSubmit - uploadLogo() returned:', uploadedLogoUrl);
         logoUrl = uploadedLogoUrl || logoUrl;
-        // console.log('[NewProjectDialog] onSubmit - Final logoUrl after upload attempt:', logoUrl);
+        // logger.debug('[NewProjectDialog] onSubmit - Final logoUrl after upload attempt:', { data: logoUrl });
       }
       
       // Determine project type
@@ -922,29 +923,29 @@ export default function NewProjectDialog({
           // Simple validation - if it's not a UUID, it's not valid
           const isValidUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(projectData.client_id);
           if (!isValidUUID) {
-            // console.warn("Removing invalid client_id to avoid FK constraint error");
+            // logger.warn("Removing invalid client_id to avoid FK constraint error");
             delete projectData.client_id;
           }
         } catch (e) {
           // If any issue occurs, just remove the client_id to be safe
-          // console.warn("Error validating client_id, removing it", e);
+          // logger.warn("Error validating client_id, removing it", e);
           delete projectData.client_id;
         }
       }
       
       // Create the project
-      // console.log('[NewProjectDialog] onSubmit - Assembled projectData before calling createProject:', JSON.stringify(projectData, null, 2));
+      // logger.debug('[NewProjectDialog] onSubmit - Assembled projectData before calling createProject:', { data: JSON.stringify(projectData, null, 2 }));
       const projectResponse = await createProject(projectData);
-      // console.log('[NewProjectDialog] onSubmit - Response from createProject:', JSON.stringify(projectResponse, null, 2));
+      // logger.debug('[NewProjectDialog] onSubmit - Response from createProject:', { data: JSON.stringify(projectResponse, null, 2 }));
       
       // If we have suggested tasks and they've been approved, create them
       if (suggestedTasks.length > 0 && projectResponse?.id) { // Added optional chaining for projectResponse
-        // console.log('[NewProjectDialog] onSubmit - projectResponse.id exists and suggestedTasks present. Proceeding to create tasks. Project ID:', projectResponse.id);
+        // logger.debug('[NewProjectDialog] onSubmit - projectResponse.id exists and suggestedTasks present. Proceeding to create tasks. Project ID:', { data: projectResponse.id });
         const projectId = projectResponse.id;
         
         // Create tasks in bulk
         try {
-          // console.log('[NewProjectDialog] onSubmit - Tasks to be created:', JSON.stringify(suggestedTasks, null, 2));
+          // logger.debug('[NewProjectDialog] onSubmit - Tasks to be created:', { data: JSON.stringify(suggestedTasks, null, 2 }));
           await Promise.all(suggestedTasks.map(async (task) => {
             // Calculate due date based on relative value
             const daysFromStart = parseInt(task.due_date_relative.split(' ')[0]) || 0;
@@ -968,7 +969,7 @@ export default function NewProjectDialog({
             description: `${suggestedTasks.length} tasks were created for this project`,
           });
         } catch (taskError) {
-          console.error('Error creating tasks:', taskError);
+          logger.error('Error creating tasks:', taskError);
           toast({
             title: 'Warning',
             description: 'Project created but there was an issue creating tasks',
@@ -984,10 +985,10 @@ export default function NewProjectDialog({
 
       onProjectAdded();
       onOpenChange(false);
-      // console.log('[NewProjectDialog] onSubmit - Successfully created project and tasks (if any). Dialog closing.');
+      // logger.debug('[NewProjectDialog] onSubmit - Successfully created project and tasks (if any). Dialog closing.');
     } catch (error) {
-      console.error('[NewProjectDialog] onSubmit - ERROR caught during submission:', error);
-      console.error('Error creating project:', error); // Keep original error log too
+      logger.error('[NewProjectDialog] onSubmit - ERROR caught during submission:', error);
+      logger.error('Error creating project:', error); // Keep original error log too
       
       let errorMessage = 'An unexpected error occurred. Please try again.';
       
@@ -2018,7 +2019,7 @@ export default function NewProjectDialog({
                               onClick={() => {
                                 // Close this dialog and open the tools page
                                 onOpenChange(false);
-      // console.log('[NewProjectDialog] onSubmit - Successfully created project and tasks (if any). Dialog closing.');
+      // logger.debug('[NewProjectDialog] onSubmit - Successfully created project and tasks (if any). Dialog closing.');
                                 
                                 // Create a new event that bubbles up to notify the parent components
                                 // that we want to navigate to the extraction tool

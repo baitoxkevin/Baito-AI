@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { logger } from '../../lib/logger';
 import {
   Card,
   CardContent,
@@ -112,7 +113,7 @@ export function ProjectExpenseClaims({
     try {
       return format(new Date(dateString), 'MMM d, yyyy');
     } catch (error) {
-      // console.warn('Invalid date format:', dateString);
+      // logger.warn('Invalid date format:', dateString);
       return 'Invalid Date';
     }
   };
@@ -199,7 +200,7 @@ export function ProjectExpenseClaims({
       
       return true;
     } catch (error) {
-      console.error('Failed to create expense claim:', error);
+      logger.error('Failed to create expense claim:', error);
       return false;
     }
   };
@@ -210,7 +211,7 @@ export function ProjectExpenseClaims({
       await approveClaim(claimId);
       fetchClaims();
     } catch (error) {
-      console.error('Failed to approve claim:', error);
+      logger.error('Failed to approve claim:', error);
     }
   };
 
@@ -220,7 +221,7 @@ export function ProjectExpenseClaims({
       await rejectClaim(claimId, reason);
       fetchClaims();
     } catch (error) {
-      console.error('Failed to reject claim:', error);
+      logger.error('Failed to reject claim:', error);
     }
   };
 

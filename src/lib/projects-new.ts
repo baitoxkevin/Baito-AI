@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
 import type { Project, User, Client } from './types';
 
+import { logger } from './logger';
 const eventColors = {
   'nestle': '#FCA5A5', // Light red for Nestle Choy Sun
   'ribena': '#DDD6FE', // Light purple for Ribena
@@ -39,7 +40,7 @@ export async function fetchProjects(): Promise<Project[]> {
       .order('start_date', { ascending: true });
 
     if (error) {
-      console.error('Error fetching projects:', error);
+      logger.error('Error fetching projects:', error);
       throw new Error(error.message);
     }
 
@@ -57,7 +58,7 @@ export async function fetchProjects(): Promise<Project[]> {
 
     return projects;
   } catch (error) {
-    console.error('Error fetching projects:', error);
+    logger.error('Error fetching projects:', error);
     return [];
   }
 }
@@ -66,12 +67,12 @@ export async function fetchProjectsByMonth(year: number, month: number): Promise
   try {
     // Input validation - handle cases where inputs are not numbers
     if (isNaN(year) || isNaN(month)) {
-      console.warn(`Invalid input to fetchProjectsByMonth: year=${year}, month=${month}`);
+      logger.warn(`Invalid input to fetchProjectsByMonth: year=${year}, month=${month}`);
       // Default to current month if inputs are invalid
       const currentDate = new Date();
       year = currentDate.getFullYear();
       month = currentDate.getMonth();
-      console.log(`Using fallback date: year=${year}, month=${month}`);
+      logger.debug(`Using fallback date: year=${year}, month=${month}`);
     }
     
     // Normalize the year/month values
@@ -100,7 +101,7 @@ export async function fetchProjectsByMonth(year: number, month: number): Promise
     const daysInMonth = new Date(normalizedYear, monthForDate, 0).getDate();
     const endDateStr = `${normalizedYear}-${String(monthForDate).padStart(2, '0')}-${String(daysInMonth).padStart(2, '0')}T23:59:59.999Z`;
     
-    console.log(`Fetching projects for ${normalizedYear}-${monthForDate} with dates: ${startDateStr} to ${endDateStr}`);
+    logger.debug(`Fetching projects for ${normalizedYear}-${monthForDate} with dates: ${startDateStr} to ${endDateStr}`);
     
     const { data, error } = await supabase
       .from('projects')
@@ -111,7 +112,7 @@ export async function fetchProjectsByMonth(year: number, month: number): Promise
       .order('start_date', { ascending: true });
     
     if (error) {
-      console.error('Error fetching projects by month:', error);
+      logger.error('Error fetching projects by month:', error);
       throw new Error(error.message);
     }
     
@@ -129,7 +130,7 @@ export async function fetchProjectsByMonth(year: number, month: number): Promise
     
     return projects;
   } catch (error) {
-    console.error('Error fetching projects by month:', error);
+    logger.error('Error fetching projects by month:', error);
     return [];
   }
 }
@@ -143,7 +144,7 @@ export async function createProject(project: Omit<Project, 'id'>): Promise<Proje
       .single();
 
     if (error) {
-      console.error('Error creating project:', error);
+      logger.error('Error creating project:', error);
       throw new Error(error.message);
     }
 
@@ -155,7 +156,7 @@ export async function createProject(project: Omit<Project, 'id'>): Promise<Proje
 
     return projectWithColor;
   } catch (error) {
-    console.error('Error creating project:', error);
+    logger.error('Error creating project:', error);
     return null;
   }
 }
@@ -178,7 +179,7 @@ export async function updateProject(project: Project): Promise<Project | null> {
       .single();
 
     if (error) {
-      console.error('Error updating project:', error);
+      logger.error('Error updating project:', error);
       throw new Error(error.message);
     }
 
@@ -190,7 +191,7 @@ export async function updateProject(project: Project): Promise<Project | null> {
 
     return projectWithColor;
   } catch (error) {
-    console.error('Error updating project:', error);
+    logger.error('Error updating project:', error);
     return null;
   }
 }
@@ -206,20 +207,20 @@ export async function deleteProject(id: string, deletedBy: string): Promise<bool
       .eq('id', id);
 
     if (error) {
-      console.error('Error deleting project:', error);
+      logger.error('Error deleting project:', error);
       throw new Error(error.message);
     }
 
     return true;
   } catch (error) {
-    console.error('Error deleting project:', error);
+    logger.error('Error deleting project:', error);
     return false;
   }
 }
 
 export async function getProjectById(id: string): Promise<Project | null> {
   try {
-    console.log(`Getting project details for ID: ${id}`);
+    logger.debug(`Getting project details for ID: ${id}`);
     
     // Use a simple query first to get the core project data
     const { data, error } = await supabase
@@ -230,12 +231,12 @@ export async function getProjectById(id: string): Promise<Project | null> {
       .single();
 
     if (error) {
-      console.error('Error fetching project:', error);
+      logger.error('Error fetching project:', error);
       throw new Error(error.message);
     }
 
     if (!data) {
-      console.log('No project found with ID:', id);
+      logger.debug('No project found with ID:', { data: id });
       return null;
     }
 
@@ -255,7 +256,7 @@ export async function getProjectById(id: string): Promise<Project | null> {
           projectData.client = clientData;
         } else {
           // Try clients table if it exists
-          console.log('Client not found in users table, trying clients table');
+          logger.debug('Client not found in users table, trying clients table');
           const { data: clientData2, error: clientError2 } = await supabase
             .from('clients')
             .select('*')
@@ -267,7 +268,7 @@ export async function getProjectById(id: string): Promise<Project | null> {
           }
         }
       } catch (clientErr) {
-        console.error('Error fetching client data:', clientErr);
+        logger.error('Error fetching client data:', clientErr);
       }
     }
     
@@ -284,7 +285,7 @@ export async function getProjectById(id: string): Promise<Project | null> {
           projectData.manager = managerData;
         }
       } catch (managerErr) {
-        console.error('Error fetching manager data:', managerErr);
+        logger.error('Error fetching manager data:', managerErr);
       }
     }
 
@@ -294,10 +295,10 @@ export async function getProjectById(id: string): Promise<Project | null> {
       color: data.color || eventColors[data.event_type as keyof typeof eventColors] || eventColors.default,
     };
 
-    console.log('Successfully fetched project with additional data:', projectWithColor);
+    logger.debug('Successfully fetched project with additional data:', { data: projectWithColor });
     return projectWithColor;
   } catch (error) {
-    console.error('Error fetching project:', error);
+    logger.error('Error fetching project:', error);
     return null;
   }
 }
@@ -315,13 +316,13 @@ export async function getPossibleManagers(): Promise<User[]> {
       .order('full_name', { ascending: true });
 
     if (error) {
-      console.error('Error fetching managers:', error);
+      logger.error('Error fetching managers:', error);
       return [];
     }
 
     return data || [];
   } catch (error) {
-    console.error('Error in getPossibleManagers:', error);
+    logger.error('Error in getPossibleManagers:', error);
     return [];
   }
 }
@@ -339,13 +340,13 @@ export async function getPossibleClients(): Promise<Client[]> {
       .order('full_name', { ascending: true });
 
     if (error) {
-      console.error('Error fetching clients:', error);
+      logger.error('Error fetching clients:', error);
       return [];
     }
 
     return data || [];
   } catch (error) {
-    console.error('Error in getPossibleClients:', error);
+    logger.error('Error in getPossibleClients:', error);
     return [];
   }
 }
@@ -373,7 +374,7 @@ export async function deleteMultipleProjects(ids: string[], deletedBy: string): 
       .select('id');
     
     if (error) {
-      console.error('Error batch deleting projects:', error);
+      logger.error('Error batch deleting projects:', error);
       return { success: [], failed: ids };
     }
     
@@ -386,7 +387,7 @@ export async function deleteMultipleProjects(ids: string[], deletedBy: string): 
     
     return result;
   } catch (error) {
-    console.error('Error deleting multiple projects:', error);
+    logger.error('Error deleting multiple projects:', error);
     return { success: [], failed: ids };
   }
 }

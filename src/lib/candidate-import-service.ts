@@ -1,6 +1,8 @@
 import { supabase } from '@/lib/supabase';
 import { getUserProfile } from '@/lib/auth';
+import type { Candidate } from '@/lib/types';
 
+import { logger } from './logger';
 export interface CandidateInfo {
   name: string;
   email: string;
@@ -94,7 +96,7 @@ export async function createCandidate(candidateInfo: CandidateInfo) {
     const uniqueId = candidateInfo.unique_id || `C${Math.floor(Math.random() * 100000).toString().padStart(5, '0')}`;
     
     // Use only fields that exist in the database
-    const candidateData: any = {
+    const candidateData: Partial<Candidate> = {
       full_name: candidateInfo.name,
       ic_number: candidateInfo.ic_number || '000000-00-0000', // Placeholder if missing
       date_of_birth: dateOfBirth,
@@ -103,6 +105,10 @@ export async function createCandidate(candidateInfo: CandidateInfo) {
       email: candidateInfo.email || 'unknown@example.com', // Placeholder if missing
       nationality: 'Malaysian', // Default value
       unique_id: uniqueId, // Add the unique ID
+      
+      // Emergency contact fields - required in database
+      emergency_contact_name: candidateInfo.emergency_contact_name || 'Not Provided',
+      emergency_contact_number: candidateInfo.emergency_contact_number || '0000000000',
       
       // Work related fields
       has_vehicle: hasVehicle,
@@ -137,8 +143,6 @@ export async function createCandidate(candidateInfo: CandidateInfo) {
       resume_text: candidateInfo.raw_resume,
       profile_photo: candidateInfo.profile_photo || '',
       full_body_photo: candidateInfo.full_body_photo || '',
-      emergency_contact_name: candidateInfo.emergency_contact_name || '',
-      emergency_contact_number: candidateInfo.emergency_contact_number || '',
     };
     
     // Try to include custom_fields if supported
@@ -154,7 +158,7 @@ export async function createCandidate(candidateInfo: CandidateInfo) {
         candidateData.custom_fields = customFieldsData;
       }
     } catch (e) {
-      console.log('Custom fields not supported, continuing without them');
+      logger.debug('Custom fields not supported, continuing without them');
     }
     
     // Insert the candidate into the database
@@ -169,7 +173,7 @@ export async function createCandidate(candidateInfo: CandidateInfo) {
     
     return { success: true, data };
   } catch (error) {
-    console.error('Error creating candidate:', error);
+    logger.error('Error creating candidate:', error);
     return { success: false, error };
   }
 }

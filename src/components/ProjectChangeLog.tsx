@@ -10,6 +10,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from '@/hooks/use-toast';
 
+import { logger } from '../lib/logger';
 import { 
   getProjectChangeHistory, 
   saveProjectChangeContext,
@@ -44,7 +45,7 @@ export default function ProjectChangeLog({ projectId, refreshTrigger = 0 }: Proj
         setChanges(history.changes);
         setContext(history.context);
       } catch (error) {
-        console.error('Error fetching project change history:', error);
+        logger.error('Error fetching project change history:', error);
         toast({
           title: 'Error',
           description: 'Failed to load project change history',
@@ -100,7 +101,7 @@ export default function ProjectChangeLog({ projectId, refreshTrigger = 0 }: Proj
         });
       }
     } catch (error) {
-      console.error('Error submitting context:', error);
+      logger.error('Error submitting context:', error);
       toast({
         title: 'Error',
         description: 'An unexpected error occurred',
@@ -132,7 +133,7 @@ export default function ProjectChangeLog({ projectId, refreshTrigger = 0 }: Proj
         });
       }
     } catch (error) {
-      console.error('Error generating insights:', error);
+      logger.error('Error generating insights:', error);
     } finally {
       setLoadingInsights(false);
     }

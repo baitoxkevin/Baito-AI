@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
 import { getUser } from './auth';
 
+import { logger } from './logger';
 // The bucket name where expense receipts are stored
 const RECEIPTS_BUCKET = 'expense-receipts';
 
@@ -114,7 +115,7 @@ export async function uploadExpenseReceipt(
     if (error) throw error;
     return data;
   } catch (error) {
-    console.error('Error uploading expense receipt:', error);
+    logger.error('Error uploading expense receipt:', error);
     throw error;
   }
 }
@@ -132,7 +133,7 @@ export async function uploadMultipleReceipts(
     const uploadPromises = files.map(file => uploadExpenseReceipt(claimId, file));
     return await Promise.all(uploadPromises);
   } catch (error) {
-    console.error('Error uploading multiple receipts:', error);
+    logger.error('Error uploading multiple receipts:', error);
     throw error;
   }
 }
@@ -162,7 +163,7 @@ export async function deleteExpenseReceipt(
 
     if (dbError) throw dbError;
   } catch (error) {
-    console.error('Error deleting expense receipt:', error);
+    logger.error('Error deleting expense receipt:', error);
     throw error;
   }
 }
@@ -182,7 +183,7 @@ export async function getExpenseReceipts(claimId: string): Promise<ReceiptUpload
     if (error) throw error;
     return data || [];
   } catch (error) {
-    console.error('Error fetching expense receipts:', error);
+    logger.error('Error fetching expense receipts:', error);
     throw error;
   }
 }

@@ -11,6 +11,7 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Candidate } from '@/lib/types';
 import EditCandidateDialog from '@/components/EditCandidateDialog';
 
+import { logger } from '../lib/logger';
 export default function CandidateIcVerifyPage() {
   const [loading, setLoading] = useState(false);
   const [verifying, setVerifying] = useState(false);
@@ -83,7 +84,7 @@ export default function CandidateIcVerifyPage() {
       });
       
     } catch (error) {
-      console.error('Error verifying candidate:', error);
+      logger.error('Error verifying candidate:', error);
       setAuthError('An error occurred during verification. Please try again later.');
     } finally {
       setVerifying(false);
@@ -116,7 +117,7 @@ export default function CandidateIcVerifyPage() {
           setCandidate(data as Candidate);
         }
       } catch (error) {
-        console.error('Error refreshing candidate data:', error);
+        logger.error('Error refreshing candidate data:', error);
       } finally {
         setLoading(false);
       }

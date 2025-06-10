@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import type { User } from '@/lib/types';
 
+import { logger } from '../lib/logger';
 export function useUsers() {
   const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -27,7 +28,7 @@ export function useUsers() {
       
       setUsers(usersWithAvatars);
     } catch (err) {
-      console.error('Error fetching users:', err);
+      logger.error('Error fetching users:', err);
       setError(err instanceof Error ? err : new Error('Failed to fetch users'));
     } finally {
       setIsLoading(false);

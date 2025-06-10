@@ -2,6 +2,7 @@ import { supabase } from "./supabase";
 import { WorkingDateWithSalary } from "@/components/ui/working-date-picker";
 import { format, isWithinInterval, parseISO } from "date-fns";
 
+import { logger } from './logger';
 interface ScheduleConflict {
   date: Date;
   projectId: string;
@@ -24,7 +25,7 @@ export async function checkStaffScheduleConflicts(
   try {
     // Validate inputs
     if (!staffId || !workingDates || !Array.isArray(workingDates) || workingDates.length === 0) {
-      console.warn("Invalid inputs for schedule conflict check", { staffId, workingDates });
+      logger.warn("Invalid inputs for schedule conflict check", { staffId, workingDates });
       return { hasConflicts: false, conflicts: [] };
     }
 
@@ -36,7 +37,7 @@ export async function checkStaffScheduleConflicts(
       return dateStr;
     });
 
-    console.log(`Checking conflicts for staff ${staffId} on dates:`, dateStrings);
+    logger.debug(`Checking conflicts for staff ${staffId} on dates:`, dateStrings);
 
     // First try using the RPC function if available
     try {
@@ -47,7 +48,7 @@ export async function checkStaffScheduleConflicts(
       });
 
       if (!error && data) {
-        console.log("RPC conflict check results:", data);
+        logger.debug("RPC conflict check results:", { data: data });
         
         // Format the conflicts into our return structure
         const conflicts = data.map((conflict: unknown) => ({
@@ -64,12 +65,12 @@ export async function checkStaffScheduleConflicts(
 
       // If error is not about missing function, log it
       if (error && !error.message.includes('Could not find the function')) {
-        console.error('Error checking schedule conflicts via RPC:', error);
+        logger.error('Error checking schedule conflicts via RPC:', error);
       } else {
-        console.warn('RPC function not available, falling back to manual check');
+        logger.warn('RPC function not available, falling back to manual check');
       }
     } catch (rpcError) {
-      console.warn('RPC call failed, falling back to manual check:', rpcError);
+      logger.warn('RPC call failed, falling back to manual check:', rpcError);
     }
 
     // Fallback: Manual conflict check
@@ -90,16 +91,16 @@ export async function checkStaffScheduleConflicts(
       .eq('id', staffId);
 
     if (staffError) {
-      console.error('Error fetching staff projects:', staffError);
+      logger.error('Error fetching staff projects:', staffError);
       return { hasConflicts: false, conflicts: [] };
     }
 
     if (!staffProjects || staffProjects.length === 0) {
-      console.log(`No existing projects found for staff ${staffId}`);
+      logger.debug(`No existing projects found for staff ${staffId}`);
       return { hasConflicts: false, conflicts: [] };
     }
 
-    console.log(`Found ${staffProjects.length} projects for staff ${staffId}`);
+    logger.debug(`Found ${staffProjects.length} projects for staff ${staffId}`);
 
     // Check for conflicts by examining each date
     const conflicts: ScheduleConflict[] = [];
@@ -152,7 +153,7 @@ export async function checkStaffScheduleConflicts(
       conflicts
     };
   } catch (error) {
-    console.error('Exception checking staff schedule conflicts:', error);
+    logger.error('Exception checking staff schedule conflicts:', error);
     return { hasConflicts: false, conflicts: [] };
   }
 }
@@ -174,7 +175,7 @@ export async function getProjectStaffConflicts(
 }>> {
   try {
     if (!projectId) {
-      console.error('Invalid project ID for conflict check');
+      logger.error('Invalid project ID for conflict check');
       return {};
     }
 
@@ -196,7 +197,7 @@ export async function getProjectStaffConflicts(
       .single();
 
     if (projectError || !project) {
-      console.error('Error fetching project details:', projectError);
+      logger.error('Error fetching project details:', projectError);
       return {};
     }
 
@@ -234,7 +235,7 @@ export async function getProjectStaffConflicts(
 
     return conflicts;
   } catch (error) {
-    console.error('Exception checking project staff conflicts:', error);
+    logger.error('Exception checking project staff conflicts:', error);
     return {};
   }
 }

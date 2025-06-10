@@ -11,47 +11,55 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Switch } from '@/components/ui/switch';
+import { logger } from '../lib/logger';
+// Removed Calendar and Popover imports - using native date inputs instead
 import { cn } from '@/lib/utils';
-import { CalendarIcon, FileText, MapPin, Clock, Users, Cog, Palette, Share2, Check, ChevronRight, Building2 } from 'lucide-react';
+import { FileText, MapPin, Clock, Users, Cog, Palette, Share2, Check, ChevronRight, Building2, Loader2, Search, User } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 // Removed useCompanies import - will fetch companies directly
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
+import { BrandLogoSelector } from '@/components/BrandLogoSelector';
 
 type Step = 'project-info' | 'event-details' | 'location' | 'schedule' | 'staffing' | 'advanced' | 'review';
 
 const formSchema = z.object({
   title: z.string().min(1, 'Title is required'),
   description: z.string().optional(),
-  company_id: z.string().min(1, 'Company is required'),
+  client_id: z.string().min(1, 'Company is required'),
+  manager_id: z.string().min(1, 'Manager is required'),
   start_date: z.date(),
   end_date: z.date().optional(),
-  venue_name: z.string().optional(),
+  // venue_name: z.string().optional(), // Not in DB - only venue_address exists
   venue_address: z.string().optional(),
-  contact_name: z.string().optional(),
-  contact_phone: z.string().optional(),
-  contact_email: z.string().email().optional().or(z.literal('')),
+  venue_details: z.string().optional(), // This field exists in DB
+  // contact_name: z.string().optional(), // Not in DB
+  // contact_phone: z.string().optional(), // Not in DB
+  // contact_email: z.string().email().optional().or(z.literal('')), // Not in DB
   crew_count: z.number().min(0).default(0),
+  supervisors_required: z.number().min(0).max(9).optional(),
   working_hours_start: z.string().optional(),
   working_hours_end: z.string().optional(),
-  break_duration: z.string().optional(),
-  meal_provided: z.boolean().default(false),
-  parking_provided: z.boolean().default(false),
+  // break_duration: z.string().optional(), // Not in DB
+  // meal_provided: z.boolean().default(false), // Not in DB
+  // parking_provided: z.boolean().default(false), // Not in DB
   color: z.string().optional(),
   priority: z.enum(['low', 'medium', 'high']).default('medium'),
   status: z.enum(['planning', 'confirmed', 'in_progress', 'completed', 'cancelled']).default('planning'),
-  type: z.enum(['event', 'roadshow', 'construction', 'other']).optional(),
-  schedule_type: z.enum(['single', 'multi_day', 'recurring']).optional(),
-  recurrence_pattern: z.string().optional(),
-  recurrence_end_date: z.date().optional(),
-  notes: z.string().optional(),
+  // type: z.enum(['event', 'roadshow', 'construction', 'other']).optional(), // Field is project_type, not type
+  project_type: z.enum(['recruitment', 'internal_event', 'custom']).optional(),
+  schedule_type: z.enum(['single', 'recurring', 'multiple']).optional(), // Updated to match DB constraint
+  // recurrence_pattern: z.string().optional(), // Stored in separate project_recurrence table
+  // recurrence_days: z.array(z.number()).optional(), // Stored in separate project_recurrence table
+  // recurrence_end_date: z.date().optional(), // Not in DB
+  // notes: z.string().optional(), // Not in DB
   budget: z.number().optional(),
   invoice_number: z.string().optional(),
-  payment_terms: z.string().optional(),
+  // payment_terms: z.string().optional(), // Not in DB
+  // Fields that exist in the Project interface - removed duplicates
+  brand_name: z.string().optional(),
+  brand_logo: z.string().optional(),
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -60,7 +68,7 @@ interface EditProjectDialogSteppedProps {
   project: unknown;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onProjectUpdated?: () => void;
+  onProjectUpdated?: (updatedProject?: unknown) => void;
 }
 
 const steps: { id: Step; label: string; icon: React.ElementType }[] = [
@@ -77,7 +85,11 @@ export function EditProjectDialogStepped({ project, open, onOpenChange, onProjec
   const [currentStep, setCurrentStep] = useState<Step>('project-info');
   const [completedSteps, setCompletedSteps] = useState<Set<Step>>(new Set());
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
   const [companies, setCompanies] = useState<Array<{id: string; name?: string; company_name?: string; logo_url?: string}>>([]);
+  const [managers, setManagers] = useState<Array<{id: string; full_name: string}>>([]);
+  const [showLogoSelector, setShowLogoSelector] = useState(false);
+  const [currentBrandName, setCurrentBrandName] = useState('');
   const { toast } = useToast();
 
   const form = useForm<FormData>({
@@ -85,48 +97,58 @@ export function EditProjectDialogStepped({ project, open, onOpenChange, onProjec
     defaultValues: {
       title: project?.title || '',
       description: project?.description || '',
-      company_id: project?.company_id || '',
+      client_id: project?.client_id || '',
+      manager_id: project?.manager_id || '',
       start_date: project?.start_date ? new Date(project.start_date) : new Date(),
       end_date: project?.end_date ? new Date(project.end_date) : undefined,
-      venue_name: project?.venue_name || '',
+      // venue_name: project?.venue_name || '', // Not in DB
       venue_address: project?.venue_address || '',
-      contact_name: project?.contact_name || '',
-      contact_phone: project?.contact_phone || '',
-      contact_email: project?.contact_email || '',
+      venue_details: project?.venue_details || '',
+      // contact_name: project?.contact_name || '', // Not in DB
+      // contact_phone: project?.contact_phone || '', // Not in DB
+      // contact_email: project?.contact_email || '', // Not in DB
       crew_count: project?.crew_count || 0,
+      supervisors_required: project?.supervisors_required || 0,
       working_hours_start: project?.working_hours_start || '09:00',
       working_hours_end: project?.working_hours_end || '18:00',
-      break_duration: project?.break_duration || '60',
-      meal_provided: project?.meal_provided || false,
-      parking_provided: project?.parking_provided || false,
+      // break_duration: project?.break_duration || '60', // This field doesn't exist in DB
+      // meal_provided: project?.meal_provided || false, // This field doesn't exist in DB
+      // parking_provided: project?.parking_provided || false, // This field doesn't exist in DB
       color: project?.color || '#3B82F6',
       priority: project?.priority || 'medium',
       status: project?.status || 'planning',
-      type: project?.type || 'event',
+      // type: project?.type || 'event', // Field is project_type
+      project_type: project?.project_type || undefined,
       schedule_type: project?.schedule_type || 'single',
-      recurrence_pattern: project?.recurrence_pattern || '',
-      recurrence_end_date: project?.recurrence_end_date ? new Date(project.recurrence_end_date) : undefined,
-      notes: project?.notes || '',
+      // recurrence_pattern: project?.recurrence_pattern || '', // Stored in separate table
+      // recurrence_days: project?.recurrence_days || [], // Stored in separate table
+      // recurrence_end_date: project?.recurrence_end_date ? new Date(project.recurrence_end_date) : undefined, // Not in DB
+      // notes: project?.notes || '', // Not in DB
       budget: project?.budget || undefined,
       invoice_number: project?.invoice_number || '',
-      payment_terms: project?.payment_terms || '',
+      // payment_terms: project?.payment_terms || '', // Not in DB
+      brand_name: project?.brand_name || '',
+      brand_logo: project?.brand_logo || '',
     },
   });
 
-  const fetchCompanies = useCallback(async () => {
+  const fetchCompaniesAndManagers = useCallback(async () => {
     try {
-      const { data, error } = await supabase
-        .from('companies')
-        .select('id, name, company_name, logo_url')
-        .order('name');
+      const [companiesResult, managersResult] = await Promise.all([
+        supabase.from('companies').select('*').order('name'),
+        supabase.from('users').select('id, full_name, role').in('role', ['admin', 'super_admin', 'manager']).order('full_name')
+      ]);
 
-      if (error) throw error;
-      setCompanies(data || []);
+      if (companiesResult.error) throw companiesResult.error;
+      if (managersResult.error) throw managersResult.error;
+      
+      setCompanies(companiesResult.data || []);
+      setManagers(managersResult.data || []);
     } catch (error) {
-      console.error('Error fetching companies:', error);
+      logger.error('Error fetching data:', error);
       toast({
         title: 'Error',
-        description: 'Failed to load companies',
+        description: 'Failed to load companies and managers',
         variant: 'destructive',
       });
     }
@@ -134,40 +156,47 @@ export function EditProjectDialogStepped({ project, open, onOpenChange, onProjec
 
   useEffect(() => {
     if (open) {
-      fetchCompanies();
+      fetchCompaniesAndManagers();
     }
-  }, [open, fetchCompanies]);
+  }, [open, fetchCompaniesAndManagers]);
 
   useEffect(() => {
     if (project) {
       form.reset({
         title: project.title || '',
         description: project.description || '',
-        company_id: project.company_id || '',
+        client_id: project.client_id || '',
+        manager_id: project.manager_id || '',
         start_date: project.start_date ? new Date(project.start_date) : new Date(),
         end_date: project.end_date ? new Date(project.end_date) : undefined,
-        venue_name: project.venue_name || '',
+        // venue_name: project.venue_name || '', // Not in DB
         venue_address: project.venue_address || '',
-        contact_name: project.contact_name || '',
-        contact_phone: project.contact_phone || '',
-        contact_email: project.contact_email || '',
+        venue_details: project.venue_details || '',
+        // contact_name: project.contact_name || '', // Not in DB
+        // contact_phone: project.contact_phone || '', // Not in DB
+        // contact_email: project.contact_email || '', // Not in DB
         crew_count: project.crew_count || 0,
+        supervisors_required: project.supervisors_required || 0,
         working_hours_start: project.working_hours_start || '09:00',
         working_hours_end: project.working_hours_end || '18:00',
-        break_duration: project.break_duration || '60',
-        meal_provided: project.meal_provided || false,
-        parking_provided: project.parking_provided || false,
+        // break_duration: project.break_duration || '60', // Not in DB
+        // meal_provided: project.meal_provided || false, // Not in DB
+        // parking_provided: project.parking_provided || false, // Not in DB
         color: project.color || '#3B82F6',
         priority: project.priority || 'medium',
         status: project.status || 'planning',
-        type: project.type || 'event',
+        // type: project.type || 'event', // Field is project_type
+        project_type: project.project_type || undefined,
         schedule_type: project.schedule_type || 'single',
-        recurrence_pattern: project.recurrence_pattern || '',
-        recurrence_end_date: project.recurrence_end_date ? new Date(project.recurrence_end_date) : undefined,
-        notes: project.notes || '',
+        // recurrence_pattern: project.recurrence_pattern || '', // Stored in separate table
+        // recurrence_days: project.recurrence_days || [], // Stored in separate table
+        // recurrence_end_date: project.recurrence_end_date ? new Date(project.recurrence_end_date) : undefined, // Not in DB
+        // notes: project.notes || '', // Not in DB
         budget: project.budget || undefined,
         invoice_number: project.invoice_number || '',
-        payment_terms: project.payment_terms || '',
+        // payment_terms: project.payment_terms || '', // Not in DB
+        brand_name: project.brand_name || '',
+        brand_logo: project.brand_logo || '',
       });
     }
   }, [project, form]);
@@ -180,22 +209,22 @@ export function EditProjectDialogStepped({ project, open, onOpenChange, onProjec
     
     switch (currentStep) {
       case 'project-info':
-        fieldsToValidate = ['title', 'description', 'company_id'];
+        fieldsToValidate = ['title', 'description', 'client_id', 'manager_id', 'brand_name', 'brand_logo'];
         break;
       case 'event-details':
-        fieldsToValidate = ['type', 'priority', 'status', 'color'];
+        fieldsToValidate = ['event_type', 'project_type', 'priority', 'status', 'color'];
         break;
       case 'location':
-        fieldsToValidate = ['venue_name', 'venue_address', 'contact_name', 'contact_phone', 'contact_email'];
+        fieldsToValidate = ['venue_address', 'venue_details'];
         break;
       case 'schedule':
         fieldsToValidate = ['start_date', 'end_date', 'schedule_type', 'working_hours_start', 'working_hours_end'];
         break;
       case 'staffing':
-        fieldsToValidate = ['crew_count', 'meal_provided', 'parking_provided', 'break_duration'];
+        fieldsToValidate = ['crew_count', 'supervisors_required'];
         break;
       case 'advanced':
-        fieldsToValidate = ['budget', 'invoice_number', 'payment_terms', 'notes'];
+        fieldsToValidate = ['budget', 'invoice_number'];
         break;
     }
 
@@ -235,32 +264,102 @@ export function EditProjectDialogStepped({ project, open, onOpenChange, onProjec
         ...data,
         start_date: format(data.start_date, 'yyyy-MM-dd'),
         end_date: data.end_date ? format(data.end_date, 'yyyy-MM-dd') : null,
-        recurrence_end_date: data.recurrence_end_date ? format(data.recurrence_end_date, 'yyyy-MM-dd') : null,
+        // recurrence_end_date: data.recurrence_end_date ? format(data.recurrence_end_date, 'yyyy-MM-dd') : null, // Not in DB
         updated_at: new Date().toISOString(),
       };
 
-      if (!data.contact_email) {
-        delete updateData.contact_email;
-      }
+      // Remove any fields that don't exist in DB
+      delete updateData.venue_name;
+      delete updateData.contact_name;
+      delete updateData.contact_phone;
+      delete updateData.contact_email;
+      delete updateData.recurrence_pattern;
+      delete updateData.recurrence_days;
+      delete updateData.recurrence_end_date;
+      delete updateData.notes;
+      delete updateData.payment_terms;
+      delete updateData.type; // The field is project_type
+      delete updateData.break_duration;
+      delete updateData.meal_provided;
+      delete updateData.parking_provided;
 
-      const { error } = await supabase
+      const { data: updatedProject, error } = await supabase
         .from('projects')
         .update(updateData)
-        .eq('id', project.id);
+        .eq('id', project.id)
+        .select()
+        .single();
 
       if (error) throw error;
 
+      // Fetch manager information if manager_id exists
+      const projectWithDetails = { ...updatedProject };
+      if (updatedProject.manager_id) {
+        const { data: managerData } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', updatedProject.manager_id)
+          .single();
+        
+        if (managerData) {
+          projectWithDetails.manager = managerData;
+        }
+      }
+
+      // Fetch client information if client_id exists
+      if (updatedProject.client_id) {
+        // First try to fetch from companies table
+        const { data: companyData } = await supabase
+          .from('companies')
+          .select('*')
+          .eq('id', updatedProject.client_id)
+          .single();
+        
+        if (companyData) {
+          projectWithDetails.client = {
+            ...companyData,
+            name: companyData.name || companyData.company_name,
+            logo_url: companyData.logo_url
+          };
+        } else {
+          // If not found in companies, try users table
+          const { data: userData } = await supabase
+            .from('users')
+            .select('*')
+            .eq('id', updatedProject.client_id)
+            .single();
+          
+          if (userData) {
+            projectWithDetails.client = {
+              ...userData,
+              name: userData.full_name || userData.company_name
+            };
+          }
+        }
+      }
+
+      // Show success toast with more details
       toast({
-        title: 'Success',
-        description: 'Project updated successfully',
+        title: '✅ Project Updated Successfully',
+        description: `"${updatedProject.title}" has been updated with your changes.`,
+        duration: 4000,
       });
 
-      onProjectUpdated?.();
-      onOpenChange(false);
-      setCurrentStep('project-info');
-      setCompletedSteps(new Set());
+      // Add a small delay before closing to show the success state
+      setIsSubmitting(false);
+      setShowSuccess(true);
+      
+      // Show a success animation or state
+      setTimeout(() => {
+        // Pass the updated project data with manager and client info to the callback
+        onProjectUpdated?.(projectWithDetails);
+        onOpenChange(false);
+        setCurrentStep('project-info');
+        setCompletedSteps(new Set());
+        setShowSuccess(false);
+      }, 1500); // Show success state for 1.5 seconds
     } catch (error) {
-      console.error('Error updating project:', error);
+      logger.error('Error updating project:', error);
       toast({
         title: 'Error',
         description: 'Failed to update project. Please try again.',
@@ -306,41 +405,167 @@ export function EditProjectDialogStepped({ project, open, onOpenChange, onProjec
                 </FormItem>
               )}
             />
-            <FormField
-              control={form.control}
-              name="company_id"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Company</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="client_id"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Company</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a company" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {companies?.map((company) => (
+                          <SelectItem key={company.id} value={company.id}>
+                            <div className="flex items-center gap-2">
+                              {company.logo_url ? (
+                                <img 
+                                  src={company.logo_url} 
+                                  alt={company.company_name || company.name}
+                                  className="h-5 w-5 rounded object-cover"
+                                />
+                              ) : (
+                                <Building2 className="h-4 w-4 text-gray-500" />
+                              )}
+                              {company.company_name || company.name || 'Unknown Company'}
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="manager_id"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Person in Charge</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a manager" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {managers?.map((manager) => (
+                          <SelectItem key={manager.id} value={manager.id}>
+                            {manager.full_name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+            
+            {/* Display Client PIC Information in a compact format */}
+            {form.watch('client_id') && (() => {
+              const selectedCompany = companies?.find(c => c.id === form.watch('client_id'));
+              return selectedCompany && 'pic_name' in selectedCompany && selectedCompany.pic_name ? (
+                <div className="flex items-center gap-2 p-2 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
+                  <User className="h-4 w-4 text-blue-600 dark:text-blue-400 flex-shrink-0" />
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="text-blue-700 dark:text-blue-300 font-medium">Client PIC:</span>
+                    <span className="text-blue-900 dark:text-blue-100 font-semibold">{(selectedCompany as { pic_name?: string }).pic_name}</span>
+                    {'pic_designation' in selectedCompany && selectedCompany.pic_designation && (
+                      <span className="text-blue-600 dark:text-blue-400">({(selectedCompany as { pic_designation?: string }).pic_designation})</span>
+                    )}
+                    {'pic_phone' in selectedCompany && selectedCompany.pic_phone && (
+                      <>
+                        <span className="text-blue-500 dark:text-blue-500">•</span>
+                        <span className="text-blue-600 dark:text-blue-400">{(selectedCompany as { pic_phone?: string }).pic_phone}</span>
+                      </>
+                    )}
+                  </div>
+                </div>
+              ) : null;
+            })()}
+            
+            {/* Brand Fields */}
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="brand_name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Brand Name</FormLabel>
                     <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a company" />
-                      </SelectTrigger>
+                      <div className="flex gap-2">
+                        <Input 
+                          {...field} 
+                          placeholder="e.g., Nike, Coca-Cola" 
+                          onBlur={(e) => {
+                            field.onBlur();
+                            const brandName = e.target.value.trim();
+                            if (brandName) {
+                              setCurrentBrandName(brandName);
+                            }
+                          }}
+                          onChange={(e) => {
+                            field.onChange(e);
+                            setCurrentBrandName(e.target.value.trim());
+                          }}
+                        />
+                        {currentBrandName && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setShowLogoSelector(true)}
+                          >
+                            <Search className="h-4 w-4 mr-2" />
+                            Find Logo
+                          </Button>
+                        )}
+                      </div>
                     </FormControl>
-                    <SelectContent>
-                      {companies?.map((company) => (
-                        <SelectItem key={company.id} value={company.id}>
-                          <div className="flex items-center gap-2">
-                            {company.logo_url ? (
-                              <img 
-                                src={company.logo_url} 
-                                alt={company.company_name || company.name}
-                                className="h-5 w-5 rounded object-cover"
-                              />
-                            ) : (
-                              <Building2 className="h-4 w-4 text-gray-500" />
-                            )}
-                            {company.company_name || company.name || 'Unknown Company'}
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="brand_logo"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Brand Logo URL</FormLabel>
+                    <FormControl>
+                      <div className="space-y-2">
+                        <Input 
+                          {...field} 
+                          placeholder="https://example.com/logo.png" 
+                        />
+                        {field.value && (
+                          <div className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                            <img 
+                              src={field.value} 
+                              alt="Brand logo preview" 
+                              className="h-8 w-auto object-contain"
+                              onError={(e) => {
+                                e.currentTarget.style.display = 'none';
+                              }}
+                            />
                           </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                        )}
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
           </div>
         );
 
@@ -349,7 +574,35 @@ export function EditProjectDialogStepped({ project, open, onOpenChange, onProjec
           <div className="space-y-4">
             <FormField
               control={form.control}
-              name="type"
+              name="event_type"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Event Type</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select event type" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="roving">Roving</SelectItem>
+                      <SelectItem value="roadshow">Roadshow</SelectItem>
+                      <SelectItem value="in-store">In-Store</SelectItem>
+                      <SelectItem value="ad-hoc">Ad-Hoc</SelectItem>
+                      <SelectItem value="corporate">Corporate</SelectItem>
+                      <SelectItem value="wedding">Wedding</SelectItem>
+                      <SelectItem value="concert">Concert</SelectItem>
+                      <SelectItem value="conference">Conference</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="project_type"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Project Type</FormLabel>
@@ -360,10 +613,9 @@ export function EditProjectDialogStepped({ project, open, onOpenChange, onProjec
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="event">Event</SelectItem>
-                      <SelectItem value="roadshow">Roadshow</SelectItem>
-                      <SelectItem value="construction">Construction</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
+                      <SelectItem value="recruitment">Recruitment</SelectItem>
+                      <SelectItem value="internal_event">Internal Event</SelectItem>
+                      <SelectItem value="custom">Custom</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -450,19 +702,6 @@ export function EditProjectDialogStepped({ project, open, onOpenChange, onProjec
           <div className="space-y-4">
             <FormField
               control={form.control}
-              name="venue_name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Venue Name</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Enter venue name" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
               name="venue_address"
               render={({ field }) => (
                 <FormItem>
@@ -478,6 +717,24 @@ export function EditProjectDialogStepped({ project, open, onOpenChange, onProjec
                 </FormItem>
               )}
             />
+            <FormField
+              control={form.control}
+              name="venue_details"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Venue Details</FormLabel>
+                  <FormControl>
+                    <Textarea 
+                      placeholder="Enter additional venue details" 
+                      className="min-h-[80px]"
+                      {...field} 
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            {/* Contact fields don't exist in the database
             <Separator className="my-4" />
             <h4 className="text-sm font-medium">Contact Information</h4>
             <FormField
@@ -519,6 +776,7 @@ export function EditProjectDialogStepped({ project, open, onOpenChange, onProjec
                 </FormItem>
               )}
             />
+            */}
           </div>
         );
 
@@ -538,8 +796,8 @@ export function EditProjectDialogStepped({ project, open, onOpenChange, onProjec
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="single">Single Day</SelectItem>
-                      <SelectItem value="multi_day">Multi Day</SelectItem>
+                      <SelectItem value="single">Single</SelectItem>
+                      <SelectItem value="multiple">Multiple Locations</SelectItem>
                       <SelectItem value="recurring">Recurring</SelectItem>
                     </SelectContent>
                   </Select>
@@ -552,39 +810,19 @@ export function EditProjectDialogStepped({ project, open, onOpenChange, onProjec
                 control={form.control}
                 name="start_date"
                 render={({ field }) => (
-                  <FormItem>
+                  <FormItem className="flex flex-col">
                     <FormLabel>Start Date</FormLabel>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <FormControl>
-                          <Button
-                            variant="outline"
-                            className={cn(
-                              "w-full pl-3 text-left font-normal",
-                              !field.value && "text-muted-foreground"
-                            )}
-                          >
-                            {field.value ? (
-                              format(field.value, "PPP")
-                            ) : (
-                              <span>Pick a date</span>
-                            )}
-                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                          </Button>
-                        </FormControl>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={field.value}
-                          onSelect={field.onChange}
-                          disabled={(date) =>
-                            date < new Date(new Date().setHours(0, 0, 0, 0))
-                          }
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
+                    <FormControl>
+                      <Input
+                        type="date"
+                        value={field.value ? format(field.value, 'yyyy-MM-dd') : ''}
+                        onChange={(e) => {
+                          const date = e.target.value ? new Date(e.target.value) : undefined;
+                          field.onChange(date);
+                        }}
+                        className="w-full"
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -593,40 +831,20 @@ export function EditProjectDialogStepped({ project, open, onOpenChange, onProjec
                 control={form.control}
                 name="end_date"
                 render={({ field }) => (
-                  <FormItem>
+                  <FormItem className="flex flex-col">
                     <FormLabel>End Date</FormLabel>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <FormControl>
-                          <Button
-                            variant="outline"
-                            className={cn(
-                              "w-full pl-3 text-left font-normal",
-                              !field.value && "text-muted-foreground"
-                            )}
-                          >
-                            {field.value ? (
-                              format(field.value, "PPP")
-                            ) : (
-                              <span>Pick a date</span>
-                            )}
-                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                          </Button>
-                        </FormControl>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={field.value}
-                          onSelect={field.onChange}
-                          disabled={(date) => {
-                            const startDate = form.getValues('start_date');
-                            return date < startDate;
-                          }}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
+                    <FormControl>
+                      <Input
+                        type="date"
+                        value={field.value ? format(field.value, 'yyyy-MM-dd') : ''}
+                        onChange={(e) => {
+                          const date = e.target.value ? new Date(e.target.value) : undefined;
+                          field.onChange(date);
+                        }}
+                        min={form.watch('start_date') ? format(form.watch('start_date'), 'yyyy-MM-dd') : ''}
+                        className="w-full"
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -688,6 +906,30 @@ export function EditProjectDialogStepped({ project, open, onOpenChange, onProjec
             />
             <FormField
               control={form.control}
+              name="supervisors_required"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Supervisors Required</FormLabel>
+                  <FormControl>
+                    <Input 
+                      type="number" 
+                      min="0"
+                      max="9"
+                      placeholder="0" 
+                      {...field} 
+                      onChange={(e) => {
+                        const value = parseInt(e.target.value);
+                        field.onChange(isNaN(value) ? 0 : Math.max(0, Math.min(9, value)));
+                      }}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            {/* Commented out - these fields don't exist in the database
+            <FormField
+              control={form.control}
               name="break_duration"
               render={({ field }) => (
                 <FormItem>
@@ -741,6 +983,7 @@ export function EditProjectDialogStepped({ project, open, onOpenChange, onProjec
                 </FormItem>
               )}
             />
+            */}
           </div>
         );
 
@@ -778,6 +1021,7 @@ export function EditProjectDialogStepped({ project, open, onOpenChange, onProjec
                 </FormItem>
               )}
             />
+            {/* Payment terms field doesn't exist in the database
             <FormField
               control={form.control}
               name="payment_terms"
@@ -791,6 +1035,8 @@ export function EditProjectDialogStepped({ project, open, onOpenChange, onProjec
                 </FormItem>
               )}
             />
+            */}
+            {/* Notes field doesn't exist in the database
             <FormField
               control={form.control}
               name="notes"
@@ -808,12 +1054,13 @@ export function EditProjectDialogStepped({ project, open, onOpenChange, onProjec
                 </FormItem>
               )}
             />
+            */}
           </div>
         );
 
-      case 'review':
+      case 'review': {
         const formValues = form.getValues();
-        const selectedCompany = companies?.find(c => c.id === formValues.company_id);
+        const selectedCompany = companies?.find(c => c.id === formValues.client_id);
         
         return (
           <div className="space-y-4">
@@ -842,9 +1089,15 @@ export function EditProjectDialogStepped({ project, open, onOpenChange, onProjec
                   <span className="font-medium capitalize">{formValues.status}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Type:</span>
-                  <span className="font-medium capitalize">{formValues.type}</span>
+                  <span className="text-muted-foreground">Event Type:</span>
+                  <span className="font-medium capitalize">{formValues.event_type}</span>
                 </div>
+                {formValues.project_type && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Project Type:</span>
+                    <span className="font-medium capitalize">{formValues.project_type.replace('_', ' ')}</span>
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Priority:</span>
                   <span className="font-medium capitalize">{formValues.priority}</span>
@@ -867,7 +1120,7 @@ export function EditProjectDialogStepped({ project, open, onOpenChange, onProjec
                 <Separator className="my-2" />
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Venue:</span>
-                  <span className="font-medium">{formValues.venue_name}</span>
+                  <span className="font-medium">{formValues.venue_address || 'Not specified'}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Crew Required:</span>
@@ -888,6 +1141,7 @@ export function EditProjectDialogStepped({ project, open, onOpenChange, onProjec
             </div>
           </div>
         );
+      }
 
       default:
         return null;
@@ -897,7 +1151,7 @@ export function EditProjectDialogStepped({ project, open, onOpenChange, onProjec
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl h-[80vh] p-0">
-        <div className="flex h-full">
+        <div className="flex h-full relative">
           {/* Sidebar */}
           <div className="w-64 bg-gray-50 dark:bg-gray-900 p-6 border-r">
             <DialogHeader className="mb-6 relative">
@@ -1010,9 +1264,25 @@ export function EditProjectDialogStepped({ project, open, onOpenChange, onProjec
                 <Button
                   type="submit"
                   onClick={form.handleSubmit(onSubmit)}
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || showSuccess}
+                  className={cn(
+                    "min-w-[120px] transition-all",
+                    showSuccess && "bg-green-600 hover:bg-green-600"
+                  )}
                 >
-                  {isSubmitting ? 'Saving...' : 'Save Changes'}
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Saving...
+                    </>
+                  ) : showSuccess ? (
+                    <>
+                      <Check className="mr-2 h-4 w-4" />
+                      Saved!
+                    </>
+                  ) : (
+                    'Save Changes'
+                  )}
                 </Button>
               ) : (
                 <Button
@@ -1026,8 +1296,66 @@ export function EditProjectDialogStepped({ project, open, onOpenChange, onProjec
               )}
             </div>
           </div>
+          
+          {/* Success Overlay */}
+          <AnimatePresence>
+            {showSuccess && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="absolute inset-0 bg-white/95 dark:bg-gray-900/95 z-50 flex items-center justify-center"
+              >
+                <motion.div
+                  initial={{ scale: 0.8, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.8, opacity: 0 }}
+                  transition={{ type: "spring", duration: 0.5 }}
+                  className="text-center"
+                >
+                  <motion.div
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
+                    className="w-20 h-20 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-4"
+                  >
+                    <Check className="w-10 h-10 text-green-600 dark:text-green-400" />
+                  </motion.div>
+                  <motion.h3
+                    initial={{ y: 20, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ delay: 0.3 }}
+                    className="text-2xl font-semibold text-gray-900 dark:text-gray-100 mb-2"
+                  >
+                    Project Updated!
+                  </motion.h3>
+                  <motion.p
+                    initial={{ y: 20, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ delay: 0.4 }}
+                    className="text-gray-600 dark:text-gray-400"
+                  >
+                    Your changes have been saved successfully.
+                  </motion.p>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </DialogContent>
+      
+      <BrandLogoSelector
+        open={showLogoSelector}
+        onOpenChange={setShowLogoSelector}
+        brandName={currentBrandName}
+        onSelectLogo={(logoUrl) => {
+          form.setValue('brand_logo', logoUrl);
+          toast({
+            title: "Logo selected",
+            description: "Brand logo has been added to your project.",
+          });
+        }}
+      />
     </Dialog>
   );
 }

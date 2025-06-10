@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 
+import { logger } from '../lib/logger';
 interface UserInfo {
   id: string;
   email: string;
@@ -42,7 +43,7 @@ export function useUserInfo(userId: string | null | undefined): UserInfo | null 
           setUserInfo(data);
         }
       } catch (error) {
-        console.error('Error fetching user info:', error);
+        logger.error('Error fetching user info:', error);
         setUserInfo(null);
       }
     }

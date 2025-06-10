@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 
+import { logger } from './logger';
 let tableChecked = false;
 
 /**
@@ -17,7 +18,7 @@ export async function ensureExpenseClaimsTable(): Promise<boolean> {
       
     // If we get a 42P01 error, the table doesn't exist
     if (error && error.code === '42P01') {
-      console.warn('Expense claims table does not exist');
+      logger.warn('Expense claims table does not exist');
       return false;
     }
 
@@ -28,14 +29,14 @@ export async function ensureExpenseClaimsTable(): Promise<boolean> {
       .limit(1);
       
     if (fieldError && (fieldError.message?.includes('receipt_number') || fieldError.code === 'PGRST204')) {
-      console.warn('receipt_number field does not exist in expense_claims table');
+      logger.warn('receipt_number field does not exist in expense_claims table');
       return false;
     }
     
     tableChecked = true;
     return true;
   } catch (error) {
-    console.warn('Error checking expense claims table:', error);
+    logger.warn('Error checking expense claims table:', error);
     return false;
   }
 }

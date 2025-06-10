@@ -1,0 +1,45 @@
+/* ListView animations - moved from inline styles for security */
+
+@keyframes pulseToday {
+  0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4); }
+  70% { box-shadow: 0 0 0 6px rgba(59, 130, 246, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
+}
+
+.today-highlight {
+  animation: pulseToday 2s infinite;
+}
+
+/* Stronger highlight for click feedback */
+.today-highlight-strong {
+  animation: none !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.6) !important;
+}
+
+/* Holiday indicators animation */
+@keyframes floatBadge {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-2px); }
+}
+
+.holiday-badge {
+  animation: floatBadge 3s ease-in-out infinite;
+}
+
+/* Zoom animations */
+.zoom-transition {
+  transition: transform 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+}
+
+/* Responsive day cells */
+@media (max-width: 768px) {
+  .day-cell {
+    min-height: 100px;
+  }
+}
+
+@media (max-width: 640px) {
+  .day-cell {
+    min-height: 80px;
+  }
+}
