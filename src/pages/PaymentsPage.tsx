@@ -434,7 +434,7 @@ export default function PaymentsPage() {
             
           if (error) {
             // If payment_items table doesn't exist, try to get data from payments column
-            logger.debug('payment_items table not found, { data: checking payments column' });
+            logger.debug('payment_items table not found, checking payments column');
             const batch = paymentBatches.find(b => b.id === batchId);
             
             if (batch?.payments && Array.isArray(batch.payments)) {
