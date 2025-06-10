@@ -225,6 +225,13 @@ export interface Project {
   
   // For multiple locations
   locations?: ProjectLocation[];
+  
+  // Additional fields for job discovery
+  description?: string;
+  company_name?: string;
+  brand_logo_url?: string;
+  employment_type?: string;
+  salary_range?: string;
 }
 
 // Removed KanbanBoard interface
