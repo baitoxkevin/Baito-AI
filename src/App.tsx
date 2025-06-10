@@ -8,6 +8,7 @@ import { EnhancedToaster } from './components/ui/enhanced-toaster';
 // StaticCandidateUpdatePage was removed
 import ReceiptScannerPage from './pages/ReceiptScannerPage';
 import MobileCandidateUpdatePage from './pages/MobileCandidateUpdatePage';
+import CandidateDashboardPage from './pages/CandidateDashboardPage'; // Added
 import SetPasswordPage from './pages/SetPasswordPage';
 import { renderCanvas } from './components/ui/canvas';
 import { SpotlightCommand } from './components/SpotlightCommand';
@@ -85,6 +86,7 @@ function App() {
           <Route path="/receipt-scanner" element={<ReceiptScannerPage />} />
           {/* Candidate update routes with secure token */}
           <Route path="/candidate-update-mobile/:candidateId" element={<MobileCandidateUpdatePage />} />
+          <Route path="/candidate/dashboard/:candidateId" element={<CandidateDashboardPage />} /> {/* Added Route */}
           <Route path="/candidate-form/:token" element={<Navigate to="/login" replace />} />
           <Route path="/candidate/:token" element={<Navigate to="/login" replace />} />
           <Route 
