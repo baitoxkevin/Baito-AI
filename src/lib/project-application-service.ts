@@ -77,6 +77,116 @@ export async function getOpenProjects() {
 }
 
 /**
+ * Get active projects for job discovery (currently running or upcoming)
+ * These are projects that:
+ * 1. Are in 'planning' or 'active' status
+ * 2. Have not ended yet (end_date is in future or null)
+ * 3. Still have open positions
+ * 4. Exclude projects the candidate has already applied to
+ */
+export async function getProjectsForDiscovery(candidateId?: string) {
+  try {
+    const now = new Date().toISOString();
+    
+    // First, get all active/planning projects
+    const { data: projects, error: projectError } = await supabase
+      .from('projects')
+      .select(`
+        *,
+        client:users!projects_client_id_fkey(full_name, email),
+        companies!inner(company_name, logo_url)
+      `)
+      .in('status', ['planning', 'active'])
+      .or(`end_date.is.null,end_date.gt.${now}`)
+      .order('start_date', { ascending: true });
+
+    if (projectError) throw projectError;
+
+    // If candidateId provided, get their applications
+    let appliedProjectIds: string[] = [];
+    if (candidateId) {
+      const { data: applications, error: appError } = await supabase
+        .from('project_staff')
+        .select('project_id')
+        .eq('candidate_id', candidateId);
+      
+      if (!appError && applications) {
+        appliedProjectIds = applications.map(app => app.project_id);
+      }
+    }
+
+    // Filter and enhance projects
+    const discoveryProjects = projects?.filter(project => {
+      // Check if still has capacity
+      const filledPositions = project.filled_positions || 0;
+      const crewCount = project.crew_count || 0;
+      const hasCapacity = crewCount === 0 || filledPositions < crewCount;
+      
+      // Check if not already applied
+      const notApplied = !appliedProjectIds.includes(project.id);
+      
+      return hasCapacity && notApplied;
+    }).map(project => ({
+      ...project,
+      // Add computed fields for the UI
+      company_name: project.companies?.company_name || project.client?.full_name || 'Unknown Company',
+      brand_logo_url: project.companies?.logo_url || project.brand_logo || project.logo_url,
+      description: project.venue_details || `${project.event_type} event at ${project.venue_address}`,
+      employment_type: project.project_type || 'Contract',
+      salary_range: project.budget ? `RM${project.budget}/day` : 'Competitive',
+      // Calculate days until start
+      daysUntilStart: project.start_date ? 
+        Math.ceil((new Date(project.start_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) : 
+        null
+    }));
+
+    return { data: discoveryProjects, error: null };
+  } catch (error) {
+    logger.error('Error fetching projects for discovery:', error);
+    return { data: null, error };
+  }
+}
+
+/**
+ * Record a swipe action on job discovery
+ * @param projectId - The project that was swiped
+ * @param candidateId - The candidate who swiped
+ * @param action - 'like' or 'pass'
+ */
+export async function recordSwipeAction(projectId: string, candidateId: string, action: 'like' | 'pass') {
+  try {
+    if (action === 'like') {
+      // Create an application when swiped right
+      const { data, error } = await supabase
+        .from('project_staff')
+        .insert({
+          project_id: projectId,
+          candidate_id: candidateId,
+          designation: 'Crew', // Default designation
+          apply_type: 'applied',
+          status: 'pending',
+          applied_date: new Date().toISOString()
+        })
+        .select()
+        .single();
+      
+      if (error) throw error;
+      
+      logger.info('Recorded like swipe as application:', { projectId, candidateId });
+      return { data, error: null };
+    } else {
+      // For 'pass' actions, we could store in a separate table to prevent showing again
+      // For now, just log it
+      logger.info('Recorded pass swipe:', { projectId, candidateId });
+      return { data: null, error: null };
+    }
+  } catch (error) {
+    logger.error('Error recording swipe action:', error);
+    return { data: null, error };
+  }
+}
+
+/**
  * Check if a candidate has already applied to a project
  */
 export async function hasAppliedToProject(projectId: string, candidateId: string) {
