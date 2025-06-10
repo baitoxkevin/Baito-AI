@@ -5,8 +5,6 @@ import { ensureExpenseClaimsTable } from './ensure-expense-claims-table';
  * Simplified function to handle expense claims with robust error handling
  */
 export async function fetchProjectExpenseClaimsWithFallback(projectId: string): Promise<any[]> {
-  console.log('fetchProjectExpenseClaimsWithFallback called with projectId:', projectId);
-  
   try {
     // Check if table exists
     const tableExists = await ensureExpenseClaimsTable();
@@ -22,8 +20,6 @@ export async function fetchProjectExpenseClaimsWithFallback(projectId: string): 
       return [];
     }
 
-    console.log('Fetching expense claims for project:', projectId);
-    
     // Query with joins to get staff and user names
     const { data, error } = await supabase
       .from('expense_claims')
@@ -36,8 +32,6 @@ export async function fetchProjectExpenseClaimsWithFallback(projectId: string): 
       `)
       .eq('project_id', projectId)
       .order('created_at', { ascending: false });
-
-    console.log('Supabase response - data:', data, 'error:', error);
 
     // If table doesn't exist, return empty array
     if (error && error.code === '42P01') {

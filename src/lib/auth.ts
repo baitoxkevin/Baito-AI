@@ -310,21 +310,63 @@ export async function updatePassword(newPassword: string) {
 export async function getUserProfile(userId?: string): Promise<UserProfile> {
   try {
     // If userId not provided, get current user
-    if (!userId) {
-      const user = await getUser();
-      if (!user) throw new Error('Not authenticated');
-      userId = user.id;
+    let currentUserId = userId;
+    let currentUser = null;
+    
+    if (!currentUserId) {
+      currentUser = await getUser();
+      if (!currentUser) throw new Error('Not authenticated');
+      currentUserId = currentUser.id;
     }
     
     // Fetch user profile
     const { data, error } = await supabase
       .from('users')
       .select('*')
-      .eq('id', userId)
+      .eq('id', currentUserId)
       .single();
       
-    if (error) throw error;
-    if (!data) throw new Error('User profile not found');
+    if (error || !data) {
+      // If profile doesn't exist but we have an auth user, create a basic profile
+      if (error?.code === 'PGRST116' && currentUser) {
+        console.log('User profile not found, creating basic profile...');
+        
+        // Get current user data if we don't have it
+        if (!currentUser && currentUserId) {
+          const { data: { user } } = await supabase.auth.getUser();
+          currentUser = user;
+        }
+        
+        if (currentUser) {
+          // Create a basic profile
+          const basicProfile = {
+            id: currentUser.id,
+            email: currentUser.email || '',
+            full_name: currentUser.user_metadata?.full_name || currentUser.email?.split('@')[0] || 'User',
+            role: 'staff' as UserRole,
+            is_super_admin: false,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          };
+          
+          // Try to insert the profile
+          const { data: newProfile, error: insertError } = await supabase
+            .from('users')
+            .insert(basicProfile)
+            .select()
+            .single();
+            
+          if (insertError) {
+            console.error('Failed to create user profile:', insertError);
+            throw new Error('User profile not found and could not be created');
+          }
+          
+          return newProfile as UserProfile;
+        }
+      }
+      
+      throw error || new Error('User profile not found');
+    }
     
     // Ensure avatar URL is set
     const profile = data as UserProfile;

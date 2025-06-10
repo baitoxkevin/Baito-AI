@@ -288,7 +288,7 @@ export default function MobileCandidateUpdatePage() {
       
       if (error) {
         console.error('Token validation error:', error);
-        setError('Invalid or expired link');
+        setError('This link has expired or is invalid. Please request a new update link from the Baito team.');
         setLoading(false);
         return;
       }
@@ -296,7 +296,7 @@ export default function MobileCandidateUpdatePage() {
       const validationResult = data?.[0];
       
       if (!validationResult?.valid) {
-        setError(validationResult?.reason || 'Invalid or expired link');
+        setError(validationResult?.reason || 'This link has expired or is invalid. Please request a new update link from the Baito team.');
         setLoading(false);
         return;
       }
@@ -313,7 +313,7 @@ export default function MobileCandidateUpdatePage() {
       setLoading(false);
     } catch (error) {
       console.error('Error validating token:', error);
-      setError('Failed to validate access');
+      setError('Failed to validate access. Please contact the Baito team for assistance.');
       setLoading(false);
     }
   };
@@ -1096,8 +1096,25 @@ export default function MobileCandidateUpdatePage() {
                       <AlertCircle className="h-8 w-8 text-red-500" />
                     </div>
                   </motion.div>
-                  <CardTitle className="text-xl font-semibold text-red-600">Error</CardTitle>
-                  <p className="text-sm text-gray-600 text-center px-4">{error}</p>
+                  <CardTitle className="text-xl font-semibold">Error</CardTitle>
+                  <p className="text-sm text-gray-600 text-center px-4 mb-4">
+                    Token is invalid, expired, or already used
+                  </p>
+                  <div className="space-y-4 text-center">
+                    <p className="text-xs text-gray-500">
+                      {error}
+                    </p>
+                    <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 text-left">
+                      <p className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        To get a new update link:
+                      </p>
+                      <ol className="text-xs text-gray-600 dark:text-gray-400 space-y-1 list-decimal list-inside">
+                        <li>Contact your admin or the Baito team</li>
+                        <li>Provide your name and IC number</li>
+                        <li>Request a new profile update link</li>
+                      </ol>
+                    </div>
+                  </div>
                   <Button 
                     variant="outline" 
                     onClick={() => window.location.reload()}
@@ -1129,11 +1146,27 @@ export default function MobileCandidateUpdatePage() {
                   <CardHeader className="space-y-6">
                     <div className="mx-auto">
                       <div className="relative">
-                        <div className="w-24 h-24 rounded-full bg-gradient-to-br from-green-400 to-emerald-600 p-1 animate-pulse">
+                        <motion.div 
+                          className="w-24 h-24 rounded-full bg-gradient-to-br from-green-400 to-emerald-600 p-1"
+                          initial={{ scale: 0 }}
+                          animate={{ scale: 1 }}
+                          transition={{ 
+                            type: "spring",
+                            stiffness: 200,
+                            damping: 10,
+                            delay: 0.1 
+                          }}
+                        >
                           <div className="w-full h-full rounded-full bg-white dark:bg-gray-900 flex items-center justify-center">
-                            <Check className="h-12 w-12 text-green-600 dark:text-green-400" />
+                            <motion.div
+                              initial={{ scale: 0, opacity: 0 }}
+                              animate={{ scale: 1, opacity: 1 }}
+                              transition={{ delay: 0.3 }}
+                            >
+                              <CheckCircle2 className="h-12 w-12 text-green-600 dark:text-green-400" />
+                            </motion.div>
                           </div>
-                        </div>
+                        </motion.div>
                         <div className="absolute -bottom-2 -right-2 w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center animate-bounce">
                           <Sparkles className="h-5 w-5 text-white" />
                         </div>
@@ -1157,9 +1190,33 @@ export default function MobileCandidateUpdatePage() {
                   </CardHeader>
                   
                   <CardContent className="space-y-6">
-                    <Button onClick={() => setUpdateSuccess(false)} className="w-full">
-                      Back to Form
-                    </Button>
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <p className="text-center text-sm text-gray-600">
+                          Thank you for updating your information
+                        </p>
+                        <p className="text-center text-xs text-gray-500">
+                          You can safely close this window now
+                        </p>
+                      </div>
+                      <Button 
+                        onClick={() => {
+                          // Try to close the window
+                          window.close();
+                          // If window.close() doesn't work, show a message
+                          setTimeout(() => {
+                            toast({
+                              title: 'Please close this tab/window manually',
+                              description: 'Your information has been saved successfully.',
+                            });
+                          }, 500);
+                        }} 
+                        className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700"
+                      >
+                        <X className="mr-2 h-4 w-4" />
+                        Close Window
+                      </Button>
+                    </div>
                   </CardContent>
                 </MagicCard>
               </motion.div>

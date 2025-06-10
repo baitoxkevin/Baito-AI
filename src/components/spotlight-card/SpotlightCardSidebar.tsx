@@ -43,6 +43,7 @@ interface SpotlightCardSidebarProps {
   claimsCount: number;
   activeTab?: string;
   onTabChange?: (value: string) => void;
+  onProjectUpdated?: (updatedProject: Project) => void;
 }
 
 export function SpotlightCardSidebar({
@@ -51,7 +52,8 @@ export function SpotlightCardSidebar({
   staffCount,
   claimsCount,
   activeTab = 'schedule',
-  onTabChange = () => {}
+  onTabChange = () => {},
+  onProjectUpdated
 }: SpotlightCardSidebarProps) {
   
   const [brandLogoUrl, setBrandLogoUrl] = React.useState<string | null>((project as unknown).brand_logo || null);
@@ -76,7 +78,7 @@ export function SpotlightCardSidebar({
     // Also update the brand logo URL from the new project data
     setBrandLogoUrl((project as unknown).brand_logo || null);
     setLogoError(false); // Reset logo error state
-  }, [project]);
+  }, [project, project.start_date, project.end_date, project.working_hours_start, project.working_hours_end]);
   
   // Fetch customer logo when component mounts or project changes
   React.useEffect(() => {
@@ -142,8 +144,8 @@ export function SpotlightCardSidebar({
     // Update brand logo from the updated project
     setBrandLogoUrl((updatedProject as unknown).brand_logo || null);
     setLogoError(false); // Reset logo error state
-    // You might want to propagate this update to parent component
-    // if (onProjectUpdated) onProjectUpdated(updatedProject);
+    // Propagate this update to parent component
+    onProjectUpdated?.(updatedProject);
   };
   
   // Close dropdown when clicking outside
@@ -575,6 +577,14 @@ export function SpotlightCardSidebar({
                             title: "Logo Updated",
                             description: "Brand logo URL has been updated."
                           });
+                          
+                          // Update the parent component
+                          if (onProjectUpdated) {
+                            onProjectUpdated({
+                              ...project,
+                              brand_logo: tempBrandUrl
+                            });
+                          }
                         } catch (error) {
                           console.error('Error updating brand logo:', error);
                           toast({
@@ -613,6 +623,14 @@ export function SpotlightCardSidebar({
                           title: "Logo Removed",
                           description: "Brand logo has been removed."
                         });
+                        
+                        // Update the parent component
+                        if (onProjectUpdated) {
+                          onProjectUpdated({
+                            ...project,
+                            brand_logo: null
+                          });
+                        }
                       } catch (error) {
                         console.error('Error removing brand logo:', error);
                         toast({

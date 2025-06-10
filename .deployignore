@@ -1,0 +1,64 @@
+# Git
+.git/
+.gitignore
+
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Testing
+coverage/
+test-*.js
+*test*
+*debug*
+
+# Build outputs
+dist/
+build/
+*.tsbuildinfo
+
+# Environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Editor
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# System
+.DS_Store
+Thumbs.db
+
+# Project specific
+fix-winnie-user.sql
+create-super-admin.sql
+create-super-admin.js
+add-brand-logo-migration.sql
+create-password-reset-tokens.sql
+add-missing-user-columns.sql
+run-*.sh
+create-deployment-zip.sh
+*.zip
+debug.html
+debug.js
+
+# Temporary files
+*.tmp
+*.temp
+*.log

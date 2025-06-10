@@ -38,18 +38,6 @@ export const supabase = createClient<Database>(
 // Helper type for RPC calls
 export type SupabaseRPC<T = any> = { data: T | null; error: unknown };
 
-// Function to execute a SQL migration directly
-export const applyMigration = async (sql: string) => {
-  try {
-    // Execute the SQL directly using the REST API
-    const { error } = await supabase.rpc('exec_sql', { sql });
-    
-    if (error) {
-      return { success: false, error };
-    }
-    
-    return { success: true, error: null };
-  } catch (error) {
-    return { success: false, error };
-  }
-};
+// REMOVED: applyMigration function that used dangerous exec_sql RPC
+// This function was a security vulnerability and has been removed
+// Use Supabase migrations through the dashboard or CLI instead

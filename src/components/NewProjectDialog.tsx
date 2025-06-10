@@ -25,7 +25,9 @@ import {
   Calendar,
   MapPinIcon,
   UserCheck,
-  Link
+  Link,
+  Search,
+  ChevronDown
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import {
@@ -64,6 +66,16 @@ import { supabase } from '@/lib/supabase';
 import { createProject } from '@/lib/projects';
 import { fetchBrandLogo } from '@/lib/logo-service';
 import { useToast } from '@/hooks/use-toast';
+import { notificationService } from '@/lib/notification-service';
+import { getUser } from '@/lib/auth';
+import { BrandLogoSelector } from '@/components/BrandLogoSelector';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+} from "@/components/ui/command";
 
 // Define step types
 type Step = 
@@ -120,6 +132,10 @@ const projectSchema = z.object({
   priority: z.enum(['low', 'medium', 'high']).default('medium'),
   budget: z.number().min(0).optional(),
   invoice_number: z.string().optional(),
+  
+  // CC Stakeholders
+  cc_client_ids: z.array(z.string()).optional(), // CC contact IDs from company_contacts table
+  cc_user_ids: z.array(z.string()).optional(), // CC user IDs from users table
 }).refine((data) => {
   if (data.end_date && data.start_date > data.end_date) {
     return false;
@@ -148,8 +164,11 @@ export function NewProjectDialog({
   const [currentStep, setCurrentStep] = useState<Step>('project-info');
   const [isLoading, setIsLoading] = useState(false);
   const [customers, setCustomers] = useState<{ id: string; full_name: string; company_name?: string; logo_url?: string }[]>([]);
+  const [contacts, setContacts] = useState<{ id: string; name: string; company_id: string; company_name: string; email?: string; designation?: string }[]>([]);
   const [managers, setManagers] = useState<{ id: string; full_name: string; }[]>([]);
   const [visitedSteps, setVisitedSteps] = useState<Set<Step>>(new Set(['project-info']));
+  const [showLogoSelector, setShowLogoSelector] = useState(false);
+  const [currentBrandName, setCurrentBrandName] = useState('');
   const { toast } = useToast();
 
   const form = useForm<ProjectFormValues>({
@@ -176,6 +195,8 @@ export function NewProjectDialog({
       priority: 'medium',
       budget: 0,
       invoice_number: '',
+      cc_client_ids: [],
+      cc_user_ids: [],
     },
     mode: 'onChange',
   });
@@ -205,6 +226,8 @@ export function NewProjectDialog({
         priority: 'medium',
         budget: 0,
         invoice_number: '',
+        cc_client_ids: [],
+        cc_user_ids: [],
       }, {
         keepErrors: false,
         keepDirty: false,
@@ -223,14 +246,36 @@ export function NewProjectDialog({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, form, initialDates]);
 
+  // Clear CC contacts when customer changes
+  useEffect(() => {
+    const subscription = form.watch((value, { name }) => {
+      if (name === 'client_id') {
+        // Clear CC contacts when customer changes
+        form.setValue('cc_client_ids', []);
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [form]);
+
   const fetchCustomersAndManagers = async () => {
     try {
-      const [companiesResult, managersResult] = await Promise.all([
+      const [companiesResult, contactsResult, managersResult] = await Promise.all([
         supabase.from('companies').select('id, name, company_name, logo_url').order('name'),
+        supabase.from('company_contacts').select(`
+          id,
+          name,
+          email,
+          designation,
+          company_id,
+          companies!company_contacts_company_id_fkey (
+            company_name
+          )
+        `).order('name'),
         supabase.from('users').select('id, full_name, role').in('role', ['admin', 'super_admin', 'manager']).order('full_name')
       ]);
 
       if (companiesResult.error) throw companiesResult.error;
+      if (contactsResult.error) throw contactsResult.error;
       if (managersResult.error) throw managersResult.error;
 
       setCustomers(companiesResult.data?.map(company => ({
@@ -238,6 +283,15 @@ export function NewProjectDialog({
         full_name: company.company_name || company.name || 'Unknown Company',
         company_name: company.company_name || company.name || 'Unknown Company',
         logo_url: company.logo_url
+      })) || []);
+
+      setContacts(contactsResult.data?.map(contact => ({
+        id: contact.id,
+        name: contact.name,
+        email: contact.email,
+        designation: contact.designation,
+        company_id: contact.company_id,
+        company_name: contact.companies?.company_name || ''
       })) || []);
 
       setManagers(managersResult.data || []);
@@ -301,6 +355,10 @@ export function NewProjectDialog({
   const onSubmit = async (values: ProjectFormValues) => {
     setIsLoading(true);
     try {
+      // Get current user for notification
+      const currentUser = await getUser();
+      const userName = currentUser?.full_name || currentUser?.email || 'Someone';
+
       // Convert empty strings to null for optional fields
       const processedData = {
         ...values,
@@ -314,12 +372,26 @@ export function NewProjectDialog({
         brand_logo: values.brand_logo || null,
         start_date: format(values.start_date, 'yyyy-MM-dd'),
         end_date: values.end_date ? format(values.end_date, 'yyyy-MM-dd') : null,
+        cc_client_ids: values.cc_client_ids || [],
+        cc_user_ids: values.cc_user_ids || [],
       };
       
       const result = await createProject(processedData);
       
       if (!result) {
         throw new Error("Failed to create project");
+      }
+
+      // Send notification to client and CC to person in charge
+      try {
+        await notificationService.notifyProjectCreation(
+          result.id,
+          values.title,
+          userName
+        );
+      } catch (notifError) {
+        console.error('Failed to send notification:', notifError);
+        // Don't fail the creation if notification fails
       }
 
       toast({
@@ -499,40 +571,35 @@ export function NewProjectDialog({
                           Brand Name
                         </FormLabel>
                         <FormControl>
-                          <div className="relative">
+                          <div className="flex gap-2">
                             <Input 
                               {...field} 
                               placeholder="e.g., Nike, Coca-Cola" 
-                              className="h-11 transition-all hover:border-gray-400 focus:border-gray-600"
-                              onBlur={async (e) => {
+                              className="h-11 transition-all hover:border-gray-400 focus:border-gray-600 flex-1"
+                              onBlur={(e) => {
                                 field.onBlur();
-                                // Auto-fetch logo when brand name is entered
                                 const brandName = e.target.value.trim();
-                                if (brandName && !form.getValues('brand_logo')) {
-                                  try {
-                                    // Show loading state
-                                    toast({
-                                      title: "Fetching brand logo...",
-                                      description: "Please wait while we find the logo for " + brandName,
-                                    });
-                                    
-                                    // Fetch logo automatically
-                                    const logoUrl = await fetchBrandLogo(brandName, true);
-                                    
-                                    // Set the logo URL in the form
-                                    form.setValue('brand_logo', logoUrl);
-                                    
-                                    toast({
-                                      title: "Logo found!",
-                                      description: "Brand logo has been added automatically.",
-                                    });
-                                  } catch (error) {
-                                    console.error('Error fetching logo:', error);
-                                    // Silent fail - user can still enter manually
-                                  }
+                                if (brandName) {
+                                  setCurrentBrandName(brandName);
                                 }
                               }}
+                              onChange={(e) => {
+                                field.onChange(e);
+                                setCurrentBrandName(e.target.value.trim());
+                              }}
                             />
+                            {currentBrandName && (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setShowLogoSelector(true)}
+                                className="h-11"
+                              >
+                                <Search className="h-4 w-4 mr-2" />
+                                Find Logo
+                              </Button>
+                            )}
                           </div>
                         </FormControl>
                         <FormDescription>Enter the brand or company name</FormDescription>
@@ -604,6 +671,210 @@ export function NewProjectDialog({
                           </div>
                         </FormControl>
                         <FormDescription>Logo URL (will auto-fetch based on brand name)</FormDescription>
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                {/* Additional Stakeholders (CC) */}
+                <div className="mt-6 space-y-4">
+                  <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">Additional Stakeholders (CC)</h3>
+                  
+                  {/* CC Contacts */}
+                  <FormField
+                    control={form.control}
+                    name="cc_client_ids"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>CC Contacts</FormLabel>
+                        <FormDescription>
+                          {form.watch('client_id') 
+                            ? "Add additional client contacts to keep informed about this project"
+                            : "Select a customer first to see their contacts"}
+                        </FormDescription>
+                        <Popover modal={true}>
+                          <PopoverTrigger asChild>
+                            <FormControl>
+                              <Button
+                                variant="outline"
+                                role="combobox"
+                                disabled={!form.watch('client_id')}
+                                className={cn(
+                                  "w-full justify-between",
+                                  !field.value?.length && "text-muted-foreground"
+                                )}
+                              >
+                                {!form.watch('client_id') 
+                                  ? "Select a customer first"
+                                  : field.value?.length
+                                    ? `${field.value.length} contact${field.value.length > 1 ? 's' : ''} selected`
+                                    : "Select additional contacts"}
+                                <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                              </Button>
+                            </FormControl>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-full p-0">
+                            <Command>
+                              <CommandInput placeholder="Search contacts..." />
+                              <CommandEmpty>
+                                {form.watch('client_id') 
+                                  ? "No contacts found for this company" 
+                                  : "No contact found"}
+                              </CommandEmpty>
+                              <CommandGroup>
+                                {contacts
+                                  .filter(contact => contact.company_id === form.getValues('client_id'))
+                                  .map((contact) => (
+                                  <CommandItem
+                                    key={contact.id}
+                                    value={contact.id}
+                                    onSelect={() => {
+                                      const currentValue = field.value || [];
+                                      const isSelected = currentValue.includes(contact.id);
+                                      const newValue = isSelected
+                                        ? currentValue.filter((id) => id !== contact.id)
+                                        : [...currentValue, contact.id];
+                                      field.onChange(newValue);
+                                    }}
+                                  >
+                                    <div className="flex items-center">
+                                      <div className={cn(
+                                        "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
+                                        field.value?.includes(contact.id)
+                                          ? "bg-primary text-primary-foreground"
+                                          : "opacity-50 [&_svg]:invisible"
+                                      )}>
+                                        <Check className="h-4 w-4" />
+                                      </div>
+                                      <div>
+                                        <div className="font-medium">{contact.name}</div>
+                                        <div className="text-xs text-muted-foreground">
+                                          {contact.designation || 'Contact'}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </CommandItem>
+                                ))}
+                              </CommandGroup>
+                            </Command>
+                          </PopoverContent>
+                        </Popover>
+                        {field.value?.length > 0 && (
+                          <div className="flex flex-wrap gap-2 mt-2">
+                            {field.value.map((contactId) => {
+                              const contact = contacts.find(c => c.id === contactId);
+                              return contact ? (
+                                <Badge key={contactId} variant="secondary">
+                                  <span>{contact.name}</span>
+                                  {contact.designation && (
+                                    <span className="text-xs text-muted-foreground ml-1">({contact.designation})</span>
+                                  )}
+                                  <button
+                                    type="button"
+                                    className="ml-1 ring-offset-background rounded-full outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                                    onClick={() => {
+                                      field.onChange(field.value.filter(id => id !== contactId));
+                                    }}
+                                  >
+                                    <X className="h-3 w-3" />
+                                  </button>
+                                </Badge>
+                              ) : null;
+                            })}
+                          </div>
+                        )}
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* CC Users */}
+                  <FormField
+                    control={form.control}
+                    name="cc_user_ids"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>CC Users</FormLabel>
+                        <FormDescription>
+                          Add additional team members to keep informed about this project
+                        </FormDescription>
+                        <Popover modal={true}>
+                          <PopoverTrigger asChild>
+                            <FormControl>
+                              <Button
+                                variant="outline"
+                                role="combobox"
+                                className={cn(
+                                  "w-full justify-between",
+                                  !field.value?.length && "text-muted-foreground"
+                                )}
+                              >
+                                {field.value?.length
+                                  ? `${field.value.length} user${field.value.length > 1 ? 's' : ''} selected`
+                                  : "Select additional users"}
+                                <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                              </Button>
+                            </FormControl>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-full p-0">
+                            <Command>
+                              <CommandInput placeholder="Search users..." />
+                              <CommandEmpty>No user found.</CommandEmpty>
+                              <CommandGroup>
+                                {managers
+                                  .filter(m => m.id !== form.getValues('manager_id'))
+                                  .map((manager) => (
+                                    <CommandItem
+                                      key={manager.id}
+                                      value={manager.id}
+                                      onSelect={() => {
+                                        const currentValue = field.value || [];
+                                        const isSelected = currentValue.includes(manager.id);
+                                        const newValue = isSelected
+                                          ? currentValue.filter((id) => id !== manager.id)
+                                          : [...currentValue, manager.id];
+                                        field.onChange(newValue);
+                                      }}
+                                    >
+                                      <div className="flex items-center">
+                                        <div className={cn(
+                                          "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
+                                          field.value?.includes(manager.id)
+                                            ? "bg-primary text-primary-foreground"
+                                            : "opacity-50 [&_svg]:invisible"
+                                        )}>
+                                          <Check className="h-4 w-4" />
+                                        </div>
+                                        {manager.full_name}
+                                      </div>
+                                    </CommandItem>
+                                  ))}
+                              </CommandGroup>
+                            </Command>
+                          </PopoverContent>
+                        </Popover>
+                        {field.value?.length > 0 && (
+                          <div className="flex flex-wrap gap-2 mt-2">
+                            {field.value.map((userId) => {
+                              const user = managers.find(m => m.id === userId);
+                              return user ? (
+                                <Badge key={userId} variant="secondary">
+                                  {user.full_name}
+                                  <button
+                                    type="button"
+                                    className="ml-1 ring-offset-background rounded-full outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                                    onClick={() => {
+                                      field.onChange(field.value.filter(id => id !== userId));
+                                    }}
+                                  >
+                                    <X className="h-3 w-3" />
+                                  </button>
+                                </Badge>
+                              ) : null;
+                            })}
+                          </div>
+                        )}
+                        <FormMessage />
                       </FormItem>
                     )}
                   />
@@ -1264,6 +1535,37 @@ export function NewProjectDialog({
                         <p className="text-muted-foreground">Manager</p>
                         <p className="font-medium">{manager?.full_name || '-'}</p>
                       </div>
+                      {values.cc_client_ids?.length > 0 && (
+                        <div className="col-span-2">
+                          <p className="text-muted-foreground">CC Contacts</p>
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {values.cc_client_ids.map((contactId) => {
+                              const contact = contacts.find(c => c.id === contactId);
+                              return contact ? (
+                                <Badge key={contactId} variant="secondary" className="text-xs">
+                                  {contact.name}
+                                  {contact.designation && ` - ${contact.designation}`}
+                                </Badge>
+                              ) : null;
+                            })}
+                          </div>
+                        </div>
+                      )}
+                      {values.cc_user_ids?.length > 0 && (
+                        <div className="col-span-2">
+                          <p className="text-muted-foreground">CC Users</p>
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {values.cc_user_ids.map((userId) => {
+                              const user = managers.find(m => m.id === userId);
+                              return user ? (
+                                <Badge key={userId} variant="secondary" className="text-xs">
+                                  {user.full_name}
+                                </Badge>
+                              ) : null;
+                            })}
+                          </div>
+                        </div>
+                      )}
                       <div>
                         <p className="text-muted-foreground">Event Type</p>
                         <p className="font-medium">{values.event_type || '-'}</p>
@@ -1363,6 +1665,7 @@ export function NewProjectDialog({
   };
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-5xl p-0 h-[90vh] max-h-[800px] flex flex-col overflow-hidden">
         <Form {...form}>
@@ -1569,6 +1872,20 @@ export function NewProjectDialog({
         </Form>
       </DialogContent>
     </Dialog>
+    
+    <BrandLogoSelector
+      open={showLogoSelector}
+      onOpenChange={setShowLogoSelector}
+      brandName={currentBrandName}
+      onSelectLogo={(logoUrl) => {
+        form.setValue('brand_logo', logoUrl);
+        toast({
+          title: "Logo selected",
+          description: "Brand logo has been added to your project.",
+        });
+      }}
+    />
+    </>
   );
 }
 

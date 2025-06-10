@@ -839,28 +839,9 @@ export async function applyCompanyPermissionsFix(): Promise<{ success: boolean; 
       
       console.log('Policy creation result:', policyResult);
       
-      // Also try to add PIC fields and logo_url if possible
-      try {
-        // Try to run SQL directly to add fields
-        const { error: sqlError } = await supabase.rpc('exec_sql', {
-          sql: `
-            ALTER TABLE companies
-            ADD COLUMN IF NOT EXISTS pic_name text,
-            ADD COLUMN IF NOT EXISTS pic_designation text,
-            ADD COLUMN IF NOT EXISTS pic_email text,
-            ADD COLUMN IF NOT EXISTS pic_phone text,
-            ADD COLUMN IF NOT EXISTS logo_url text;
-          `
-        });
-        
-        if (sqlError) {
-          console.log('Error adding fields to companies table:', sqlError);
-        } else {
-          console.log('Successfully added fields to companies table');
-        }
-      } catch (sqlExecError) {
-        console.log('Error executing SQL for adding fields:', sqlExecError);
-      }
+      // REMOVED: Direct SQL execution that used dangerous exec_sql RPC
+      // This was a security vulnerability - database schema changes should be done through migrations
+      console.log('Note: Database schema changes should be done through Supabase migrations');
       
       // Try to create logos bucket
       try {
@@ -915,13 +896,11 @@ export async function applyCompanyPermissionsFix(): Promise<{ success: boolean; 
  */
 export async function ensureLogosBucketExists(): Promise<{ success: boolean; message: string }> {
   try {
-    console.log('Checking for logos bucket...');
     
     // Check if bucket exists
     const { error: bucketCheckError } = await supabase.storage.getBucket('logos');
     
     if (bucketCheckError && bucketCheckError.message.includes('not found')) {
-      console.log('Logos bucket not found, creating...');
       
       // Create bucket
       const { data: bucketData, error: bucketError } = await supabase.storage.createBucket('logos', {

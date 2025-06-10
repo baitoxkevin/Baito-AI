@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import type { Project } from '@/lib/types';
+import './listview-animations.css';
 
 interface ProjectTooltipProps {
   project: Project;
@@ -1854,8 +1855,7 @@ export default function ListView({
         </div>
       
         <div className="h-full overflow-auto relative" ref={containerRef}>
-          {/* Add style tag for today's highlight animation */}
-          <style dangerouslySetInnerHTML={{ __html: todayHighlightAnimation }} />
+          {/* Add style tag for today's highlight animation - moved to CSS file for security */}
           
           {/* Floating month indicator - fixed in the center of the viewport */}
           {showFloatingMonth && (

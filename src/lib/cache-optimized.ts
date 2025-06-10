@@ -162,7 +162,6 @@ export function useCache<T, P extends any[]>(
     
     // 3. Handle stale cache - return stale data but refresh in background
     if (isCacheStale(cachedEntry)) {
-      console.log(`STALE CACHE: ${namespace}/${cacheKey}, returning stale data and refreshing`);
       
       // Start refresh in background (fire and forget)
       if (!cachedEntry.fetchingPromise) {
@@ -194,7 +193,6 @@ export function useCache<T, P extends any[]>(
     }
     
     // 4. Return fresh cached data
-    console.log(`CACHE HIT: ${namespace}/${cacheKey}`);
     return cachedEntry.data;
   }, [
     namespace, 
@@ -220,7 +218,6 @@ export function useCache<T, P extends any[]>(
       return; // Already fetching
     }
     
-    console.log(`PREFETCHING: ${namespace}/${cacheKey}`);
     
     // Create or update the fetching promise
     const fetchPromise = fetchFunction(...args)
@@ -312,7 +309,6 @@ export function useCache<T, P extends any[]>(
 
 // App-wide preloading function to call on initial app load
 export async function preloadAppData() {
-  console.log('Preloading application data with optimized cache...');
   
   try {
     // Import data fetching functions dynamically to avoid circular dependencies
@@ -332,7 +328,6 @@ export async function preloadAppData() {
     const results = await Promise.all(
       preloadTasks.map(async task => {
         try {
-          console.log(`Starting preload of ${task.namespace}...`);
           const startTime = performance.now();
           
           const data = await task.fn(...task.args);
@@ -357,7 +352,6 @@ export async function preloadAppData() {
           cacheAccessTimes[task.namespace][cacheKey] = Date.now();
           
           const endTime = performance.now();
-          console.log(`Preloaded ${task.namespace} data in ${(endTime - startTime).toFixed(2)}ms`);
           
           // After preloading projects, queue up preloading of adjacent months
           if (task.namespace === 'projectsByMonth') {
@@ -380,7 +374,6 @@ export async function preloadAppData() {
                       timestamp: Date.now()
                     };
                     cacheAccessTimes['projectsByMonth'][cacheKey] = Date.now();
-                    console.log(`Background preloaded previous month (${prevMonth}) data`);
                   });
                   
                   // Next month
@@ -397,7 +390,6 @@ export async function preloadAppData() {
                       timestamp: Date.now()
                     };
                     cacheAccessTimes['projectsByMonth'][cacheKey] = Date.now();
-                    console.log(`Background preloaded next month (${nextMonth}) data`);
                   });
                 });
               } catch (err) {
