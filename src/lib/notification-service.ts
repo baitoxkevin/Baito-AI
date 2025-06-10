@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
 import { toastService } from './toast-service';
 
+import { logger } from './logger';
 interface EmailNotification {
   to: string[];
   cc?: string[];
@@ -50,7 +51,7 @@ export const notificationService = {
         .single();
 
       if (projectError || !project) {
-        console.error('Error fetching project:', projectError);
+        logger.error('Error fetching project:', projectError);
         throw new Error('Failed to fetch project details');
       }
 
@@ -120,7 +121,7 @@ export const notificationService = {
         ccRecipients
       };
     } catch (error) {
-      console.error('Error sending notification:', error);
+      logger.error('Error sending notification:', error);
       toastService.error(
         'Notification Failed',
         'Failed to queue email notification'
@@ -160,7 +161,7 @@ export const notificationService = {
     });
 
     if (error) {
-      console.error('Error creating notification table:', error);
+      logger.error('Error creating notification table:', error);
       throw error;
     }
   },
@@ -202,7 +203,7 @@ export const notificationService = {
       });
 
     if (error) {
-      console.error('Error updating preferences:', error);
+      logger.error('Error updating preferences:', error);
       throw error;
     }
   },
@@ -277,7 +278,7 @@ export const notificationService = {
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.error('Error fetching notifications:', error);
+      logger.error('Error fetching notifications:', error);
       return [];
     }
 

@@ -1,5 +1,6 @@
 import { useRef, useCallback, useState, useEffect } from 'react';
 
+import { logger } from './logger';
 interface CacheEntry<T> {
   data: T;
   timestamp: number;
@@ -54,7 +55,7 @@ export function useCache<T, P extends any[]>(
     
     // Check if we have valid cached data
     if (cache.current[cacheKey] && isCacheValid(cache.current[cacheKey])) {
-      console.log(`CACHE HIT: ${namespace}/${cacheKey}`);
+      logger.debug(`CACHE HIT: ${namespace}/${cacheKey}`);
       return cache.current[cacheKey].data;
     }
     
@@ -81,7 +82,7 @@ export function useCache<T, P extends any[]>(
         
         return data;
       } catch (error) {
-        console.error(`Error fetching ${namespace} data:`, error);
+        logger.error(`Error fetching ${namespace} data:`, error);
         throw error;
       } finally {
         setIsLoading(false);
@@ -124,7 +125,7 @@ export function useCache<T, P extends any[]>(
         
         return data;
       } catch (error) {
-        console.error(`Error prefetching ${namespace} data:`, error);
+        logger.error(`Error prefetching ${namespace} data:`, error);
         throw error;
       } finally {
         // Remove from pending requests
@@ -160,7 +161,7 @@ export function useCache<T, P extends any[]>(
 
 // App-wide preloading function to call on initial app load
 export async function preloadAppData() {
-  console.log('Preloading application data...');
+  logger.debug('Preloading application data...');
   
   // Import data fetching functions dynamically to avoid circular dependencies
   const projectsModule = await import('./projects');
@@ -195,10 +196,10 @@ export async function preloadAppData() {
           timestamp: Date.now()
         };
         
-        console.log(`Preloaded ${task.namespace} data: ${cacheKey}`);
+        logger.debug(`Preloaded ${task.namespace} data: ${cacheKey}`);
         return { namespace: task.namespace, success: true };
       } catch (error) {
-        console.error(`Failed to preload ${task.namespace} data:`, error);
+        logger.error(`Failed to preload ${task.namespace} data:`, error);
         return { namespace: task.namespace, success: false, error };
       }
     })

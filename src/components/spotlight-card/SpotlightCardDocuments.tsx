@@ -11,6 +11,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { HoverPreview } from "@/components/ui/hover-preview";
 import { DocumentTextPreview } from "@/components/DocumentTextPreview";
 import { cn } from "@/lib/utils";
+import { logger } from '../../lib/logger';
 import {
   FileText,
   Download,
@@ -318,7 +319,7 @@ export function SpotlightCardDocuments({
       // Close the dialog
       setDeletingDocument(null);
     } catch (error) {
-      console.error('Error deleting document:', error);
+      logger.error('Error deleting document:', error);
       toast({
         title: "Delete Failed",
         description: "There was an error deleting the document.",
@@ -389,7 +390,7 @@ export function SpotlightCardDocuments({
                     side="right"
                     onAction={(type, id) => {
                       if (type === 'download') handleDownload(doc);
-                      // if (type === 'view') console.log('View document details', id);
+                      // if (type === 'view') logger.debug('View document details', { data: id });
                     }}
                   >
                     <span className="hover:text-blue-600 hover:underline truncate inline-block max-w-[200px]">
@@ -492,7 +493,7 @@ export function SpotlightCardDocuments({
                     side="right"
                     onAction={(type, id) => {
                       if (type === 'download') handleDownload(doc);
-                      // if (type === 'view') console.log('View document details', id);
+                      // if (type === 'view') logger.debug('View document details', { data: id });
                     }}
                   >
                     <p className="font-medium text-sm truncate w-full hover:text-blue-600 hover:underline">

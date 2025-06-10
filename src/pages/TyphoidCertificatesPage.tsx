@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Download, Search, Shield, ShieldAlert, ShieldCheck, User } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
+import { logger } from '../lib/logger';
 interface Candidate {
   id: string;
   full_name: string;
@@ -63,7 +64,7 @@ export default function TyphoidCertificatesPage() {
         setFilteredCandidates(typedCandidates);
       }
     } catch (error) {
-      console.error('Error fetching candidates:', error);
+      logger.error('Error fetching candidates:', error);
     } finally {
       setLoading(false);
     }
@@ -98,7 +99,7 @@ export default function TyphoidCertificatesPage() {
       link.click();
       document.body.removeChild(link);
     } catch (err) {
-      console.error('Error downloading certificate:', err);
+      logger.error('Error downloading certificate:', err);
     }
   };
 

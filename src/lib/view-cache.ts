@@ -4,6 +4,7 @@
 
 import { prefetchProjects } from './optimized-queries';
 
+import { logger } from './logger';
 // Flag to track if preloading has been completed
 let preloadedViews: Record<string, boolean> = {
   dashboard: false,
@@ -42,7 +43,7 @@ export function isViewPreloaded(view: string): boolean {
  * Preload data for views that are likely to be navigated to next
  */
 async function preloadAdjacentViews(currentView: string): Promise<void> {
-  console.log(`Preloading adjacent views for: ${currentView}`);
+  logger.debug(`Preloading adjacent views for: ${currentView}`);
   
   // Define the preloading strategy for each view
   switch (currentView) {
@@ -106,7 +107,7 @@ async function preloadView(view: string): Promise<void> {
   }
   
   try {
-    console.log(`Preloading view: ${view}`);
+    logger.debug(`Preloading view: ${view}`);
     
     switch (view) {
       case 'projects':
@@ -130,9 +131,9 @@ async function preloadView(view: string): Promise<void> {
     
     // Mark as preloaded
     preloadedViews[view] = true;
-    console.log(`View preloaded: ${view}`);
+    logger.debug(`View preloaded: ${view}`);
   } catch (error) {
-    console.error(`Error preloading view ${view}:`, error);
+    logger.error(`Error preloading view ${view}:`, error);
     // Don't update preloaded flag on error
   }
 }

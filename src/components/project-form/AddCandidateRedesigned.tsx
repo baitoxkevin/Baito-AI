@@ -6,6 +6,7 @@ import { CandidateAvatar } from "@/components/ui/candidate-avatar";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ShimmerButton } from "@/components/magicui/shimmer-button";
+import { logger } from '../../lib/logger';
 import {
   Select,
   SelectContent,
@@ -113,7 +114,7 @@ export function AddCandidateRedesigned({
       
       setCandidates(formattedCandidates);
     } catch (error) {
-      console.error('Error fetching candidates:', error);
+      logger.error('Error fetching candidates:', error);
       toast({
         title: 'Error',
         description: 'Failed to load candidates',

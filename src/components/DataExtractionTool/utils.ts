@@ -1,5 +1,6 @@
 import * as ExcelJS from 'exceljs';
 
+import { logger } from '../../lib/logger';
 interface LocationData {
   date: string;
   location: string;
@@ -261,7 +262,7 @@ export async function fetchGoogleSheetsData(spreadsheetId: string): Promise<any[
     const data = await response.json();
     return data.values;
   } catch (error) {
-    console.error('Error fetching Google Sheets data:', error);
+    logger.error('Error fetching Google Sheets data:', error);
     throw error;
   }
 }

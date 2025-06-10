@@ -3,6 +3,7 @@
 import React from 'react';
 import { WorkingDateWithSalary } from './types';
 
+import { logger } from '../../lib/logger';
 // Placeholder for working-date-picker component
 export function WorkingDatePicker({ 
   dates, 
@@ -70,7 +71,7 @@ export class PayrollErrorBoundary extends React.Component<
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error('PayrollManager error:', error, errorInfo);
+    logger.error('PayrollManager error:', error, errorInfo);
   }
 
   render() {

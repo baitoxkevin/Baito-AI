@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from '@/lib/supabase';
 import { Receipt, Upload, Loader2, CheckCircle, XCircle, Camera, Scan } from 'lucide-react';
 import { Progress } from "@/components/ui/progress";
+import { logger } from '../../lib/logger';
 import {
   validateImage,
   getFileExtension,
@@ -77,7 +78,7 @@ export default function ReceiptScanner({ onReceiptScanned, userId }: ReceiptScan
 
       return urlData.publicUrl;
     } catch (error) {
-      console.error('Error uploading receipt:', error);
+      logger.error('Error uploading receipt:', error);
       throw error;
     }
   }

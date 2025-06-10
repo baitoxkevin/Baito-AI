@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
 import { getUser } from './auth';
 
+import { logger } from './logger';
 // User role hierarchy
 export const USER_ROLES = {
   MANAGER: 'manager',
@@ -36,7 +37,7 @@ export async function getUserRole(userId: string): Promise<UserRole> {
     // Default to staff if no role found
     return USER_ROLES.STAFF;
   } catch (error) {
-    console.error('Error getting user role:', error);
+    logger.error('Error getting user role:', error);
     return USER_ROLES.STAFF;
   }
 }
@@ -118,7 +119,7 @@ export async function approveExpenseClaim(claimId: string): Promise<void> {
       await addToUnpaidClaims(claim);
     }
   } catch (error) {
-    console.error('Error approving expense claim:', error);
+    logger.error('Error approving expense claim:', error);
     throw error;
   }
 }
@@ -140,7 +141,7 @@ async function addClaimToPayroll(claim: unknown): Promise<void> {
     projectStaff = staffData;
 
     if (staffError && staffError.code !== 'PGRST116') {
-      console.error('Error fetching project staff:', staffError);
+      logger.error('Error fetching project staff:', staffError);
       throw staffError;
     }
 
@@ -212,10 +213,10 @@ async function addClaimToPayroll(claim: unknown): Promise<void> {
       .eq('id', claim.id);
 
     if (claimUpdateError) {
-      console.error('Error updating expense claim payroll status:', claimUpdateError);
+      logger.error('Error updating expense claim payroll status:', claimUpdateError);
     }
   } catch (error) {
-    console.error('Error adding claim to payroll:', error);
+    logger.error('Error adding claim to payroll:', error);
     throw error;
   }
 }
@@ -237,7 +238,7 @@ async function addToUnpaidClaims(claim: unknown): Promise<void> {
 
     if (error) throw error;
   } catch (error) {
-    console.error('Error adding to unpaid claims:', error);
+    logger.error('Error adding to unpaid claims:', error);
     throw error;
   }
 }

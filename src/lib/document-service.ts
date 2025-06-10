@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
 import { getUser } from './auth';
 
+import { logger } from './logger';
 // The bucket name where project documents are stored
 const DOCUMENTS_BUCKET = 'project_documents';
 
@@ -191,7 +192,7 @@ export async function uploadProjectDocument(
 
     return data;
   } catch (error) {
-    console.error('Error uploading document:', error);
+    logger.error('Error uploading document:', error);
     throw error;
   }
 }
@@ -248,7 +249,7 @@ export async function addProjectLink(
 
     return data;
   } catch (error) {
-    console.error('Error adding project link:', error);
+    logger.error('Error adding project link:', error);
     throw error;
   }
 }
@@ -302,7 +303,7 @@ export async function getProjectDocuments(projectId: string): Promise<ProjectDoc
             }));
           }
         } catch (userFetchError) {
-          console.warn('Could not fetch user information:', userFetchError);
+          logger.warn('Could not fetch user information:', userFetchError);
           // Continue with documents without user info
         }
       }
@@ -314,7 +315,7 @@ export async function getProjectDocuments(projectId: string): Promise<ProjectDoc
     if (error) throw error;
     return data || [];
   } catch (error) {
-    console.error('Error fetching project documents:', error);
+    logger.error('Error fetching project documents:', error);
     throw error;
   }
 }
@@ -336,7 +337,7 @@ export async function getDocumentById(documentId: string): Promise<ProjectDocume
     if (error) throw error;
     return data;
   } catch (error) {
-    console.error('Error fetching document:', error);
+    logger.error('Error fetching document:', error);
     throw error;
   }
 }
@@ -372,11 +373,11 @@ export async function deleteDocument(documentId: string): Promise<void> {
         .remove([document.file_path]);
 
       if (storageError) {
-        console.warn(`Error deleting file from ${bucket}:`, storageError);
+        logger.warn(`Error deleting file from ${bucket}:`, storageError);
         
         // Try fallback bucket if first one failed
         const fallbackBucket = bucket === DOCUMENTS_BUCKET ? 'public-docs' : DOCUMENTS_BUCKET;
-        console.log(`Trying fallback bucket: ${fallbackBucket}`);
+        logger.debug(`Trying fallback bucket: ${fallbackBucket}`);
         
         try {
           const { error: fallbackError } = await supabase.storage
@@ -384,16 +385,16 @@ export async function deleteDocument(documentId: string): Promise<void> {
             .remove([document.file_path]);
             
           if (fallbackError) {
-            console.warn(`Error deleting file from fallback bucket ${fallbackBucket}:`, fallbackError);
+            logger.warn(`Error deleting file from fallback bucket ${fallbackBucket}:`, fallbackError);
           } else {
-            console.log(`Successfully deleted file from fallback bucket ${fallbackBucket}`);
+            logger.debug(`Successfully deleted file from fallback bucket ${fallbackBucket}`);
           }
         } catch (fallbackErr) {
-          console.error('Error with fallback deletion:', fallbackErr);
+          logger.error('Error with fallback deletion:', fallbackErr);
         }
         // Continue with database deletion even if storage deletion fails
       } else {
-        console.log(`Successfully deleted file from ${bucket}`);
+        logger.debug(`Successfully deleted file from ${bucket}`);
       }
     }
 
@@ -405,7 +406,7 @@ export async function deleteDocument(documentId: string): Promise<void> {
 
     if (error) throw error;
   } catch (error) {
-    console.error('Error deleting document:', error);
+    logger.error('Error deleting document:', error);
     throw error;
   }
 }
@@ -430,7 +431,7 @@ export async function updateDocument(
     if (error) throw error;
     return data;
   } catch (error) {
-    console.error('Error updating document:', error);
+    logger.error('Error updating document:', error);
     throw error;
   }
 }

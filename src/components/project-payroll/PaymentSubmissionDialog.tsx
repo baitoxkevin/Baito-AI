@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
+import { logger } from '../../lib/logger';
 import {
   Dialog,
   DialogContent,
@@ -170,7 +171,7 @@ export function PaymentSubmissionDialog({
       // Move to confirmation step
       setStep('confirm');
     } catch (error) {
-      console.error('Error in form submission:', error);
+      logger.error('Error in form submission:', error);
       setSubmissionError(error.message || 'An unexpected error occurred');
       setStep('error');
     }
@@ -246,7 +247,7 @@ export function PaymentSubmissionDialog({
         description: `Payment batch ${batchReference} has been submitted successfully`,
       });
     } catch (error) {
-      console.error('Error submitting payment:', error);
+      logger.error('Error submitting payment:', error);
       setSubmissionError(error.message || 'An unexpected error occurred');
       setStep('error');
       
@@ -298,7 +299,7 @@ export function PaymentSubmissionDialog({
         setTimeout(() => setHasCopiedBatchId(false), 2000);
       })
       .catch(err => {
-        console.error('Failed to copy batch ID:', err);
+        logger.error('Failed to copy batch ID:', err);
       });
   };
   

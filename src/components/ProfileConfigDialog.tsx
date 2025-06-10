@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
+import { logger } from '../lib/logger';
 import { 
   Loader2, Camera, X, Check, RefreshCcw, Upload, Trash2, User, 
   Mail, AtSign, Calendar, Settings, Languages, Save, BellRing 
@@ -124,11 +125,11 @@ export default function ProfileConfigDialog({ open, onOpenChange }: ProfileConfi
       
       try {
         setIsLoading(true);
-        // console.log("Loading user profile...");
+        // logger.debug("Loading user profile...");
         
         // Get user profile
         const profile = await getUserProfile();
-        // console.log("User profile loaded:", profile);
+        // logger.debug("User profile loaded:", { data: profile });
         
         // Store profile data
         setUserProfile(profile);
@@ -159,7 +160,7 @@ export default function ProfileConfigDialog({ open, onOpenChange }: ProfileConfi
           }
         });
       } catch (error) {
-        console.error('Error loading user profile:', error);
+        logger.error('Error loading user profile:', error);
         toast({
           title: 'Error',
           description: 'Failed to load your profile. Please try again.',
@@ -251,7 +252,7 @@ export default function ProfileConfigDialog({ open, onOpenChange }: ProfileConfi
         });
         window.dispatchEvent(previewEvent);
       } catch (e) {
-        // console.warn('Could not update localStorage with preview avatar:', e);
+        // logger.warn('Could not update localStorage with preview avatar:', e);
       }
       
       // Upload the avatar to permanent storage
@@ -282,7 +283,7 @@ export default function ProfileConfigDialog({ open, onOpenChange }: ProfileConfi
         });
         window.dispatchEvent(finalEvent);
       } catch (e) {
-        // console.warn('Could not update localStorage with final avatar:', e);
+        // logger.warn('Could not update localStorage with final avatar:', e);
       }
       
       toast({
@@ -290,7 +291,7 @@ export default function ProfileConfigDialog({ open, onOpenChange }: ProfileConfi
         description: 'Your avatar has been updated successfully.',
       });
     } catch (error) {
-      console.error('Error uploading avatar:', error);
+      logger.error('Error uploading avatar:', error);
       
       // Show error and revert to previous avatar
       toast({
@@ -319,7 +320,7 @@ export default function ProfileConfigDialog({ open, onOpenChange }: ProfileConfi
           });
           window.dispatchEvent(revertEvent);
         } catch (e) {
-          // console.warn('Could not update localStorage with reverted avatar:', e);
+          // logger.warn('Could not update localStorage with reverted avatar:', e);
         }
       } else {
         // Clear avatar to use initials
@@ -341,7 +342,7 @@ export default function ProfileConfigDialog({ open, onOpenChange }: ProfileConfi
           });
           window.dispatchEvent(clearEvent);
         } catch (e) {
-          // console.warn('Could not update localStorage:', e);
+          // logger.warn('Could not update localStorage:', e);
         }
       }
     } finally {
@@ -374,7 +375,7 @@ export default function ProfileConfigDialog({ open, onOpenChange }: ProfileConfi
         description: 'Your avatar has been reset. You will now use initials.',
       });
     } catch (error) {
-      console.error('Error resetting avatar:', error);
+      logger.error('Error resetting avatar:', error);
       toast({
         title: 'Error',
         description: 'Failed to reset avatar. Please try again.',
@@ -411,7 +412,7 @@ export default function ProfileConfigDialog({ open, onOpenChange }: ProfileConfi
         description: 'Your custom avatar has been removed. You will now use initials.',
       });
     } catch (error) {
-      console.error('Error removing avatar:', error);
+      logger.error('Error removing avatar:', error);
       toast({
         title: 'Error',
         description: 'Failed to remove your avatar. Please try again.',
@@ -462,7 +463,7 @@ export default function ProfileConfigDialog({ open, onOpenChange }: ProfileConfi
       // Close dialog
       onOpenChange(false);
     } catch (error) {
-      console.error('Error updating profile:', error);
+      logger.error('Error updating profile:', error);
       toast({
         title: 'Error',
         description: 'Failed to update your profile. Please try again.',
@@ -484,7 +485,7 @@ export default function ProfileConfigDialog({ open, onOpenChange }: ProfileConfi
         // Save current avatar URL to localStorage for immediate access
         if (userProfile && formData.avatarUrl) {
           localStorage.setItem(`user_avatar_${userProfile.id}`, formData.avatarUrl);
-          // console.log(`ProfileConfigDialog: Saved avatar URL to localStorage: ${formData.avatarUrl}`);
+          // logger.debug(`ProfileConfigDialog: Saved avatar URL to localStorage: ${formData.avatarUrl}`);
         }
         
         // Broadcast event with actual avatar URL for immediate update in other components
@@ -496,9 +497,9 @@ export default function ProfileConfigDialog({ open, onOpenChange }: ProfileConfi
           }
         });
         window.dispatchEvent(event);
-        // console.log("ProfileConfigDialog: Dispatched avatarUpdated event with current avatar URL");
+        // logger.debug("ProfileConfigDialog: Dispatched avatarUpdated event with current avatar URL");
       } catch (e) {
-        // console.warn('Could not signal avatar update:', e);
+        // logger.warn('Could not signal avatar update:', e);
       }
       
       // Now close the dialog

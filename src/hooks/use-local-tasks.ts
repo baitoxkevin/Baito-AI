@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useToast } from './use-toast';
 
+import { logger } from '../lib/logger';
 export interface LocalTask {
   id: string;
   title: string;
@@ -25,7 +26,7 @@ export function useLocalTasks() {
         setTasks(JSON.parse(storedTasks));
       }
     } catch (error) {
-      console.error('Error loading tasks from localStorage:', error);
+      logger.error('Error loading tasks from localStorage:', error);
     } finally {
       setLoading(false);
     }
@@ -53,7 +54,7 @@ export function useLocalTasks() {
       
       return { success: true, data: task };
     } catch (error) {
-      console.error('Error adding task:', error);
+      logger.error('Error adding task:', error);
       toast({
         title: 'Error adding task',
         description: 'Could not add task',
@@ -85,7 +86,7 @@ export function useLocalTasks() {
       
       return { success: true, data: updatedTask };
     } catch (error) {
-      console.error('Error updating task:', error);
+      logger.error('Error updating task:', error);
       toast({
         title: 'Error updating task',
         description: 'Could not update task',
@@ -101,7 +102,7 @@ export function useLocalTasks() {
       setTasks(prev => prev.filter(task => task.id !== id));
       return { success: true };
     } catch (error) {
-      console.error('Error deleting task:', error);
+      logger.error('Error deleting task:', error);
       toast({
         title: 'Error deleting task',
         description: 'Could not delete task',

@@ -9,6 +9,7 @@ import { generateCandidateUpdateLink } from '@/lib/candidate-token-service';
 import { Copy, CheckCircle, Link, AlertCircle, Mail, Shield } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
+import { logger } from '../lib/logger';
 interface GenerateCandidateUpdateLinkProps {
   candidateId: string;
   candidateName: string;
@@ -60,7 +61,7 @@ export function GenerateCandidateUpdateLink({
         description: 'The secure update link has been created successfully.',
       });
     } catch (error) {
-      console.error('Error generating update link:', error);
+      logger.error('Error generating update link:', error);
       setError(error instanceof Error ? error.message : 'Failed to generate update link');
       toast({
         title: 'Error',
@@ -83,7 +84,7 @@ export function GenerateCandidateUpdateLink({
         description: 'Update link has been copied to clipboard.',
       });
     } catch (error) {
-      console.error('Error copying to clipboard:', error);
+      logger.error('Error copying to clipboard:', error);
       toast({
         title: 'Error',
         description: 'Could not copy to clipboard. Please copy manually.',

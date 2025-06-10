@@ -3,6 +3,7 @@ import { fetchProjects, fetchProjectsByMonth, createProject, updateProject, dele
 import type { Project } from '@/lib/types';
 import { useCache } from '@/lib/cache';
 
+import { logger } from '../lib/logger';
 export function useProjects() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
@@ -15,7 +16,7 @@ export function useProjects() {
         const data = await getData();
         setProjects(data);
       } catch (error) {
-        console.error('Error loading projects:', error);
+        logger.error('Error loading projects:', error);
       }
     };
 
@@ -30,7 +31,7 @@ export function useProjects() {
       invalidateCache(); // Invalidate cache after creating a new project
       return newProject;
     } catch (error) {
-      console.error('Error adding project:', error);
+      logger.error('Error adding project:', error);
       throw error;
     }
   };
@@ -45,7 +46,7 @@ export function useProjects() {
       invalidateCache(); // Invalidate cache after updating a project
       return updatedProject;
     } catch (error) {
-      console.error('Error updating project:', error);
+      logger.error('Error updating project:', error);
       throw error;
     }
   };
@@ -57,7 +58,7 @@ export function useProjects() {
       setProjects(prevProjects => prevProjects.filter(project => project.id !== id));
       invalidateCache(); // Invalidate cache after deleting a project
     } catch (error) {
-      console.error('Error removing project:', error);
+      logger.error('Error removing project:', error);
       throw error;
     }
   };
@@ -79,7 +80,7 @@ export function useProjects() {
       
       return result;
     } catch (error) {
-      console.error('Error removing multiple projects:', error);
+      logger.error('Error removing multiple projects:', error);
       throw error;
     }
   };
@@ -93,7 +94,7 @@ export function useProjects() {
       // Clear selections on refresh
       setSelectedProjects([]);
     } catch (error) {
-      console.error('Error refreshing projects:', error);
+      logger.error('Error refreshing projects:', error);
     }
   };
 
@@ -151,7 +152,7 @@ export function useProjectsByMonth() {
     (month: number, year?: number) => {
       // If year is not provided, use current year
       const currentYear = year || new Date().getFullYear();
-      // console.log(`Fetching projects for ${currentYear}/${month}`);
+      // logger.debug(`Fetching projects for ${currentYear}/${month}`);
       return fetchProjectsByMonth(currentYear, month);
     }
   );
@@ -159,7 +160,7 @@ export function useProjectsByMonth() {
   // Get projects by month - with enhanced error handling and retry mechanism
   const getProjectsByMonth = async (month: number, year?: number) => {
     try {
-      // console.log(`Getting projects for month ${month}, year ${year || new Date().getFullYear()}`);
+      // logger.debug(`Getting projects for month ${month}, year ${year || new Date().getFullYear()}`);
       
       // Track attempt for retries if needed
       let attempts = 0;
@@ -172,14 +173,14 @@ export function useProjectsByMonth() {
           
           // Log success information (only detailed on first attempt)
           if (attempts === 0) {
-            // console.log(`Successfully fetched ${data.length} projects for ${month}/${year || new Date().getFullYear()}`);
+            // logger.debug(`Successfully fetched ${data.length} projects for ${month}/${year || new Date().getFullYear()}`);
           } else {
-            // console.log(`Retry #${attempts} successful, got ${data.length} projects`);
+            // logger.debug(`Retry #${attempts} successful, got ${data.length} projects`);
           }
           
           // If we get empty data on first attempt, try once with cache invalidation
           if (data.length === 0 && attempts === 0) {
-            // console.log('No projects returned from cache, invalidating and retrying');
+            // logger.debug('No projects returned from cache, { data: invalidating and retrying' });
             invalidateCache(month, year);
             attempts++;
             continue;
@@ -187,7 +188,7 @@ export function useProjectsByMonth() {
           
           return data;
         } catch (innerError) {
-          console.error(`Attempt #${attempts + 1} failed:`, innerError);
+          logger.error(`Attempt #${attempts + 1} failed:`, innerError);
           
           // Invalidate cache and retry
           invalidateCache(month, year);
@@ -203,7 +204,7 @@ export function useProjectsByMonth() {
       // Should never reach here due to throw above, but TypeScript needs this
       return [];
     } catch (error) {
-      console.error('Error in getProjectsByMonth:', error);
+      logger.error('Error in getProjectsByMonth:', error);
       return [];
     }
   };

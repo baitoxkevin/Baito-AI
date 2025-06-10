@@ -2,6 +2,7 @@ import { supabase } from './supabase';
 import type { Project, User, Client } from './types';
 import { getUser } from './auth';
 
+import { logger } from './logger';
 // Add event colors for dummy data and fallback colors
 const eventColors = {
   'nestle': '#FCA5A5', // Light red for Nestle Choy Sun
@@ -42,7 +43,7 @@ export async function fetchProjects(): Promise<Project[]> {
       .order('start_date', { ascending: true });
 
     if (error) {
-      console.error('Error fetching projects:', error);
+      logger.error('Error fetching projects:', error);
       throw new Error(error.message);
     }
 
@@ -112,7 +113,7 @@ export async function fetchProjects(): Promise<Project[]> {
           }
         });
       } catch (error) {
-        // console.warn('Error fetching client data:', error);
+        // logger.warn('Error fetching client data:', error);
       }
     }
     
@@ -139,13 +140,13 @@ export async function fetchProjects(): Promise<Project[]> {
           });
         }
       } catch (error) {
-        // console.warn('Error fetching manager data:', error);
+        // logger.warn('Error fetching manager data:', error);
       }
     }
 
     return projects;
   } catch (error) {
-    console.error('Error fetching projects:', error);
+    logger.error('Error fetching projects:', error);
     return [];
   }
 }
@@ -154,12 +155,12 @@ export async function fetchProjectsByMonth(year: number, month: number): Promise
   try {
     // Input validation - handle cases where inputs are not numbers
     if (isNaN(year) || isNaN(month)) {
-      // console.warn(`Invalid input to fetchProjectsByMonth: year=${year}, month=${month}`);
+      // logger.warn(`Invalid input to fetchProjectsByMonth: year=${year}, month=${month}`);
       // Default to current month if inputs are invalid
       const currentDate = new Date();
       year = currentDate.getFullYear();
       month = currentDate.getMonth();
-      // console.log(`Using fallback date: year=${year}, month=${month}`);
+      // logger.debug(`Using fallback date: year=${year}, month=${month}`);
     }
     
     // Normalize the year/month values
@@ -188,13 +189,13 @@ export async function fetchProjectsByMonth(year: number, month: number): Promise
     const daysInMonth = new Date(normalizedYear, monthForDate, 0).getDate();
     const endDateStr = `${normalizedYear}-${String(monthForDate).padStart(2, '0')}-${String(daysInMonth).padStart(2, '0')}T23:59:59.999Z`;
     
-    // console.log(`Fetching projects for ${normalizedYear}-${monthForDate} with dates: ${startDateStr} to ${endDateStr}`);
+    // logger.debug(`Fetching projects for ${normalizedYear}-${monthForDate} with dates: ${startDateStr} to ${endDateStr}`);
     
     // Always use real data from Supabase
     const USE_DUMMY_DATA = false;  // Set to false to use real Supabase data
     
     // If not using dummy data, proceed with supabase query - ENHANCED TO FETCH MORE DATA
-    // console.log("Using real Supabase data");
+    // logger.debug("Using real Supabase data");
     
     // Calculate expanded date range (±1 month for performance)
     // This still captures projects that span into the requested month
@@ -205,7 +206,7 @@ export async function fetchProjectsByMonth(year: number, month: number): Promise
     const expandedStartStr = expandedStartDate.toISOString();
     const expandedEndStr = expandedEndDate.toISOString();
     
-    // console.log(`Using optimized date range (±1 month) for Supabase query: ${expandedStartStr} to ${expandedEndStr}`);
+    // logger.debug(`Using optimized date range (±1 month) for Supabase query: ${expandedStartStr} to ${expandedEndStr}`);
     
     // Use simple select without complex joins to avoid schema cache issues
     const { data, error } = await supabase
@@ -221,7 +222,7 @@ export async function fetchProjectsByMonth(year: number, month: number): Promise
       .order('start_date', { ascending: true });
     
     if (error) {
-      console.error('Error fetching projects by month:', error);
+      logger.error('Error fetching projects by month:', error);
       throw new Error(error.message);
     }
     
@@ -291,7 +292,7 @@ export async function fetchProjectsByMonth(year: number, month: number): Promise
           }
         });
       } catch (error) {
-        // console.warn('Error fetching client data:', error);
+        // logger.warn('Error fetching client data:', error);
       }
     }
     
@@ -318,19 +319,19 @@ export async function fetchProjectsByMonth(year: number, month: number): Promise
           });
         }
       } catch (error) {
-        // console.warn('Error fetching manager data:', error);
+        // logger.warn('Error fetching manager data:', error);
       }
     }
     
     return projects;
   } catch (error) {
-    console.error('Error fetching projects by month:', error);
+    logger.error('Error fetching projects by month:', error);
     return [];
   }
 }
 
 export async function createProject(project: Omit<Project, 'id'>): Promise<Project | null> {
-  // console.log('[projects.ts] createProject - Function start. Input project data:', JSON.stringify(project, null, 2));
+  // logger.debug('[projects.ts] createProject - Function start. Input project data:', { data: JSON.stringify(project, null, 2 }));
   try {
     // Remove logo_url field which doesn't exist in the database
     // Keep brand_logo field as it's now added to the database
@@ -343,32 +344,32 @@ export async function createProject(project: Omit<Project, 'id'>): Promise<Proje
       .single();
 
     if (error) {
-      console.error('[projects.ts] createProject - Error creating project:', JSON.stringify(error, null, 2));
+      logger.error('[projects.ts] createProject - Error creating project:', JSON.stringify(error, null, 2));
       throw new Error(error.message);
     }
 
-    // console.log('[projects.ts] createProject - Supabase response data:', JSON.stringify(data, null, 2));
+    // logger.debug('[projects.ts] createProject - Supabase response data:', { data: JSON.stringify(data, null, 2 }));
     // Add color to the project if not provided
     const projectWithColor = {
       ...data,
       color: data.color || eventColors[data.event_type as keyof typeof eventColors] || eventColors.default,
     };
 
-    // console.log('[projects.ts] createProject - Returning projectWithColor:', JSON.stringify(projectWithColor, null, 2));
+    // logger.debug('[projects.ts] createProject - Returning projectWithColor:', { data: JSON.stringify(projectWithColor, null, 2 }));
     return projectWithColor;
   } catch (error) {
-    console.error('[projects.ts] createProject - Catch block error:', JSON.stringify(error, null, 2));
+    logger.error('[projects.ts] createProject - Catch block error:', JSON.stringify(error, null, 2));
     return null;
   }
 }
 
 export async function updateProject(id: string, projectData: Partial<Project>): Promise<Project | null> {
-  // console.log('[projects.ts] updateProject - Function start. Input id:', id, 'Input projectData:', JSON.stringify(projectData, null, 2));
+  // logger.debug('[projects.ts] updateProject - Function start. Input id:', { data: id, 'Input projectData:', JSON.stringify(projectData, null, 2 }));
   try {
-    // console.log('updateProject called with staff arrays:', {
+    // logger.debug('updateProject called with staff arrays:', { data: {
     //   id,
     //   title: projectData.title,
-    //   confirmed_staff_count: (projectData.confirmed_staff || []).length,
+    //   confirmed_staff_count: (projectData.confirmed_staff || [] }).length,
     //   applicants_count: (projectData.applicants || []).length,
     //   confirmed_staff_sample: (projectData.confirmed_staff || []).slice(0, 1),
     //   applicants_sample: (projectData.applicants || []).slice(0, 1),
@@ -402,7 +403,7 @@ export async function updateProject(id: string, projectData: Partial<Project>): 
                   return parsedDate.toISOString();
                 }
               } catch (e) {
-                // console.warn('Invalid date string in workingDates:', date);
+                // logger.warn('Invalid date string in workingDates:', date);
               }
             }
             
@@ -445,7 +446,7 @@ export async function updateProject(id: string, projectData: Partial<Project>): 
                   return parsedDate.toISOString();
                 }
               } catch (e) {
-                // console.warn('Invalid date string in applicants workingDates:', date);
+                // logger.warn('Invalid date string in applicants workingDates:', date);
               }
             }
             
@@ -470,7 +471,7 @@ export async function updateProject(id: string, projectData: Partial<Project>): 
       updated_at: new Date().toISOString(),
     };
 
-    // console.log('[projects.ts] updateProject - Data before Supabase update:', JSON.stringify(dataToUpdate, null, 2));
+    // logger.debug('[projects.ts] updateProject - Data before Supabase update:', { data: JSON.stringify(dataToUpdate, null, 2 }));
 
     const { data, error } = await supabase
       .from('projects')
@@ -478,11 +479,11 @@ export async function updateProject(id: string, projectData: Partial<Project>): 
       .eq('id', id);
       
     if (error) {
-      console.error('[projects.ts] updateProject - Error updating project:', JSON.stringify(error, null, 2));
+      logger.error('[projects.ts] updateProject - Error updating project:', JSON.stringify(error, null, 2));
       throw new Error(error.message);
     }
 
-    // console.log('[projects.ts] updateProject - Supabase response data:', JSON.stringify(data, null, 2));
+    // logger.debug('[projects.ts] updateProject - Supabase response data:', { data: JSON.stringify(data, null, 2 }));
     // Add color to the project if not provided
     // Use dataToUpdate since the data returned might be null
     const projectWithColor = {
@@ -492,13 +493,13 @@ export async function updateProject(id: string, projectData: Partial<Project>): 
         eventColors.default,
     };
 
-    // console.log('[projects.ts] updateProject - Returning projectWithColor:', JSON.stringify(projectWithColor, null, 2));
+    // logger.debug('[projects.ts] updateProject - Returning projectWithColor:', { data: JSON.stringify(projectWithColor, null, 2 }));
     return projectWithColor;
   } catch (error) {
     // Better error handling to preserve error message
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error('[projects.ts] updateProject - Catch block error:', errorMessage);
-    console.error('[projects.ts] updateProject - Error object:', error);
+    logger.error('[projects.ts] updateProject - Catch block error:', errorMessage);
+    logger.error('[projects.ts] updateProject - Error object:', error);
 
     // Rethrow the error with better formatting to propagate it properly
     throw new Error(`Project update failed: ${errorMessage}`);
@@ -516,13 +517,13 @@ export async function deleteProject(id: string, deletedBy: string): Promise<bool
       .eq('id', id);
 
     if (error) {
-      console.error('Error deleting project:', error);
+      logger.error('Error deleting project:', error);
       throw new Error(error.message);
     }
 
     return true;
   } catch (error) {
-    console.error('Error deleting project:', error);
+    logger.error('Error deleting project:', error);
     return false;
   }
 }
@@ -533,58 +534,56 @@ import { getProjectById as getProjectByIdDedicated } from './getProjectById';
 // Re-export the dedicated function to maintain compatibility
 export async function getProjectById(id: string, includeDocuments: boolean = false): Promise<Project | null> {
   try {
-    // console.log(`Using consolidated getProjectById function for project: ${id}`);
+    // logger.debug(`Using consolidated getProjectById function for project: ${id}`);
     
     // Use the dedicated implementation from getProjectById.ts
     const project = await getProjectByIdDedicated(id, includeDocuments);
     
     if (!project) {
-      // console.log('No project found with ID:', id);
+      // logger.debug('No project found with ID:', { data: id });
       return null;
     }
 
     // Additional logging for debugging staff data issues
     if (project.confirmed_staff && Array.isArray(project.confirmed_staff)) {
-      // console.log(`Project ${id} has ${project.confirmed_staff.length} confirmed staff members`);
+      // logger.debug(`Project ${id} has ${project.confirmed_staff.length} confirmed staff members`);
       
       // Log working dates count for each staff member
       if (project.confirmed_staff.length > 0) {
-        // console.log('Confirmed staff working dates:', 
-        //   project.confirmed_staff.map(staff => ({
+        // logger.debug('Confirmed staff working dates:', { data: //   project.confirmed_staff.map(staff => ({
         //     id: staff.id,
         //     name: staff.name,
         //     working_dates_count: staff.workingDates?.length || 0,
         //     dates_type: staff.workingDates?.length ? 
-        //       (staff.workingDates[0] instanceof Date ? 'Date objects' : 'String dates') : 'None'
+        //       (staff.workingDates[0] instanceof Date ? 'Date objects' : 'String dates' }) : 'None'
         //   }))
         // );
       }
     } else {
-      // console.log(`Project ${id} has no confirmed staff (or invalid format)`);
+      // logger.debug(`Project ${id} has no confirmed staff (or invalid format)`);
     }
     
     if (project.applicants && Array.isArray(project.applicants)) {
-      // console.log(`Project ${id} has ${project.applicants.length} applicants`);
+      // logger.debug(`Project ${id} has ${project.applicants.length} applicants`);
       
       // Log working dates count for each applicant
       if (project.applicants.length > 0) {
-        // console.log('Applicants working dates:', 
-        //   project.applicants.map(applicant => ({
+        // logger.debug('Applicants working dates:', { data: //   project.applicants.map(applicant => ({
         //     id: applicant.id,
         //     name: applicant.name,
         //     working_dates_count: applicant.workingDates?.length || 0,
         //     dates_type: applicant.workingDates?.length ? 
-        //       (applicant.workingDates[0] instanceof Date ? 'Date objects' : 'String dates') : 'None'
+        //       (applicant.workingDates[0] instanceof Date ? 'Date objects' : 'String dates' }) : 'None'
         //   }))
         // );
       }
     } else {
-      // console.log(`Project ${id} has no applicants (or invalid format)`);
+      // logger.debug(`Project ${id} has no applicants (or invalid format)`);
     }
     
     return project;
   } catch (error) {
-    console.error('Error in consolidated getProjectById:', error);
+    logger.error('Error in consolidated getProjectById:', error);
     return null;
   }
 }
@@ -602,13 +601,13 @@ export async function getPossibleManagers(): Promise<User[]> {
       .order('full_name', { ascending: true });
 
     if (error) {
-      console.error('Error fetching managers:', error);
+      logger.error('Error fetching managers:', error);
       return [];
     }
 
     // Return dummy managers if no data found
     if (!data || data.length === 0) {
-      // console.log('No users found, returning dummy managers');
+      // logger.debug('No users found, { data: returning dummy managers' });
       return [
         { id: '1', full_name: 'Alex Manager', email: 'alex@example.com' },
         { id: '2', full_name: 'Jordan Manager', email: 'jordan@example.com' }
@@ -617,7 +616,7 @@ export async function getPossibleManagers(): Promise<User[]> {
     
     return data;
   } catch (error) {
-    console.error('Error in getPossibleManagers:', error);
+    logger.error('Error in getPossibleManagers:', error);
     // Return dummy managers in case of error
     return [
       { id: '1', full_name: 'Alex Manager', email: 'alex@example.com' },
@@ -639,14 +638,14 @@ export async function getPossibleClients(): Promise<Client[]> {
       .order('full_name', { ascending: true });
 
     if (error) {
-      console.error('Error fetching clients from users table:', error);
+      logger.error('Error fetching clients from users table:', error);
       // Return dummy clients on error
       return getDummyClients();
     }
 
     // Return dummy clients if no data found
     if (!data || data.length === 0) {
-      // console.log('No users found, returning dummy clients');
+      // logger.debug('No users found, { data: returning dummy clients' });
       return getDummyClients();
     }
     
@@ -661,7 +660,7 @@ export async function getPossibleClients(): Promise<Client[]> {
       updated_at: user.updated_at || new Date().toISOString(),
     })) as Client[];
   } catch (error) {
-    console.error('Error in getPossibleClients:', error);
+    logger.error('Error in getPossibleClients:', error);
     return getDummyClients();
   }
 }
@@ -713,7 +712,7 @@ export async function deleteMultipleProjects(ids: string[], deletedBy: string): 
       .select('id');
     
     if (error) {
-      console.error('Error batch deleting projects:', error);
+      logger.error('Error batch deleting projects:', error);
       return { success: [], failed: ids };
     }
     
@@ -726,7 +725,7 @@ export async function deleteMultipleProjects(ids: string[], deletedBy: string): 
     
     return result;
   } catch (error) {
-    console.error('Error deleting multiple projects:', error);
+    logger.error('Error deleting multiple projects:', error);
     return { success: [], failed: ids };
   }
 }
@@ -757,7 +756,7 @@ export async function recordProjectChanges(
         });
     }
   } catch (error) {
-    console.error('Error recording project changes:', error);
+    logger.error('Error recording project changes:', error);
     throw error;
   }
 }
@@ -780,7 +779,7 @@ export async function saveProjectChangeContext(
         source: 'user_input'
       });
   } catch (error) {
-    console.error('Error saving project change context:', error);
+    logger.error('Error saving project change context:', error);
     throw error;
   }
 }

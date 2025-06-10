@@ -8,6 +8,7 @@
  * - Comprehensive form with business, personal, and contact details
  */
 import { useState, useEffect } from 'react';
+import { logger } from '../lib/logger';
 import {
   Dialog,
   DialogContent,
@@ -68,7 +69,7 @@ export default function NewCandidateDialog({
           setCurrentUser({ name: userName, id: user.id });
         }
       } catch (error) {
-        console.error('Error getting current user:', error);
+        logger.error('Error getting current user:', error);
       }
     };
     
@@ -239,12 +240,12 @@ export default function NewCandidateDialog({
     }
 
     try {
-      console.log('Submitting candidate data:', submissionData);
+      logger.debug('Submitting candidate data:', { data: submissionData });
       
       // For empty email, set to null instead of using a placeholder
       if (!submissionData.email || submissionData.email.trim() === '') {
         submissionData.email = null;
-        console.log('Empty email detected, setting to null');
+        logger.debug('Empty email detected, { data: setting to null' });
       }
 
       // Check if the candidate already exists in the system - first by IC number
@@ -402,7 +403,7 @@ export default function NewCandidateDialog({
                     onCandidateAdded();
                     onOpenChange(false);
                   } catch (updateError) {
-                    console.error('Error updating candidate:', updateError);
+                    logger.error('Error updating candidate:', updateError);
                     toast({
                       title: 'Error',
                       description: 'Failed to update candidate. Please try again.',
@@ -522,7 +523,7 @@ export default function NewCandidateDialog({
           onCandidateAdded();
           onOpenChange(false);
         } catch (updateError) {
-          console.error('Error updating candidate:', updateError);
+          logger.error('Error updating candidate:', updateError);
           toast({
             title: 'Error',
             description: 'Failed to update candidate. Please try again.',
@@ -626,7 +627,7 @@ export default function NewCandidateDialog({
       if (error) {
         // If there was an error despite our duplicate checking
         if (error.code === '23505') { // Unique constraint violation
-          console.error('Duplicate key error despite our checks:', error);
+          logger.error('Duplicate key error despite our checks:', error);
           
           // Try one more approach - use upsert instead
           const { data: upsertData, error: upsertError } = await supabase
@@ -688,7 +689,7 @@ export default function NewCandidateDialog({
             
           if (upsertError) throw upsertError;
           
-          console.log('Candidate upserted successfully:', upsertData);
+          logger.debug('Candidate upserted successfully:', { data: upsertData });
           
           toast({
             title: 'Candidate updated',
@@ -699,7 +700,7 @@ export default function NewCandidateDialog({
           throw error;
         }
       } else {
-        console.log('Candidate added successfully:', data);
+        logger.debug('Candidate added successfully:', { data: data });
         
         toast({
           title: 'Candidate added',
@@ -707,11 +708,11 @@ export default function NewCandidateDialog({
         });
       }
 
-      console.log('Calling onCandidateAdded callback');
+      logger.debug('Calling onCandidateAdded callback');
       onCandidateAdded();
       onOpenChange(false);
     } catch (error) {
-      console.error('Error adding candidate:', error);
+      logger.error('Error adding candidate:', error);
       toast({
         title: 'Error',
         description: error.message || 'Failed to add candidate. Please try again.',

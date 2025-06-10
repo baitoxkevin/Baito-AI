@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 
+import { logger } from './logger';
 export interface CandidateHistoryEntry {
   id: string;
   candidate_id: string;
@@ -44,7 +45,7 @@ export async function getCandidateHistory(candidateId: string): Promise<Candidat
     
     // Table doesn't exist
     if (tableCheckError && (tableCheckError.code === '42P01' || tableCheckError.message.includes('does not exist'))) {
-      console.warn('Candidate project history table does not exist or cannot be accessed');
+      logger.warn('Candidate project history table does not exist or cannot be accessed');
       return [];
     }
     
@@ -67,16 +68,16 @@ export async function getCandidateHistory(candidateId: string): Promise<Candidat
     if (error) {
       // Handle specific error cases
       if (error.code === 'PGRST200') {
-        console.error('Error with foreign key relationship in candidate history. Database schema may need updating.');
+        logger.error('Error with foreign key relationship in candidate history. Database schema may need updating.');
       } else {
-        console.error('Error fetching candidate history:', error);
+        logger.error('Error fetching candidate history:', error);
       }
       return [];
     }
 
     return data as CandidateHistoryEntry[];
   } catch (e) {
-    console.error('Unexpected error in getCandidateHistory:', e);
+    logger.error('Unexpected error in getCandidateHistory:', e);
     return [];
   }
 }
@@ -95,7 +96,7 @@ export async function addCandidateHistoryEntry(
   const userId = userSession.session?.user.id;
 
   if (!userId) {
-    console.error('User not authenticated');
+    logger.error('User not authenticated');
     return false;
   }
 
@@ -110,7 +111,7 @@ export async function addCandidateHistoryEntry(
   });
 
   if (error) {
-    console.error('Error adding candidate history entry:', error);
+    logger.error('Error adding candidate history entry:', error);
     return false;
   }
 
@@ -133,7 +134,7 @@ export async function updateCandidateHistoryEntry(
     .eq('id', historyId);
 
   if (error) {
-    console.error('Error updating candidate history entry:', error);
+    logger.error('Error updating candidate history entry:', error);
     return false;
   }
 
@@ -158,7 +159,7 @@ export async function getCandidateMetrics(candidateId: string): Promise<Candidat
     
     // Table doesn't exist
     if (tableCheckError && (tableCheckError.code === '42P01' || tableCheckError.message.includes('does not exist'))) {
-      console.warn('Candidate blacklist table does not exist or cannot be accessed');
+      logger.warn('Candidate blacklist table does not exist or cannot be accessed');
     } else {
       // Table exists, check blacklist status
       const { data: blacklistData, error: blacklistError } = await supabase
@@ -169,16 +170,16 @@ export async function getCandidateMetrics(candidateId: string): Promise<Candidat
 
       if (blacklistError) {
         if (blacklistError.code === '42P01') { // Table doesn't exist error
-          console.error('Candidate blacklist table does not exist in database');
+          logger.error('Candidate blacklist table does not exist in database');
         } else {
-          console.error('Error checking blacklist status:', blacklistError);
+          logger.error('Error checking blacklist status:', blacklistError);
         }
       } else {
         isBlacklisted = !!blacklistData;
       }
     }
   } catch (e) {
-    console.error('Unexpected error checking blacklist:', e);
+    logger.error('Unexpected error checking blacklist:', e);
   }
 
   // Calculate metrics
@@ -299,7 +300,7 @@ export async function getProjectCandidateHistory(projectId: string): Promise<Can
     .eq('project_id', projectId);
 
   if (error) {
-    console.error('Error fetching project candidate history:', error);
+    logger.error('Error fetching project candidate history:', error);
     return [];
   }
 

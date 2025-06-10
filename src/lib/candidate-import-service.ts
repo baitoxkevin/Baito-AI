@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase';
 import { getUserProfile } from '@/lib/auth';
 
+import { logger } from './logger';
 export interface CandidateInfo {
   name: string;
   email: string;
@@ -156,7 +157,7 @@ export async function createCandidate(candidateInfo: CandidateInfo) {
         candidateData.custom_fields = customFieldsData;
       }
     } catch (e) {
-      console.log('Custom fields not supported, continuing without them');
+      logger.debug('Custom fields not supported, { data: continuing without them' });
     }
     
     // Insert the candidate into the database
@@ -171,7 +172,7 @@ export async function createCandidate(candidateInfo: CandidateInfo) {
     
     return { success: true, data };
   } catch (error) {
-    console.error('Error creating candidate:', error);
+    logger.error('Error creating candidate:', error);
     return { success: false, error };
   }
 }

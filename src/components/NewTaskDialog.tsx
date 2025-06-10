@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { logger } from '../lib/logger';
 import {
   Dialog,
   DialogContent,
@@ -111,7 +112,7 @@ export default function NewTaskDialog({
           (mentions.length > 0 ? ` ${mentions.length} users mentioned.` : ''),
       });
     } catch (error) {
-      console.error('Error adding task:', error);
+      logger.error('Error adding task:', error);
       toast({
         title: 'Error',
         description: 'Failed to add task. Please try again.',

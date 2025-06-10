@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { logger } from '../lib/logger';
 import { 
   Activity, 
   CheckCircle, 
@@ -119,13 +120,13 @@ export default function ProjectsPageRedesign() {
       
       // If no projects are returned, it might be a connection issue
       if (fetchedProjects.length === 0) {
-        // console.warn('No projects returned from database, check connection');
+        // logger.warn('No projects returned from database, check connection');
       }
       
       // Prefetch adjacent months for smoother navigation
       prefetchAdjacentMonths(monthIndex);
     } catch (err) {
-      console.error('Error fetching projects:', err);
+      logger.error('Error fetching projects:', err);
       setError('Failed to load projects. Using dummy data as fallback.');
       toast({
         title: 'Database Connection Error',
@@ -236,7 +237,7 @@ export default function ProjectsPageRedesign() {
       handleProjectsUpdated();
       
     } catch (error) {
-      console.error('Error deleting project:', error);
+      logger.error('Error deleting project:', error);
       toast({
         title: "Error",
         description: "Failed to delete project. Please try again.",
@@ -293,7 +294,7 @@ export default function ProjectsPageRedesign() {
       searchQuery,
       statusFilter
     );
-    // console.log(`Month ${activeMonth}: Found ${currentMonthProjects.length} projects, filtered to ${filtered.length}`);
+    // logger.debug(`Month ${activeMonth}: Found ${currentMonthProjects.length} projects, filtered to ${filtered.length}`);
     return filtered;
   }, [currentMonthProjects, searchQuery, activeFilter, activeMonth]);
   

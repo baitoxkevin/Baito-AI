@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { logger } from '../lib/logger';
 import {
   Dialog,
   DialogContent,
@@ -93,7 +94,7 @@ export default function NewCompanyDialog({
       
       setParentCompanies(data || []);
     } catch (error) {
-      console.error('Error loading parent companies:', error);
+      logger.error('Error loading parent companies:', error);
       toast({
         title: 'Error',
         description: 'Failed to load parent companies',
@@ -123,7 +124,7 @@ export default function NewCompanyDialog({
         ]);
       }
     } catch (error) {
-      console.error('Error loading company contacts:', error);
+      logger.error('Error loading company contacts:', error);
       // Default to a single empty contact
       setContacts([
         { name: '', designation: '', email: '', phone: '', is_primary: true }
@@ -226,7 +227,7 @@ export default function NewCompanyDialog({
       // First, try to ensure the bucket exists
       const bucketResult = await ensureLogosBucketExists();
       if (!bucketResult.success) {
-        console.warn('Error ensuring logos bucket:', bucketResult.message);
+        logger.warn('Error ensuring logos bucket:', bucketResult.message);
         // Continue anyway, in case it's just a permission issue but the bucket actually exists
       }
       
@@ -242,10 +243,10 @@ export default function NewCompanyDialog({
           .upload('company-logos/.folder', new Blob(['']));
           
         if (folderError && !folderError.message.includes('already exists')) {
-          console.warn('Error creating folder:', folderError);
+          logger.warn('Error creating folder:', folderError);
         }
       } catch (folderError) {
-        console.warn('Error creating folder:', folderError);
+        logger.warn('Error creating folder:', folderError);
       }
       
       // Upload the file
@@ -276,7 +277,7 @@ export default function NewCompanyDialog({
       // Return the public URL
       return urlData.publicUrl;
     } catch (error) {
-      console.error('Error uploading logo:', error);
+      logger.error('Error uploading logo:', error);
       toast({
         title: 'Upload failed',
         description: 'Failed to upload company logo. Check console for details.',
@@ -309,7 +310,7 @@ export default function NewCompanyDialog({
         });
       }
     } catch (error) {
-      console.error('Error applying fix:', error);
+      logger.error('Error applying fix:', error);
       toast({
         title: 'Error',
         description: 'Failed to apply permissions fix',
@@ -350,7 +351,7 @@ export default function NewCompanyDialog({
       
       return true;
     } catch (error) {
-      console.error('Error saving company contacts:', error);
+      logger.error('Error saving company contacts:', error);
       return false;
     }
   };
@@ -413,7 +414,7 @@ export default function NewCompanyDialog({
           .eq('id', company.id);
 
         if (error) {
-          console.error('Update error:', error);
+          logger.error('Update error:', error);
           throw new Error(`Failed to update company: ${error.message || 'Unknown error'}`);
         }
         
@@ -444,7 +445,7 @@ export default function NewCompanyDialog({
           .select();
 
         if (error) {
-          console.error('Insert error:', error);
+          logger.error('Insert error:', error);
           throw new Error(`Failed to create company: ${error.message || 'Unknown error'}`);
         }
 
@@ -482,7 +483,7 @@ export default function NewCompanyDialog({
         description: `Company has been ${company ? 'updated' : 'created'} successfully.`,
       });
     } catch (error) {
-      console.error('Error saving company:', error);
+      logger.error('Error saving company:', error);
       
       // More informative error handling
       let errorMessage = 'Failed to save company. Please try again.';
@@ -502,11 +503,11 @@ export default function NewCompanyDialog({
         } else if (errorMessage.includes('null value in column')) {
           // Handle missing required fields
           errorMessage = 'Missing required field. Please check all required fields are filled.';
-          console.error('SQL Error details:', errorMessage);
+          logger.error('SQL Error details:', errorMessage);
         } else if (errorMessage.includes('violated not-null constraint')) {
           // Handle missing required fields
           errorMessage = 'Required field cannot be empty. Please check all required fields.';
-          console.error('SQL Error details:', errorMessage);
+          logger.error('SQL Error details:', errorMessage);
         }
       }
       

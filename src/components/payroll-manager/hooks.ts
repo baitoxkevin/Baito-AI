@@ -5,6 +5,7 @@ import { StaffMember, WorkingDateWithSalary } from './types';
 import { parseAmount, formatCurrency } from './utils';
 import { UI_CONSTANTS } from './constants';
 
+import { logger } from '../../lib/logger';
 // Hook for debouncing input values
 export function useDebounce<T>(value: T, delay: number = UI_CONSTANTS.DEBOUNCE_DELAY): T {
   const [debouncedValue, setDebouncedValue] = useState<T>(value);
@@ -88,7 +89,7 @@ export function useLocalStorage<T>(key: string, initialValue: T) {
       const item = window.localStorage.getItem(key);
       return item ? JSON.parse(item) : initialValue;
     } catch (error) {
-      console.error(`Error loading ${key} from localStorage:`, error);
+      logger.error(`Error loading ${key} from localStorage:`, error);
       return initialValue;
     }
   });
@@ -99,7 +100,7 @@ export function useLocalStorage<T>(key: string, initialValue: T) {
       setStoredValue(valueToStore);
       window.localStorage.setItem(key, JSON.stringify(valueToStore));
     } catch (error) {
-      console.error(`Error saving ${key} to localStorage:`, error);
+      logger.error(`Error saving ${key} to localStorage:`, error);
     }
   }, [key, storedValue]);
 

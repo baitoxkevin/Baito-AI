@@ -1,4 +1,5 @@
 import { useMemo, useRef, useEffect, useState, useCallback } from 'react';
+import { logger } from '../lib/logger';
 import { 
   format, startOfMonth, endOfMonth, eachDayOfInterval, isWeekend, 
   addMonths, differenceInDays, isSameMonth, isSameDay 
@@ -331,7 +332,7 @@ export default function ListView({
 
   // Safety check for required props
   if (!date) {
-    // console.error('ListView: date prop is required but was not provided');
+    // logger.error('ListView: date prop is required but was not provided');
     return (
       <div className="p-4 bg-red-50 border border-red-200 rounded-md">
         <p className="text-red-600">Error: date prop is required</p>
@@ -340,7 +341,7 @@ export default function ListView({
   }
   
   if (!Array.isArray(projects)) {
-    // console.error('ListView: projects prop must be an array');
+    // logger.error('ListView: projects prop must be an array');
     return (
       <div className="p-4 bg-red-50 border border-red-200 rounded-md">
         <p className="text-red-600">Error: invalid projects data</p>
@@ -378,13 +379,13 @@ export default function ListView({
       datesInfoRef.current.lastMemoKey = memoKey;
       
       // Log with calculation count to track how often this runs
-      // console.log(`Calculating dates [#${datesInfoRef.current.calculationCount}] for: ${memoKey}`);
+      // logger.debug(`Calculating dates [#${datesInfoRef.current.calculationCount}] for: ${memoKey}`);
     }
     
     try {
       // Guard against invalid date
       if (!date || !(date instanceof Date) || isNaN(date.getTime())) {
-        // console.error('Invalid date provided to ListView:', date);
+        // logger.error('Invalid date provided to ListView:', date);
         // Default to current date if invalid
         const currentDate = new Date();
         
@@ -394,7 +395,7 @@ export default function ListView({
         // Calculate end date (adding future months)
         const endDate = endOfMonth(addMonths(currentDate, futureMonths));
         
-        // console.warn('Using current date as fallback for ListView date calculation');
+        // logger.warn('Using current date as fallback for ListView date calculation');
         return eachDayOfInterval({ start: startDate, end: endDate });
       }
       
@@ -407,14 +408,14 @@ export default function ListView({
       // Safety check to ensure we're not generating a ridiculously large date range
       const dayDiff = differenceInDays(endDate, startDate);
       if (dayDiff > 366 * 3) { // More than 3 years
-        // console.warn(`Date range too large (${dayDiff} days). Limiting to 3 years.`);
+        // logger.warn(`Date range too large (${dayDiff} days). Limiting to 3 years.`);
         const limitedEndDate = addMonths(startDate, 36); // 3 years total
         return eachDayOfInterval({ start: startDate, end: limitedEndDate });
       }
       
       return eachDayOfInterval({ start: startDate, end: endDate });
     } catch (error) {
-      // console.error('Error calculating date range for ListView:', error);
+      // logger.error('Error calculating date range for ListView:', error);
       // Fall back to current month with reduced range
       const currentDate = new Date();
       const startDate = startOfMonth(addMonths(currentDate, -1));
@@ -430,7 +431,7 @@ export default function ListView({
     
     // Make sure we have valid dates to search
     if (!dates || !Array.isArray(dates) || dates.length === 0) {
-      // console.warn('No valid dates array to find today\'s index');
+      // logger.warn('No valid dates array to find today\'s index');
       return -1;
     }
     
@@ -443,7 +444,7 @@ export default function ListView({
     );
     
     if (index === -1) {
-      // console.log(`Today's date (${today.toISOString()}) not found in available dates range`);
+      // logger.debug(`Today's date (${today.toISOString()}) not found in available dates range`);
     }
     
     return index;
@@ -460,42 +461,42 @@ export default function ListView({
     
     // Check for valid date
     if (!date || !(date instanceof Date) || isNaN(date.getTime())) {
-      // console.error('Invalid date provided to processedProjects in ListView:', date);
+      // logger.error('Invalid date provided to processedProjects in ListView:', date);
       return { projectsByDate: new Map(), maxColumn: 0, projectColumns: new Map() };
     }
     
     if (isInitialRender) {
       try {
-        console.log(`Processing projects for ListView with date: ${format(date, 'MMMM yyyy')} (render #${processCountRef.current})`);
-        console.log(`Total projects available: ${projects.length}`);
+        logger.debug(`Processing projects for ListView with date: ${format(date, 'MMMM yyyy')} (render #${processCountRef.current})`);
+        logger.debug(`Total projects available: ${projects.length}`);
         if (dates && dates.length > 0) {
-          console.log(`Date range: ${dates[0]?.toISOString()} to ${dates[dates.length-1]?.toISOString()}`);
+          logger.debug(`Date range: ${dates[0]?.toISOString()} to ${dates[dates.length-1]?.toISOString()}`);
         }
       } catch (error) {
-        console.error('Error logging date info in processedProjects:', error);
+        logger.error('Error logging date info in processedProjects:', error);
       }
     }
     
     // Guard against empty dates array
     if (!dates || !Array.isArray(dates) || dates.length === 0) {
-      console.error('Dates array is empty or invalid');
+      logger.error('Dates array is empty or invalid');
       return { projectsByDate: new Map(), maxColumn: 0, projectColumns: new Map() };
     }
     
     // Only log sample projects on initial renders or if there's a significant change
     if (isInitialRender || projects.length > 0) {
-      console.log(`${projects.length} projects available ` + 
+      logger.debug(`${projects.length} projects available ` + 
                  (projects.length > 0 ? `(e.g., "${projects[0]?.title}")` : ""));
     } else if (projects.length === 0) {
       // Always log when no projects are available as this is likely an issue
-      console.warn('No projects available to display');
+      logger.warn('No projects available to display');
     }
     
     // Guard against invalid dates in projects
     const validProjects = projects.filter(project => {
       // Ensure project has a valid start_date
       if (!project.start_date) {
-        console.warn(`Project ${project.id} has no start_date, skipping`);
+        logger.warn(`Project ${project.id} has no start_date, skipping`);
         return false;
       }
       
@@ -504,15 +505,15 @@ export default function ListView({
         const testDate = new Date(project.start_date);
         return testDate instanceof Date && !isNaN(testDate.getTime());
       } catch (e) {
-        console.warn(`Project ${project.id} has invalid date format: ${project.start_date}`);
+        logger.warn(`Project ${project.id} has invalid date format: ${project.start_date}`);
         return false;
       }
     });
     
-    if (isInitialRender) console.log(`Filtered to ${validProjects.length} projects with valid dates`);
+    if (isInitialRender) logger.debug(`Filtered to ${validProjects.length} projects with valid dates`);
     
     // IMPORTANT DEBUG MESSAGE
-    console.log(`Received ${validProjects.length} valid projects to display`);
+    logger.debug(`Received ${validProjects.length} valid projects to display`);
     
     // Filter projects with a more lenient approach for real data
     const relevantProjects = validProjects.filter(project => {
@@ -547,41 +548,41 @@ export default function ListView({
           
         return projectStartsInRange || projectEndsInRange || projectSpansRange || projectNearRange;
       } catch (e) {
-        console.error(`Error processing project date filter: ${project.id}`);
+        logger.error(`Error processing project date filter: ${project.id}`);
         return false;
       }
     });
     
     // Log sample projects
     if (relevantProjects.length > 0) {
-      console.log(`FILTERED TO ${relevantProjects.length} RELEVANT PROJECTS:`);
+      logger.debug(`FILTERED TO ${relevantProjects.length} RELEVANT PROJECTS:`);
       relevantProjects.slice(0, 3).forEach(project => {
         try {
           const projectStart = new Date(project.start_date);
           const projectEnd = project.end_date ? new Date(project.end_date) : projectStart;
-          console.log(`Project ${project.id}: ${project.title} - ${format(projectStart, 'MM/dd/yyyy')} to ${format(projectEnd, 'MM/dd/yyyy')}`);
+          logger.debug(`Project ${project.id}: ${project.title} - ${format(projectStart, 'MM/dd/yyyy')} to ${format(projectEnd, 'MM/dd/yyyy')}`);
         } catch (e) {
-          console.error(`Error showing sample project ${project.id}:`, e);
+          logger.error(`Error showing sample project ${project.id}:`, e);
         }
       });
     } else {
-      console.warn("NO PROJECTS PASSED FILTERING - showing a few sample valid projects:");
+      logger.warn("NO PROJECTS PASSED FILTERING - showing a few sample valid projects:");
       validProjects.slice(0, 3).forEach(project => {
         try {
           const projectStart = new Date(project.start_date);
           const projectEnd = project.end_date ? new Date(project.end_date) : projectStart;
-          console.log(`Project ${project.id}: ${project.title} - ${format(projectStart, 'MM/dd/yyyy')} to ${format(projectEnd, 'MM/dd/yyyy')}`);
+          logger.debug(`Project ${project.id}: ${project.title} - ${format(projectStart, 'MM/dd/yyyy')} to ${format(projectEnd, 'MM/dd/yyyy')}`);
         } catch (e) {
-          console.error(`Error showing sample project ${project.id}:`, e);
+          logger.error(`Error showing sample project ${project.id}:`, e);
         }
       });
     }
     
-    if (isInitialRender) console.log(`Filtered to ${relevantProjects.length} projects relevant to visible date range`);
+    if (isInitialRender) logger.debug(`Filtered to ${relevantProjects.length} projects relevant to visible date range`);
     
     // If no relevant projects found, but we have valid projects, check filter conditions (only on first few renders)
     if (relevantProjects.length === 0 && validProjects.length > 0 && isInitialRender) {
-      console.log('All projects were filtered out by date range. Checking sample projects...');
+      logger.debug('All projects were filtered out by date range. Checking sample projects...');
       
       // Log only a couple of projects to avoid console spam
       const sampleProjects = validProjects.slice(0, Math.min(2, validProjects.length));
@@ -592,15 +593,15 @@ export default function ListView({
           const projectStart = new Date(project.start_date);
           const projectEnd = project.end_date ? new Date(project.end_date) : projectStart;
           
-          console.log(`Project "${project.title}": ${format(projectStart, 'yyyy-MM-dd')} to ${format(projectEnd, 'yyyy-MM-dd')}`);
+          logger.debug(`Project "${project.title}": ${format(projectStart, 'yyyy-MM-dd')} to ${format(projectEnd, 'yyyy-MM-dd')}`);
         } catch (e) {
-          console.error(`Error logging project ${project.id} dates`);
+          logger.error(`Error logging project ${project.id} dates`);
         }
       });
       
       // If we skipped some, indicate this
       if (validProjects.length > sampleProjects.length) {
-        console.log(`... and ${validProjects.length - sampleProjects.length} more projects`);
+        logger.debug(`... and ${validProjects.length - sampleProjects.length} more projects`);
       }
     }
     
@@ -656,7 +657,7 @@ export default function ListView({
         
         // Safeguard against invalid date calculations
         if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
-          console.warn(`Project ${project.id} has invalid date, skipping assignment`);
+          logger.warn(`Project ${project.id} has invalid date, skipping assignment`);
           return;
         }
         
@@ -682,7 +683,7 @@ export default function ListView({
           }
         });
       } catch (e) {
-        console.error(`Error assigning project ${project.id} to dates:`, e);
+        logger.error(`Error assigning project ${project.id} to dates:`, e);
       }
     });
     
@@ -691,7 +692,7 @@ export default function ListView({
     
     // Only log results on initial renders to reduce console spam
     if (isInitialRender) {
-      console.log(`Generated projectsByDate with ${projectsByDate.size} dates and max column ${maxColumn}`);
+      logger.debug(`Generated projectsByDate with ${projectsByDate.size} dates and max column ${maxColumn}`);
     }
     
     return { projectsByDate, maxColumn, projectColumns };
@@ -730,7 +731,7 @@ export default function ListView({
     disableBottomLoadingRef.current = false;
     reachedBeginningRef.current = false;
     reachedEndRef.current = false;
-    console.log('Initialized ListView with all scroll loading flags enabled');
+    logger.debug('Initialized ListView with all scroll loading flags enabled');
   }, []);
   
 
@@ -750,11 +751,11 @@ export default function ListView({
       if (container.scrollTop === 0) {
         // We've reached the absolute top - disable top loading completely
         disableTopLoadingRef.current = true;
-        console.log("Top reached - disabling top loading completely");
+        logger.debug("Top reached - disabling top loading completely");
         
         // Don't store this preference in localStorage anymore
         // We want to reset this on each page load
-        console.log('Top reached, disabling for this session only');
+        logger.debug('Top reached, { data: disabling for this session only' });
       }
     };
     
@@ -766,11 +767,11 @@ export default function ListView({
       if (Math.abs(scrollHeight - scrollTop - clientHeight) <= 1) {
         // We've reached the absolute bottom - disable bottom loading completely
         disableBottomLoadingRef.current = true;
-        console.log("Bottom reached - disabling bottom loading completely");
+        logger.debug("Bottom reached - disabling bottom loading completely");
         
         // Don't store this preference in localStorage anymore
         // We want to reset this on each page load
-        console.log('Bottom reached, disabling for this session only');
+        logger.debug('Bottom reached, { data: disabling for this session only' });
       }
       
       // Always show the month indicator when scrolling
@@ -826,11 +827,11 @@ export default function ListView({
           // Remember when we triggered a load
           lastScrollTriggeredAt = now;
           isLoadingMoreRef.current = true;
-          console.log("Loading past months from scroll");
+          logger.debug("Loading past months from scroll");
           
           // Check if we have already reached the past months limit
           if (pastMonths >= MAX_PAST_MONTHS) {
-            console.log(`Already at maximum past limit (${MAX_PAST_MONTHS} months)`);
+            logger.debug(`Already at maximum past limit (${MAX_PAST_MONTHS} months)`);
             // Set flag to prevent further attempts
             reachedBeginningRef.current = true;
             
@@ -847,7 +848,7 @@ export default function ListView({
               });
               window.dispatchEvent(toastEvent);
             } catch (e) {
-              console.warn('Toast notification failed:', e);
+              logger.warn('Toast notification failed:', e);
             }
             
             isLoadingMoreRef.current = false;
@@ -861,7 +862,7 @@ export default function ListView({
           try {
             onLoadMoreMonths('past', 2);
           } catch (e) {
-            console.error("Error loading past months:", e);
+            logger.error("Error loading past months:", e);
           }
           
           // Use a timeout to wait for the DOM to update
@@ -875,7 +876,7 @@ export default function ListView({
                 container.scrollTop = currentScrollPos + heightDiff;
               } else {
                 // No content added, we might have reached the limit
-                console.log('You have reached the beginning of available data');
+                logger.debug('You have reached the beginning of available data');
                 
                 // Mark that we've reached the beginning to prevent more attempts
                 reachedBeginningRef.current = true;
@@ -892,7 +893,7 @@ export default function ListView({
                   });
                   window.dispatchEvent(toastEvent);
                 } catch (e) {
-                  console.warn('Toast notification failed:', e);
+                  logger.warn('Toast notification failed:', e);
                 }
               }
               
@@ -913,11 +914,11 @@ export default function ListView({
           // Remember when we triggered a load
           lastScrollTriggeredAt = now;
           isLoadingMoreRef.current = true;
-          console.log("Loading future months from scroll");
+          logger.debug("Loading future months from scroll");
           
           // Check if we have already reached the future months limit
           if (futureMonths >= MAX_FUTURE_MONTHS) {
-            console.log(`Already at maximum future limit (${MAX_FUTURE_MONTHS} months)`);
+            logger.debug(`Already at maximum future limit (${MAX_FUTURE_MONTHS} months)`);
             // Set flag to prevent further attempts
             reachedEndRef.current = true;
             
@@ -934,7 +935,7 @@ export default function ListView({
               });
               window.dispatchEvent(toastEvent);
             } catch (e) {
-              console.warn('Toast notification failed:', e);
+              logger.warn('Toast notification failed:', e);
             }
             
             isLoadingMoreRef.current = false;
@@ -946,7 +947,7 @@ export default function ListView({
           try {
             onLoadMoreMonths('future', 2);
           } catch (e) {
-            console.error("Error loading future months:", e);
+            logger.error("Error loading future months:", e);
           }
           
           // Use a timeout to wait for the DOM to update
@@ -957,7 +958,7 @@ export default function ListView({
               
               if (heightDiff === 0) {
                 // No content added, we might have reached the limit
-                console.log('You have reached the end of available data');
+                logger.debug('You have reached the end of available data');
                 
                 // Mark that we've reached the end to prevent more attempts
                 reachedEndRef.current = true;
@@ -974,7 +975,7 @@ export default function ListView({
                   });
                   window.dispatchEvent(toastEvent);
                 } catch (e) {
-                  console.warn('Toast notification failed:', e);
+                  logger.warn('Toast notification failed:', e);
                 }
               }
               
@@ -1255,7 +1256,7 @@ export default function ListView({
       
       // Update the visible month if it's valid and different
       if (closestMonth && closestMonth !== visibleMonth) {
-        console.log(`Updating visible month: ${closestMonth}`);
+        logger.debug(`Updating visible month: ${closestMonth}`);
         setVisibleMonth(closestMonth);
         
         // Only show month indicator when the month is centered properly
@@ -1321,7 +1322,7 @@ export default function ListView({
     try {
       localStorage.setItem('calendar_list_zoom_level', level.toString());
     } catch (e) {
-      console.warn('Could not save zoom level to localStorage:', e);
+      logger.warn('Could not save zoom level to localStorage:', e);
     }
   };
   
@@ -1446,7 +1447,7 @@ export default function ListView({
   // Show loading state initially, then hide once everything is ready
   useEffect(() => {
     // Log projects count for debugging - just once
-    console.log(`Loading ${projects.length} projects for ListView (${format(date, 'MMM yyyy')})`);
+    logger.debug(`Loading ${projects.length} projects for ListView (${format(date, 'MMM yyyy')})`);
     
     // Mark as loading only when date changes, not when projects change
     // This prevents unnecessary loading states during minor updates
@@ -1466,7 +1467,7 @@ export default function ListView({
           if (containerRef.current) {
             containerRef.current.scrollTop = scrollPositionRef.current;
             // Limit console logging to reduce spam
-            console.log(`Restored scroll position to ${Math.round(scrollPositionRef.current)}px`);
+            logger.debug(`Restored scroll position to ${Math.round(scrollPositionRef.current)}px`);
           }
         }, 50);
       }
@@ -1483,13 +1484,13 @@ export default function ListView({
 
   // Add debug logging when projects or processed projects change
   useEffect(() => {
-    console.log(`ListView received ${projects.length} projects, processedProjects initialized: ${!!processedProjects}`);
+    logger.debug(`ListView received ${projects.length} projects, processedProjects initialized: ${!!processedProjects}`);
     if (processedProjects?.projectsByDate) {
       let visibleCount = 0;
       processedProjects.projectsByDate.forEach(projects => {
         visibleCount += projects.length;
       });
-      console.log(`Processed projects has ${visibleCount} visible projects across ${processedProjects.projectsByDate.size} dates`);
+      logger.debug(`Processed projects has ${visibleCount} visible projects across ${processedProjects.projectsByDate.size} dates`);
     }
   }, [projects, processedProjects]);
 
@@ -1802,7 +1803,7 @@ export default function ListView({
                           }, 2000);
                         });
                       } catch (e) {
-                        console.warn('Error adding today highlight:', e);
+                        logger.warn('Error adding today highlight:', e);
                       }
                     }
                   }

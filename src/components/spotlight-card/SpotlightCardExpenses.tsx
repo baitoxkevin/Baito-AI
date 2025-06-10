@@ -11,6 +11,7 @@ import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import type { Project } from '@/lib/types';
 import { categoryColors } from './constants';
+import { logger } from '../../lib/logger';
 import {
   Receipt,
   Plus,
@@ -85,60 +86,60 @@ export function SpotlightCardExpenses({
             size="sm"
             onClick={async () => {
               try {
-                // console.log('=== MANUAL EXPENSE CLAIMS DEBUG ===');
-                // console.log('Project ID:', project.id);
+                // logger.debug('=== MANUAL EXPENSE CLAIMS DEBUG ===');
+                // logger.debug('Project ID:', { data: project.id });
                 
                 // Import required modules
                 const { supabase } = await import('@/lib/supabase');
                 const { fetchProjectExpenseClaimsWithFallback } = await import('@/lib/expense-claim-service-fallback');
                 
                 // Test 1: Direct query
-                // console.log('Test 1: Direct query to expense_claims table...');
+                // logger.debug('Test 1: Direct query to expense_claims table...');
                 const { data: directData, error: directError } = await supabase
                   .from('expense_claims')
                   .select('*')
                   .eq('project_id', project.id);
                 
-                // console.log('Direct query result:', {
+                // logger.debug('Direct query result:', { data: {
                 //   data: directData,
                 //   error: directError,
                 //   count: directData?.length || 0
-                // });
+                // } });
                 
                 // Test 2: Using the service function
-                // console.log('\nTest 2: Using fetchProjectExpenseClaimsWithFallback...');
+                // logger.debug('\nTest 2: Using fetchProjectExpenseClaimsWithFallback...');
                 const claims = await fetchProjectExpenseClaimsWithFallback(project.id);
-                // console.log('Service function result:', {
+                // logger.debug('Service function result:', { data: {
                 //   claims: claims,
                 //   count: claims.length
-                // });
+                // } });
                 
                 // Test 3: Check all expense claims (no project filter)
-                // console.log('\nTest 3: Query all expense claims (no project filter)...');
+                // logger.debug('\nTest 3: Query all expense claims (no project filter)...');
                 const { data: allClaims, error: allError } = await supabase
                   .from('expense_claims')
                   .select('*')
                   .limit(10);
                 
-                // console.log('All claims result:', {
+                // logger.debug('All claims result:', { data: {
                 //   data: allClaims,
                 //   error: allError,
                 //   count: allClaims?.length || 0
-                // });
+                // } });
                 
                 // Test 4: If onRefresh is provided, call it
                 if (onRefresh) {
-                  // console.log('\nTest 4: Calling onRefresh callback...');
+                  // logger.debug('\nTest 4: Calling onRefresh callback...');
                   const refreshedClaims = await onRefresh();
-                  // console.log('onRefresh result:', {
+                  // logger.debug('onRefresh result:', { data: {
                   //   claims: refreshedClaims,
                   //   count: refreshedClaims.length
-                  // });
+                  // } });
                 }
                 
-                // console.log('=== END DEBUG ===');
+                // logger.debug('=== END DEBUG ===');
               } catch (error) {
-                console.error('Manual refresh error:', error);
+                logger.error('Manual refresh error:', error);
               }
             }}
             title="Debug: Test expense claims query"

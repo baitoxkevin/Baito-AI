@@ -11,6 +11,7 @@ import MobileCandidateUpdatePage from './pages/MobileCandidateUpdatePage';
 import SetPasswordPage from './pages/SetPasswordPage';
 import { renderCanvas } from './components/ui/canvas';
 import { SpotlightCommand } from './components/SpotlightCommand';
+import { GlobalErrorBoundary } from './components/GlobalErrorBoundary';
 
 function App() {
   const [effectActive, setEffectActive] = useState(false);
@@ -75,9 +76,10 @@ function App() {
   }, [effectActive]);
 
   return (
-    <AppStateProvider>
-      <BrowserRouter>
-        <Routes>
+    <GlobalErrorBoundary>
+      <AppStateProvider>
+        <BrowserRouter>
+          <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/set-password" element={<SetPasswordPage />} />
           <Route path="/receipt-scanner" element={<ReceiptScannerPage />} />
@@ -148,6 +150,7 @@ function App() {
         <EnhancedToaster />
       </BrowserRouter>
     </AppStateProvider>
+    </GlobalErrorBoundary>
   );
 }
 

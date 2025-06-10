@@ -9,6 +9,7 @@ import { signIn } from '@/lib/auth';
 import { Toaster } from '@/components/ui/toaster';
 import { motion } from 'framer-motion';
 
+import { logger } from '../lib/logger';
 const LOGO_URL = "https://i.postimg.cc/28D4j6hk/Submark-Alternative-Colour.png";
 
 export default function LoginPage() {
@@ -42,7 +43,7 @@ export default function LoginPage() {
         }, 100);
       }
     } catch (error) {
-      console.error('Sign in error:', error);
+      logger.error('Sign in error:', error);
       
       const message = error instanceof Error 
         ? error.message 

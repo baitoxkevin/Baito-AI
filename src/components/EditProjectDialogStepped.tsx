@@ -11,6 +11,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { logger } from '../lib/logger';
 // Removed Calendar and Popover imports - using native date inputs instead
 import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
@@ -146,7 +147,7 @@ export function EditProjectDialogStepped({ project, open, onOpenChange, onProjec
       setCompanies(companiesResult.data || []);
       setManagers(managersResult.data || []);
     } catch (error) {
-      console.error('Error fetching data:', error);
+      logger.error('Error fetching data:', error);
       toast({
         title: 'Error',
         description: 'Failed to load companies and managers',
@@ -360,7 +361,7 @@ export function EditProjectDialogStepped({ project, open, onOpenChange, onProjec
         setShowSuccess(false);
       }, 1500); // Show success state for 1.5 seconds
     } catch (error) {
-      console.error('Error updating project:', error);
+      logger.error('Error updating project:', error);
       toast({
         title: 'Error',
         description: 'Failed to update project. Please try again.',

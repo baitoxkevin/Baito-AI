@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { logger } from '../lib/logger';
 import {
   Dialog,
   DialogContent,
@@ -168,7 +169,7 @@ export default function NewUserDialog({
             if (profileError) {
               // If the error is about missing columns, try again without them
               if (profileError.message?.includes('avatar_seed') || profileError.message?.includes('username')) {
-                console.log('Optional columns not found, creating user without them');
+                logger.debug('Optional columns not found, { data: creating user without them' });
                 const { error: basicProfileError } = await supabase
                   .from("users")
                   .upsert(userProfile);
@@ -197,7 +198,7 @@ export default function NewUserDialog({
         }
       }
     } catch (error: any) {
-      console.error("Error saving user:", error);
+      logger.error("Error saving user:", error);
       
       let errorMessage = error.message || "Failed to save user";
       

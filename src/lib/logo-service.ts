@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 
+import { logger } from './logger';
 interface LogoResult {
   url: string;
   source: 'clearbit' | 'brandfetch' | 'google' | 'duckduckgo' | 'generated';
@@ -22,7 +23,7 @@ export class LogoService {
         return logoUrl;
       }
     } catch (error) {
-      console.error('Clearbit logo fetch failed:', error);
+      logger.error('Clearbit logo fetch failed:', error);
     }
     return null;
   }
@@ -33,7 +34,7 @@ export class LogoService {
       const logoUrl = `https://www.google.com/s2/favicons?domain=${domain}&sz=128`;
       return logoUrl; // Google always returns something, even if it's a default icon
     } catch (error) {
-      console.error('Google favicon fetch failed:', error);
+      logger.error('Google favicon fetch failed:', error);
     }
     return null;
   }
@@ -49,7 +50,7 @@ export class LogoService {
         return logoUrl;
       }
     } catch (error) {
-      console.error('DuckDuckGo favicon fetch failed:', error);
+      logger.error('DuckDuckGo favicon fetch failed:', error);
     }
     return null;
   }
@@ -228,7 +229,7 @@ export class LogoService {
       
       return publicUrl;
     } catch (error) {
-      console.error('Error uploading logo to storage:', error);
+      logger.error('Error uploading logo to storage:', error);
       // Return the original URL as fallback
       return logoUrl;
     }
@@ -263,7 +264,7 @@ export class LogoService {
       
       return logoResult.url;
     } catch (error) {
-      console.error('Smart logo fetch failed:', error);
+      logger.error('Smart logo fetch failed:', error);
       // Always return a fallback
       return this.generateFallbackLogo(brandName);
     }

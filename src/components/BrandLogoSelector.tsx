@@ -5,6 +5,7 @@ import { Loader2, Search, Link2, AlertCircle } from 'lucide-react';
 import { fetchMultipleBrandLogos } from '@/lib/logo-service';
 import { cn } from '@/lib/utils';
 
+import { logger } from '../lib/logger';
 interface BrandLogoSelectorProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -42,7 +43,7 @@ export function BrandLogoSelector({
         setError('No logos found. Try entering a custom URL below.');
       }
     } catch (err) {
-      console.error('Error fetching logos:', err);
+      logger.error('Error fetching logos:', err);
       setError('Failed to fetch logos. Please try again.');
     } finally {
       setIsLoading(false);

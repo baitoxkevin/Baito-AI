@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { format, isSameDay } from 'date-fns';
 import { motion } from 'framer-motion';
+import { logger } from '../../lib/logger';
 import {
   Table,
   TableBody,
@@ -213,7 +214,7 @@ export default function ProjectPayroll({
   onProjectUpdate
 }: ProjectPayrollProps) {
   // Debug log to see initial confirmed staff structure (commented out to reduce console noise)
-  // console.log('Initial confirmedStaff data:', confirmedStaff);
+  // logger.debug('Initial confirmedStaff data:', { data: confirmedStaff });
   const [editingStaffId, setEditingStaffId] = useState<string | null>(null);
   const [sortColumn, setSortColumn] = useState<'staff' | 'position' | 'days' | 'perDay' | 'totalAmount'>('totalAmount');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
@@ -273,7 +274,7 @@ export default function ProjectPayroll({
 
       setIsEditingBudget(false);
     } catch (error) {
-      console.error('Error updating budget:', error);
+      logger.error('Error updating budget:', error);
       toast({
         title: "Error",
         description: "Failed to update budget",
@@ -296,7 +297,7 @@ export default function ProjectPayroll({
             [editingStaffId]: claims
           }));
         } catch (error) {
-          console.error('Error fetching staff expense claims:', error);
+          logger.error('Error fetching staff expense claims:', error);
         }
       }
     };
@@ -462,7 +463,7 @@ export default function ProjectPayroll({
                 
                 setEditingStaffId(null);
               } catch (error) {
-                console.error('Error saving payroll details:', error);
+                logger.error('Error saving payroll details:', error);
                 toast({
                   title: "Error",
                   description: "Failed to save payroll details",
@@ -481,7 +482,7 @@ export default function ProjectPayroll({
             newRowIndex = rowIndex + 1;
           }
         } catch (error) {
-          console.error('Error on Enter key action:', error);
+          logger.error('Error on Enter key action:', error);
         }
         break;
       default:
@@ -636,7 +637,7 @@ export default function ProjectPayroll({
           description: `Basic salary of RM ${basicAmount.toLocaleString()} set for ${selectedStaffForBasic.length} staff member(s)`,
         });
       } catch (error) {
-        console.error('Error updating staff salaries:', error);
+        logger.error('Error updating staff salaries:', error);
         toast({
           title: "Error",
           description: "Failed to update basic salaries",
@@ -724,7 +725,7 @@ export default function ProjectPayroll({
         .eq('id', project.id);
         
       if (error) {
-        console.error('Error updating project staff payment status:', error);
+        logger.error('Error updating project staff payment status:', error);
         toast({
           title: "Error",
           description: "Failed to update payment status. Please try again.",
@@ -737,7 +738,7 @@ export default function ProjectPayroll({
       // Only update local state after successful database update
       setConfirmedStaff(updatedStaff);
     } catch (error) {
-      console.error('Error updating project:', error);
+      logger.error('Error updating project:', error);
       toast({
         title: "Error",
         description: "Failed to update payment status. Please try again.",
@@ -1035,7 +1036,7 @@ export default function ProjectPayroll({
                                     .eq('id', staff.paymentBatchId);
                                     
                                   if (deleteError) {
-                                    console.error('Error deleting payment batch:', deleteError);
+                                    logger.error('Error deleting payment batch:', deleteError);
                                     toast({
                                       title: "Error",
                                       description: "Failed to undo payment. Please try again.",
@@ -1076,7 +1077,7 @@ export default function ProjectPayroll({
                                     .eq('id', project.id);
                                     
                                   if (updateError) {
-                                    console.error('Error updating project:', updateError);
+                                    logger.error('Error updating project:', updateError);
                                     toast({
                                       title: "Error",
                                       description: "Failed to update project. Please try again.",
@@ -1093,7 +1094,7 @@ export default function ProjectPayroll({
                                     description: "The payment has been removed from the queue",
                                   });
                                 } catch (error) {
-                                  console.error('Error undoing payment:', error);
+                                  logger.error('Error undoing payment:', error);
                                   toast({
                                     title: "Error",
                                     description: "Failed to undo payment",
@@ -1754,7 +1755,7 @@ export default function ProjectPayroll({
                         
                         setEditingStaffId(null);
                       } catch (error) {
-                        console.error('Error updating staff payment details:', error);
+                        logger.error('Error updating staff payment details:', error);
                         toast({
                           title: "Error",
                           description: "Failed to update staff payment details",
@@ -1954,7 +1955,7 @@ export default function ProjectPayroll({
             const staff = confirmedStaff.find(s => s.name === summary.name);
             
             // Debug logging to see staff data structure (commented out to reduce console noise)
-            // console.log('Staff data for payment submission:', {
+            // logger.debug('Staff data for payment submission:', { data: {
             //   staffId: staff?.id,
             //   staffName: staff?.name,
             //   directBankName: staff?.bank_name,
@@ -1963,7 +1964,7 @@ export default function ProjectPayroll({
             //   candidateAccountNumber: staff?.candidate?.bank_account_number,
             //   bankCodeField: staff?.bankCode,
             //   bankAccountNumberField: staff?.bankAccountNumber,
-            //   allKeys: staff ? Object.keys(staff) : [],
+            //   allKeys: staff ? Object.keys(staff }) : [],
             //   fullStaffObject: staff
             // });
             
@@ -1984,11 +1985,11 @@ export default function ProjectPayroll({
                                 staff?.candidate?.bankAccountNumber || 
                                 '';
             
-            // console.log('Extracted bank details:', {
+            // logger.debug('Extracted bank details:', { data: {
             //   staffName: staff?.name,
             //   bankName,
             //   accountNumber
-            // });
+            // } });
             
             return {
               staffId: staff?.id || '',

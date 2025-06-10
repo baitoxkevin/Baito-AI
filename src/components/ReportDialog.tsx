@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { logger } from '../lib/logger';
 import {
   Dialog,
   DialogContent,
@@ -47,7 +48,7 @@ export default function ReportDialog({
       localStorage.setItem('candidate_feedback', JSON.stringify(existingFeedback));
       return true;
     } catch (e) {
-      console.error('Error saving to local storage:', e);
+      logger.error('Error saving to local storage:', e);
       return false;
     }
   };
@@ -79,7 +80,7 @@ export default function ReportDialog({
 
       // If there was an error, save to local storage as a fallback
       if (error) {
-        // console.warn('Could not save to database, using local storage fallback:', error);
+        // logger.warn('Could not save to database, using local storage fallback:', error);
         const savedLocally = saveFeedbackToLocalStorage(feedbackData);
         
         if (!savedLocally) {
@@ -102,7 +103,7 @@ export default function ReportDialog({
         onOpenChange(false);
       }, 2000);
     } catch (error) {
-      console.error('Error submitting report:', error);
+      logger.error('Error submitting report:', error);
       toast({
         title: 'Submission Failed',
         description: 'Failed to submit your report. Please try again.',

@@ -1,3 +1,5 @@
+import { logger } from '../lib/logger';
+
 import React, { useState, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
@@ -78,7 +80,7 @@ export function CandidateTextImportTool({ onOpenNewCandidateDialog }: CandidateT
       
       // Removed unnecessary toast notification - the UI change to preview tab is enough feedback
     } catch (err) {
-      console.error('Error analyzing text:', err);
+      logger.error('Error analyzing text:', err);
       setError('Failed to analyze text. Please check the format and try again.');
       
       toast({
@@ -130,7 +132,7 @@ export function CandidateTextImportTool({ onOpenNewCandidateDialog }: CandidateT
         throw new Error('Failed to create candidate');
       }
     } catch (err) {
-      console.error('Error creating candidate:', err);
+      logger.error('Error creating candidate:', err);
       
       toast({
         title: "Error",

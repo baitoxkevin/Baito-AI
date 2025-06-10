@@ -1,3 +1,5 @@
+import { logger } from './logger';
+
 // Stub file for receipt-ocr-service.ts
 export interface ReceiptData {
   id?: string;
@@ -12,7 +14,7 @@ export interface ReceiptData {
 }
 
 export const analyzeReceiptImage = async () => {
-  console.warn("receipt-ocr-service.ts was removed - analyzeReceiptImage is a stub");
+  logger.warn("receipt-ocr-service.ts was removed - analyzeReceiptImage is a stub");
   return { 
     success: true, 
     data: { 
@@ -25,12 +27,12 @@ export const analyzeReceiptImage = async () => {
 };
 
 export const validateImage = async () => {
-  console.warn("receipt-ocr-service.ts was removed - validateImage is a stub");
+  logger.warn("receipt-ocr-service.ts was removed - validateImage is a stub");
   return { valid: true, reason: null };
 };
 
 export const mapReceiptDataToFormFields = (ocrData: unknown) => {
-  console.warn("receipt-ocr-service.ts was removed - mapReceiptDataToFormFields is a stub");
+  logger.warn("receipt-ocr-service.ts was removed - mapReceiptDataToFormFields is a stub");
   return {
     amount: 0,
     date: new Date().toISOString().split('T')[0],

@@ -1,3 +1,5 @@
+import { logger } from '../../lib/logger';
+
 // @ts-ignore
 function n(e) {
   // @ts-ignore
@@ -149,9 +151,9 @@ function onMousemove(e) {
 }
 
 function render() {
-  // console.log("Render frame called");
+  // logger.debug("Render frame called");
   if (!ctx || !ctx.running) {
-    // console.log("Canvas not running, stopping animation");
+    // logger.debug("Canvas not running, { data: stopping animation" });
     return;
   }
   
@@ -179,7 +181,7 @@ function render() {
     // Continue animation loop
     requestAnimationFrame(render);
   } catch (error) {
-    console.error("Error in render function:", error);
+    logger.error("Error in render function:", error);
   }
 }
 
@@ -229,11 +231,11 @@ let globalAnimationId: number | null = null;
 let globalIsRunning = false;
 
 export const renderCanvas = function () {
-  // console.log("Rendering canvas - function called");
+  // logger.debug("Rendering canvas - function called");
   
   // Stop any existing animation
   if (globalAnimationId !== null) {
-    // console.log("Canceling existing animation frame:", globalAnimationId);
+    // logger.debug("Canceling existing animation frame:", { data: globalAnimationId });
     cancelAnimationFrame(globalAnimationId);
     globalAnimationId = null;
   }
@@ -247,7 +249,7 @@ export const renderCanvas = function () {
   
   // Clean up any existing canvas animations first
   if (ctx) {
-    // console.log("Cleaning up existing canvas");
+    // logger.debug("Cleaning up existing canvas");
     ctx.running = false;
     
     // Remove existing event listeners to prevent duplicates
@@ -260,7 +262,7 @@ export const renderCanvas = function () {
   // Get or create canvas element
   const canvasElement = document.getElementById("canvas");
   if (!canvasElement) {
-    // console.log("Canvas element not found, creating it");
+    // logger.debug("Canvas element not found, { data: creating it" });
     const newCanvas = document.createElement("canvas");
     newCanvas.id = "canvas";
     newCanvas.width = window.innerWidth;
@@ -273,18 +275,18 @@ export const renderCanvas = function () {
     document.body.appendChild(newCanvas);
     ctx = newCanvas.getContext("2d");
   } else {
-    // console.log("Canvas element found, getting context");
+    // logger.debug("Canvas element found, { data: getting context" });
     canvasElement.width = window.innerWidth;
     canvasElement.height = window.innerHeight;
     ctx = canvasElement.getContext("2d");
   }
   
   if (!ctx) {
-    console.error("Could not get canvas context");
+    logger.error("Could not get canvas context");
     return () => {}; // Return empty cleanup function
   }
   
-  // console.log("Starting canvas animation");
+  // logger.debug("Starting canvas animation");
   ctx.running = true;
   ctx.frame = 1;
   
@@ -313,7 +315,7 @@ export const renderCanvas = function () {
     try {
       // Only log every 60 frames to reduce console spam
       if (ctx.frame % 60 === 0) {
-        // console.log(`Canvas animation running - frame: ${ctx.frame}`);
+        // logger.debug(`Canvas animation running - frame: ${ctx.frame}`);
       }
       
       // Clear canvas
@@ -341,7 +343,7 @@ export const renderCanvas = function () {
         animationFrameId = requestAnimationFrame(renderLoop);
       }
     } catch (error) {
-      console.error("Error in render function:", error);
+      logger.error("Error in render function:", error);
       isRunning = false;
     }
   };
@@ -356,7 +358,7 @@ export const renderCanvas = function () {
   resizeCanvas();
   
   // Start the animation
-  // console.log("Starting render loop");
+  // logger.debug("Starting render loop");
   animationFrameId = requestAnimationFrame(renderLoop);
   
   // Store the animation ID globally
@@ -364,7 +366,7 @@ export const renderCanvas = function () {
   
   // Return cleanup function
   return function cleanup() {
-    // console.log("Cleaning up canvas animation");
+    // logger.debug("Cleaning up canvas animation");
     
     // Stop animation
     isRunning = false;
@@ -372,13 +374,13 @@ export const renderCanvas = function () {
     
     // Cancel animation frame
     if (animationFrameId !== null) {
-      // console.log("Canceling animation frame:", animationFrameId);
+      // logger.debug("Canceling animation frame:", { data: animationFrameId });
       cancelAnimationFrame(animationFrameId);
       animationFrameId = null;
     }
     
     if (globalAnimationId !== null) {
-      // console.log("Canceling global animation frame:", globalAnimationId);
+      // logger.debug("Canceling global animation frame:", { data: globalAnimationId });
       cancelAnimationFrame(globalAnimationId);
       globalAnimationId = null;
     }
@@ -397,6 +399,6 @@ export const renderCanvas = function () {
     // Reset context
     ctx = null;
     
-    // console.log("Canvas cleanup complete");
+    // logger.debug("Canvas cleanup complete");
   };
 };

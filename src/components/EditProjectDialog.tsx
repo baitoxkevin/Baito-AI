@@ -6,6 +6,7 @@ import { format } from 'date-fns';
 import { motion } from 'framer-motion';
 import { CalendarIcon, Loader2, MapPin, Users, Clock, DollarSign, Building, Check, ChevronDown } from 'lucide-react';
 import { Button } from "@/components/ui/button";
+import { logger } from '../lib/logger';
 import {
   Dialog,
   DialogContent,
@@ -243,7 +244,7 @@ export function EditProjectDialog({
 
       setManagers(managersData || []);
     } catch (error) {
-      console.error('Error fetching data:', error);
+      logger.error('Error fetching data:', error);
       toast({
         title: "Error",
         description: "Failed to load customers and managers",
@@ -332,7 +333,7 @@ export function EditProjectDialog({
             'project_update'
           );
         } catch (notifError) {
-          console.error('Failed to send notification:', notifError);
+          logger.error('Failed to send notification:', notifError);
           // Don't fail the update if notification fails
         }
       }
@@ -345,7 +346,7 @@ export function EditProjectDialog({
       onProjectUpdated(data);
       onOpenChange(false);
     } catch (error) {
-      console.error('Error updating project:', error);
+      logger.error('Error updating project:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to update project",

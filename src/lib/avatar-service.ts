@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
 import type { UserProfile } from './types';
 
+import { logger } from './logger';
 // Global cache for candidate profile photos to avoid redundant fetches
 const candidatePhotoCache = new Map<string, string>();
 
@@ -120,7 +121,7 @@ export async function uploadAvatar(userId: string, file: File): Promise<string> 
 
     return urlData.publicUrl;
   } catch (error) {
-    console.error('Error uploading avatar:', error);
+    logger.error('Error uploading avatar:', error);
     throw error;
   }
 }
@@ -153,7 +154,7 @@ export async function removeAvatar(userId: string, seed?: string): Promise<void>
       .list(userId);
 
     if (listError) {
-      console.warn('Could not list user avatar files:', listError);
+      logger.warn('Could not list user avatar files:', listError);
       return; // Continue even if we can't list files
     }
 
@@ -165,11 +166,11 @@ export async function removeAvatar(userId: string, seed?: string): Promise<void>
         .remove(filePaths);
 
       if (deleteError) {
-        console.warn('Error deleting avatar files:', deleteError);
+        logger.warn('Error deleting avatar files:', deleteError);
       }
     }
   } catch (error) {
-    console.error('Error removing avatar:', error);
+    logger.error('Error removing avatar:', error);
     throw error;
   }
 }
@@ -204,7 +205,7 @@ export function getAvatarUrl(user: UserProfile | string): string {
   try {
     const storedAvatar = localStorage.getItem(`user_avatar_${user.id}`);
     if (storedAvatar) {
-      console.log(`[avatar-service] Using avatar from localStorage for user ${user.id}`);
+      logger.debug(`[avatar-service] Using avatar from localStorage for user ${user.id}`);
       return storedAvatar;
     }
   } catch (e) {

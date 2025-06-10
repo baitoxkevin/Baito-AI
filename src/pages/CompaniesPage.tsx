@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { logger } from '../lib/logger';
 import {
   Table,
   TableBody,
@@ -138,7 +139,7 @@ export default function CompaniesPage() {
       // Flatten for initial display
       setFlatCompanies(flattenTree(hierarchicalCompanies));
     } catch (error) {
-      console.error('Error loading companies:', error);
+      logger.error('Error loading companies:', error);
       toast({
         title: 'Error',
         description: 'Failed to load companies. Please try again.',
@@ -160,7 +161,7 @@ export default function CompaniesPage() {
       const profile = await getUserProfile();
       setCurrentUser(profile as User);
     } catch (error) {
-      console.error('Error loading current user:', error);
+      logger.error('Error loading current user:', error);
       toast({
         title: 'Error',
         description: 'Failed to verify your permissions.',
@@ -215,7 +216,7 @@ export default function CompaniesPage() {
       
       loadCompanies();
     } catch (error) {
-      console.error('Error deleting company:', error);
+      logger.error('Error deleting company:', error);
       toast({
         title: 'Error',
         description: 'Failed to delete company. Please try again.',

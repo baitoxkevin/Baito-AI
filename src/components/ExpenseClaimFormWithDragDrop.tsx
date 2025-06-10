@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { logger } from '../lib/logger';
 import {
   Dialog,
   DialogContent,
@@ -257,7 +258,7 @@ export function ExpenseClaimFormWithDragDrop({
       form.reset();
       onOpenChange(false);
     } catch (error) {
-      // console.error('Failed to submit expense claim:', error);
+      // logger.error('Failed to submit expense claim:', error);
     } finally {
       setIsSubmitting(false);
     }
@@ -269,7 +270,7 @@ export function ExpenseClaimFormWithDragDrop({
     <Dialog 
       open={open} 
       onOpenChange={(newOpen) => {
-        // console.log('Dialog open state changing to:', newOpen);
+        // logger.debug('Dialog open state changing to:', { data: newOpen });
         onOpenChange(newOpen);
       }}
       modal={true} // Ensure it's a true modal dialog

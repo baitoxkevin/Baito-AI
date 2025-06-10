@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
 import type { Project } from './types';
 
+import { logger } from './logger';
 const eventColors = {
   'nestle': '#FCA5A5', // Light red for Nestle Choy Sun
   'ribena': '#DDD6FE', // Light purple for Ribena
@@ -58,10 +59,10 @@ async function doesClientsTableExist(): Promise<boolean> {
  */
 export async function getProjectById(id: string, includeDocuments: boolean = false): Promise<Project | null> {
   try {
-    // console.log(`Getting project details for ID: ${id}`);
+    // logger.debug(`Getting project details for ID: ${id}`);
     
     if (!id) {
-      console.error('Invalid project ID provided');
+      logger.error('Invalid project ID provided');
       return null;
     }
     
@@ -87,12 +88,12 @@ export async function getProjectById(id: string, includeDocuments: boolean = fal
     const { data, error } = await query;
 
     if (error) {
-      console.error('Error fetching project:', error);
+      logger.error('Error fetching project:', error);
       throw new Error(error.message);
     }
 
     if (!data) {
-      // console.log('No project found with ID:', id);
+      // logger.debug('No project found with ID:', { data: id });
       return null;
     }
 
@@ -116,7 +117,7 @@ export async function getProjectById(id: string, includeDocuments: boolean = fal
               try {
                 return new Date(date);
               } catch (e) {
-                // console.warn('Invalid date string in confirmed_staff workingDates:', date);
+                // logger.warn('Invalid date string in confirmed_staff workingDates:', date);
                 return date; // Keep original if parsing fails
               }
             }
@@ -144,7 +145,7 @@ export async function getProjectById(id: string, includeDocuments: boolean = fal
               try {
                 return new Date(date);
               } catch (e) {
-                // console.warn('Invalid date string in applicants workingDates:', date);
+                // logger.warn('Invalid date string in applicants workingDates:', date);
                 return date; // Keep original if parsing fails
               }
             }
@@ -159,7 +160,7 @@ export async function getProjectById(id: string, includeDocuments: boolean = fal
     }
 
     // Log staff data for debugging
-    // console.log(`Project ${id} staff data:`, {
+    // logger.debug(`Project ${id} staff data:`, {
     //   confirmed_staff_count: processedData.confirmed_staff.length,
     //   applicants_count: processedData.applicants.length
     // });
@@ -177,7 +178,7 @@ export async function getProjectById(id: string, includeDocuments: boolean = fal
           processedData.client = clientData;
         }
       } catch (clientErr) {
-        console.error('Error fetching client data:', clientErr);
+        logger.error('Error fetching client data:', clientErr);
       }
     }
 
@@ -194,13 +195,13 @@ export async function getProjectById(id: string, includeDocuments: boolean = fal
           processedData.manager = managerData;
         }
       } catch (managerErr) {
-        console.error('Error fetching manager data:', managerErr);
+        logger.error('Error fetching manager data:', managerErr);
       }
     }
 
     return processedData;
   } catch (error) {
-    console.error('Error fetching project:', error);
+    logger.error('Error fetching project:', error);
     return null;
   }
 }

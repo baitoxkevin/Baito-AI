@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
+import { logger } from '../../lib/logger';
 import {
   Dialog,
   DialogContent,
@@ -182,7 +183,7 @@ export function DuitNowPaymentExport({
   // Effect to load staff details
   useEffect(() => {
     const loadStaffDetails = async () => {
-      console.log('DuitNow Export loading staff details:', memoizedStaffEntries.length);
+      logger.debug('DuitNow Export loading staff details:', { data: memoizedStaffEntries.length });
       setIsLoading(true);
       try {
         // Create initial staff payment details from provided entries
@@ -225,7 +226,7 @@ export function DuitNowPaymentExport({
                 }
               }
             } catch (error) {
-              console.warn('Error fetching staff bank details:', error);
+              logger.warn('Error fetching staff bank details:', error);
               // We'll continue with missing details
             }
           }
@@ -242,7 +243,7 @@ export function DuitNowPaymentExport({
         
         setStaffPaymentDetails(initialDetails);
       } catch (error) {
-        console.error('Error loading staff payment details:', error);
+        logger.error('Error loading staff payment details:', error);
         toast({
           title: "Error",
           description: "Failed to load staff payment details",
@@ -446,7 +447,7 @@ export function DuitNowPaymentExport({
       // Close the dialog
       onOpenChange(false);
     } catch (error) {
-      console.error('Error generating CSV:', error);
+      logger.error('Error generating CSV:', error);
       toast({
         title: "Error",
         description: "Failed to generate CSV file",
@@ -468,7 +469,7 @@ export function DuitNowPaymentExport({
         }
       },
       (err) => {
-        console.error('Failed to copy text: ', err);
+        logger.error('Failed to copy text: ', err);
         toast({
           title: "Copy Failed",
           description: "Failed to copy to clipboard",

@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
+import { logger } from '../lib/logger';
 export default function AuthCheck() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -20,7 +21,7 @@ export default function AuthCheck() {
       setIsAuthenticated(!!user);
       setUserEmail(user?.email || null);
     } catch (error) {
-      console.error('Auth check failed:', error);
+      logger.error('Auth check failed:', error);
       setIsAuthenticated(false);
     } finally {
       setLoading(false);
@@ -33,7 +34,7 @@ export default function AuthCheck() {
       setIsAuthenticated(false);
       setUserEmail(null);
     } catch (error) {
-      console.error('Sign out failed:', error);
+      logger.error('Sign out failed:', error);
     }
   };
 

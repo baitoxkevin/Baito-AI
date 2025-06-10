@@ -6,6 +6,7 @@ import { useCache } from '@/lib/cache-optimized';
 import { useToast } from '@/hooks/use-toast';
 import { getUser, getSession } from '@/lib/auth';
 
+import { logger } from '../lib/logger';
 // Define the context shape
 interface AppStateContextType {
   // Projects state
@@ -97,7 +98,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     const isPublicRoute = window.location.pathname.includes('/candidate-update/');
     
     if (isPublicRoute) {
-      // console.log('Public route detected - skipping authentication');
+      // logger.debug('Public route detected - skipping authentication');
       setIsLoadingUser(false);
       return;
     }
@@ -108,13 +109,13 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         const user = await getUser();
         setCurrentUser(user);
       } catch (error) {
-        console.error('Error loading user:', error);
+        logger.error('Error loading user:', error);
 
         // Handle auth session missing error silently
         const errorMessage = String(error);
         if (errorMessage.includes('AuthSessionMissingError') ||
             errorMessage.includes('Auth session missing')) {
-          // console.log('No authentication session found - user not logged in');
+          // logger.debug('No authentication session found - user not logged in');
           setCurrentUser(null);
         }
         // Don't show toast for candidate-update routes or auth session missing errors
@@ -139,7 +140,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     const isPublicRoute = window.location.pathname.includes('/candidate-update/');
     
     if (isPublicRoute) {
-      // console.log('Public route detected - skipping projects loading');
+      // logger.debug('Public route detected - skipping projects loading');
       return;
     }
     
@@ -148,7 +149,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         const data = await getProjects();
         setProjects(data);
       } catch (error) {
-        console.error('Error loading projects:', error);
+        logger.error('Error loading projects:', error);
         // Only show toast for real errors, not for normal initialization issues
         if (error instanceof Error && !error.message.includes('no data available')) {
           toast({
@@ -178,7 +179,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       
       return newProject;
     } catch (error) {
-      console.error('Error adding project:', error);
+      logger.error('Error adding project:', error);
       
       toast({
         title: 'Creation Failed',
@@ -210,7 +211,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       
       return updatedProject;
     } catch (error) {
-      console.error('Error updating project:', error);
+      logger.error('Error updating project:', error);
       
       toast({
         title: 'Update Failed',
@@ -239,7 +240,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         description: 'Project has been successfully deleted',
       });
     } catch (error) {
-      console.error('Error removing project:', error);
+      logger.error('Error removing project:', error);
       
       toast({
         title: 'Deletion Failed',
@@ -281,7 +282,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       
       return result;
     } catch (error) {
-      console.error('Error removing multiple projects:', error);
+      logger.error('Error removing multiple projects:', error);
       
       toast({
         title: 'Deletion Failed',
@@ -308,7 +309,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         description: 'Projects list has been updated',
       });
     } catch (error) {
-      console.error('Error refreshing projects:', error);
+      logger.error('Error refreshing projects:', error);
       
       toast({
         title: 'Refresh Failed',

@@ -35,6 +35,7 @@ import { SpotlightCardSegmentedControl } from './SpotlightCardSegmentedControl';
 import { CompactHistory } from './history-options/CompactHistory';
 import { ProjectStatsTabCard } from './ProjectStatsCard';
 
+import { logger } from '../../lib/logger';
 // Tab content components
 import { CalendarTab, StaffingTab } from '@/components/project-form';
 import { SpotlightCardDocuments } from './SpotlightCardDocuments';
@@ -246,13 +247,13 @@ export function SpotlightCard({
   // Manual refresh function for expense claims
   const refreshExpenseClaims = React.useCallback(async () => {
     try {
-      // console.log('Manually refreshing expense claims for project:', localProject.id);
+      // logger.debug('Manually refreshing expense claims for project:', { data: localProject.id });
       const updatedClaims = await fetchProjectExpenseClaimsWithFallback(localProject.id);
-      // console.log('Manual refresh found claims:', updatedClaims);
+      // logger.debug('Manual refresh found claims:', { data: updatedClaims });
       setLocalExpenseClaims(updatedClaims);
       return updatedClaims;
     } catch (error) {
-      console.error('Error refreshing expense claims:', error);
+      logger.error('Error refreshing expense claims:', error);
       return [];
     }
   }, [localProject.id]);
@@ -318,7 +319,7 @@ export function SpotlightCard({
         // Process project data
         if (projectResult.status === 'rejected' || projectResult.value.error) {
           const error = projectResult.status === 'rejected' ? projectResult.reason : projectResult.value.error;
-          console.error('Failed to fetch project data:', error);
+          logger.error('Failed to fetch project data:', error);
           throw new Error(`Failed to load project: ${error.message || 'Unknown error'}`);
         }
         
@@ -329,11 +330,11 @@ export function SpotlightCard({
         
         // Process expense claims
         if (expenseResult.status === 'fulfilled') {
-          // console.log('Initial expense claims fetch successful:', expenseResult.value.length);
-          // console.log('Expense claims data:', expenseResult.value);
+          // logger.debug('Initial expense claims fetch successful:', { data: expenseResult.value.length });
+          // logger.debug('Expense claims data:', { data: expenseResult.value });
           setLocalExpenseClaims(expenseResult.value);
         } else {
-          console.error('Error fetching expense claims:', expenseResult.reason);
+          logger.error('Error fetching expense claims:', expenseResult.reason);
           // Don't fall back to dummy data - keep it empty
           setLocalExpenseClaims([]);
         }
@@ -341,9 +342,9 @@ export function SpotlightCard({
         // Process documents
         if (documentsResult.status === 'fulfilled') {
           setLocalDocuments(documentsResult.value);
-          // console.log('Fetched project documents:', documentsResult.value.length);
+          // logger.debug('Fetched project documents:', { data: documentsResult.value.length });
         } else {
-          console.error('Error fetching documents:', documentsResult.reason);
+          logger.error('Error fetching documents:', documentsResult.reason);
           setLocalDocuments(dummyDocuments);
         }
         
@@ -351,12 +352,12 @@ export function SpotlightCard({
         const projectConfirmedStaff = projectData?.confirmed_staff || [];
         const projectApplicants = projectData?.applicants || [];
         
-        // console.log('Fetched project data:', {
+        // logger.debug('Fetched project data:', { data: {
         //   confirmedStaff: projectConfirmedStaff,
         //   applicants: projectApplicants,
         //   confirmedStaffCount: projectConfirmedStaff.length,
         //   applicantsCount: projectApplicants.length
-        // });
+        // } });
         
         // Set the combined staff for other components that expect staffDetails
         setStaffDetails([...projectConfirmedStaff, ...projectApplicants]);
@@ -413,7 +414,7 @@ export function SpotlightCard({
             const id = s.candidate_id || s.id;
             // Debug log to understand the structure
             if (typeof id !== 'string' && id) {
-              // console.warn('Non-string ID found in confirmed staff:', { id, type: typeof id, staff: s });
+              // logger.warn('Non-string ID found in confirmed staff:', { id, type: typeof id, staff: s });
             }
             // Ensure we extract string ID from potential object
             return typeof id === 'string' ? id : (id?.id || null);
@@ -422,7 +423,7 @@ export function SpotlightCard({
             const id = a.candidate_id || a.id;
             // Debug log to understand the structure
             if (typeof id !== 'string' && id) {
-              // console.warn('Non-string ID found in applicants:', { 
+              // logger.warn('Non-string ID found in applicants:', { 
               //   id, 
               //   type: typeof id, 
               //   applicant: a,
@@ -445,7 +446,7 @@ export function SpotlightCard({
               .in('id', allStaffIds);
               
             if (candidatesError) {
-              console.error('Failed to fetch candidate details:', candidatesError);
+              logger.error('Failed to fetch candidate details:', candidatesError);
               // Continue with partial data instead of throwing
             }
             
@@ -508,7 +509,7 @@ export function SpotlightCard({
             }
           }
           } catch (staffError) {
-            console.error('Error processing staff data:', staffError);
+            logger.error('Error processing staff data:', staffError);
             // Continue with basic staff data
             if (isMounted) {
               setConfirmedStaff(transformStaffData(projectConfirmedStaff));
@@ -525,7 +526,7 @@ export function SpotlightCard({
           }
         }
       } catch (error) {
-        console.error('Error fetching project details:', error);
+        logger.error('Error fetching project details:', error);
         if (isMounted) {
           toast({
             title: "Error",
@@ -621,7 +622,7 @@ export function SpotlightCard({
         });
       }
     } catch (error) {
-      console.error('Error removing expense claim:', error);
+      logger.error('Error removing expense claim:', error);
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Failed to delete expense claim",
@@ -639,15 +640,15 @@ export function SpotlightCard({
   };
 
   const handleCreateExpenseClaim = async (data: unknown) => {
-    // console.log('SpotlightCard: Creating expense claim', data);
-    // console.log('Project ID:', localProject.id);
-    // console.log('Project object:', localProject);
+    // logger.debug('SpotlightCard: Creating expense claim', { data: data });
+    // logger.debug('Project ID:', { data: localProject.id });
+    // logger.debug('Project object:', { data: localProject });
     
     try {
       const user = await getUser();
       if (!user) throw new Error('User not found');
       
-      // console.log('Current user:', user.id, user.email);
+      // logger.debug('Current user:', { data: user.id, user.email });
       
       // Transform the data from ExpenseClaimFormWithDragDrop format
       const claimData: any = {
@@ -671,7 +672,7 @@ export function SpotlightCard({
         // Don't set user_id for staff claims
       }
       
-      // console.log('Claim data to be created:', claimData);
+      // logger.debug('Claim data to be created:', { data: claimData });
       
       const result = await createExpenseClaimWithReceipts(claimData, data.documents || []);
       
@@ -699,9 +700,9 @@ export function SpotlightCard({
         
         // Refresh expense claims from database
         try {
-          // console.log('Refreshing expense claims after creation...');
+          // logger.debug('Refreshing expense claims after creation...');
           const updatedClaims = await fetchProjectExpenseClaimsWithFallback(localProject.id);
-          // console.log('Updated claims after creation:', updatedClaims);
+          // logger.debug('Updated claims after creation:', { data: updatedClaims });
           setLocalExpenseClaims(updatedClaims);
           
           // Also try a direct query to debug
@@ -710,13 +711,13 @@ export function SpotlightCard({
             .select('*')
             .eq('project_id', localProject.id);
           
-          // console.log('Direct query result:', directQuery, 'error:', directError);
+          // logger.debug('Direct query result:', { data: directQuery, 'error:', directError });
         } catch (error) {
-          console.error('Error refreshing expense claims:', error);
+          logger.error('Error refreshing expense claims:', error);
         }
       }
     } catch (error) {
-      console.error('Failed to create expense claim:', error);
+      logger.error('Failed to create expense claim:', error);
       
       // Log failed expense claim creation
       logUtils.action('create_expense_claim', false, {
@@ -935,7 +936,7 @@ export function SpotlightCard({
                         <StaffingTab
                           confirmedStaff={confirmedStaff}
                           setConfirmedStaff={(newConfirmedStaff) => {
-                            // console.log('Setting new confirmed staff:', newConfirmedStaff);
+                            // logger.debug('Setting new confirmed staff:', { data: newConfirmedStaff });
                             
                             // Log staff changes
                             const oldStaffIds = confirmedStaff.map(s => s.id);
@@ -988,7 +989,7 @@ export function SpotlightCard({
                                   
                                 if (error) throw error;
                               } catch (error) {
-                                console.error('Error updating confirmed staff:', error);
+                                logger.error('Error updating confirmed staff:', error);
                                 toast({
                                   title: "Error saving staff",
                                   description: "Failed to update project staff",
@@ -1001,7 +1002,7 @@ export function SpotlightCard({
                           }}
                           applicants={applicants}
                           setApplicants={(newApplicants) => {
-                            // console.log('Setting new applicants:', newApplicants);
+                            // logger.debug('Setting new applicants:', { data: newApplicants });
                             setApplicants(newApplicants);
                             
                             // Update the project in the database
@@ -1023,7 +1024,7 @@ export function SpotlightCard({
                                   
                                 if (error) throw error;
                               } catch (error) {
-                                console.error('Error updating applicants:', error);
+                                logger.error('Error updating applicants:', error);
                                 toast({
                                   title: "Error saving applicants",
                                   description: "Failed to update project applicants",
@@ -1037,12 +1038,12 @@ export function SpotlightCard({
                           showAddStaffForm={false}
                           setShowAddStaffForm={() => {}}
                           handleRemoveStaff={(staffId) => {
-                            // console.log('Removing staff:', staffId);
+                            // logger.debug('Removing staff:', { data: staffId });
                             
                             // Find the staff member being removed
                             const staffMember = confirmedStaff.find(s => s.id === staffId);
                             if (!staffMember) {
-                              console.error('Staff member not found:', staffId);
+                              logger.error('Staff member not found:', staffId);
                               return;
                             }
                             
@@ -1118,7 +1119,7 @@ export function SpotlightCard({
                                   variant: "default"
                                 });
                               } catch (error) {
-                                console.error('Error updating project:', error);
+                                logger.error('Error updating project:', error);
                                 toast({
                                   title: "Error",
                                   description: "Failed to update project staff",
@@ -1396,7 +1397,7 @@ export function SpotlightCard({
                           document_category: fileCategory
                         });
                       } catch (error) {
-                        console.error(`Error uploading ${file.name}:`, error);
+                        logger.error(`Error uploading ${file.name}:`, error);
                         failedUploads.push(file.name);
                         
                         // Log failed upload
@@ -1427,7 +1428,7 @@ export function SpotlightCard({
                       });
                     }
                   } catch (error) {
-                    console.error('Document upload error:', error);
+                    logger.error('Document upload error:', error);
                     toast({
                       title: "Upload Failed",
                       description: "There was an error uploading your documents.",
@@ -1520,7 +1521,7 @@ export function SpotlightCard({
                       variant: "default"
                     });
                   } catch (error) {
-                    console.error('Error adding Google Drive link:', error);
+                    logger.error('Error adding Google Drive link:', error);
                     
                     // Log failed Google Drive link addition
                     logUtils.action('upload_document', false, {
@@ -1595,7 +1596,7 @@ function ScheduleTabContent({
       confirmedStaff={staffToDisplay}
       location={project.venue_address}
       onLocationEdit={async (newLocation) => {
-        // console.log('Location updated:', newLocation);
+        // logger.debug('Location updated:', { data: newLocation });
         
         const oldLocation = project.venue_address;
         
@@ -1624,7 +1625,7 @@ function ScheduleTabContent({
             description: "Project location has been updated successfully.",
           });
         } catch (error) {
-          console.error('Error updating location:', error);
+          logger.error('Error updating location:', error);
           toast({
             title: "Error",
             description: "Failed to update project location",

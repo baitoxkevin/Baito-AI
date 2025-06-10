@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { formatRecurringDates, getGoogleMapsLink, getWazeLink } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
 import type { Project } from '@/lib/types';
+import { logger } from '../../lib/logger';
 import {
   Shield,
   CalendarDays,
@@ -128,7 +129,7 @@ export function SpotlightCardSidebar({
           }
         }
       } catch (error) {
-        console.error('Error fetching customer info:', error);
+        logger.error('Error fetching customer info:', error);
         // Set fallback name from project client if available
         if ((project as unknown).client?.name) {
           setCustomerName((project as unknown).client.name);
@@ -586,7 +587,7 @@ export function SpotlightCardSidebar({
                             });
                           }
                         } catch (error) {
-                          console.error('Error updating brand logo:', error);
+                          logger.error('Error updating brand logo:', error);
                           toast({
                             title: "Error",
                             description: "Failed to update brand logo. Please try again.",
@@ -632,7 +633,7 @@ export function SpotlightCardSidebar({
                           });
                         }
                       } catch (error) {
-                        console.error('Error removing brand logo:', error);
+                        logger.error('Error removing brand logo:', error);
                         toast({
                           title: "Error",
                           description: "Failed to remove brand logo. Please try again.",

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
+import { logger } from '../lib/logger';
 import {
   Share2, Loader2, Check, ShieldCheck, MoreHorizontal
 } from "lucide-react";
@@ -44,7 +45,7 @@ export function CandidateActionButton({
         });
 
         if (error) {
-          console.error("Error generating secure URL:", error);
+          logger.error("Error generating secure URL:", error);
           // Fall back to standard URL generation
           return generateUpdateUrl(false);
         }
@@ -80,7 +81,7 @@ export function CandidateActionButton({
 
       return url;
     } catch (error) {
-      console.error("Error generating update URL:", error);
+      logger.error("Error generating update URL:", error);
       return null;
     }
   };
@@ -121,7 +122,7 @@ export function CandidateActionButton({
         variant: "default",
       });
     } catch (error) {
-      console.error("Error copying update URL:", error);
+      logger.error("Error copying update URL:", error);
       toast({
         title: "Error",
         description: "Failed to copy URL to clipboard",

@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { useToast } from '@/hooks/use-toast';
+import { logger } from '../lib/logger';
 import { 
   Calendar, 
   MapPin, 
@@ -69,7 +70,7 @@ export function CandidateProjectApplications({ candidateId, candidateName }: Can
       setOpenProjects(projectsWithStatus);
       setMyApplications(applications || []);
     } catch (error) {
-      console.error('Error loading data:', error);
+      logger.error('Error loading data:', error);
       toast({
         title: "Error",
         description: "Failed to load projects",
@@ -104,7 +105,7 @@ export function CandidateProjectApplications({ candidateId, candidateName }: Can
       setSelectedProject(null);
       loadData(); // Refresh the data
     } catch (error: any) {
-      console.error('Error applying to project:', error);
+      logger.error('Error applying to project:', error);
       toast({
         title: "Application Failed",
         description: error.message || "Failed to submit application",
