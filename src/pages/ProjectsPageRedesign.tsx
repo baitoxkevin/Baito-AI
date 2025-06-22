@@ -65,6 +65,7 @@ import { useToast } from '@/hooks/use-toast';
 import { deleteProject } from '@/lib/projects';
 // import { dummyProjects } from '@/lib/dummy-data';
 import { sortProjects, filterProjects, groupProjects, getGroupIcon, ProjectGroupType } from '@/lib/project-utils';
+import type { Project } from '@/lib/types';
 
 export default function ProjectsPageRedesign() {
   // State for project data and UI
@@ -176,19 +177,39 @@ export default function ProjectsPageRedesign() {
   // Handle project refresh after adding or updating
   const handleProjectsUpdated = (updatedProject?: Project) => {
     if (updatedProject) {
-      // If we have an updated project, just update it in place without reloading everything
+      // Determine which months this project belongs to
+      const projectStartDate = new Date(updatedProject.start_date);
+      const projectEndDate = updatedProject.end_date ? new Date(updatedProject.end_date) : projectStartDate;
+      const currentYear = new Date().getFullYear();
+      
       setProjects(prev => {
         const newProjects = { ...prev };
         
-        // Update the project in all months where it appears
-        Object.keys(newProjects).forEach(monthKey => {
-          const monthIndex = parseInt(monthKey);
-          if (newProjects[monthIndex]) {
-            newProjects[monthIndex] = newProjects[monthIndex].map(p => 
-              p.id === updatedProject.id ? updatedProject : p
-            );
+        // Check each month to see if the project should appear there
+        for (let monthIndex = 0; monthIndex < 12; monthIndex++) {
+          const startOfMonth = new Date(currentYear, monthIndex, 1);
+          const endOfMonth = new Date(currentYear, monthIndex + 1, 0);
+          
+          // Check if project overlaps with this month
+          const projectOverlapsMonth = (
+            (projectStartDate >= startOfMonth && projectStartDate <= endOfMonth) ||
+            (projectEndDate >= startOfMonth && projectEndDate <= endOfMonth) ||
+            (projectStartDate <= startOfMonth && projectEndDate >= endOfMonth)
+          );
+          
+          if (projectOverlapsMonth && newProjects[monthIndex]) {
+            // Check if project already exists in this month
+            const existingIndex = newProjects[monthIndex].findIndex(p => p.id === updatedProject.id);
+            
+            if (existingIndex >= 0) {
+              // Update existing project
+              newProjects[monthIndex][existingIndex] = updatedProject;
+            } else {
+              // Add new project to this month
+              newProjects[monthIndex] = [...newProjects[monthIndex], updatedProject];
+            }
           }
-        });
+        }
         
         return newProjects;
       });

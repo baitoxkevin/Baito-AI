@@ -24,7 +24,7 @@ export function EnhancedToaster() {
   return (
     <ToastProvider>
       <AnimatePresence mode="sync">
-        {sortedToasts.map(function ({ id, title, description, action, variant, duration, pauseOnHover, ...props }) {
+        {sortedToasts.map(function ({ id, title, description, action, variant, duration, pauseOnHover, createdAt, ...props }) {
           return (
             <motion.div
               key={id}

@@ -121,22 +121,35 @@ export function CandidateTextImportTool({ onOpenNewCandidateDialog }: CandidateT
       const result = await createCandidate(extractedData);
       
       if (result.success) {
-        toast({
-          title: "Candidate Created",
-          description: `${extractedData.name} has been added to your candidates.`,
-        });
+        // Check if there was a warning (e.g., email removed)
+        if (result.warning) {
+          toast({
+            title: "Candidate Created with Warning",
+            description: result.warning,
+          });
+        } else {
+          toast({
+            title: "Candidate Created",
+            description: `${extractedData.name} has been added to your candidates.`,
+          });
+        }
         
         // Clear the form
         clearForm();
       } else {
-        throw new Error('Failed to create candidate');
+        // Use the specific error message if available
+        const errorMessage = result.message || 'Failed to create candidate';
+        throw new Error(errorMessage);
       }
     } catch (err) {
       logger.error('Error creating candidate:', err);
       
+      // Show specific error message
+      const errorMessage = err instanceof Error ? err.message : "Failed to create candidate. Please try again.";
+      
       toast({
         title: "Error",
-        description: "Failed to create candidate. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {

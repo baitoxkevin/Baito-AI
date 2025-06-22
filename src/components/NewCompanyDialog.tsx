@@ -376,7 +376,7 @@ export default function NewCompanyDialog({
       // Try to run permissions check/fix preemptively if fields are valid
       if (formData.company_name && formData.company_phone_no) {
         try {
-          const checkResult = await supabase.from('companies').select('count(*)');
+          const checkResult = await supabase.from('companies').select('*', { count: 'exact', head: true });
           if (checkResult.error && checkResult.error.message.includes('permission denied')) {
             await applyCompanyPermissionsFix();
           }

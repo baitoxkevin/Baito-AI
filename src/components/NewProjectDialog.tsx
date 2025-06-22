@@ -31,6 +31,7 @@ import {
   ChevronDown
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
+import { ProjectLocationManager } from '@/components/ProjectLocationManager';
 import {
   Dialog,
   DialogContent,
@@ -105,6 +106,7 @@ const projectSchema = z.object({
   manager_id: z.string().min(1, 'Person in charge is required'),
   brand_name: z.string().optional(),
   brand_logo: z.string().url().optional().or(z.literal('')),
+  brand_link: z.string().url().optional().or(z.literal('')),
   
   // Event Details
   event_type: z.string().min(1, 'Event type is required'),
@@ -114,6 +116,12 @@ const projectSchema = z.object({
   // Location
   venue_address: z.string().min(1, 'Venue address is required'),
   venue_details: z.string().optional(),
+  locations: z.array(z.object({
+    address: z.string().min(1, 'Address is required'),
+    date: z.string(),
+    is_primary: z.boolean(),
+    notes: z.string().optional(),
+  })).optional(),
   
   // Schedule
   start_date: z.date({
@@ -180,6 +188,7 @@ export function NewProjectDialog({
       manager_id: '',
       brand_name: '',
       brand_logo: '',
+      brand_link: '',
       event_type: '',
       description: '',
       project_type: undefined,
@@ -198,6 +207,7 @@ export function NewProjectDialog({
       invoice_number: '',
       cc_client_ids: [],
       cc_user_ids: [],
+      locations: [],
     },
     mode: 'onChange',
   });
@@ -211,6 +221,7 @@ export function NewProjectDialog({
         manager_id: '',
         brand_name: '',
         brand_logo: '',
+        brand_link: '',
         event_type: '',
         description: '',
         project_type: undefined,
@@ -361,8 +372,9 @@ export function NewProjectDialog({
       const userName = currentUser?.full_name || currentUser?.email || 'Someone';
 
       // Convert empty strings to null for optional fields
+      const { brand_link, ...otherValues } = values;
       const processedData = {
-        ...values,
+        ...otherValues,
         project_type: values.project_type || null,
         description: values.description || null,
         venue_details: values.venue_details || null,
@@ -375,15 +387,51 @@ export function NewProjectDialog({
         end_date: values.end_date ? format(values.end_date, 'yyyy-MM-dd') : null,
         cc_client_ids: values.cc_client_ids || [],
         cc_user_ids: values.cc_user_ids || [],
+        // Store brand_link in custom_fields
+        custom_fields: brand_link ? { brand_link } : {},
       };
       
-      const result = await createProject(processedData);
+      // Extract locations from processedData
+      const { locations, ...projectData } = processedData;
+      
+      const result = await createProject(projectData);
       
       if (!result) {
         throw new Error("Failed to create project");
       }
 
-      // Send notification to client and CC to person in charge
+      // Save locations if any
+      if (locations && locations.length > 0) {
+        try {
+          const locationsToInsert = locations.map(loc => ({
+            project_id: result.id,
+            address: loc.address,
+            date: loc.date,
+            is_primary: loc.is_primary,
+            notes: loc.notes || null
+          }));
+
+          const { error: locationsError } = await supabase
+            .from('project_locations')
+            .insert(locationsToInsert);
+
+          if (locationsError) {
+            // Only log error if it's not a "table doesn't exist" error
+            if (locationsError.code === '42P01') {
+              logger.warn('Project locations table does not exist yet - skipping locations save');
+            } else {
+              logger.error('Failed to save project locations:', locationsError);
+            }
+            // Don't fail the entire operation if locations fail
+          }
+        } catch (locError) {
+          logger.error('Error saving project locations:', locError);
+        }
+      }
+
+      // Email notification temporarily disabled
+      // TODO: Re-enable when email_notifications table is properly set up
+      /*
       try {
         await notificationService.notifyProjectCreation(
           result.id,
@@ -394,13 +442,14 @@ export function NewProjectDialog({
         logger.error('Failed to send notification:', notifError);
         // Don't fail the creation if notification fails
       }
+      */
 
       toast({
         title: "Success",
         description: "Project created successfully",
       });
 
-      onProjectAdded();
+      onProjectAdded(result);
       onOpenChange(false);
       
       // Reset form and step
@@ -672,6 +721,27 @@ export function NewProjectDialog({
                           </div>
                         </FormControl>
                         <FormDescription>Logo URL (will auto-fetch based on brand name)</FormDescription>
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="brand_link"
+                    render={({ field }) => (
+                      <FormItem className="col-span-2">
+                        <FormLabel className="flex items-center gap-1">
+                          <Link className="h-4 w-4" />
+                          Brand Website
+                        </FormLabel>
+                        <FormControl>
+                          <Input 
+                            {...field} 
+                            placeholder="https://example.com" 
+                            className="h-11 transition-all hover:border-gray-400 focus:border-gray-600"
+                          />
+                        </FormControl>
+                        <FormDescription>Official brand or company website</FormDescription>
                       </FormItem>
                     )}
                   />
@@ -1081,6 +1151,38 @@ export function NewProjectDialog({
                     Make sure to include clear directions and any special access requirements for the venue.
                   </AlertDescription>
                 </Alert>
+
+                {/* Multiple Locations Support */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="text-sm font-medium">Multiple Locations</h4>
+                      <p className="text-sm text-muted-foreground">
+                        Add multiple venues for events happening at different locations
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <FormField
+                    control={form.control}
+                    name="locations"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormControl>
+                          <ProjectLocationManager
+                            locations={field.value || []}
+                            onChange={field.onChange}
+                            projectDates={{
+                              start: form.watch('start_date'),
+                              end: form.watch('end_date')
+                            }}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
               </CardContent>
             </Card>
           </motion.div>
@@ -1619,6 +1721,30 @@ export function NewProjectDialog({
                         <p className="text-muted-foreground">Venue</p>
                         <p className="font-medium">{values.venue_address || '-'}</p>
                       </div>
+                      {values.locations && values.locations.length > 0 && (
+                        <div className="col-span-2">
+                          <p className="text-muted-foreground mb-2">Additional Locations</p>
+                          <div className="space-y-2">
+                            {values.locations.map((location, idx) => (
+                              <div key={idx} className="flex items-start gap-2 text-sm">
+                                <MapPin className="h-3 w-3 mt-0.5 text-muted-foreground" />
+                                <div className="flex-1">
+                                  <p className="font-medium">
+                                    {location.address}
+                                    {location.is_primary && (
+                                      <Badge variant="secondary" className="ml-2 text-xs">Primary</Badge>
+                                    )}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {format(new Date(location.date), 'PPP')}
+                                    {location.notes && ` - ${location.notes}`}
+                                  </p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
 

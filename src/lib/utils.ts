@@ -823,9 +823,9 @@ export async function applyCompanyPermissionsFix(): Promise<{ success: boolean; 
     
     // Simpler approach - just check if we can see the companies table
     // If we can see it, then the error is likely related to INSERT permission
-    const { data: readData, error: readError } = await supabase
+    const { count, error: readError } = await supabase
       .from('companies')
-      .select('count(*)');
+      .select('*', { count: 'exact', head: true });
       
     if (!readError) {
       logger.debug('Can read companies table, fixing INSERT permissions only');

@@ -248,64 +248,70 @@ export default function NewCandidateDialog({
         logger.debug('Empty email detected, setting to null');
       }
 
-      // Check if the candidate already exists in the system - first by IC number
+      // Check if we're editing an existing candidate (ID provided in initialData)
       let existingCandidate = null;
+      const isEditMode = submissionData.id ? true : false;
       
-      if (submissionData.registration_id) {
-        const { data: existingByIC, error: checkError } = await supabase
+      if (isEditMode) {
+        // We're editing, fetch the candidate by ID
+        const { data: candidateById, error: fetchError } = await supabase
           .from('candidates')
           .select('*')
-          .eq('ic_number', submissionData.registration_id)
+          .eq('id', submissionData.id)
           .single();
           
-        if (!checkError && existingByIC) {
-          existingCandidate = existingByIC;
+        if (!fetchError && candidateById) {
+          existingCandidate = candidateById;
+        }
+      } else {
+        // We're creating new, check if the candidate already exists - first by IC number
+        if (submissionData.registration_id) {
+          const { data: existingByIC, error: checkError } = await supabase
+            .from('candidates')
+            .select('*')
+            .eq('ic_number', submissionData.registration_id)
+            .single();
+            
+          if (!checkError && existingByIC) {
+            existingCandidate = existingByIC;
+          }
+        }
+        
+        // Then check by email if we have a valid email and didn't find by IC
+        if (!existingCandidate && submissionData.email) {
+          const { data: existingByEmail, error: emailError } = await supabase
+            .from('candidates')
+            .select('*')
+            .eq('email', submissionData.email)
+            .single();
+            
+          if (!emailError && existingByEmail) {
+            existingCandidate = existingByEmail;
+          }
         }
       }
       
-      // Then check by email if we have a valid email and didn't find by IC
-      if (!existingCandidate && submissionData.email) {
-        const { data: existingByEmail, error: emailError } = await supabase
-          .from('candidates')
-          .select('*')
-          .eq('email', submissionData.email)
-          .single();
-          
-        if (!emailError && existingByEmail) {
-          existingCandidate = existingByEmail;
-        }
-      }
-      
-      // If candidate exists, offer to update
-      if (existingCandidate) {
-        // Show confirmation via toast since we don't have a confirmation dialog
+      // If candidate exists, offer to update (unless we're already in edit mode)
+      if (existingCandidate && !isEditMode) {
+        // Show confirmation via toast
         const confirmMessage = `A candidate with this ${
           submissionData.registration_id === existingCandidate.ic_number ? 'IC number' : 'email'
-        } already exists. Click 'Update' to update their details.`;
+        } already exists.`;
         
-        toast({
-          title: 'Candidate Already Exists',
-          description: confirmMessage,
-          variant: 'default',
-          action: (
-            <div className="flex space-x-2">
-              <Button 
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  // Continue with original form (cancel update)
-                  setIsLoading(false);
-                }}
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="default"
-                size="sm"
-                onClick={async () => {
-                  // Update the existing candidate
-                  try {
-                    // Prepare photo data for storage
+        // Ask user if they want to update
+        const shouldUpdate = window.confirm(confirmMessage + '\n\nDo you want to update their details?');
+        
+        if (!shouldUpdate) {
+          setIsLoading(false);
+          return;
+        }
+      }
+      
+      // If we have an existing candidate (either from edit mode or user confirmed update)
+      if (existingCandidate) {
+        // User wants to update, proceed with update logic
+        try {
+          // Prepare photo data for storage
                     const photoData = {
                       profile_photo: formData.profile_photo,
                       full_body_photos: fullBodyPhotos.length > 0 ? fullBodyPhotos : (formData.full_body_photo ? [formData.full_body_photo] : []),
@@ -350,11 +356,11 @@ export default function NewCandidateDialog({
                       .from('candidates')
                       .update({
                         full_name: submissionData.legal_name,
-                        ic_number: submissionData.registration_id,
+                        ic_number: submissionData.registration_id?.trim() || null, // Allow null IC numbers, convert empty strings to null
                         date_of_birth: submissionData.date_of_birth || null,
                         phone_number: submissionData.phone_number,
                         gender: submissionData.gender,
-                        email: existingCandidate.email, // Preserve original email to prevent constraint issues
+                        email: submissionData.email?.trim() || null, // Allow email updates, convert empty strings to null
                         nationality: submissionData.nationality,
                         emergency_contact_name: submissionData.emergency_contact_name,
                         emergency_contact_number: submissionData.emergency_contact_number,
@@ -399,27 +405,19 @@ export default function NewCandidateDialog({
                       description: 'The candidate has been successfully updated.',
                     });
                     
-                    // Call the callback and close the dialog
-                    onCandidateAdded();
-                    onOpenChange(false);
-                  } catch (updateError) {
-                    logger.error('Error updating candidate:', updateError);
-                    toast({
-                      title: 'Error',
-                      description: 'Failed to update candidate. Please try again.',
-                      variant: 'destructive',
-                    });
-                  } finally {
-                    setIsLoading(false);
-                  }
-                }}
-              >
-                Update
-              </Button>
-            </div>
-          )
-        });
-        
+          // Call the callback and close the dialog
+          await Promise.resolve(onCandidateAdded());
+          onOpenChange(false);
+        } catch (updateError) {
+          logger.error('Error updating candidate:', updateError);
+          toast({
+            title: 'Error',
+            description: 'Failed to update candidate. Please try again.',
+            variant: 'destructive',
+          });
+        } finally {
+          setIsLoading(false);
+        }
         return;
       }
       
@@ -472,7 +470,7 @@ export default function NewCandidateDialog({
             .from('candidates')
             .update({
               full_name: submissionData.legal_name,
-              ic_number: submissionData.registration_id,
+              ic_number: submissionData.registration_id?.trim() || null, // Allow null IC numbers, convert empty strings to null
               date_of_birth: submissionData.date_of_birth || null,
               phone_number: submissionData.phone_number,
               gender: submissionData.gender,
@@ -520,7 +518,7 @@ export default function NewCandidateDialog({
             description: 'The candidate has been successfully updated.',
           });
           
-          onCandidateAdded();
+          await Promise.resolve(onCandidateAdded());
           onOpenChange(false);
         } catch (updateError) {
           logger.error('Error updating candidate:', updateError);
@@ -580,7 +578,7 @@ export default function NewCandidateDialog({
         {
           // Core fields that exist in the table schema
           full_name: submissionData.legal_name,
-          ic_number: submissionData.registration_id,
+          ic_number: submissionData.registration_id || null, // Allow null IC numbers
           date_of_birth: submissionData.date_of_birth || null,
           phone_number: submissionData.phone_number,
           gender: submissionData.gender,
@@ -636,11 +634,11 @@ export default function NewCandidateDialog({
               {
                 // Core fields that exist in the table schema
                 full_name: submissionData.legal_name,
-                ic_number: submissionData.registration_id,
+                ic_number: submissionData.registration_id?.trim() || null, // Allow null IC numbers, convert empty strings to null
                 date_of_birth: submissionData.date_of_birth || null,
                 phone_number: submissionData.phone_number,
                 gender: submissionData.gender,
-                email: submissionData.email, // Can be null now
+                email: submissionData.email?.trim() || null, // Can be null now, convert empty strings to null
                 nationality: submissionData.nationality,
                 emergency_contact_name: submissionData.emergency_contact_name,
                 emergency_contact_number: submissionData.emergency_contact_number,
@@ -709,13 +707,22 @@ export default function NewCandidateDialog({
       }
 
       logger.debug('Calling onCandidateAdded callback');
-      onCandidateAdded();
+      // Ensure the callback is awaited if it's async
+      await Promise.resolve(onCandidateAdded());
       onOpenChange(false);
     } catch (error) {
       logger.error('Error adding candidate:', error);
+      // Handle different error types
+      let errorMessage = 'Failed to add candidate. Please try again.';
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else if (typeof error === 'object' && error !== null && 'message' in error) {
+        errorMessage = String(error.message);
+      }
+      
       toast({
         title: 'Error',
-        description: error.message || 'Failed to add candidate. Please try again.',
+        description: errorMessage,
         variant: 'destructive',
       });
     } finally {
