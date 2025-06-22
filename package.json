@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "dev:enhanced": "vite --config vite.config.enhanced.ts",
-    "build": "vite build",
+    "build": "tsc && vite build",
     "build:enhanced": "tsc -b && vite build --config vite.config.enhanced.ts",
     "lint": "eslint .",
     "preview": "vite preview",
@@ -68,6 +68,8 @@
     "lucide-react": "^0.446.0",
     "next-themes": "^0.3.0",
     "papaparse": "^5.5.2",
+    "playwright": "^1.53.0",
+    "puppeteer": "^24.10.0",
     "react": "^18.3.1",
     "react-day-picker": "^8.10.1",
     "react-dom": "^18.3.1",

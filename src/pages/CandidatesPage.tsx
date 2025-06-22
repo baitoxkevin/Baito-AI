@@ -207,6 +207,16 @@ export default function CandidatesPage() {
   const shareEditLinkViaWhatsApp = async (e: React.MouseEvent, candidate: Candidate) => {
     e.stopPropagation(); // Prevent row click event
     
+    // Check if candidate has a phone number
+    if (!candidate.phone_number || candidate.phone_number.trim() === '') {
+      toast({
+        title: "Phone Number Required",
+        description: "Please add a phone number for this candidate before sharing via WhatsApp.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     // Set sharing animation
     setCopiedCandidateId(candidate.id);
     
@@ -919,7 +929,7 @@ export default function CandidatesPage() {
             setNewCandidateData(null);
           }
         }}
-        onCandidateSaved={loadCandidates}
+        onCandidateAdded={loadCandidates}
         initialData={newCandidateData}
       />
       <CandidateDetailsDialog

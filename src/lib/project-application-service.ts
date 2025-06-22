@@ -91,16 +91,17 @@ export async function getProjectsForDiscovery(candidateId?: string) {
     // First, get all active/planning projects
     const { data: projects, error: projectError } = await supabase
       .from('projects')
-      .select(`
-        *,
-        client:users!projects_client_id_fkey(full_name, email),
-        companies!inner(company_name, logo_url)
-      `)
+      .select('*')
       .in('status', ['planning', 'active'])
       .or(`end_date.is.null,end_date.gt.${now}`)
       .order('start_date', { ascending: true });
 
-    if (projectError) throw projectError;
+    if (projectError) {
+      logger.error('Error fetching projects:', projectError);
+      throw projectError;
+    }
+    
+    logger.info('Raw projects fetched:', { count: projects?.length, projects });
 
     // If candidateId provided, get their applications
     let appliedProjectIds: string[] = [];
@@ -128,10 +129,10 @@ export async function getProjectsForDiscovery(candidateId?: string) {
       return hasCapacity && notApplied;
     }).map(project => ({
       ...project,
-      // Add computed fields for the UI
-      company_name: project.companies?.company_name || project.client?.full_name || 'Unknown Company',
-      brand_logo_url: project.companies?.logo_url || project.brand_logo || project.logo_url,
-      description: project.venue_details || `${project.event_type} event at ${project.venue_address}`,
+      // Add computed fields for the UI - use existing project fields
+      company_name: project.company_name || 'Unknown Company',
+      brand_logo_url: project.brand_logo || project.logo_url,
+      description: project.description || project.venue_details || `${project.event_type} event at ${project.venue_address}`,
       employment_type: project.project_type || 'Contract',
       salary_range: project.budget ? `RM${project.budget}/day` : 'Competitive',
       // Calculate days until start
@@ -140,6 +141,8 @@ export async function getProjectsForDiscovery(candidateId?: string) {
         null
     }));
 
+    logger.info('Discovery projects after filtering:', { count: discoveryProjects?.length, discoveryProjects });
+    
     return { data: discoveryProjects, error: null };
   } catch (error) {
     logger.error('Error fetching projects for discovery:', error);

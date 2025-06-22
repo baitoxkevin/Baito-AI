@@ -16,38 +16,41 @@ const JobDiscoveryCard: React.FC<JobDiscoveryCardProps> = ({ project }) => {
     : 'No description available.';
 
   return (
-    <Card className="w-full h-[500px] flex flex-col shadow-lg rounded-xl overflow-hidden bg-white"> {/* Fixed height for consistent card size in stack, added bg-white */}
-      {/* Optional: Image/Logo section */}
+    <Card className="w-full h-[530px] flex flex-col shadow-2xl rounded-2xl overflow-hidden bg-white border-0"> {/* Increased height slightly, enhanced shadow */}
+      {/* Image/Logo section with gradient overlay */}
       {project.brand_logo_url ? (
-        <div className="h-40 bg-gray-100 flex items-center justify-center overflow-hidden border-b">
-          <img src={project.brand_logo_url} alt={`${project.company_name || 'Company'} logo`} className="object-contain h-full w-full p-2" />
+        <div className="h-48 relative bg-gradient-to-br from-purple-50 to-pink-50 flex items-center justify-center overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-t from-white/80 to-transparent z-10" />
+          <img src={project.brand_logo_url} alt={`${project.company_name || 'Company'} logo`} className="object-contain h-full w-full p-4 relative z-0" />
         </div>
       ) : (
-        <div className="h-40 bg-gradient-to-br from-slate-200 to-slate-300 flex items-center justify-center border-b">
-           <Briefcase className="w-16 h-16 text-slate-500 opacity-70" />
+        <div className="h-48 bg-gradient-to-br from-purple-100 via-pink-100 to-yellow-100 flex items-center justify-center">
+           <div className="w-24 h-24 rounded-full bg-white/50 backdrop-blur flex items-center justify-center">
+             <Briefcase className="w-12 h-12 text-purple-600" />
+           </div>
         </div>
       )}
 
-      <CardHeader className="pb-2 pt-4">
-        <CardTitle className="text-xl font-bold truncate text-gray-800" title={project.title}>
+      <CardHeader className="pb-3 pt-4">
+        <CardTitle className="text-xl font-bold text-gray-800 line-clamp-2" title={project.title}>
           {project.title || 'Untitled Project'}
         </CardTitle>
         <CardDescription className="flex items-center text-sm text-gray-600 pt-1">
-          <Building2 className="h-4 w-4 mr-2 flex-shrink-0 text-gray-500" />
-          {project.company_name || 'N/A Company'}
+          <Building2 className="h-4 w-4 mr-2 flex-shrink-0 text-purple-500" />
+          <span className="font-medium">{project.company_name || 'N/A Company'}</span>
         </CardDescription>
       </CardHeader>
 
       <CardContent className="flex-grow space-y-3 overflow-y-auto text-sm px-4 pb-4">
         <div className="flex items-start text-gray-700">
           <MapPin className="h-4 w-4 mr-2 mt-0.5 flex-shrink-0 text-rose-500" />
-          <span>{project.venue_address || 'Location not specified'}</span>
+          <span className="line-clamp-2">{project.venue_address || 'Location not specified'}</span>
         </div>
 
         {project.start_date && (
           <div className="flex items-center text-gray-700">
             <CalendarDays className="h-4 w-4 mr-2 flex-shrink-0 text-blue-500" />
-            <span>
+            <span className="font-medium">
               {format(new Date(project.start_date), 'dd MMM yyyy')}
               {project.end_date && ` - ${format(new Date(project.end_date), 'dd MMM yyyy')}`}
             </span>
@@ -57,37 +60,53 @@ const JobDiscoveryCard: React.FC<JobDiscoveryCardProps> = ({ project }) => {
         {project.working_hours_start && project.working_hours_end && (
           <div className="flex items-center text-gray-700">
             <Clock className="h-4 w-4 mr-2 flex-shrink-0 text-purple-500" />
-            {project.working_hours_start} - {project.working_hours_end}
+            <span className="font-medium">{project.working_hours_start} - {project.working_hours_end}</span>
           </div>
         )}
 
-        {/* Assuming crew_count and filled_positions might be 0, so check if they are numbers */}
         {typeof project.crew_count === 'number' && typeof project.filled_positions === 'number' && (project.crew_count - project.filled_positions > 0) && (
            <div className="flex items-center text-gray-700">
              <Users className="h-4 w-4 mr-2 flex-shrink-0 text-green-500" />
-             {project.crew_count - project.filled_positions} open spot(s)
+             <span className="font-medium text-green-700">{project.crew_count - project.filled_positions} open spot{(project.crew_count - project.filled_positions) !== 1 ? 's' : ''}</span>
            </div>
         )}
 
-        <p className="text-gray-600 leading-relaxed pt-2">
+        <p className="text-gray-600 leading-relaxed pt-2 line-clamp-3">
           {shortDescription}
         </p>
 
         <div className="pt-2 flex flex-wrap gap-2">
-          {project.event_type && <Badge variant="secondary">{project.event_type}</Badge>}
-          {project.priority && <Badge variant={project.priority === 'high' ? 'destructive' : 'outline'}>{project.priority}</Badge>}
+          {project.event_type && (
+            <Badge variant="secondary" className="bg-purple-100 text-purple-700 border-purple-200">
+              {project.event_type}
+            </Badge>
+          )}
+          {project.priority && (
+            <Badge 
+              variant={project.priority === 'high' ? 'destructive' : 'outline'}
+              className={project.priority === 'high' ? 'bg-red-100 text-red-700 border-red-200' : ''}
+            >
+              {project.priority === 'high' ? '🔥 ' : ''}{project.priority}
+            </Badge>
+          )}
           {project.salary_range && (
-            <Badge variant="outline" className="border-green-500 text-green-600">
+            <Badge variant="outline" className="border-green-200 text-green-700 bg-green-50">
               <DollarSign className="h-3 w-3 mr-1" />
               {project.salary_range}
             </Badge>
           )}
-          {project.status === 'active' && <Badge className="bg-green-500">Active Now</Badge>}
+          {project.status === 'active' && (
+            <Badge className="bg-gradient-to-r from-green-500 to-emerald-500 text-white border-0">
+              ⚡ Active Now
+            </Badge>
+          )}
         </div>
       </CardContent>
 
-      <CardFooter className="p-4 bg-gray-50 border-t mt-auto"> {/* Ensure footer is at the bottom */}
-        <p className="text-xs text-gray-500 text-center w-full">Swipe left to pass, right to like</p>
+      <CardFooter className="p-4 bg-gradient-to-r from-purple-50 to-pink-50 border-t border-purple-100">
+        <p className="text-xs text-purple-700 text-center w-full font-medium">
+          ← Swipe left to pass • Swipe right to apply →
+        </p>
       </CardFooter>
     </Card>
   );

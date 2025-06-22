@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogClose } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogClose, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -14,8 +14,10 @@ import {
   Copy, HistoryIcon, Building, FileText, Ban, X,
   CheckSquare, CalendarClock, Users2,
   Sparkles, GraduationCap, Link,
-  Flame, Film, Zap, Languages,
-  LucideIcon, CheckCircle2, CircleDashed, Pencil
+  Flame, Film, Zap, Languages, Car, CreditCard, DollarSign,
+  LucideIcon, CheckCircle2, CircleDashed, Pencil,
+  CheckCircle, Banknote as BanknoteIcon, Wallet,
+  CalendarDays, Receipt, ArrowUpDown, BarChart, Coffee
 } from 'lucide-react';
 import CandidateProjectHistory from './CandidateProjectHistory';
 import NewCandidateDialog from './NewCandidateDialog';
@@ -1075,7 +1077,7 @@ export function CandidateDetailsDialog({
                     Performance Overview
                   </h3>
                   <p className="text-gray-500 dark:text-gray-400 ml-7 text-xs">
-                    Performance metrics based on {metrics.totalProjects} completed projects
+                    Performance metrics based on {metrics?.totalProjects || 0} completed projects
                   </p>
                 </div>
                 
@@ -1085,7 +1087,7 @@ export function CandidateDetailsDialog({
                   <MetricCard 
                     icon={Star}
                     title="Average Rating"
-                    value={Number(metrics.averageRating.toFixed(1))}
+                    value={Number((metrics?.averageRating || 0).toFixed(1))}
                     maxValue={5}
                   />
                   
@@ -1093,7 +1095,7 @@ export function CandidateDetailsDialog({
                   <MetricCard 
                     icon={Shield}
                     title="Completion Rate"
-                    value={metrics.completionRate}
+                    value={metrics?.completionRate || 0}
                     suffix="%"
                   />
                   
@@ -1101,7 +1103,7 @@ export function CandidateDetailsDialog({
                   <MetricCard 
                     icon={Clock}
                     title="On-Time Rate"
-                    value={metrics.onTimePercentage}
+                    value={metrics?.onTimePercentage || 0}
                     suffix="%"
                   />
                 </div>
@@ -1115,7 +1117,7 @@ export function CandidateDetailsDialog({
                     </h3>
                     
                     <div className="flex items-baseline gap-1">
-                      <span className="text-3xl font-bold text-gray-700 dark:text-gray-300">{metrics.averageRating.toFixed(1)}</span>
+                      <span className="text-3xl font-bold text-gray-700 dark:text-gray-300">{(metrics?.averageRating || 0).toFixed(1)}</span>
                       <span className="text-sm text-gray-500 dark:text-gray-400">/ 5.0</span>
                     </div>
                   </div>
@@ -1125,9 +1127,9 @@ export function CandidateDetailsDialog({
                       <Star
                         key={star}
                         className={`h-6 w-6 ${
-                          star <= Math.round(metrics.averageRating)
+                          star <= Math.round(metrics?.averageRating || 0)
                             ? 'text-blue-500 fill-blue-500'
-                            : star <= metrics.averageRating
+                            : star <= (metrics?.averageRating || 0)
                               ? 'text-blue-400 fill-blue-400'
                               : 'text-gray-200 dark:text-gray-700'
                         }`}
@@ -1173,8 +1175,8 @@ export function CandidateDetailsDialog({
                         title="Total Projects Completed" 
                         value={
                           <div className="flex items-center gap-1.5">
-                            <span className="text-xl font-bold">{metrics.totalProjects}</span>
-                            {metrics.totalProjects > 10 && 
+                            <span className="text-xl font-bold">{metrics?.totalProjects || 0}</span>
+                            {(metrics?.totalProjects || 0) > 10 && 
                               <Badge className="bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
                                 Experienced
                               </Badge>
@@ -1184,13 +1186,13 @@ export function CandidateDetailsDialog({
                         color="bg-blue-600"
                       />
                       
-                      {metrics.lastProjectDate ? (
+                      {metrics?.lastProjectDate ? (
                         <InfoCard 
                           icon={Calendar} 
                           title="Last Project Date" 
                           value={(() => {
                             try {
-                              return format(new Date(metrics.lastProjectDate), 'PPP');
+                              return format(new Date(metrics?.lastProjectDate), 'PPP');
                             } catch (error) {
                               logger.error('Error formatting last project date:', error);
                               return 'Invalid date format';
@@ -1212,7 +1214,7 @@ export function CandidateDetailsDialog({
                         title="Longest Project Streak" 
                         value={
                           <div className="flex items-center gap-1.5">
-                            <span>{metrics.longestStreak || 0}</span>
+                            <span>{metrics?.longestStreak || 0}</span>
                             <span className="text-gray-500 dark:text-gray-400 text-sm">consecutive projects</span>
                           </div>
                         }

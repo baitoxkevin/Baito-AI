@@ -102,7 +102,7 @@ export async function createCandidate(candidateInfo: CandidateInfo) {
       date_of_birth: dateOfBirth,
       phone_number: candidateInfo.phone || '0000000000', // Placeholder if missing
       gender: 'other',
-      email: candidateInfo.email || 'unknown@example.com', // Placeholder if missing
+      email: candidateInfo.email || null, // Use null if no email provided
       nationality: 'Malaysian', // Default value
       unique_id: uniqueId, // Add the unique ID
       
@@ -168,13 +168,58 @@ export async function createCandidate(candidateInfo: CandidateInfo) {
       .select();
     
     if (error) {
+      // Handle duplicate email error specifically
+      if (error.code === '23505' && (error.message.includes('candidates_email_key') || error.message.includes('candidates_email_unique_idx'))) {
+        // If email constraint error and we have an email, try without email
+        if (candidateData.email && candidateData.email !== 'unknown@example.com') {
+          logger.warn('Email already exists, trying to create candidate without email');
+          
+          // Remove email and try again
+          delete candidateData.email;
+          
+          const { data: retryData, error: retryError } = await supabase
+            .from('candidates')
+            .insert(candidateData)
+            .select();
+            
+          if (retryError) {
+            throw retryError;
+          }
+          
+          return { success: true, data: retryData, warning: 'Candidate created without email (email already exists)' };
+        }
+      }
       throw error;
     }
     
     return { success: true, data };
   } catch (error) {
     logger.error('Error creating candidate:', error);
-    return { success: false, error };
+    
+    // Provide more helpful error messages
+    let errorMessage = 'Failed to create candidate';
+    if (error.code === '23505') {
+      if (error.message.includes('candidates_email_key') || error.message.includes('candidates_email_unique_idx')) {
+        errorMessage = 'A candidate with this email already exists';
+      } else if (error.message.includes('candidates_ic_number_key')) {
+        errorMessage = 'A candidate with this IC number already exists';
+      } else {
+        errorMessage = 'Duplicate candidate information detected';
+      }
+    } else if (error.code === '23502') {
+      // NOT NULL constraint violation
+      if (error.message.includes('email')) {
+        errorMessage = 'Email is required for candidates';
+      } else if (error.message.includes('ic_number')) {
+        errorMessage = 'IC number is required for candidates';
+      } else if (error.message.includes('phone_number')) {
+        errorMessage = 'Phone number is required for candidates';
+      } else {
+        errorMessage = 'Required information is missing';
+      }
+    }
+    
+    return { success: false, error, message: errorMessage };
   }
 }
 
@@ -197,11 +242,11 @@ export function extractCandidateInfo(text: string): CandidateInfo {
     phone: /(?:Contact (?:no|number)|Phone|Tel):?\s*([^\n]+)/i,
     phoneBackup: /\b(\+\d{1,2}\s)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}\b/,
     icNumber: /(?:2\.?\s*)?(?:\s*)?I\/C Number:([^\n]+)/i,
-    address: /(?:Address|Where do you stay):?\s*([^\n]+)/i,
+    address: /(?:Address|Where do you stay|Stay Area|Home Address):?\s*([^\n]+)/i,
     age: /(?:4\.?\s*)?(?:\s*)?Age:([^\n]+)/i,
     race: /(?:5\.?\s*)?(?:\s*)?Race:([^\n]+)/i,
     tshirtSize: /(?:6\.?\s*)?(?:\s*)?T-Shirt Size:([^\n]+)/i,
-    transportation: /(?:7\.?\s*)?(?:\s*)?Transportation[^:]*:([^\n]+)/i,
+    transportation: /(?:7\.?\s*)?(?:\s*)?(?:Transportation|Transport|Own Transport)[^:]*:([^\n]+)/i,
     language: /(?:8\.?\s*)?(?:\s*)?(?:Spoken language|Language[s]?):?\s*([^\n]+)/i,
     height: /(?:9\.?\s*)?(?:\s*)?Height[^:]*:([^\n]+)/i,
     typhoid: /(?:10\.?\s*)?(?:\s*)?T(?:h)?yphoid:([^\n]+)/i,
@@ -217,7 +262,7 @@ export function extractCandidateInfo(text: string): CandidateInfo {
     workExperience: /Working Experiences? \(List Latest \d+\):\s*([^]*?)(?:\n\n|\n\d+\.|\n[A-Z]|$)/s,
     emceeExperience: /(?:Emcee for[\-:]|Emcee Experience|Working Experience:|Work Experience:|Previous Emcee Events|Masters?[ \-]of[ \-]Ceremonies?)\s*(?:List|Summary|Experience)?[\-:]?\s*([^]*?)(?:\n\n|Latest pictures:|$)/is,
     experience: /(Experience|EXPERIENCE|Work(?:ing)? Experience|WORK(?:ING)? EXPERIENCE|Employment History|EMPLOYMENT HISTORY):?\s*(.*?)(?:\n\n|\n[A-Z]|$)/s,
-    education: /(Education|EDUCATION|Academic Background|ACADEMIC BACKGROUND):?\s*(.*?)(?:\n\n|\n[A-Z]|$)/s,
+    education: /(Education|EDUCATION|Academic Background|ACADEMIC BACKGROUND|Educational Background|Study Background|Background of Study):?\s*(.*?)(?:\n\n|\n[A-Z]|$)/s,
   };
   
   // Try to extract name using various patterns in order of preference

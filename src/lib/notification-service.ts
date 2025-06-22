@@ -31,22 +31,10 @@ export const notificationService = {
     type: EmailNotification['type'] = 'project_update'
   ) {
     try {
-      // Fetch project details including client and manager info
+      // Fetch project details - simplified query without foreign key joins
       const { data: project, error: projectError } = await supabase
         .from('projects')
-        .select(`
-          *,
-          client:client_id (
-            id,
-            email,
-            full_name
-          ),
-          manager:manager_id (
-            id,
-            email,
-            full_name
-          )
-        `)
+        .select('*')
         .eq('id', projectId)
         .single();
 
@@ -55,18 +43,40 @@ export const notificationService = {
         throw new Error('Failed to fetch project details');
       }
 
+      // Fetch client and manager details separately if IDs exist
+      let client = null;
+      let manager = null;
+
+      if (project.client_id) {
+        const { data: clientData } = await supabase
+          .from('users')
+          .select('id, email, full_name')
+          .eq('id', project.client_id)
+          .single();
+        client = clientData;
+      }
+
+      if (project.manager_id) {
+        const { data: managerData } = await supabase
+          .from('users')
+          .select('id, email, full_name')
+          .eq('id', project.manager_id)
+          .single();
+        manager = managerData;
+      }
+
       // Prepare recipient list
       const recipients: string[] = [];
       const ccRecipients: string[] = [];
 
       // Add client email
-      if (project.client?.email) {
-        recipients.push(project.client.email);
+      if (client?.email) {
+        recipients.push(client.email);
       }
 
       // Add manager as CC
-      if (project.manager?.email) {
-        ccRecipients.push(project.manager.email);
+      if (manager?.email) {
+        ccRecipients.push(manager.email);
       }
 
       // Store notification in database for future processing
@@ -121,12 +131,15 @@ export const notificationService = {
         ccRecipients
       };
     } catch (error) {
-      logger.error('Error sending notification:', error);
-      toastService.error(
-        'Notification Failed',
-        'Failed to queue email notification'
-      );
-      throw error;
+      logger.error('Failed to send notification:', error);
+      // Don't throw the error, just log it and return failure
+      // This prevents the app from crashing due to notification failures
+      return {
+        success: false,
+        recipients: [],
+        ccRecipients: [],
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
     }
   },
 

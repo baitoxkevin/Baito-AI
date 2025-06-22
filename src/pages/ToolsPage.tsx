@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { useEnhancedToast } from '@/hooks/use-enhanced-toast';
 import { ToastAction } from '@/components/ui/enhanced-toast';
-import { Calculator, Calendar as CalendarIcon, Clock, FileSpreadsheet, FileText, MessageSquare, Upload, Download, Loader2, Database, Receipt, DollarSign, BarChart3, Bell } from 'lucide-react';
+import { Calculator, Calendar as CalendarIcon, Clock, FileSpreadsheet, FileText, MessageSquare, Upload, Download, Loader2, Database, Receipt, DollarSign, BarChart3, Bell, Briefcase } from 'lucide-react';
 import DataExtractionTool from '@/components/DataExtractionTool';
 import ReceiptOCRTool, { ReceiptData } from '@/components/ReceiptOCRTool';
 import { CandidateTextImportTool } from '@/components/CandidateTextImportTool';
@@ -129,7 +129,239 @@ const tools = [
     description: 'Preview and test beautiful toast notifications',
     component: 'toast-demo',
   },
+  {
+    icon: <Briefcase className="h-6 w-6 text-indigo-600" />,
+    title: 'Job Discovery Setup',
+    description: 'Create dummy jobs for testing the job discovery feature',
+    component: 'job-discovery-setup',
+  },
 ];
+
+function JobDiscoverySetup() {
+  const [isLoading, setIsLoading] = useState(false);
+  const { toast } = useToast();
+
+  const createJobDiscoveryData = async () => {
+    setIsLoading(true);
+    
+    try {
+      // Get a super admin user ID
+      const { data: adminUser } = await supabase
+        .from('users')
+        .select('id')
+        .eq('role', 'super_admin')
+        .limit(1)
+        .single();
+
+      const createdBy = adminUser?.id || '00000000-0000-0000-0000-000000000000';
+
+      // Calculate dates
+      const today = new Date();
+      const addDays = (days: number) => {
+        const date = new Date(today);
+        date.setDate(date.getDate() + days);
+        return date.toISOString().split('T')[0];
+      };
+
+      // Create companies
+      const companies = [
+        {
+          id: '550e8400-e29b-41d4-a716-446655440101',
+          company_name: 'TechVentures Malaysia',
+          logo_url: 'https://ui-avatars.com/api/?name=TechVentures&background=6366f1&color=fff&size=200',
+          contact_person_name: 'Ahmad Rahman',
+          contact_person_phone: '+60123456789',
+          contact_person_email: 'ahmad@techventures.my',
+        },
+        {
+          id: '550e8400-e29b-41d4-a716-446655440102',
+          company_name: 'Creative Studios KL',
+          logo_url: 'https://ui-avatars.com/api/?name=Creative+Studios&background=ec4899&color=fff&size=200',
+          contact_person_name: 'Sarah Lim',
+          contact_person_phone: '+60198765432',
+          contact_person_email: 'sarah@creativestudios.com',
+        },
+        {
+          id: '550e8400-e29b-41d4-a716-446655440103',
+          company_name: 'Global Events Asia',
+          logo_url: 'https://ui-avatars.com/api/?name=Global+Events&background=10b981&color=fff&size=200',
+          contact_person_name: 'Michael Tan',
+          contact_person_phone: '+60112223344',
+          contact_person_email: 'michael@globalevents.asia',
+        },
+      ];
+
+      // Insert companies
+      const { error: companyError } = await supabase
+        .from('companies')
+        .upsert(companies, { onConflict: 'id' });
+
+      if (companyError) throw companyError;
+
+      // Create projects
+      const projects = [
+        {
+          id: '660e8400-e29b-41d4-a716-446655440201',
+          title: 'Tech Conference 2025 - AV Support',
+          company_id: '550e8400-e29b-41d4-a716-446655440101',
+          company_name: 'TechVentures Malaysia',
+          venue_address: 'KL Convention Centre, Jalan Pinang, 50450 KL',
+          venue_details: 'Large scale tech conference. Need AV technicians.',
+          start_date: addDays(7),
+          end_date: addDays(10),
+          working_hours_start: '07:00',
+          working_hours_end: '19:00',
+          crew_count: 15,
+          filled_positions: 3,
+          status: 'active',
+          priority: 'high',
+          event_type: 'Conference',
+          project_type: 'Event Support',
+          budget: 250,
+          description: 'Join our team for the biggest tech conference!',
+          color: '#6366f1',
+          created_by: createdBy,
+        },
+        {
+          id: '660e8400-e29b-41d4-a716-446655440202',
+          title: 'Music Festival - Stage Crew',
+          company_id: '550e8400-e29b-41d4-a716-446655440102',
+          company_name: 'Creative Studios KL',
+          venue_address: 'Sepang International Circuit, Selangor',
+          venue_details: 'Outdoor music festival. Need stage crew.',
+          start_date: addDays(14),
+          end_date: addDays(16),
+          working_hours_start: '06:00',
+          working_hours_end: '23:00',
+          crew_count: 25,
+          filled_positions: 10,
+          status: 'planning',
+          priority: 'high',
+          event_type: 'Festival',
+          project_type: 'Event Support',
+          budget: 300,
+          description: 'Be part of an amazing music festival!',
+          color: '#ec4899',
+          created_by: createdBy,
+        },
+        {
+          id: '660e8400-e29b-41d4-a716-446655440203',
+          title: 'Product Launch - Brand Ambassadors',
+          company_id: '550e8400-e29b-41d4-a716-446655440103',
+          company_name: 'Global Events Asia',
+          venue_address: 'Pavilion KL, Bukit Bintang',
+          venue_details: 'Luxury product launch event.',
+          start_date: addDays(5),
+          end_date: addDays(5),
+          working_hours_start: '14:00',
+          working_hours_end: '22:00',
+          crew_count: 8,
+          filled_positions: 2,
+          status: 'active',
+          priority: 'medium',
+          event_type: 'Product Launch',
+          project_type: 'Brand Ambassador',
+          budget: 180,
+          description: 'Represent a premium brand!',
+          color: '#10b981',
+          created_by: createdBy,
+        },
+      ];
+
+      // Insert projects
+      const { error: projectError } = await supabase
+        .from('projects')
+        .upsert(projects, { onConflict: 'id' });
+
+      if (projectError) throw projectError;
+
+      toast({
+        title: 'Success! 🎉',
+        description: `Created ${companies.length} companies and ${projects.length} job opportunities. Visit /job-discovery to see them.`,
+        duration: 5000,
+      });
+    } catch (error) {
+      console.error('Error creating job discovery data:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to create job discovery data. Check console for details.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h3 className="text-lg font-semibold mb-2">Job Discovery Setup</h3>
+        <p className="text-muted-foreground">
+          Create dummy companies and job opportunities for testing the job discovery feature.
+        </p>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>What will be created:</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <h4 className="font-medium mb-2">3 Companies:</h4>
+            <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
+              <li>TechVentures Malaysia</li>
+              <li>Creative Studios KL</li>
+              <li>Global Events Asia</li>
+            </ul>
+          </div>
+          
+          <div>
+            <h4 className="font-medium mb-2">3 Active Job Opportunities:</h4>
+            <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
+              <li>Tech Conference - AV Support (15 positions)</li>
+              <li>Music Festival - Stage Crew (25 positions)</li>
+              <li>Product Launch - Brand Ambassadors (8 positions)</li>
+            </ul>
+          </div>
+
+          <div className="pt-4">
+            <Button 
+              onClick={createJobDiscoveryData}
+              disabled={isLoading}
+              className="w-full"
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Creating Data...
+                </>
+              ) : (
+                <>
+                  <Briefcase className="mr-2 h-4 w-4" />
+                  Create Job Discovery Data
+                </>
+              )}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Next Steps:</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ol className="list-decimal list-inside text-sm text-muted-foreground space-y-2">
+            <li>Click the button above to create dummy data</li>
+            <li>Navigate to <a href="/job-discovery" className="text-primary hover:underline">/job-discovery</a></li>
+            <li>Swipe right to apply, left to pass</li>
+            <li>View your application stats</li>
+          </ol>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
 
 function ToastDemo() {
   const enhancedToast = useEnhancedToast();
@@ -840,6 +1072,9 @@ export default function ToolsPage() {
                 )}
                 {activeComponent === 'toast-demo' && (
                   <ToastDemo />
+                )}
+                {activeComponent === 'job-discovery-setup' && (
+                  <JobDiscoverySetup />
                 )}
                 {activeComponent === 'resume' && (
                   <CandidateTextImportTool />

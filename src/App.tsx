@@ -11,6 +11,8 @@ import MobileCandidateUpdatePage from './pages/MobileCandidateUpdatePage';
 import CandidateDashboardPage from './pages/CandidateDashboardPage';
 import JobDiscoveryPage from './pages/JobDiscoveryPage'; // Added
 import SetPasswordPage from './pages/SetPasswordPage';
+import TestMultipleLocations from './pages/TestMultipleLocations';
+import LocationFeatureDemo from './pages/LocationFeatureDemo';
 import { renderCanvas } from './components/ui/canvas';
 import { SpotlightCommand } from './components/SpotlightCommand';
 import { GlobalErrorBoundary } from './components/GlobalErrorBoundary';
@@ -86,6 +88,8 @@ function App() {
           <Route path="/set-password" element={<SetPasswordPage />} />
           <Route path="/receipt-scanner" element={<ReceiptScannerPage />} />
           <Route path="/job-discovery" element={<JobDiscoveryPage />} /> {/* Added Route */}
+          <Route path="/test-multiple-locations" element={<TestMultipleLocations />} />
+          <Route path="/location-feature-demo" element={<LocationFeatureDemo />} />
           {/* Candidate update routes with secure token */}
           <Route path="/candidate-update-mobile/:candidateId" element={<MobileCandidateUpdatePage />} />
           <Route path="/candidate/dashboard/:candidateId" element={<CandidateDashboardPage />} />
