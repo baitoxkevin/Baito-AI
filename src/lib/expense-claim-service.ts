@@ -69,11 +69,17 @@ export async function fetchUserExpenseClaims(): Promise<ExpenseClaim[]> {
       .select('*')
       .order('created_at', { ascending: false });
     
-    if (error) throw error;
+    if (error) {
+      if (error.code === '42P01') {
+        logger.warn('Expense claims summary view does not exist, returning empty array');
+        return [];
+      }
+      throw error;
+    }
     return data || [];
   } catch (error) {
     logger.error('Error fetching expense claims:', error);
-    throw error;
+    return [];
   }
 }
 
@@ -89,11 +95,17 @@ export async function fetchExpenseClaimsByStatus(status: ExpenseClaim['status'])
       .eq('status', status)
       .order('created_at', { ascending: false });
     
-    if (error) throw error;
+    if (error) {
+      if (error.code === '42P01') {
+        logger.warn('Expense claims summary view does not exist, returning empty array');
+        return [];
+      }
+      throw error;
+    }
     return data || [];
   } catch (error) {
     logger.error(`Error fetching ${status} expense claims:`, error);
-    throw error;
+    return [];
   }
 }
 

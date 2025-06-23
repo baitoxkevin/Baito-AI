@@ -25,7 +25,10 @@ import {
   CalendarDays,
   CalendarRange,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Grid3X3,
+  List,
+  Star
 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -86,6 +89,7 @@ export default function ProjectsPageRedesign() {
   const [isBannerVisible, setIsBannerVisible] = useState(true);
   const [, setIsFilterMenuOpen] = useState(false);
   const [isDashboardMinimized, setIsDashboardMinimized] = usePersistentState('projects-dashboard-minimized', false);
+  const [viewMode, setViewMode] = usePersistentState('projects-view-mode', 'grid');
   
   // Reference for featured project section (no longer needed but kept for compatibility)
   // const featuredSectionRef = React.useRef<HTMLDivElement>(null);
@@ -626,6 +630,59 @@ export default function ProjectsPageRedesign() {
               
               {/* Right-side controls */}
               <div className="flex items-center gap-2">
+                {/* View Toggle */}
+                <div className="flex items-center h-10 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 p-1">
+                  <button
+                    className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                      viewMode === 'grid' 
+                        ? 'bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300' 
+                        : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+                    }`}
+                    onClick={() => setViewMode('grid')}
+                  >
+                    <Grid3X3 className="h-4 w-4" />
+                  </button>
+                  <button
+                    className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                      viewMode === 'list' 
+                        ? 'bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300' 
+                        : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+                    }`}
+                    onClick={() => setViewMode('list')}
+                  >
+                    <List className="h-4 w-4" />
+                  </button>
+                </div>
+
+                {/* Additional Filters */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-10 gap-2"
+                    >
+                      <Filter className="h-4 w-4" />
+                      <span>Filters</span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuLabel>Filter Options</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem>
+                      <Calendar className="mr-2 h-4 w-4" />
+                      <span>By Date Range</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem>
+                      <Users className="mr-2 h-4 w-4" />
+                      <span>By Team</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem>
+                      <Star className="mr-2 h-4 w-4" />
+                      <span>By Priority</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
                 {/* All dropdown - simulating the design from the image */}
                 <div className="flex items-center h-10 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 px-3">
                   <div className="w-8 h-8 flex items-center justify-center bg-slate-100 dark:bg-slate-800 rounded-full mr-2">

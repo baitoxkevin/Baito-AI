@@ -108,6 +108,7 @@ export interface Candidate {
   nationality?: string;
   emergency_contact_name?: string;
   emergency_contact_number?: string;
+  emergency_contact_phone?: string;
   emergency_contact_relationship?: string;
   bank_name?: string;
   bank_account_number?: string;
@@ -140,6 +141,14 @@ export interface Candidate {
   created_by_user_id?: string;
   address?: string;
   address_home?: string;
+  last_contact_date?: string;
+  employment_type?: string;
+  current_projects_count?: number;
+  years_experience?: number;
+  language_proficiency?: Array<{
+    language: string;
+    proficiency_level: string;
+  }>;
   performance_metrics?: {
     reliability_score: number;
     response_rate: number;
