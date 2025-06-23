@@ -27,7 +27,7 @@ import { CandidateDetailsDialog } from '@/components/CandidateDetailsDialog';
 import { CandidateTextImportTool } from '@/components/CandidateTextImportTool';
 import ReportDialog from '@/components/ReportDialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { CandidateActionButton } from '../../CandidateActionButton';
+import { CandidateActionButton } from '@/components/CandidateActionButton';
 
 const loyaltyTierColors = {
   bronze: 'bg-orange-500/10 text-orange-500',
@@ -82,31 +82,11 @@ export default function CandidatesPage() {
   const loadCandidates = async () => {
     try {
       setIsLoading(true);
+      
+      // Start with basic candidate data first to get UI working
       const { data, error } = await supabase
         .from('candidates')
-        .select(`
-          *,
-          performance_metrics (
-            reliability_score,
-            response_rate,
-            avg_rating,
-            total_gigs_completed,
-            no_shows,
-            late_arrivals,
-            early_terminations
-          ),
-          language_proficiency (
-            language,
-            proficiency_level,
-            is_primary
-          ),
-          loyalty_status (
-            tier_level,
-            current_points,
-            tier_achieved_date,
-            points_expiry_date
-          )
-        `)
+        .select('*')
         .limit(100)
         .order('created_at', { ascending: false });
 
@@ -115,7 +95,34 @@ export default function CandidatesPage() {
         throw error;
       }
 
-      setCandidates(data || []);
+      // Transform data to add default values for missing fields
+      const candidatesWithDefaults = (data || []).map(candidate => ({
+        ...candidate,
+        emergency_contact_phone: candidate.emergency_contact_phone || candidate.emergency_contact_number,
+        current_projects_count: candidate.current_projects_count || 0,
+        years_experience: candidate.years_experience || 0,
+        performance_metrics: candidate.performance_metrics || {
+          reliability_score: 0,
+          response_rate: 0,
+          avg_rating: 0,
+          total_gigs_completed: 0,
+          no_shows: 0,
+          late_arrivals: 0,
+          early_terminations: 0,
+          category_ratings: {}
+        },
+        loyalty_status: candidate.loyalty_status || {
+          tier_level: 'bronze' as const,
+          current_points: 0,
+          total_gigs_completed: 0,
+          tier_achieved_date: new Date().toISOString(),
+          points_expiry_date: new Date().toISOString(),
+          fast_track_eligible: false
+        },
+        language_proficiency: candidate.language_proficiency || []
+      }));
+
+      setCandidates(candidatesWithDefaults);
     } catch (error) {
       logger.error('Error loading candidates:', error);
       toast({

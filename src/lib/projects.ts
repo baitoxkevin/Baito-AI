@@ -213,12 +213,9 @@ export async function fetchProjectsByMonth(year: number, month: number): Promise
       .from('projects')
       .select('*')
       .is('deleted_at', null)
-      // This OR query finds projects that:
-      // 1. Start within or after our expanded range
-      // 2. End within or after our expanded range
-      // 3. Start before and end after our expanded range (spanning it)
-      .or(`start_date.gte.${expandedStartStr},start_date.lte.${expandedEndStr}`)
-      .or(`end_date.gte.${expandedStartStr},end_date.lte.${expandedEndStr}`)
+      // Find projects that overlap with our date range
+      // Projects overlap if: start_date <= expandedEnd AND (end_date >= expandedStart OR end_date is null)
+      .or(`and(start_date.lte.${expandedEndStr},or(end_date.gte.${expandedStartStr},end_date.is.null))`)
       .order('start_date', { ascending: true });
     
     if (error) {

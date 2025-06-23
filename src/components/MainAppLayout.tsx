@@ -18,6 +18,9 @@ import SettingsPage from '@/pages/SettingsPage';
 import TeamManagementPage from '@/pages/TeamManagementPage';
 import ProjectDetailPage from '@/pages/ProjectDetailPage';
 import PaymentsPage from '@/pages/PaymentsPage';
+import GoalsPage from '@/pages/GoalsPage';
+import ExpenseClaimsPage from '@/pages/ExpenseClaimsPage';
+import CompaniesPage from '@/pages/CompaniesPage';
 
 interface MainAppLayoutProps {
   effectActive: boolean;
@@ -44,6 +47,9 @@ const MainAppLayout = ({ effectActive }: MainAppLayoutProps) => {
     if (pathname.startsWith('/team')) return 'team';
     if (pathname.startsWith('/invites')) return 'invites';
     if (pathname.startsWith('/payments')) return 'payments';
+    if (pathname.startsWith('/goals')) return 'goals';
+    if (pathname.startsWith('/expenses')) return 'expenses';
+    if (pathname.startsWith('/companies')) return 'companies';
     
     return 'dashboard'; // default
   };
@@ -167,6 +173,21 @@ const MainAppLayout = ({ effectActive }: MainAppLayoutProps) => {
           {activeView === 'payments' && (
             <div style={{ height: '100%' }}>
               <PaymentsPage />
+            </div>
+          )}
+          {activeView === 'goals' && (
+            <div style={{ height: '100%' }}>
+              <GoalsPage />
+            </div>
+          )}
+          {activeView === 'expenses' && (
+            <div style={{ height: '100%' }}>
+              <ExpenseClaimsPage />
+            </div>
+          )}
+          {activeView === 'companies' && (
+            <div style={{ height: '100%' }}>
+              <CompaniesPage />
             </div>
           )}
           {activeView === 'project-detail' && projectId && (

@@ -152,6 +152,18 @@ function App() {
             path="/payments" 
             element={<MainAppLayout effectActive={effectActive} />} 
           />
+          <Route 
+            path="/goals" 
+            element={<MainAppLayout effectActive={effectActive} />} 
+          />
+          <Route 
+            path="/expenses" 
+            element={<MainAppLayout effectActive={effectActive} />} 
+          />
+          <Route 
+            path="/companies" 
+            element={<MainAppLayout effectActive={effectActive} />} 
+          />
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
         </Routes>
         <SpotlightCommand />

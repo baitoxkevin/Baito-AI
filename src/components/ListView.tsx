@@ -302,6 +302,10 @@ export default function ListView({
   const datesInfoRef = useRef({ lastMemoKey: '', calculationCount: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
   const projectCardsRef = useRef<Map<string, HTMLDivElement>>(new Map());
+  // Use default values if props are invalid
+  const safeDate = date || new Date();
+  const safeProjects = Array.isArray(projects) ? projects : [];
+
   const lastProjectsRef = useRef<Project[]>([]);
   const dragScrollTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isDraggingRef = useRef(false);
@@ -323,20 +327,17 @@ export default function ListView({
   const disableTopLoadingRef = useRef(false);
   const disableBottomLoadingRef = useRef(false);
   const [visibleMonth, setVisibleMonth] = useState<string>('');
-  const [visibleYear] = useState<number>(new Date().getFullYear());
+  const [visibleYear, setVisibleYear] = useState<number>(new Date().getFullYear());
   const hasInitialScroll = useRef(false);
   const prevDateRef = useRef(safeDate);
   const monthPositionsRef = useRef<Map<string, number>>(new Map());
   const [showFloatingMonth, setShowFloatingMonth] = useState(false);
   const floatingMonthTimeoutRef = useRef<number | null>(null);
-
-  // Use default values if props are invalid
-  const safeDate = date || new Date();
-  const safeProjects = Array.isArray(projects) ? projects : [];
   
   // Check for errors to display error state later
   const hasDateError = !date;
   const hasProjectsError = !Array.isArray(projects);
+  
   // Calculate the number of past and future months to show - expanded to a full year
   const MAX_PAST_MONTHS = 24;  // Expanded to 2 years in the past
   const MAX_FUTURE_MONTHS = 24; // Expanded to 2 years in the future
