@@ -387,8 +387,6 @@ export function NewProjectDialog({
         end_date: values.end_date ? format(values.end_date, 'yyyy-MM-dd') : null,
         cc_client_ids: values.cc_client_ids || [],
         cc_user_ids: values.cc_user_ids || [],
-        // Store brand_link in custom_fields
-        custom_fields: brand_link ? { brand_link } : {},
       };
       
       // Extract locations from processedData
