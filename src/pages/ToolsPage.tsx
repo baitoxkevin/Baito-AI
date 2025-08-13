@@ -281,7 +281,7 @@ function JobDiscoverySetup() {
         duration: 5000,
       });
     } catch (error) {
-      console.error('Error creating job discovery data:', error);
+      // console.error('Error creating job discovery data:', error);
       toast({
         title: 'Error',
         description: 'Failed to create job discovery data. Check console for details.',
@@ -371,7 +371,7 @@ function ToastDemo() {
       title: "Success! 🎉",
       description: "Your changes have been saved successfully.",
       action: (
-        <ToastAction altText="Undo action" onClick={() => console.log("Undo clicked")}>
+        <ToastAction altText="Undo action" onClick={() => {}}>
           Undo
         </ToastAction>
       ),
@@ -399,7 +399,7 @@ function ToastDemo() {
       title: "New feature available",
       description: "Check out our new dashboard analytics!",
       action: (
-        <ToastAction altText="Learn more about the feature" onClick={() => console.log("Learn more clicked")}>
+        <ToastAction altText="Learn more about the feature" onClick={() => {}}>
           Learn More
         </ToastAction>
       ),
@@ -628,7 +628,7 @@ function GoogleSlidesScraper({ onDataExtracted }: { onDataExtracted: (data: Scra
         description: `Found ${exampleData.length} records`,
       });
     } catch (error) {
-      console.error('Error extracting data:', error);
+      // console.error('Error extracting data:', error);
       toast({
         title: 'Error',
         description: 'Failed to extract data. Please try again.',
@@ -738,7 +738,7 @@ function WhatsAppScraper({ onDataExtracted }: { onDataExtracted: (data: ScrapedD
         description: `Found ${exampleData.length} records`,
       });
     } catch (error) {
-      console.error('Error processing file:', error);
+      // console.error('Error processing file:', error);
       toast({
         title: 'Error',
         description: 'Failed to process file. Please try again.',
@@ -872,7 +872,7 @@ function ExportOptions({ data }: { data: ScrapedData[] }) {
         description: `Data exported as ${format.toUpperCase()}`,
       });
     } catch (error) {
-      console.error('Export error:', error);
+      // console.error('Export error:', error);
       toast({
         title: 'Error',
         description: 'Failed to export data',
@@ -1124,7 +1124,6 @@ export default function ToolsPage() {
                     projectEndDate={new Date(selectedProject.end_date)}
                     projectId={selectedProject.id}
                     onSave={async (payrollData) => {
-                      console.log('Saving payroll data:', { data: payrollData });
                       toast({
                         title: 'Payroll Saved',
                         description: 'Payroll data has been saved successfully',

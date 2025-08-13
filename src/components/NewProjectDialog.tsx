@@ -456,11 +456,6 @@ export function NewProjectDialog({
       setVisitedSteps(new Set(['project-info']));
     } catch (error) {
       logger.error('Error creating project:', error);
-      console.error('Project creation error details:', {
-        error,
-        projectData: processedData,
-        errorMessage: (error as Error)?.message,
-      });
       toast({
         title: "Error",
         description: (error as Error)?.message || "Failed to create project. Please check all required fields.",

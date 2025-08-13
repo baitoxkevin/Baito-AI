@@ -157,7 +157,7 @@ export async function saveJobPost(jobPost: JobPost) {
     if (error) throw error;
     return { data, error: null };
   } catch (error) {
-    console.error('Error saving job post:', error);
+    // console.error('Error saving job post:', error);
     return { data: null, error };
   }
 }
@@ -174,7 +174,7 @@ export async function getProjectJobPosts(projectId: string) {
     if (error) throw error;
     return { data, error: null };
   } catch (error) {
-    console.error('Error fetching job posts:', error);
+    // console.error('Error fetching job posts:', error);
     return { data: null, error };
   }
 }
@@ -192,7 +192,7 @@ export async function updateJobPost(id: string, updates: Partial<JobPost>) {
     if (error) throw error;
     return { data, error: null };
   } catch (error) {
-    console.error('Error updating job post:', error);
+    // console.error('Error updating job post:', error);
     return { data: null, error };
   }
 }
@@ -208,7 +208,7 @@ export async function deleteJobPost(id: string) {
     if (error) throw error;
     return { error: null };
   } catch (error) {
-    console.error('Error deleting job post:', error);
+    // console.error('Error deleting job post:', error);
     return { error };
   }
 }

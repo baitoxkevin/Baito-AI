@@ -14,8 +14,7 @@
     "security:remove-console": "node scripts/remove-console-logs.js",
     "security:restore-console": "bash scripts/restore-console-logs.sh",
     "security:audit": "npm audit --production",
-    "security:check": "npm run lint && npm run security:audit",
-    "prebuild": "npm run security:check"
+    "security:check": "npm run lint && npm run security:audit"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

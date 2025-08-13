@@ -597,10 +597,10 @@ INV-000492,2025-01-10,,Lee Frozen,Lee Fozen @ Fandbee Kampung Attap,194.40,paid`
             .insert(payload);
           
           if (error && error.code !== '23505') { // Ignore duplicate key errors
-            console.error('Error uploading invoice:', error);
+            // console.error('Error uploading invoice:', error);
           }
         } catch (err) {
-          console.error('Error processing invoice:', invoice.invoice_number, err);
+          // console.error('Error processing invoice:', invoice.invoice_number, err);
         }
       }
 

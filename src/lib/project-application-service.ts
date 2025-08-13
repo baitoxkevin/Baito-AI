@@ -279,8 +279,7 @@ export async function applyToProject(application: ProjectApplicationData) {
       p_table_name: 'project_staff',
       p_record_id: staffEntry.id,
       p_action: 'INSERT',
-      p_new_data: staffEntry,
-      p_table_name: 'project_staff'
+      p_new_data: staffEntry
     });
 
     return { data: staffEntry, error: null };

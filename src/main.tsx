@@ -15,7 +15,7 @@ window.addEventListener('error', (event) => {
     event.preventDefault();
     return;
   }
-  console.error('Global error:', event.error);
+  // console.error('Global error:', event.error);
 });
 
 // Handle unhandled promise rejections
@@ -26,7 +26,7 @@ window.addEventListener('unhandledrejection', (event) => {
     event.preventDefault();
     return;
   }
-  console.error('Unhandled promise rejection:', event.reason);
+  // console.error('Unhandled promise rejection:', event.reason);
 });
 
 createRoot(document.getElementById('root')!).render(

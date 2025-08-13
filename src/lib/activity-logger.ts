@@ -51,7 +51,7 @@ class ActivityLogger {
         this.isInitialized = true;
       }
     } catch (error) {
-      console.warn('ActivityLogger: Could not initialize user', error);
+      // console.warn('ActivityLogger: Could not initialize user', error);
       // Set fallback values
       this.userId = 'anonymous';
       this.userName = 'Unknown User';
@@ -72,11 +72,11 @@ class ActivityLogger {
     // Use explicit project_id from event, otherwise use the current project ID
     const projectId = event.project_id || this.projectId;
     if (!projectId) {
-      console.warn('ActivityLogger: No project ID available for logging event:', event);
+      // console.warn('ActivityLogger: No project ID available for logging event:', event);
       return;
     }
 
-    console.log('ActivityLogger: Logging event for project:', projectId, event.action);
+    // console.log('ActivityLogger: Logging event for project:', projectId, event.action);
 
     const logEntry: Omit<ActivityLog, 'id' | 'timestamp'> = {
       project_id: projectId,
@@ -150,17 +150,17 @@ class ActivityLogger {
           .insert(dbLogs);
 
         if (error) {
-          console.warn('ActivityLogger: Database unavailable, using localStorage only', error.message);
+          // console.warn('ActivityLogger: Database unavailable, using localStorage only', error.message);
           // Don't re-add to batch since we have localStorage backup
         } else {
-          console.log(`ActivityLogger: Successfully stored ${dbLogs.length} logs in database`);
+          // console.log(`ActivityLogger: Successfully stored ${dbLogs.length} logs in database`);
         }
       } catch (dbError) {
-        console.warn('ActivityLogger: Database connection failed, using localStorage only');
+        // console.warn('ActivityLogger: Database connection failed, using localStorage only');
         // Database is not available, but localStorage backup is working
       }
     } catch (error) {
-      console.error('ActivityLogger: Batch processing error', error);
+      // console.error('ActivityLogger: Batch processing error', error);
       // Re-add logs to batch for retry
       this.batchLogs.unshift(...logsToProcess);
     }
@@ -218,9 +218,9 @@ class ActivityLogger {
       const updatedLogs = [...existingLogs, ...logsWithIds].slice(-1000); // Keep last 1000 logs
       localStorage.setItem('activity_logs', JSON.stringify(updatedLogs));
       
-      console.log(`ActivityLogger: Stored ${logs.length} logs locally (total: ${updatedLogs.length})`);
+      // console.log(`ActivityLogger: Stored ${logs.length} logs locally (total: ${updatedLogs.length})`);
     } catch (error) {
-      console.warn('ActivityLogger: Could not store logs locally', error);
+      // console.warn('ActivityLogger: Could not store logs locally', error);
     }
   }
 
@@ -234,7 +234,7 @@ class ActivityLogger {
         .limit(limit);
 
       if (error) {
-        console.warn('ActivityLogger: Database unavailable for reading, using localStorage', error.message);
+        // console.warn('ActivityLogger: Database unavailable for reading, using localStorage', error.message);
         return this.getFallbackLogs(projectId);
       }
       
@@ -263,7 +263,7 @@ class ActivityLogger {
         .slice(0, limit);
         
     } catch (error) {
-      console.warn('ActivityLogger: Database connection failed, using localStorage only', error);
+      // console.warn('ActivityLogger: Database connection failed, using localStorage only', error);
       return this.getFallbackLogs(projectId);
     }
   }
@@ -278,7 +278,7 @@ class ActivityLogger {
         )
         .slice(0, 100);
     } catch (error) {
-      console.warn('ActivityLogger: Error loading fallback logs', error);
+      // console.warn('ActivityLogger: Error loading fallback logs', error);
       return [];
     }
   }
@@ -321,7 +321,7 @@ class ActivityLogger {
   // Clear all logs from localStorage (for debugging)
   public clearLocalStorage() {
     localStorage.removeItem('activity_logs');
-    console.log('ActivityLogger: Cleared all logs from localStorage');
+    // console.log('ActivityLogger: Cleared all logs from localStorage');
   }
 }
 

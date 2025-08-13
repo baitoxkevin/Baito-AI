@@ -37,6 +37,8 @@ env.production
 
 # MCP config with secrets
 .mcp/config.json
+.mcp.json
+mcp.json
 
 # Python
 __pycache__/

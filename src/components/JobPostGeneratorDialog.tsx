@@ -144,7 +144,7 @@ export function JobPostGeneratorDialog({
       if (error) throw error;
       setSavedPosts(data || []);
     } catch (error) {
-      console.error('Error loading job posts:', error);
+      // console.error('Error loading job posts:', error);
       toast({
         title: 'Error',
         description: 'Failed to load saved job posts',
@@ -247,7 +247,7 @@ export function JobPostGeneratorDialog({
       loadSavedPosts();
       setEditingPost(null);
     } catch (error) {
-      console.error('Error saving job post:', error);
+      // console.error('Error saving job post:', error);
       toast({
         title: 'Error',
         description: 'Failed to save job post',
@@ -276,7 +276,7 @@ export function JobPostGeneratorDialog({
       });
       loadSavedPosts();
     } catch (error) {
-      console.error('Error deleting job post:', error);
+      // console.error('Error deleting job post:', error);
       toast({
         title: 'Error',
         description: 'Failed to delete job post',

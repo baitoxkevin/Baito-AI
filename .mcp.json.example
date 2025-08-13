@@ -6,7 +6,7 @@
         "-y",
         "@supabase/mcp-server-supabase@latest",
         "--access-token",
-        "***REMOVED***"
+        "YOUR_SUPABASE_ACCESS_TOKEN_HERE"
       ]
     },
     "magicuidesign-mcp": {
@@ -15,7 +15,7 @@
     },
     "21st-dev-magic": {
       "command": "npx",
-      "args": ["-y", "@21st-dev/magic@latest", "API_KEY=\"***REMOVED***\""]
+      "args": ["-y", "@21st-dev/magic@latest", "API_KEY=\"YOUR_21ST_DEV_API_KEY_HERE\""]
     },
     "context7": {
       "command": "npx",
@@ -25,7 +25,7 @@
       "command": "/Users/baito.kevin/Downloads/project 10/mcp-servers/vibetest-use/.venv/bin/vibetest-mcp",
       "args": [],
       "env": {
-        "GOOGLE_API_KEY": "***REMOVED***"
+        "GOOGLE_API_KEY": "YOUR_GOOGLE_API_KEY_HERE"
       }
     },
     "serena": {
