@@ -383,8 +383,8 @@ export function NewProjectDialog({
         invoice_number: values.invoice_number || null,
         brand_name: values.brand_name || null,
         brand_logo: values.brand_logo || null,
-        start_date: format(values.start_date, 'yyyy-MM-dd'),
-        end_date: values.end_date ? format(values.end_date, 'yyyy-MM-dd') : null,
+        start_date: values.start_date.toISOString(),
+        end_date: values.end_date ? values.end_date.toISOString() : null,
         cc_client_ids: values.cc_client_ids || [],
         cc_user_ids: values.cc_user_ids || [],
       };
@@ -456,6 +456,11 @@ export function NewProjectDialog({
       setVisitedSteps(new Set(['project-info']));
     } catch (error) {
       logger.error('Error creating project:', error);
+      console.error('Project creation error details:', {
+        error,
+        projectData: processedData,
+        errorMessage: (error as Error)?.message,
+      });
       toast({
         title: "Error",
         description: (error as Error)?.message || "Failed to create project. Please check all required fields.",

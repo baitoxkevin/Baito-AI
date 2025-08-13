@@ -20,6 +20,23 @@
     "context7": {
       "command": "npx",
       "args": ["-y", "@upstash/context7-mcp"]
+    },
+    "vibetest": {
+      "command": "/Users/baito.kevin/Downloads/project 10/mcp-servers/vibetest-use/.venv/bin/vibetest-mcp",
+      "args": [],
+      "env": {
+        "GOOGLE_API_KEY": "***REMOVED***"
+      }
+    },
+    "serena": {
+      "command": "/Users/baito.kevin/Downloads/project 10/mcp-servers/serena/.venv/bin/serena-mcp-server",
+      "args": [
+        "--project",
+        "/Users/baito.kevin/Downloads/project 10",
+        "--context",
+        "ide-assistant"
+      ],
+      "env": {}
     }
   }
 }

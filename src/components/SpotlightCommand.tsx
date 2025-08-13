@@ -89,9 +89,6 @@ export function SpotlightCommand() {
       case 'candidates':
         navigate('/candidates');
         break;
-      case 'companies':
-        navigate('/companies');
-        break;
       case 'invites':
         navigate('/invites');
         break;
@@ -182,10 +179,6 @@ export function SpotlightCommand() {
             <CommandItem onSelect={() => handleCommand('candidates')}>
               <Users className="mr-2 h-4 w-4" />
               <span>Candidates</span>
-            </CommandItem>
-            <CommandItem onSelect={() => handleCommand('companies')}>
-              <Building className="mr-2 h-4 w-4" />
-              <span>Companies</span>
             </CommandItem>
             <CommandItem onSelect={() => handleCommand('invites')}>
               <ClipboardList className="mr-2 h-4 w-4" />

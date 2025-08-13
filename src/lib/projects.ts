@@ -330,13 +330,19 @@ export async function fetchProjectsByMonth(year: number, month: number): Promise
 export async function createProject(project: Omit<Project, 'id'>): Promise<Project | null> {
   // logger.debug('[projects.ts] createProject - Function start. Input project data:', { data: JSON.stringify(project, null, 2 }));
   try {
-    // Remove logo_url field which doesn't exist in the database
-    // Keep brand_logo field as it's now added to the database
-    const { logo_url, ...projectWithoutLogo } = project;
+    // Remove fields that don't exist in the database
+    // brand_link is collected in the form but not stored in the database
+    // logo_url is an old field name, brand_logo should be kept
+    const { brand_link, ...projectWithoutExtraFields } = project as any;
+
+    // Ensure 'name' field is set if 'title' is provided (for backward compatibility)
+    if (projectWithoutExtraFields.title && !projectWithoutExtraFields.name) {
+      projectWithoutExtraFields.name = projectWithoutExtraFields.title;
+    }
 
     const { data, error } = await supabase
       .from('projects')
-      .insert([projectWithoutLogo])
+      .insert([projectWithoutExtraFields])
       .select()
       .single();
 

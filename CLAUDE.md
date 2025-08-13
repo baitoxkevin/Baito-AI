@@ -35,139 +35,25 @@
 - Types: feat, fix, docs, style, refactor, test, chore
 - Keep commits focused on single responsibility
 
-## ProjectCard Responsive styles
+## Deployment Workflow
 
-### Original (Desktop) Style:
-```tsx
-<Card className="overflow-hidden border-l-4" style={{ borderLeftColor: project.color }}>
-  <CardHeader className="pb-2">
-    <div className="flex items-start justify-between">
-      <CardTitle className="text-lg font-bold truncate">{project.title}</CardTitle>
-      <div className="flex space-x-2">
-        <Badge className={statusColor}>{project.status}</Badge>
-        <Badge className={priorityColor}>{project.priority}</Badge>
-      </div>
-    </div>
-  </CardHeader>
-  <CardContent className="pb-4 space-y-3">
-    <div className="flex items-center text-sm text-gray-600">
-      <Calendar className="w-4 h-4 mr-2" />
-      {endDate ? `${startDate} - ${endDate}` : startDate}
-    </div>
-    <div className="flex items-center text-sm text-gray-600">
-      <Clock className="w-4 h-4 mr-2" />
-      {project.working_hours_start} - {project.working_hours_end}
-    </div>
-    <div className="flex items-center text-sm text-gray-600">
-      <MapPin className="w-4 h-4 mr-2" />
-      {project.venue_address}
-    </div>
-    <div className="flex items-center text-sm text-gray-600">
-      <Users className="w-4 h-4 mr-2" />
-      <div className="flex space-x-1 items-center">
-        <span className="font-medium">{project.filled_positions}</span>
-        <span>/</span>
-        <span>{project.crew_count} Filled</span>
-      </div>
-    </div>
-  </CardContent>
-  <CardFooter className="pt-0 flex justify-end">
-    <Button variant="outline" size="sm" onClick={() => setEditDialogOpen(true)}>
-      View Details
-    </Button>
-  </CardFooter>
-</Card>
-```
+### IMPORTANT RULES:
+1. **No deployment guides** - Just provide the zip file path
+2. **Clean folder after testing** - Remove all test files after implementation
+3. **Keep project clean** - Delete temporary files, test scripts, and guides
 
-### Responsive Style:
-```tsx
-<Card className="overflow-hidden border-l-4 h-full flex flex-col" style={{ borderLeftColor: project.color }}>
-  <CardHeader className="pb-2">
-    <div className="flex flex-col sm:flex-row items-start justify-between gap-2">
-      <CardTitle className="text-base sm:text-lg font-bold truncate">{project.title}</CardTitle>
-      <div className="flex flex-wrap gap-2">
-        <Badge className={statusColor}>{project.status}</Badge>
-        <Badge className={priorityColor}>{project.priority}</Badge>
-      </div>
-    </div>
-  </CardHeader>
-  <CardContent className="pb-4 space-y-3 flex-grow">
-    <div className="flex items-center text-xs sm:text-sm text-gray-600">
-      <Calendar className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 flex-shrink-0" />
-      <span className="truncate">{endDate ? `${startDate} - ${endDate}` : startDate}</span>
-    </div>
-    <div className="flex items-center text-xs sm:text-sm text-gray-600">
-      <Clock className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 flex-shrink-0" />
-      <span className="truncate">{project.working_hours_start} - {project.working_hours_end}</span>
-    </div>
-    <div className="flex items-center text-xs sm:text-sm text-gray-600">
-      <MapPin className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 flex-shrink-0" />
-      <span className="truncate">{project.venue_address}</span>
-    </div>
-    <div className="flex items-center text-xs sm:text-sm text-gray-600">
-      <Users className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 flex-shrink-0" />
-      <div className="flex space-x-1 items-center">
-        <span className="font-medium">{project.filled_positions}</span>
-        <span>/</span>
-        <span>{project.crew_count} Filled</span>
-      </div>
-    </div>
-  </CardContent>
-  <CardFooter className="pt-0 flex justify-end mt-auto">
-    <Button variant="outline" size="sm" onClick={() => setEditDialogOpen(true)}>
-      View Details
-    </Button>
-  </CardFooter>
-</Card>
-```
+### Standard Deployment Process:
+1. Build: `npm run build`
+2. Copy extras: `cp _headers dist/`
+3. Create zip: `cd dist && zip -r ../netlify-deploy.zip .`
+4. Provide only: "Deployment package ready: `netlify-deploy.zip`"
 
-## Expandable Card Component Integration
-
-### Dependencies:
-```bash
-npm install lucide-react framer-motion @radix-ui/react-slot class-variance-authority @radix-ui/react-label @radix-ui/react-checkbox @radix-ui/react-select @radix-ui/react-switch @radix-ui/react-avatar @radix-ui/react-progress @radix-ui/react-tooltip
-```
-
-### Required Files:
-- `/components/ui/expandable-card.tsx` - Main expandable card component
-- `/components/hooks/use-expandable.ts` - Custom hook for expandable functionality
-- `/components/ui/card.tsx` - ShadCN card component
-- `/components/ui/button.tsx` - ShadCN button component
-- `/components/ui/badge.tsx` - ShadCN badge component
-- `/components/ui/avatar.tsx` - ShadCN avatar component
-- `/components/ui/progress.tsx` - ShadCN progress component
-- `/components/ui/tooltip.tsx` - ShadCN tooltip component
-
-### Usage Example:
-```tsx
-import { ProjectStatusCard } from "@/components/ui/expandable-card"
-
-function ExpandableCardDemo() {
-  return (
-    <div className="grid gap-4 md:grid-cols-2">
-      <ProjectStatusCard
-        title="Design System"
-        progress={100}
-        dueDate="Dec 31, 2023"
-        contributors={[
-          { name: "Emma" },
-          { name: "John" },
-          { name: "Lisa" },
-          { name: "David" }
-        ]}
-        tasks={[
-          { title: "Create Component Library", completed: true },
-          { title: "Implement Design Tokens", completed: true },
-          { title: "Write Style Guide", completed: true },
-          { title: "Set up Documentation", completed: true }
-        ]}
-        githubStars={256}
-        openIssues={0}
-      />
-    </div>
-  )
-}
-```
+### Files to Remove After Testing:
+- Python test scripts (`*test*.py`)
+- Test results (`*.png`, `*.json` from tests)
+- Deployment guides (`NETLIFY_*.md`, `DEPLOY_*.md`)
+- Temporary debug scripts
+- Investigation files
 
 ## Component Development Standards - Standalone Logic
 

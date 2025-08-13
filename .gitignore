@@ -37,3 +37,38 @@ env.production
 
 # MCP config with secrets
 .mcp/config.json
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+ENV/
+env.bak/
+venv.bak/
+
+# MCP Servers (virtual environments)
+mcp-servers/**/.venv/
+mcp-servers/**/venv/
+*.egg-info/
+.eggs/
+
+# Deployment
+netlify-deploy.zip
+netlify-deploy-final.zip
+
+# Test artifacts
+*.png
+*.json
+test-results/
+playwright-report/
+
+# Temporary files
+*.tmp
+*.temp
+tmp/
+temp/

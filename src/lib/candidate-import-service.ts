@@ -239,10 +239,12 @@ export function extractCandidateInfo(text: string): CandidateInfo {
     // Numbered format patterns (matches both with and without numbers)
     numberedName: /(?:1\.?\s*)?(?:\s*)?Full Name(?:\s+as per I\/C)?:([^\n]+)/i,
     email: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/,
-    phone: /(?:Contact (?:no|number)|Phone|Tel):?\s*([^\n]+)/i,
-    phoneBackup: /\b(\+\d{1,2}\s)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}\b/,
+    phone: /(?:Contact (?:no|number)|Phone|Tel|Contact Number|Phone Number|Mobile|H\/P):?\s*([^\n]+)/i,
+    phoneBackup: /\b(?:\+60\s?|\+6\s?0\s?|0)?(?:\d{2,3}[\s.-]?\d{3,4}[\s.-]?\d{3,4}|\d{3,4}[\s.-]?\d{3,4})\b/,
+    malaysianPhone: /(?:\+60|\+6\s?0|0)?\s?(?:1[0-9]|[2-9])\s?[\s.-]?\d{3,4}\s?[\s.-]?\d{3,4}/,
     icNumber: /(?:2\.?\s*)?(?:\s*)?I\/C Number:([^\n]+)/i,
-    address: /(?:Address|Where do you stay|Stay Area|Home Address):?\s*([^\n]+)/i,
+    address: /(?:Address|Where do you stay|Stay Area|Home Address|Location|Area):?\s*([^\n]+)/i,
+    malaysianLocation: /\b(?:Kuala Lumpur|KL|Selangor|Penang|Johor|Melaka|Kedah|Kelantan|Terengganu|Pahang|Perak|Perlis|Sabah|Sarawak|Putrajaya|Cyberjaya|Ampang|Cheras|Puchong|Setapak|Bangsar|Damansara|Subang|Shah Alam|Klang|Petaling Jaya|PJ|Gombak|Kepong|Sentul|Serdang|Kajang|Bangi|Rawang|Seremban|Nilai|Port Dickson|Ipoh|Taiping|Butterworth|Georgetown|Alor Setar|Kota Bharu|Kuantan|JB|Johor Bahru|Muar|Batu Pahat|Kluang|Kota Kinabalu|Kuching|Miri|Sibu)\b/i,
     age: /(?:4\.?\s*)?(?:\s*)?Age:([^\n]+)/i,
     race: /(?:5\.?\s*)?(?:\s*)?Race:([^\n]+)/i,
     tshirtSize: /(?:6\.?\s*)?(?:\s*)?T-Shirt Size:([^\n]+)/i,
@@ -262,7 +264,7 @@ export function extractCandidateInfo(text: string): CandidateInfo {
     workExperience: /Working Experiences? \(List Latest \d+\):\s*([^]*?)(?:\n\n|\n\d+\.|\n[A-Z]|$)/s,
     emceeExperience: /(?:Emcee for[\-:]|Emcee Experience|Working Experience:|Work Experience:|Previous Emcee Events|Masters?[ \-]of[ \-]Ceremonies?)\s*(?:List|Summary|Experience)?[\-:]?\s*([^]*?)(?:\n\n|Latest pictures:|$)/is,
     experience: /(Experience|EXPERIENCE|Work(?:ing)? Experience|WORK(?:ING)? EXPERIENCE|Employment History|EMPLOYMENT HISTORY):?\s*(.*?)(?:\n\n|\n[A-Z]|$)/s,
-    education: /(Education|EDUCATION|Academic Background|ACADEMIC BACKGROUND|Educational Background|Study Background|Background of Study):?\s*(.*?)(?:\n\n|\n[A-Z]|$)/s,
+    education: /(Education|EDUCATION|Academic Background|ACADEMIC BACKGROUND|Educational Background|Study Background|Background of Study|Qualification|Academic Qualification|Educational Qualification|Studies|Academic Studies):?\s*(.*?)(?:\n\n|\n[A-Z]|$)/s,
   };
   
   // Try to extract name using various patterns in order of preference
@@ -297,13 +299,51 @@ export function extractCandidateInfo(text: string): CandidateInfo {
   // Extract phone number from labeled format first, then fall back to regex pattern
   let phone = text.match(PATTERNS.phone)?.[1]?.trim() || '';
   if (!phone) {
-    phone = text.match(PATTERNS.phoneBackup)?.[0] || '';
+    // Try Malaysian phone pattern first
+    phone = text.match(PATTERNS.malaysianPhone)?.[0] || '';
+    if (!phone) {
+      // Fall back to general phone pattern
+      phone = text.match(PATTERNS.phoneBackup)?.[0] || '';
+    }
+  }
+  
+  // Clean up phone number - remove extra spaces and normalize +60
+  if (phone) {
+    phone = phone.trim().replace(/\s+/g, ' ');
+    // If the phone starts with +60 or +6 0, normalize it
+    if (phone.startsWith('+60') || phone.startsWith('+6 0')) {
+      phone = phone.replace(/^\+6\s?0/, '+60');
+    }
   }
   
   // Extract location (try multiple patterns)
   let location = text.match(PATTERNS.address)?.[1]?.trim() || '';
   if (!location) {
     location = text.match(PATTERNS.location)?.[2]?.trim() || '';
+  }
+  
+  // If still no location, try to find Malaysian location names directly
+  if (!location) {
+    const locationMatch = text.match(PATTERNS.malaysianLocation);
+    if (locationMatch) {
+      location = locationMatch[0];
+      
+      // Check if there's more context around the location
+      const locationIndex = text.indexOf(locationMatch[0]);
+      if (locationIndex > 0) {
+        // Get surrounding text for better context (e.g., "123 Jalan ABC, Cyberjaya")
+        const startIndex = Math.max(0, locationIndex - 50);
+        const endIndex = Math.min(text.length, locationIndex + locationMatch[0].length + 50);
+        const surroundingText = text.substring(startIndex, endIndex);
+        
+        // Look for address-like patterns around the location
+        const addressPattern = /[\w\s,.-]+(?:Kuala Lumpur|KL|Selangor|Penang|Johor|Melaka|Kedah|Kelantan|Terengganu|Pahang|Perak|Perlis|Sabah|Sarawak|Putrajaya|Cyberjaya|Ampang|Cheras|Puchong|Setapak|Bangsar|Damansara|Subang|Shah Alam|Klang|Petaling Jaya|PJ|Gombak|Kepong|Sentul|Serdang|Kajang|Bangi|Rawang|Seremban|Nilai|Port Dickson|Ipoh|Taiping|Butterworth|Georgetown|Alor Setar|Kota Bharu|Kuantan|JB|Johor Bahru|Muar|Batu Pahat|Kluang|Kota Kinabalu|Kuching|Miri|Sibu)[\w\s,.-]*/i;
+        const fullAddressMatch = surroundingText.match(addressPattern);
+        if (fullAddressMatch) {
+          location = fullAddressMatch[0].trim();
+        }
+      }
+    }
   }
   
   // Extract IC number using multiple patterns
@@ -428,6 +468,17 @@ export function extractCandidateInfo(text: string): CandidateInfo {
       .map(exp => exp.trim())
       .filter(exp => exp.length > 10);
   }
+  
+  // Clean up experience array - remove any entries that are just "ALL" or contain only "ALL"
+  experience = experience
+    .map(exp => {
+      // If the experience entry starts with "ALL" followed by actual content, keep the content
+      if (exp.toUpperCase().startsWith('ALL ') || exp.toUpperCase().startsWith('ALL:')) {
+        return exp.substring(3).trim();
+      }
+      return exp;
+    })
+    .filter(exp => exp.toUpperCase() !== 'ALL' && exp.length > 10);
   
   // Extract education items
   const educationText = text.match(PATTERNS.education)?.[2] || '';

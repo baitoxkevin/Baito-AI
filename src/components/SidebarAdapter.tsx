@@ -12,7 +12,9 @@ import {
   PenTool as Tool,
   Zap,
   DollarSign,
-  CreditCard
+  CreditCard,
+  Target,
+  Receipt
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { supabase } from '@/lib/supabase';
@@ -362,6 +364,34 @@ export function SidebarAdapter({ children }: SidebarAdapterProps) {
       ),
       "aria-current": location.pathname === "/payments" ? "page" : undefined,
     }] : []),
+    {
+      label: "Expenses",
+      href: "/expenses",
+      icon: <Receipt className="sidebar-link-icon" />,
+      onClick: (e) => {
+        e.preventDefault();
+        handleNavigation("/expenses");
+      },
+      className: cn(
+        "sidebar-link",
+        location.pathname === "/expenses" && "bg-muted"
+      ),
+      "aria-current": location.pathname === "/expenses" ? "page" : undefined,
+    },
+    {
+      label: "Goals",
+      href: "/goals",
+      icon: <Target className="sidebar-link-icon" />,
+      onClick: (e) => {
+        e.preventDefault();
+        handleNavigation("/goals");
+      },
+      className: cn(
+        "sidebar-link",
+        location.pathname === "/goals" && "bg-muted"
+      ),
+      "aria-current": location.pathname === "/goals" ? "page" : undefined,
+    },
     {
       label: "Settings",
       href: "/settings",

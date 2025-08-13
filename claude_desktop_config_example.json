@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "puppeteer": {
+      "command": "node",
+      "args": [
+        "/Users/baito.kevin/Downloads/project 10/mcp-servers/puppeteer-mcp-server/dist/index.js"
+      ],
+      "env": {
+        "PUPPETEER_EXECUTABLE_PATH": "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+        "PUPPETEER_HEADLESS": "false"
+      }
+    }
+  }
+}
