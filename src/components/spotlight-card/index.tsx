@@ -793,8 +793,7 @@ export function SpotlightCard({
                         'staffing',
                         'payroll',
                         'expenses',
-                        'documents',
-                        'history'
+                        'documents'
                       ];
                       const currentIndex = tabs.indexOf(activeTab);
                       let newIndex;
@@ -836,8 +835,7 @@ export function SpotlightCard({
                           { value: 'staffing' },
                           { value: 'payroll' },
                           { value: 'expenses' },
-                          { value: 'documents' },
-                          { value: 'history' }
+                          { value: 'documents' }
                         ];
                         const currentIndex = tabs.findIndex(tab => tab.value === activeTab);
                         const prevIndex = (currentIndex - 1 + tabs.length) % tabs.length;
@@ -862,8 +860,7 @@ export function SpotlightCard({
                           { value: 'staffing' },
                           { value: 'payroll' },
                           { value: 'expenses' },
-                          { value: 'documents' },
-                          { value: 'history' }
+                          { value: 'documents' }
                         ];
                         const currentIndex = tabs.findIndex(tab => tab.value === activeTab);
                         const nextIndex = (currentIndex + 1) % tabs.length;
@@ -1116,7 +1113,7 @@ export function SpotlightCard({
                     )}
                     
                     {activeTab === 'history' && (
-                      <div className="h-full w-full flex">
+                      <div className="h-full bg-white dark:bg-slate-800 rounded-lg overflow-hidden">
                         <CompactHistory projectId={project.id} />
                       </div>
                     )}

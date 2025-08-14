@@ -6,7 +6,7 @@
         "-y",
         "@supabase/mcp-server-supabase@latest",
         "--access-token",
-        "sbp_8a5d6de3b1c2d8c989be89d41829543c168d9e2c"
+        "***REMOVED***"
       ]
     },
     "magicuidesign-mcp": {
@@ -15,7 +15,7 @@
     },
     "21st-dev-magic": {
       "command": "npx",
-      "args": ["-y", "@21st-dev/magic@latest", "API_KEY=\"617d2248835f7742fb97cb1c0e417aeed44ad4a33d871e8e65540879b876b5e2\""]
+      "args": ["-y", "@21st-dev/magic@latest", "API_KEY=\"***REMOVED***\""]
     },
     "context7": {
       "command": "npx",

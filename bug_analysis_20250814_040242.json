@@ -1,0 +1,37 @@
+{
+  "timestamp": "20250814_040242",
+  "url": "http://localhost:5173",
+  "issues": [
+    {
+      "type": "code_quality",
+      "name": "Console Statements",
+      "severity": "low",
+      "count": 17,
+      "fix": "Comment out all console statements"
+    },
+    {
+      "type": "error_handling",
+      "name": "Error Boundaries",
+      "severity": "medium",
+      "count": 3,
+      "fix": "Ensure all major components are wrapped in error boundaries"
+    }
+  ],
+  "total_issues": 2,
+  "severity_breakdown": {
+    "high": 0,
+    "medium": 1,
+    "low": 1
+  },
+  "fixes_applied": [
+    "Commented out console statements",
+    "Created bug-fixes.ts utility library",
+    "Global error boundary implemented"
+  ],
+  "recommendations": [
+    "Use safeMap, safeFilter from bug-fixes.ts for array operations",
+    "Wrap async operations with withTimeout from bug-fixes.ts",
+    "Use retryWithBackoff for critical API calls",
+    "Implement loading states using LoadingStateManager"
+  ]
+}

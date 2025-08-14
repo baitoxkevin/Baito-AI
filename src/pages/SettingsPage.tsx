@@ -9,7 +9,8 @@ import { useToast } from '@/hooks/use-toast';
 import { 
   Loader2, PlusIcon, Edit2, Trash2, Building, Image, AlertCircle,
   User as UserIcon, Briefcase, Mail, Phone, Search, ShieldAlert,
-  RefreshCcw, Database, Users2, Shield, CheckCircle2, Settings
+  RefreshCcw, Database, Users2, Shield, CheckCircle2, Settings,
+  UserPlus
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { 
