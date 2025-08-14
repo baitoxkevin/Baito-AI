@@ -20,6 +20,7 @@ import ProjectDetailPage from '@/pages/ProjectDetailPage';
 import PaymentsPage from '@/pages/PaymentsPage';
 import GoalsPage from '@/pages/GoalsPage';
 import ExpenseClaimsPage from '@/pages/ExpenseClaimsPage';
+import WarehousePage from '@/pages/WarehousePage';
 
 interface MainAppLayoutProps {
   effectActive: boolean;
@@ -48,6 +49,7 @@ const MainAppLayout = ({ effectActive }: MainAppLayoutProps) => {
     if (pathname.startsWith('/payments')) return 'payments';
     if (pathname.startsWith('/goals')) return 'goals';
     if (pathname.startsWith('/expenses')) return 'expenses';
+    if (pathname.startsWith('/warehouse')) return 'warehouse';
     
     return 'dashboard'; // default
   };
@@ -181,6 +183,11 @@ const MainAppLayout = ({ effectActive }: MainAppLayoutProps) => {
           {activeView === 'expenses' && (
             <div style={{ height: '100%' }}>
               <ExpenseClaimsPage />
+            </div>
+          )}
+          {activeView === 'warehouse' && (
+            <div style={{ height: '100%' }}>
+              <WarehousePage />
             </div>
           )}
           {activeView === 'project-detail' && projectId && (

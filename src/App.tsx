@@ -160,6 +160,10 @@ function App() {
             path="/expenses" 
             element={<MainAppLayout effectActive={effectActive} />} 
           />
+          <Route 
+            path="/warehouse" 
+            element={<MainAppLayout effectActive={effectActive} />} 
+          />
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
         </Routes>
         <SpotlightCommand />

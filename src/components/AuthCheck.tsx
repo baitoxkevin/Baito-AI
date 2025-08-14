@@ -15,7 +15,18 @@ export default function AuthCheck() {
 
   const checkAuth = async () => {
     try {
-      const { data: { user }, error } = await supabase.auth.getUser();
+      // Add timeout to auth check
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Auth check timeout')), 5000)
+      );
+      
+      const authPromise = supabase.auth.getUser();
+      
+      const { data: { user }, error } = await Promise.race([
+        authPromise,
+        timeoutPromise
+      ]) as Awaited<typeof authPromise>;
+      
       if (error) throw error;
       
       setIsAuthenticated(!!user);

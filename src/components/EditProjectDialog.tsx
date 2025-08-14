@@ -127,7 +127,7 @@ function SectionCard({
   );
 }
 
-export function EditProjectDialog({
+export default function EditProjectDialog({
   project,
   open,
   onOpenChange,

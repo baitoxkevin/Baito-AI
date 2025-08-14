@@ -1,0 +1,52 @@
+#!/bin/sh
+
+# Secret Detection Pre-commit Hook
+echo "🔍 Scanning for secrets before commit..."
+
+# Check for common secret patterns
+SECRET_PATTERNS=(
+    "sbp_[a-zA-Z0-9]{40}"  # Supabase access token
+    "sk_[a-zA-Z0-9]{32}"    # Secret key pattern
+    "pk_[a-zA-Z0-9]{32}"    # Private key pattern
+    "AIza[0-9A-Za-z\\-_]{35}"  # Google API key
+    "api[_-]?key.*['\"].*['\"]"  # Generic API key
+    "password.*['\"].*['\"]"     # Password patterns
+)
+
+# Files to check
+FILES_TO_CHECK=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(js|ts|tsx|json|env|yml|yaml|sh)$')
+
+if [ -z "$FILES_TO_CHECK" ]; then
+    echo "✅ No files to check"
+    exit 0
+fi
+
+# Check each file for secrets
+FOUND_SECRETS=0
+for file in $FILES_TO_CHECK; do
+    for pattern in "${SECRET_PATTERNS[@]}"; do
+        if grep -E "$pattern" "$file" > /dev/null 2>&1; then
+            echo "⚠️  Potential secret found in $file"
+            echo "   Pattern: $pattern"
+            FOUND_SECRETS=1
+        fi
+    done
+done
+
+# Check specifically for .mcp.json and mcp.json
+if git diff --cached --name-only | grep -E "(\.mcp\.json|mcp\.json)$" > /dev/null; then
+    echo "❌ ERROR: Attempting to commit .mcp.json or mcp.json file!"
+    echo "   These files should never be committed as they contain API keys."
+    echo "   Use .mcp.json.example instead."
+    exit 1
+fi
+
+if [ $FOUND_SECRETS -eq 1 ]; then
+    echo ""
+    echo "❌ Commit blocked: Potential secrets detected!"
+    echo "   Please review the files above and remove any sensitive data."
+    echo "   If this is a false positive, you can bypass with: git commit --no-verify"
+    exit 1
+fi
+
+echo "✅ No secrets detected"

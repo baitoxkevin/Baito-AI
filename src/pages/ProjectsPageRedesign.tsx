@@ -61,7 +61,7 @@ import { MetricCard } from '@/components/ui/metric-card';
 import { SpotlightCard } from '@/components/spotlight-card';
 import { EnhancedMonthDropdown } from '@/components/ui/enhanced-month-dropdown';
 import NewProjectDialog from '@/components/NewProjectDialog';
-// EditProjectDialog removed
+import EditProjectDialog from '@/components/EditProjectDialog';
 import { useProjectsByMonth } from '@/hooks/use-projects';
 import { usePersistentState } from '@/hooks/use-persistent-state';
 import { useToast } from '@/hooks/use-toast';
@@ -75,8 +75,8 @@ export default function ProjectsPageRedesign() {
   const [projects, setProjects] = usePersistentState<Record<number, any[]>>('projects-data', {});
   const [activeMonth, setActiveMonth] = usePersistentState('projects-active-month', new Date().getMonth());
   const [newProjectDialogOpen, setNewProjectDialogOpen] = useState(false);
-  // editDialogOpen removed
-  const [selectedProject] = useState<unknown>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [, setError] = useState<string | null>(null);
   const [useDummyData, setUseDummyData] = usePersistentState('projects-use-dummy', false);
@@ -263,10 +263,10 @@ export default function ProjectsPageRedesign() {
     }
   };
   
-  // Handle view details
-  const handleViewDetails = (project: unknown) => {
+  // Handle view details - opens edit dialog
+  const handleViewDetails = (project: Project) => {
     setSelectedProject(project);
-    // EditProjectDialog removed - no action
+    setEditDialogOpen(true);
   };
   
   // Current month projects with processing
@@ -870,7 +870,15 @@ export default function ProjectsPageRedesign() {
         initialDates={null}
       />
       
-      {/* EditProjectDialog removed */}
+      {/* Edit Project Dialog */}
+      {selectedProject && (
+        <EditProjectDialog
+          project={selectedProject}
+          open={editDialogOpen}
+          onOpenChange={setEditDialogOpen}
+          onProjectUpdated={handleProjectsUpdated}
+        />
+      )}
       
       {/* Delete confirmation dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>

@@ -328,30 +328,30 @@ export default function DashboardPage() {
   const projectStats = useMemo(() => {
     if (projects && projects.length > 0) {
       // For case insensitive comparison since our mock data might have different casing
-      const completed = projects.filter(p => 
+      const completed = (projects || []).filter(p => 
         p.status?.toLowerCase() === 'completed' || 
         p.status?.toLowerCase() === 'complete'
       ).length;
       
-      const inProgress = projects.filter(p => 
+      const inProgress = (projects || []).filter(p => 
         p.status?.toLowerCase() === 'in progress' || 
         p.status?.toLowerCase() === 'in-progress'
       ).length;
       
-      const atRisk = projects.filter(p => 
+      const atRisk = (projects || []).filter(p => 
         p.status?.toLowerCase() === 'at risk' || 
         p.status?.toLowerCase() === 'at-risk' || 
         p.status?.toLowerCase() === 'risk'
       ).length;
       
-      const future = projects.filter(p => 
+      const future = (projects || []).filter(p => 
         p.status?.toLowerCase() === 'planned' || 
         p.status?.toLowerCase() === 'new' || 
         p.status?.toLowerCase() === 'pending'
       ).length;
       
-      const total = projects.length;
-      const completionRate = Math.round((completed / total) * 100);
+      const total = (projects || []).length;
+      const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
       
       return {
         completed,

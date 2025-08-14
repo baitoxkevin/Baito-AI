@@ -21,22 +21,31 @@
       "command": "npx",
       "args": ["-y", "@upstash/context7-mcp"]
     },
+    "playwright": {
+      "command": "npx",
+      "args": ["-y", "@executeautomation/playwright-mcp-server"]
+    },
+    "mindsdb": {
+      "command": "uvx",
+      "args": ["mcp-server-mindsdb"]
+    },
+    "serena": {
+      "command": "uvx",
+      "args": ["mcp-serena"]
+    },
+    "github": {
+      "command": "npx",
+      "args": ["-y", "@github/mcp-server-github"],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "YOUR_GITHUB_TOKEN_HERE"
+      }
+    },
     "vibetest": {
       "command": "/Users/baito.kevin/Downloads/project 10/mcp-servers/vibetest-use/.venv/bin/vibetest-mcp",
       "args": [],
       "env": {
         "GOOGLE_API_KEY": "YOUR_GOOGLE_API_KEY_HERE"
       }
-    },
-    "serena": {
-      "command": "/Users/baito.kevin/Downloads/project 10/mcp-servers/serena/.venv/bin/serena-mcp-server",
-      "args": [
-        "--project",
-        "/Users/baito.kevin/Downloads/project 10",
-        "--context",
-        "ide-assistant"
-      ],
-      "env": {}
     }
   }
 }

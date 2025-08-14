@@ -35,6 +35,7 @@ import { ProjectLocationManager } from '@/components/ProjectLocationManager';
 import {
   Dialog,
   DialogContent,
+  DialogTitle,
 } from "@/components/ui/dialog";
 import {
   Form,
@@ -1793,6 +1794,7 @@ export function NewProjectDialog({
     <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-5xl p-0 h-[90vh] max-h-[800px] flex flex-col overflow-hidden">
+        <DialogTitle className="sr-only">Create Project</DialogTitle>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col h-full" autoComplete="off" noValidate>
             <div className="flex flex-1 overflow-hidden">

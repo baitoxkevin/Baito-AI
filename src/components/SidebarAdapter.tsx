@@ -14,7 +14,8 @@ import {
   DollarSign,
   CreditCard,
   Target,
-  Receipt
+  Receipt,
+  Package
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { supabase } from '@/lib/supabase';
@@ -391,6 +392,20 @@ export function SidebarAdapter({ children }: SidebarAdapterProps) {
         location.pathname === "/goals" && "bg-muted"
       ),
       "aria-current": location.pathname === "/goals" ? "page" : undefined,
+    },
+    {
+      label: "Warehouse",
+      href: "/warehouse",
+      icon: <Package className="sidebar-link-icon" />,
+      onClick: (e) => {
+        e.preventDefault();
+        handleNavigation("/warehouse");
+      },
+      className: cn(
+        "sidebar-link",
+        location.pathname === "/warehouse" && "bg-muted"
+      ),
+      "aria-current": location.pathname === "/warehouse" ? "page" : undefined,
     },
     {
       label: "Settings",
