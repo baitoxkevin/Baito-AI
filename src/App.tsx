@@ -7,13 +7,15 @@ import MainAppLayout from './components/MainAppLayout';
 import { EnhancedToaster } from './components/ui/enhanced-toaster';
 // StaticCandidateUpdatePage was removed
 import ReceiptScannerPage from './pages/ReceiptScannerPage';
-import TestPage from './pages/TestPage';
-import IntegratedStaffingPayrollDemo from './pages/IntegratedStaffingPayrollDemo';
-import PaymentQueueDemo from './pages/PaymentQueueDemo';
-import StaticCandidateUpdatePage from '@/pages/StaticCandidateUpdatePage';
-import MobileCandidateUpdatePage from '@/pages/MobileCandidateUpdatePage';
-import { renderCanvas } from '@/components/ui/canvas';
+import MobileCandidateUpdatePage from './pages/MobileCandidateUpdatePage';
+import CandidateDashboardPage from './pages/CandidateDashboardPage';
+import JobDiscoveryPage from './pages/JobDiscoveryPage'; // Added
+import SetPasswordPage from './pages/SetPasswordPage';
+import TestMultipleLocations from './pages/TestMultipleLocations';
+import LocationFeatureDemo from './pages/LocationFeatureDemo';
+import { renderCanvas } from './components/ui/canvas';
 import { SpotlightCommand } from './components/SpotlightCommand';
+import { GlobalErrorBoundary } from './components/GlobalErrorBoundary';
 
 function App() {
   const [effectActive, setEffectActive] = useState(false);
@@ -78,28 +80,24 @@ function App() {
   }, [effectActive]);
 
   return (
-    <AppStateProvider>
-      <BrowserRouter>
-        <Routes>
+    <GlobalErrorBoundary>
+      <AppStateProvider>
+        <BrowserRouter>
+          <Routes>
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/set-password" element={<SetPasswordPage />} />
           <Route path="/receipt-scanner" element={<ReceiptScannerPage />} />
-          <Route path="/test-button" element={<TestPage />} />
+          <Route path="/job-discovery" element={<JobDiscoveryPage />} /> {/* Added Route */}
+          <Route path="/test-multiple-locations" element={<TestMultipleLocations />} />
+          <Route path="/location-feature-demo" element={<LocationFeatureDemo />} />
           {/* Candidate update routes with secure token */}
-          <Route path="/candidate-update-static/:candidateId" element={<StaticCandidateUpdatePage />} />
           <Route path="/candidate-update-mobile/:candidateId" element={<MobileCandidateUpdatePage />} />
+          <Route path="/candidate/dashboard/:candidateId" element={<CandidateDashboardPage />} />
           <Route path="/candidate-form/:token" element={<Navigate to="/login" replace />} />
           <Route path="/candidate/:token" element={<Navigate to="/login" replace />} />
           <Route 
             path="/dashboard" 
             element={<MainAppLayout effectActive={effectActive} />} 
-          />
-          <Route 
-            path="/staffing-payroll-demo" 
-            element={<IntegratedStaffingPayrollDemo />} 
-          />
-          <Route 
-            path="/payment-queue" 
-            element={<PaymentQueueDemo />} 
           />
           {/* Routes that work both in localhost and production */}
           <Route 
@@ -154,12 +152,25 @@ function App() {
             path="/payments" 
             element={<MainAppLayout effectActive={effectActive} />} 
           />
+          <Route 
+            path="/goals" 
+            element={<MainAppLayout effectActive={effectActive} />} 
+          />
+          <Route 
+            path="/expenses" 
+            element={<MainAppLayout effectActive={effectActive} />} 
+          />
+          <Route 
+            path="/warehouse" 
+            element={<MainAppLayout effectActive={effectActive} />} 
+          />
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
         </Routes>
         <SpotlightCommand />
         <EnhancedToaster />
       </BrowserRouter>
     </AppStateProvider>
+    </GlobalErrorBoundary>
   );
 }
 

@@ -1,13 +1,15 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { MagicCard } from "@/components/ui/magic-card";
 import { NeonGradientCard } from "@/components/ui/neon-gradient-card";
 import { ShineBorder } from "@/components/ui/shine-border";
 import { cn } from "@/lib/utils";
 import type { Project } from '@/lib/types';
 import { statusGradients, priorityColors } from './constants';
+import { EditProjectDetailsDialog } from './EditProjectDetailsDialog';
 import {
   Activity,
   TrendingUp,
@@ -16,14 +18,15 @@ import {
   FileText,
   UserPlus,
   Receipt,
-  CheckCircle
+  CheckCircle,
+  Edit
 } from "lucide-react";
 
 interface SpotlightCardOverviewProps {
   project: Project;
-  tasks: any[];
-  documents: any[];
-  expenseClaims: any[];
+  tasks: unknown[];
+  documents: unknown[];
+  expenseClaims: unknown[];
 }
 
 export function SpotlightCardOverview({ 
@@ -32,12 +35,23 @@ export function SpotlightCardOverview({
   documents, 
   expenseClaims 
 }: SpotlightCardOverviewProps) {
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [currentProject, setCurrentProject] = useState(project);
+
   const recentActivity = [
     { icon: FileText, text: "New document uploaded", time: "2 hours ago", color: "text-blue-500" },
     { icon: UserPlus, text: "Staff member added", time: "5 hours ago", color: "text-green-500" },
     { icon: Receipt, text: "Expense claim submitted", time: "1 day ago", color: "text-purple-500" },
     { icon: CheckCircle, text: "Task completed", time: "2 days ago", color: "text-emerald-500" },
   ];
+
+  useEffect(() => {
+    setCurrentProject(project);
+  }, [project]);
+
+  const handleProjectUpdate = (updatedProject: Project) => {
+    setCurrentProject(updatedProject);
+  };
 
   return (
     <div className="rounded-lg p-6">
@@ -50,10 +64,20 @@ export function SpotlightCardOverview({
           borderRadius={12}
         >
           <CardHeader>
-            <CardTitle className="text-lg font-semibold flex items-center gap-2">
-              <Activity className="h-5 w-5 text-purple-500" />
-              Project Information
-            </CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                <Activity className="h-5 w-5 text-purple-500" />
+                Project Information
+              </CardTitle>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setEditDialogOpen(true)}
+                className="h-8 w-8 p-0"
+              >
+                <Edit className="h-4 w-4" />
+              </Button>
+            </div>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
@@ -62,27 +86,27 @@ export function SpotlightCardOverview({
                 <Badge className={cn(
                   "mt-1",
                   "bg-gradient-to-r",
-                  statusGradients[project.status]
-                )}>{project.status}</Badge>
+                  statusGradients[currentProject.status.toLowerCase().replace(/_/g, '-')] || statusGradients['pending']
+                )}>{currentProject.status.replace(/_/g, '-')}</Badge>
               </div>
               <div>
                 <p className="text-sm text-gray-500">Priority</p>
                 <Badge className={cn(
                   "mt-1",
                   "bg-gradient-to-r",
-                  priorityColors[project.priority]
-                )}>{project.priority}</Badge>
+                  priorityColors[currentProject.priority.toLowerCase()] || priorityColors['medium']
+                )}>{currentProject.priority}</Badge>
               </div>
             </div>
             
             <div>
               <p className="text-sm text-gray-500">Description</p>
-              <p className="text-sm mt-1">{project.description || 'No description available'}</p>
+              <p className="text-sm mt-1">{(currentProject as unknown).description || 'No description available'}</p>
             </div>
             
             <div>
               <p className="text-sm text-gray-500">Event Type</p>
-              <p className="text-sm mt-1">{project.event_type || 'Standard'}</p>
+              <p className="text-sm mt-1">{currentProject.event_type || 'Standard'}</p>
             </div>
           </CardContent>
         </MagicCard>
@@ -106,13 +130,13 @@ export function SpotlightCardOverview({
                 <Users className="h-4 w-4 text-blue-500" />
                 <span className="text-sm">Team Progress</span>
               </div>
-              <span className="font-semibold">{project.filled_positions}/{project.crew_count}</span>
+              <span className="font-semibold">{currentProject.filled_positions}/{currentProject.crew_count}</span>
             </div>
             <div className="relative h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
               <motion.div
                 className="absolute inset-y-0 left-0 bg-gradient-to-r from-blue-500 to-indigo-500"
                 initial={{ width: "0%" }}
-                animate={{ width: `${(project.filled_positions / project.crew_count) * 100}%` }}
+                animate={{ width: `${(currentProject.filled_positions / currentProject.crew_count) * 100}%` }}
                 transition={{ duration: 1, ease: "easeInOut" }}
               />
             </div>
@@ -122,13 +146,13 @@ export function SpotlightCardOverview({
                 <DollarSign className="h-4 w-4 text-green-500" />
                 <span className="text-sm">Budget Utilization</span>
               </div>
-              <span className="font-semibold">${expenseClaims.reduce((sum, claim) => sum + (claim.amount || 0), 0).toLocaleString()}/${project.budget?.toLocaleString()}</span>
+              <span className="font-semibold">${expenseClaims.reduce((sum, claim) => sum + (claim.amount || 0), 0).toLocaleString()}/${currentProject.budget?.toLocaleString()}</span>
             </div>
             <div className="relative h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
               <motion.div
                 className="absolute inset-y-0 left-0 bg-gradient-to-r from-green-500 to-emerald-500"
                 initial={{ width: "0%" }}
-                animate={{ width: `${(expenseClaims.reduce((sum, claim) => sum + (claim.amount || 0), 0) / (project.budget || 1)) * 100}%` }}
+                animate={{ width: `${(expenseClaims.reduce((sum, claim) => sum + (claim.amount || 0), 0) / (currentProject.budget || 1)) * 100}%` }}
                 transition={{ duration: 1, ease: "easeInOut" }}
               />
             </div>
@@ -204,6 +228,13 @@ export function SpotlightCardOverview({
           </CardContent>
         </Card>
       </ShineBorder>
+
+      <EditProjectDetailsDialog
+        project={currentProject}
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        onProjectUpdate={handleProjectUpdate}
+      />
     </div>
   );
 }

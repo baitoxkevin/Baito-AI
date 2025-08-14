@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,21 +7,50 @@ import { Loader2, Mail, Lock } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { signIn } from '@/lib/auth';
 import { Toaster } from '@/components/ui/toaster';
-import { motion } from 'framer-motion';
+
+// Performance monitoring (only in development)
+if (process.env.NODE_ENV === 'development') {
+  import('../utils/performance-test').then(module => {
+    if (window.location.pathname === '/login') {
+      module.runLoginPagePerformanceTest();
+    }
+  }).catch(console.error);
+}
 
 const LOGO_URL = "https://i.postimg.cc/28D4j6hk/Submark-Alternative-Colour.png";
+
+// Preload logo for better performance
+if (typeof window !== 'undefined') {
+  const link = document.createElement('link');
+  link.rel = 'preload';
+  link.as = 'image';
+  link.href = LOGO_URL;
+  document.head.appendChild(link);
+}
 
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [showContent, setShowContent] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  const handleLogin = async (e: React.FormEvent) => {
+  // Show content after minimal delay to prevent flash
+  useEffect(() => {
+    const timer = requestAnimationFrame(() => {
+      setShowContent(true);
+    });
+    return () => cancelAnimationFrame(timer);
+  }, []);
+
+  // Memoized validation for better performance
+  const isFormValid = useMemo(() => email && password && !isLoading, [email, password, isLoading]);
+
+  const handleLogin = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isLoading || !email || !password) return;
+    if (!isFormValid) return;
     
     setIsLoading(true);
 
@@ -29,17 +58,17 @@ export default function LoginPage() {
       const { user } = await signIn(email, password);
       
       if (user) {
-        // Navigate immediately
+        // Navigate immediately for perceived performance
         navigate('/dashboard');
         
         // Show toast after navigation (non-blocking)
-        setTimeout(() => {
+        requestAnimationFrame(() => {
           toast({
             title: 'Welcome back!',
             description: 'Successfully signed in',
             duration: 2000,
           });
-        }, 100);
+        });
       }
     } catch (error) {
       console.error('Sign in error:', error);
@@ -56,68 +85,70 @@ export default function LoginPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [email, password, isFormValid, navigate, toast]);
+
+  // Optimized input handlers
+  const handleEmailChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setEmail(e.target.value);
+  }, []);
+
+  const handlePasswordChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setPassword(e.target.value);
+  }, []);
+
+  const togglePasswordVisibility = useCallback(() => {
+    setShowPassword(prev => !prev);
+  }, []);
 
   // Handle Enter key press
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && email && password && !isLoading) {
+  const handleKeyPress = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && isFormValid) {
       handleLogin(e as any);
     }
-  };
+  }, [isFormValid, handleLogin]);
 
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
       <Toaster />
       
-      {/* Background decoration */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-purple-300 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob" />
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-blue-300 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob animation-delay-2000" />
-        <div className="absolute top-40 left-40 w-80 h-80 bg-pink-300 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob animation-delay-4000" />
-      </div>
+      {/* Background decoration - only render when visible */}
+      {showContent && (
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute -top-40 -right-40 w-80 h-80 bg-purple-300 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob will-change-transform" />
+          <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-blue-300 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob animation-delay-2000 will-change-transform" />
+          <div className="absolute top-40 left-40 w-80 h-80 bg-pink-300 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob animation-delay-4000 will-change-transform" />
+        </div>
+      )}
       
       {/* Centered container - using absolute positioning for perfect centering */}
       <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-full max-w-lg px-4">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-10"
+        <div
+          className={`bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-10 transition-all duration-300 ${showContent ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
         >
           {/* Logo */}
-          <motion.div
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
-            className="flex justify-center mb-10"
-          >
+          <div className="flex justify-center mb-10">
             <img
               src={LOGO_URL}
-              className="h-20 w-20 rounded-full object-cover shadow-lg"
+              className={`h-20 w-20 rounded-full object-cover shadow-lg transition-transform duration-500 ${showContent ? 'scale-100' : 'scale-0'}`}
               alt="BaitoAI Labs"
+              loading="eager"
+              decoding="async"
+              fetchPriority="high"
             />
-          </motion.div>
+          </div>
           
           {/* Title */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.3 }}
-            className="text-center mb-10"
-          >
+          <div className="text-center mb-10">
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
               Welcome back
             </h1>
             <p className="text-gray-600 dark:text-gray-400 text-base">
               Sign in to your account to continue
             </p>
-          </motion.div>
+          </div>
 
           {/* Form */}
-          <motion.form
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.4 }}
+          <form
             onSubmit={handleLogin}
             className="space-y-6"
           >
@@ -132,8 +163,9 @@ export default function LoginPage() {
                   type="email"
                   placeholder="admin@example.com"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={handleEmailChange}
                   onKeyPress={handleKeyPress}
+                  autoComplete="email"
                   className="pl-12 h-12 text-base bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   autoFocus
                   required
@@ -152,15 +184,17 @@ export default function LoginPage() {
                   type={showPassword ? "text" : "password"}
                   placeholder="••••••••"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={handlePasswordChange}
                   onKeyPress={handleKeyPress}
+                  autoComplete="current-password"
                   className="pl-12 pr-12 h-12 text-base bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   required
                 />
                 <button
                   type="button"
-                  onClick={() => setShowPassword(!showPassword)}
+                  onClick={togglePasswordVisibility}
                   className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 focus:outline-none"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
                 >
                   {showPassword ? (
                     <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -180,7 +214,7 @@ export default function LoginPage() {
               <Button 
                 type="submit" 
                 className="w-full h-12 text-base bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-medium shadow-md hover:shadow-lg transform transition-all duration-200 hover:-translate-y-0.5" 
-                disabled={isLoading}
+                disabled={!isFormValid}
               >
                 {isLoading ? (
                   <>
@@ -192,44 +226,49 @@ export default function LoginPage() {
                 )}
               </Button>
             </div>
-          </motion.form>
+          </form>
 
           {/* Enter key hint */}
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.5 }}
-            className="mt-8 text-center text-xs text-gray-500 dark:text-gray-400"
-          >
+          <p className="mt-8 text-center text-xs text-gray-500 dark:text-gray-400">
             Press Enter to sign in
-          </motion.p>
-        </motion.div>
+          </p>
+        </div>
       </div>
 
-      {/* Animations */}
-      <style jsx>{`
+      {/* Optimized animations with GPU acceleration */}
+      <style>{`
         @keyframes blob {
           0% {
-            transform: translate(0px, 0px) scale(1);
+            transform: translate3d(0px, 0px, 0) scale(1);
           }
           33% {
-            transform: translate(30px, -50px) scale(1.1);
+            transform: translate3d(30px, -50px, 0) scale(1.1);
           }
           66% {
-            transform: translate(-20px, 20px) scale(0.9);
+            transform: translate3d(-20px, 20px, 0) scale(0.9);
           }
           100% {
-            transform: translate(0px, 0px) scale(1);
+            transform: translate3d(0px, 0px, 0) scale(1);
           }
         }
         .animate-blob {
           animation: blob 7s infinite;
+          backface-visibility: hidden;
+          perspective: 1000px;
         }
         .animation-delay-2000 {
           animation-delay: 2s;
         }
         .animation-delay-4000 {
           animation-delay: 4s;
+        }
+        .will-change-transform {
+          will-change: transform;
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .animate-blob {
+            animation: none;
+          }
         }
       `}</style>
     </div>

@@ -729,3 +729,53 @@ export async function saveProjectChangeContext(
     throw error;
   }
 }
+
+// Get list of months with data - used to dynamically detect which months have projects
+export async function fetchMonthsWithData(year: number): Promise<number[]> {
+  try {
+    const startOfYear = new Date(year, 0, 1).toISOString();
+    const endOfYear = new Date(year, 11, 31, 23, 59, 59).toISOString();
+    
+    // Simplified query: get all projects with start dates in the specified year
+    const { data, error } = await supabase
+      .from('projects')
+      .select('start_date, end_date')
+      .is('deleted_at', null)
+      .gte('start_date', startOfYear)
+      .lte('start_date', endOfYear);
+    
+    if (error) {
+      console.error('Error fetching months with data:', error);
+      throw new Error(error.message);
+    }
+    
+    if (!data || data.length === 0) {
+      return [];
+    }
+    
+    // Collect all months with projects
+    const monthsSet = new Set<number>();
+    
+    data.forEach(project => {
+      const startDate = new Date(project.start_date);
+      const endDate = project.end_date ? new Date(project.end_date) : startDate;
+      
+      // Check all months covered by the project
+      const currentDate = new Date(startDate);
+      while (currentDate <= endDate) {
+        if (currentDate.getFullYear() === year) {
+          monthsSet.add(currentDate.getMonth());
+        }
+        // Move to first day of next month
+        currentDate.setMonth(currentDate.getMonth() + 1, 1);
+        if (currentDate.getFullYear() > year) break;
+      }
+    });
+    
+    return Array.from(monthsSet).sort((a, b) => a - b);
+  } catch (error) {
+    console.error('Error in fetchMonthsWithData:', error);
+    // If error occurs, return current month
+    return [new Date().getMonth()];
+  }
+}

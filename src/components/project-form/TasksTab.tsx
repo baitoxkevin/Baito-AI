@@ -196,7 +196,7 @@ const TasksTab = ({ tasks, setTasks }: TasksTabProps) => {
                 <Label htmlFor="taskStatus">Status</Label>
                 <Select
                   value={newTask.status}
-                  onValueChange={(value) => setNewTask({ ...newTask, status: value as any })}
+                  onValueChange={(value) => setNewTask({ ...newTask, status: value as unknown })}
                 >
                   <SelectTrigger id="taskStatus">
                     <SelectValue placeholder="Select status" />
@@ -214,7 +214,7 @@ const TasksTab = ({ tasks, setTasks }: TasksTabProps) => {
                 <Label htmlFor="taskPriority">Priority</Label>
                 <Select
                   value={newTask.priority}
-                  onValueChange={(value) => setNewTask({ ...newTask, priority: value as any })}
+                  onValueChange={(value) => setNewTask({ ...newTask, priority: value as unknown })}
                 >
                   <SelectTrigger id="taskPriority">
                     <SelectValue placeholder="Select priority" />

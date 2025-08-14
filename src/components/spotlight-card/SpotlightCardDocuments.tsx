@@ -11,6 +11,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { HoverPreview } from "@/components/ui/hover-preview";
 import { DocumentTextPreview } from "@/components/DocumentTextPreview";
 import { cn } from "@/lib/utils";
+import { logger } from '../../lib/logger';
 import {
   FileText,
   Download,
@@ -41,7 +42,7 @@ import {
 } from "@/components/ui/alert-dialog";
 
 interface SpotlightCardDocumentsProps {
-  documents: any[];
+  documents: unknown[];
   documentsView: 'table' | 'grid';
   setDocumentsView: (view: 'table' | 'grid') => void;
   onShowUploadDialog: () => void;
@@ -49,7 +50,7 @@ interface SpotlightCardDocumentsProps {
 }
 
 // Helper function to determine file type and return appropriate icon
-const getFileIcon = (fileType: string, doc?: any) => {
+const getFileIcon = (fileType: string, doc?: unknown) => {
   // Check if this is an external link (Google Drive)
   if (doc?.is_external || doc?.external_type) {
     // Handle Google Drive document types
@@ -96,14 +97,14 @@ const getFileIcon = (fileType: string, doc?: any) => {
 };
 
 // Component to render file icon
-const renderFileIcon = (doc: any) => {
+const renderFileIcon = (doc: unknown) => {
   const fileType = doc.metadata?.type || doc.type || doc.file_type;
   const { icon: Icon, color } = getFileIcon(fileType, doc);
   return <Icon className={cn("h-6 w-6", color)} />;
 };
 
 // Helper function to render appropriate preview based on file type
-const renderPreview = (doc: any) => {
+const renderPreview = (doc: unknown) => {
   const fileType = doc.metadata?.type || doc.type || doc.file_type;
   const fileUrl = doc.file_url;
   const isExternalLink = doc.is_external || doc.external_type;
@@ -268,7 +269,7 @@ export function SpotlightCardDocuments({
   const [isDeleting, setIsDeleting] = useState(false);
   
   // Handle document download or opening link
-  const handleDownload = (doc: any) => {
+  const handleDownload = (doc: unknown) => {
     // For Google Drive links, just open the URL in a new tab
     if (doc.is_external && doc.external_url) {
       window.open(doc.external_url, '_blank');
@@ -318,7 +319,7 @@ export function SpotlightCardDocuments({
       // Close the dialog
       setDeletingDocument(null);
     } catch (error) {
-      console.error('Error deleting document:', error);
+      logger.error('Error deleting document:', error);
       toast({
         title: "Delete Failed",
         description: "There was an error deleting the document.",
@@ -389,7 +390,7 @@ export function SpotlightCardDocuments({
                     side="right"
                     onAction={(type, id) => {
                       if (type === 'download') handleDownload(doc);
-                      if (type === 'view') console.log('View document details', id);
+                      // if (type === 'view') logger.debug('View document details', { data: id });
                     }}
                   >
                     <span className="hover:text-blue-600 hover:underline truncate inline-block max-w-[200px]">
@@ -492,7 +493,7 @@ export function SpotlightCardDocuments({
                     side="right"
                     onAction={(type, id) => {
                       if (type === 'download') handleDownload(doc);
-                      if (type === 'view') console.log('View document details', id);
+                      // if (type === 'view') logger.debug('View document details', { data: id });
                     }}
                   >
                     <p className="font-medium text-sm truncate w-full hover:text-blue-600 hover:underline">

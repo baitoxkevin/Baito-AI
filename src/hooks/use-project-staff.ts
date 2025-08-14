@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 
+import { logger } from '../lib/logger';
 export function useProjectStaff(projectId: string, isActive: boolean = true) {
-  const [staffDetails, setStaffDetails] = useState<any[]>([]);
+  const [staffDetails, setStaffDetails] = useState<unknown[]>([]);
   const [loadingStaff, setLoadingStaff] = useState(false);
   const { toast } = useToast();
   
@@ -56,7 +57,7 @@ export function useProjectStaff(projectId: string, isActive: boolean = true) {
         
         setStaffDetails(staffWithDetails);
       } catch (error) {
-        console.error('Error fetching staff details:', error);
+        logger.error('Error fetching staff details:', error);
         toast({
           title: "Error",
           description: "Failed to load staff details",

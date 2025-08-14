@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { logger } from '../lib/logger';
 import { 
   Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle 
 } from '@/components/ui/card';
@@ -18,8 +19,8 @@ import { format } from 'date-fns';
 import { AlertCircle, Check, ChevronDown, CreditCard, FileText, MoreHorizontal, X } from 'lucide-react';
 import { ExpenseClaimDetailsDialog } from './ExpenseClaimDetailsDialog';
 import { HoverPreview } from '@/components/ui/hover-preview';
-import { DocumentTextPreview } from '@/components/DocumentTextPreview';
-import { ScrollArea } from '@/components/ui/scroll-area';
+// import { DocumentTextPreview } from '@/components/DocumentTextPreview';
+// import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface ExpenseClaimsListProps {
   title?: string;
@@ -60,7 +61,7 @@ export function ExpenseClaimsList({
 
   const [selectedClaimId, setSelectedClaimId] = useState<string | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
-  const [claimReceipts, setClaimReceipts] = useState<Record<string, any[]>>({});
+  const [claimReceipts, setClaimReceipts] = useState<Record<string, unknown[]>>({});
   const [loadingReceipts, setLoadingReceipts] = useState<Record<string, boolean>>({});
 
   // Format currency
@@ -76,8 +77,8 @@ export function ExpenseClaimsList({
     if (!dateString) return 'N/A';
     try {
       return format(new Date(dateString), 'MMM d, yyyy');
-    } catch (error) {
-      console.warn('Invalid date format:', dateString);
+    } catch (_error) {
+      // logger.warn('Invalid date format:', dateString);
       return 'Invalid Date';
     }
   };
@@ -139,7 +140,7 @@ export function ExpenseClaimsList({
       const { receipts } = await loadClaim(claimId);
       setClaimReceipts(prev => ({ ...prev, [claimId]: receipts || [] }));
     } catch (error) {
-      console.error('Failed to load receipts:', error);
+      logger.error('Failed to load receipts:', error);
       setClaimReceipts(prev => ({ ...prev, [claimId]: [] }));
     } finally {
       setLoadingReceipts(prev => ({ ...prev, [claimId]: false }));
@@ -157,7 +158,7 @@ export function ExpenseClaimsList({
       }
       fetchClaims();
     } catch (error) {
-      console.error('Failed to approve claim:', error);
+      logger.error('Failed to approve claim:', error);
       throw error; // Re-throw to let the dialog handle it
     }
   };
@@ -173,7 +174,7 @@ export function ExpenseClaimsList({
       }
       fetchClaims();
     } catch (error) {
-      console.error('Failed to reject claim:', error);
+      logger.error('Failed to reject claim:', error);
       throw error; // Re-throw to let the dialog handle it
     }
   };

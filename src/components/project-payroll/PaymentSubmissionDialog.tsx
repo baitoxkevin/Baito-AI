@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
+import { logger } from '../../lib/logger';
 import {
   Dialog,
   DialogContent,
@@ -36,6 +37,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 import { logUtils } from '@/lib/activity-logger';
+import { supabase } from '@/lib/supabase';
 import { 
   Calendar as CalendarIcon,
   Building2,
@@ -75,7 +77,7 @@ export interface StaffPaymentSummary {
   amount: number;
   totalDays?: number;
   workingDates?: string[];
-  payrollDetails?: Record<string, any>;
+  payrollDetails?: Record<string, unknown>;
 }
 
 export interface PaymentSubmissionDialogProps {
@@ -146,8 +148,16 @@ export function PaymentSubmissionDialog({
   // Handle form submission
   const handleSubmit = async () => {
     try {
-      // Generate batch reference
-      const tempBatchRef = generateBatchReference(projectId);
+      // Fetch existing batch references for this project
+      const { data: existingBatches } = await supabase
+        .from('payment_batches')
+        .select('batch_reference')
+        .eq('project_id', projectId);
+      
+      const existingReferences = existingBatches?.map(b => b.batch_reference) || [];
+      
+      // Generate batch reference using project name
+      const tempBatchRef = generateBatchReference(projectName, existingReferences);
       setBatchReference(tempBatchRef);
       
       // Log payment submission initiation
@@ -161,7 +171,7 @@ export function PaymentSubmissionDialog({
       // Move to confirmation step
       setStep('confirm');
     } catch (error) {
-      console.error('Error in form submission:', error);
+      logger.error('Error in form submission:', error);
       setSubmissionError(error.message || 'An unexpected error occurred');
       setStep('error');
     }
@@ -170,6 +180,13 @@ export function PaymentSubmissionDialog({
   // Handle actual payment submission to API
   const handleConfirmSubmission = async () => {
     try {
+      // Validate bank details before submission
+      if (staffWithMissingBankDetails.length > 0) {
+        setSubmissionError(`Cannot proceed: ${staffWithMissingBankDetails.length} staff member(s) have missing bank details`);
+        setStep('error');
+        return;
+      }
+      
       setStep('processing');
       
       // Submit payment batch
@@ -190,7 +207,11 @@ export function PaymentSubmissionDialog({
             phone: staff.phone
           }
         })),
-        null, // No company details
+        {
+          name: companyName || 'N/A',
+          registrationNumber: companyRegistrationNumber || 'N/A',
+          bankAccount: companyBankAccount || 'N/A'
+        },
         paymentMethod,
         notes
       );
@@ -226,7 +247,7 @@ export function PaymentSubmissionDialog({
         description: `Payment batch ${batchReference} has been submitted successfully`,
       });
     } catch (error) {
-      console.error('Error submitting payment:', error);
+      logger.error('Error submitting payment:', error);
       setSubmissionError(error.message || 'An unexpected error occurred');
       setStep('error');
       
@@ -278,7 +299,7 @@ export function PaymentSubmissionDialog({
         setTimeout(() => setHasCopiedBatchId(false), 2000);
       })
       .catch(err => {
-        console.error('Failed to copy batch ID:', err);
+        logger.error('Failed to copy batch ID:', err);
       });
   };
   
@@ -734,7 +755,7 @@ export function PaymentSubmissionDialog({
               <Button 
                 className="bg-blue-600 hover:bg-blue-700"
                 onClick={handleSubmit}
-                disabled={!companyName || !companyRegistrationNumber || !companyBankAccount}
+                disabled={false}
               >
                 Continue
               </Button>

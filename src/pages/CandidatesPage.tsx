@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Table,
   TableBody,
@@ -10,7 +11,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { PlusIcon, Search, Loader2, Star, Car, X, FileText, UserPlus, Upload, Share2, Check, Flag, AlertTriangle, ArrowUp, ArrowDown, Filter } from 'lucide-react';
+import { PlusIcon, Search, Loader2, Star, Car, X, FileText, UserPlus, Upload, Share2, Check, Flag, AlertTriangle, ArrowUp, ArrowDown, Filter, Users, TrendingUp, Award, Activity } from 'lucide-react';
 import {
   Tooltip,
   TooltipContent,
@@ -29,11 +30,19 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { CandidateActionButton } from '../../CandidateActionButton';
 
 const loyaltyTierColors = {
-  bronze: 'bg-orange-500/10 text-orange-500',
-  silver: 'bg-slate-500/10 text-slate-500',
-  gold: 'bg-yellow-500/10 text-yellow-500',
-  platinum: 'bg-purple-500/10 text-purple-500',
-  diamond: 'bg-blue-500/10 text-blue-500',
+  bronze: 'bg-gradient-to-r from-orange-500/20 to-orange-400/10 text-orange-600 border-orange-200',
+  silver: 'bg-gradient-to-r from-slate-500/20 to-slate-400/10 text-slate-600 border-slate-200',
+  gold: 'bg-gradient-to-r from-yellow-500/20 to-yellow-400/10 text-yellow-600 border-yellow-200',
+  platinum: 'bg-gradient-to-r from-purple-500/20 to-purple-400/10 text-purple-600 border-purple-200',
+  diamond: 'bg-gradient-to-r from-blue-500/20 to-cyan-400/10 text-blue-600 border-blue-200',
+} as const;
+
+const loyaltyTierEmojis = {
+  bronze: '🥉',
+  silver: '🥈',
+  gold: '🥇',
+  platinum: '💎',
+  diamond: '💠',
 } as const;
 
 export default function CandidatesPage() {
@@ -250,84 +259,198 @@ export default function CandidatesPage() {
     );
   }
 
+  // Calculate stats for the cards
+  const availableCandidates = candidates.filter(c => (c.current_projects_count || 0) === 0).length;
+  const topPerformers = candidates.filter(c => c.performance_metrics?.avg_rating && c.performance_metrics.avg_rating >= 4.5).length;
+  const activeProjects = candidates.reduce((sum, c) => sum + (c.current_projects_count || 0), 0);
+  const withVehicles = candidates.filter(c => c.has_vehicle).length;
+
   return (
-    <div className="flex flex-col flex-1 p-2 sm:p-4 rounded-none md:rounded-tl-2xl border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
-        <div className="flex items-center gap-2">
-          <h1 className="text-xl font-semibold">Candidates</h1>
-          <Badge variant="secondary" className="ml-2">
-            {candidates.length}
+    <div className="flex flex-col flex-1 p-2 sm:p-6 rounded-none md:rounded-tl-2xl bg-gradient-to-br from-slate-50 via-white to-blue-50/30 dark:from-neutral-900 dark:via-neutral-900 dark:to-blue-950/20 min-h-screen">
+      {/* Glass Morphism Header */}
+      <motion.div 
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 p-6 rounded-2xl bg-white/70 dark:bg-neutral-900/70 backdrop-blur-xl border border-white/20 dark:border-neutral-700/30 shadow-lg"
+      >
+        <div className="flex items-center gap-3">
+          <div className="p-3 rounded-xl bg-gradient-to-br from-blue-500 to-purple-500 shadow-lg">
+            <Users className="h-6 w-6 text-white" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold bg-gradient-to-r from-slate-900 to-slate-700 dark:from-white dark:to-slate-300 bg-clip-text text-transparent">Candidates</h1>
+            <p className="text-sm text-slate-600 dark:text-slate-400">Manage your talent pipeline</p>
+          </div>
+          <Badge variant="secondary" className="ml-2 bg-gradient-to-r from-blue-100 to-purple-100 dark:from-blue-900/30 dark:to-purple-900/30 text-blue-700 dark:text-blue-300 border-0">
+            <Activity className="h-3 w-3 mr-1" />
+            {candidates.length} Total
           </Badge>
         </div>
         
         <div className="flex gap-2">
-          <Button 
-            variant={activeTab === "candidates" ? "default" : "outline"}
-            className="flex items-center gap-1"
-            onClick={() => setActiveTab("candidates")}
-            size="sm"
-          >
-            <UserPlus className="h-4 w-4" />
-            <span className="hidden sm:inline">Manage</span>
-          </Button>
-          <Button 
-            variant={activeTab === "import" ? "default" : "outline"}
-            className="flex items-center gap-1"
-            onClick={() => setActiveTab("import")}
-            size="sm"
-          >
-            <Upload className="h-4 w-4" />
-            <span className="hidden sm:inline">Import</span>
-          </Button>
+          <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+            <Button 
+              variant={activeTab === "candidates" ? "default" : "outline"}
+              className={`flex items-center gap-1 transition-all duration-300 ${activeTab === "candidates" ? 'bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 border-0 shadow-lg' : ''}`}
+              onClick={() => setActiveTab("candidates")}
+              size="sm"
+            >
+              <UserPlus className="h-4 w-4" />
+              <span className="hidden sm:inline">Manage</span>
+            </Button>
+          </motion.div>
+          <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+            <Button 
+              variant={activeTab === "import" ? "default" : "outline"}
+              className={`flex items-center gap-1 transition-all duration-300 ${activeTab === "import" ? 'bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 border-0 shadow-lg' : ''}`}
+              onClick={() => setActiveTab("import")}
+              size="sm"
+            >
+              <Upload className="h-4 w-4" />
+              <span className="hidden sm:inline">Import</span>
+            </Button>
+          </motion.div>
         </div>
-      </div>
+      </motion.div>
       
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.1 }}
+          className="p-6 rounded-2xl bg-gradient-to-br from-blue-500/10 to-cyan-500/10 border border-blue-200/50 dark:border-blue-800/50 backdrop-blur-sm"
+        >
+          <div className="flex items-center justify-between mb-2">
+            <UserPlus className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+            <TrendingUp className="h-4 w-4 text-green-500" />
+          </div>
+          <p className="text-2xl font-bold text-slate-900 dark:text-white">{availableCandidates}</p>
+          <p className="text-sm text-slate-600 dark:text-slate-400">Available Now</p>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.2 }}
+          className="p-6 rounded-2xl bg-gradient-to-br from-purple-500/10 to-pink-500/10 border border-purple-200/50 dark:border-purple-800/50 backdrop-blur-sm"
+        >
+          <div className="flex items-center justify-between mb-2">
+            <Star className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+            <Badge className="text-xs bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300">4.5+</Badge>
+          </div>
+          <p className="text-2xl font-bold text-slate-900 dark:text-white">{topPerformers}</p>
+          <p className="text-sm text-slate-600 dark:text-slate-400">Top Performers</p>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.3 }}
+          className="p-6 rounded-2xl bg-gradient-to-br from-green-500/10 to-emerald-500/10 border border-green-200/50 dark:border-green-800/50 backdrop-blur-sm"
+        >
+          <div className="flex items-center justify-between mb-2">
+            <Activity className="h-5 w-5 text-green-600 dark:text-green-400" />
+            <span className="text-xs font-medium text-green-600 dark:text-green-400">Active</span>
+          </div>
+          <p className="text-2xl font-bold text-slate-900 dark:text-white">{activeProjects}</p>
+          <p className="text-sm text-slate-600 dark:text-slate-400">Active Projects</p>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.4 }}
+          className="p-6 rounded-2xl bg-gradient-to-br from-amber-500/10 to-orange-500/10 border border-amber-200/50 dark:border-amber-800/50 backdrop-blur-sm"
+        >
+          <div className="flex items-center justify-between mb-2">
+            <Car className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+            <Award className="h-4 w-4 text-amber-500" />
+          </div>
+          <p className="text-2xl font-bold text-slate-900 dark:text-white">{withVehicles}</p>
+          <p className="text-sm text-slate-600 dark:text-slate-400">With Vehicles</p>
+        </motion.div>
+      </div>
+
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsContent value="candidates" className="mt-0">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
-            <div className="flex-1 relative w-full">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <TabsContent value="candidates" className="mt-0 space-y-4">
+          {/* Enhanced Search Bar */}
+          <motion.div 
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.5 }}
+            className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-6 rounded-2xl bg-white/70 dark:bg-neutral-900/70 backdrop-blur-xl border border-white/20 dark:border-neutral-700/30 shadow-lg"
+          >
+            <div className="flex-1 relative w-full group">
+              <div className="absolute left-3 top-1/2 transform -translate-y-1/2 transition-all duration-300 group-focus-within:text-blue-500">
+                <Search className="h-5 w-5" />
+                <div className="absolute inset-0 bg-gradient-to-r from-blue-400 to-purple-400 blur-lg opacity-0 group-focus-within:opacity-50 transition-opacity duration-300" />
+              </div>
               <Input
-                placeholder="Search candidates..."
+                placeholder="Search by name, email, or phone..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 w-full"
+                className="pl-10 pr-10 h-12 text-base bg-white/50 dark:bg-neutral-800/50 border-slate-200/50 dark:border-neutral-700/50 focus:border-blue-500 dark:focus:border-blue-400 transition-all duration-300 rounded-xl"
               />
+              {searchQuery && (
+                <motion.button
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.8 }}
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors duration-200"
+                >
+                  <X className="h-4 w-4" />
+                </motion.button>
+              )}
             </div>
-            <Button 
-              className="w-full sm:w-auto"
-              onClick={() => setNewDialogOpen(true)}
-            >
-              <PlusIcon className="h-4 w-4 mr-2" />
-              Add Candidate
-            </Button>
-          </div>
+            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+              <Button 
+                className="w-full sm:w-auto bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 border-0 shadow-lg text-white"
+                onClick={() => setNewDialogOpen(true)}
+              >
+                <PlusIcon className="h-4 w-4 mr-2" />
+                Add Candidate
+              </Button>
+            </motion.div>
+          </motion.div>
 
-          <div className="bg-background rounded-md border border-slate-200 dark:border-slate-700 overflow-hidden shadow-sm">
+          {/* Enhanced Table with Glass Morphism */}
+          <motion.div 
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.6 }}
+            className="bg-white/70 dark:bg-neutral-900/70 backdrop-blur-xl rounded-2xl border border-white/20 dark:border-neutral-700/30 shadow-lg overflow-hidden"
+          >
             <Table className="w-full border-collapse">
-              <TableHeader className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-700">
+              <TableHeader className="bg-gradient-to-r from-slate-50 to-blue-50/30 dark:from-slate-800/50 dark:to-blue-900/20 border-b border-slate-200/50 dark:border-slate-700/50">
                 <TableRow>
                   <TableHead
-                    className="font-semibold w-[24%] text-slate-900 dark:text-slate-200 pl-6 py-4 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                    className="font-semibold w-[24%] text-slate-900 dark:text-slate-200 pl-6 py-5 cursor-pointer hover:bg-slate-100/50 dark:hover:bg-slate-800/50 transition-all duration-200 group"
                     onClick={() => {
                       setSortField('name');
                       setSortDirection(prev => sortField === 'name' ? (prev === 'asc' ? 'desc' : 'asc') : 'asc');
                     }}
                   >
                     <div className="flex items-center">
-                      <span>Candidate</span>
+                      <span className="group-hover:text-blue-600 transition-colors duration-200">Candidate</span>
                       {sortField === 'name' && (
-                        <span className="ml-1">
+                        <motion.span 
+                          initial={{ scale: 0 }}
+                          animate={{ scale: 1 }}
+                          className="ml-1"
+                        >
                           {sortDirection === 'asc'
-                            ? <ArrowUp className="h-3 w-3 text-blue-500" />
-                            : <ArrowDown className="h-3 w-3 text-blue-500" />}
-                        </span>
+                            ? <ArrowUp className="h-3 w-3 text-blue-500 animate-bounce" />
+                            : <ArrowDown className="h-3 w-3 text-blue-500 animate-bounce" />}
+                        </motion.span>
                       )}
                     </div>
                   </TableHead>
-                  <TableHead className="font-semibold w-[22%] text-slate-900 dark:text-slate-200 py-4">Info</TableHead>
+                  <TableHead className="font-semibold w-[22%] text-slate-900 dark:text-slate-200 py-5">Info</TableHead>
                   <TableHead
-                    className="font-semibold w-[22%] text-slate-900 dark:text-slate-200 py-4 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                    className="font-semibold w-[22%] text-slate-900 dark:text-slate-200 py-5 cursor-pointer hover:bg-slate-100/50 dark:hover:bg-slate-800/50 transition-all duration-200 group"
                     onClick={() => {
                       // Create dropdown menu for sorting options
                       const menu = document.createElement('div');
@@ -390,28 +513,33 @@ export default function CandidatesPage() {
                     </div>
                   </TableHead>
                   <TableHead
-                    className="font-semibold w-[22%] text-slate-900 dark:text-slate-200 py-4 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                    className="font-semibold w-[22%] text-slate-900 dark:text-slate-200 py-5 cursor-pointer hover:bg-slate-100/50 dark:hover:bg-slate-800/50 transition-all duration-200 group"
                     onClick={() => {
                       setSortField('rating');
                       setSortDirection(prev => sortField === 'rating' ? (prev === 'asc' ? 'desc' : 'asc') : 'desc');
                     }}
                   >
                     <div className="flex items-center">
-                      <span>Performance</span>
+                      <span className="group-hover:text-blue-600 transition-colors duration-200">Performance</span>
                       {sortField === 'rating' && (
-                        <span className="ml-1">
+                        <motion.span 
+                          initial={{ scale: 0 }}
+                          animate={{ scale: 1 }}
+                          className="ml-1"
+                        >
                           {sortDirection === 'asc'
-                            ? <ArrowUp className="h-3 w-3 text-blue-500" />
-                            : <ArrowDown className="h-3 w-3 text-blue-500" />}
-                        </span>
+                            ? <ArrowUp className="h-3 w-3 text-blue-500 animate-bounce" />
+                            : <ArrowDown className="h-3 w-3 text-blue-500 animate-bounce" />}
+                        </motion.span>
                       )}
                     </div>
                   </TableHead>
-                  <TableHead className="font-semibold w-[10%] text-right text-slate-900 dark:text-slate-200 pr-6 py-4">Actions</TableHead>
+                  <TableHead className="font-semibold w-[10%] text-right text-slate-900 dark:text-slate-200 pr-6 py-5">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {sortedCandidates.map((candidate) => {
+                <AnimatePresence>
+                {sortedCandidates.map((candidate, index) => {
                   // Calculate age
                   const age = candidate.date_of_birth ?
                     differenceInYears(new Date(), new Date(candidate.date_of_birth)) :
@@ -476,19 +604,23 @@ export default function CandidatesPage() {
                   };
 
                   return (
-                    <TableRow
+                    <motion.tr
                       key={candidate.id}
-                      className="cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/30 border-b border-slate-100 dark:border-slate-800"
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: 20 }}
+                      transition={{ duration: 0.3, delay: index * 0.05 }}
+                      className="cursor-pointer hover:bg-gradient-to-r hover:from-slate-50/50 hover:to-blue-50/30 dark:hover:from-slate-800/30 dark:hover:to-blue-900/20 border-b border-slate-100/50 dark:border-slate-800/50 transition-all duration-300 group"
                       onClick={() => {
                         setSelectedCandidate(candidate);
                         setDetailsDialogOpen(true);
                       }}
                     >
-                      <TableCell className="py-4 pl-6">
+                      <TableCell className="py-5 pl-6">
                         <div className="flex items-center gap-3">
-                          {/* Avatar with Status Indicator */}
-                          <div className="relative">
-                            <div className="h-10 w-10 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-500 dark:text-slate-300 font-medium text-sm overflow-hidden">
+                          {/* Enhanced Avatar with Status Indicator */}
+                          <div className="relative group">
+                            <div className="h-12 w-12 rounded-full bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-600 flex items-center justify-center text-slate-600 dark:text-slate-300 font-medium text-sm overflow-hidden ring-2 ring-white dark:ring-slate-800 shadow-md group-hover:scale-110 transition-transform duration-300">
                               {candidate.profile_photo ? (
                                 <img
                                   src={candidate.profile_photo}
@@ -500,18 +632,21 @@ export default function CandidatesPage() {
                               )}
                             </div>
 
-                            {/* Availability Status Circle at Edge - Checks Projects */}
+                            {/* Enhanced Availability Status with Pulse */}
                             <div
-                              className={`absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-white dark:border-slate-800 ${
-                                candidate.current_projects_count > 0 ? 'bg-red-500' : // Any project assignment makes them busy
-                                'bg-emerald-500' // Only available if no projects
+                              className={`absolute -bottom-0.5 -right-0.5 h-4 w-4 rounded-full border-2 border-white dark:border-slate-800 ${
+                                candidate.current_projects_count > 0 ? 'bg-red-500' : 'bg-emerald-500'
                               }`}
                               title={
                                 candidate.current_projects_count > 0 ?
                                   `Not Available (${candidate.current_projects_count} active project${candidate.current_projects_count > 1 ? 's' : ''})` :
                                   'Available'
                               }
-                            ></div>
+                            >
+                              {candidate.current_projects_count === 0 && (
+                                <span className="absolute inset-0 rounded-full bg-emerald-500 animate-ping opacity-75" />
+                              )}
+                            </div>
                           </div>
 
                           {/* Name and ID */}
@@ -532,37 +667,41 @@ export default function CandidatesPage() {
                         </div>
                       </TableCell>
 
-                      <TableCell className="py-4">
+                      <TableCell className="py-5">
                         <div className="flex flex-col gap-1.5">
-                          {/* Phone */}
-                          <div className="flex items-center gap-2 text-sm">
-                            <div className="w-5 h-5 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center flex-shrink-0">
-                              <span className="text-xs text-slate-500 dark:text-slate-400">📞</span>
+                          {/* Phone with hover effect */}
+                          <div className="flex items-center gap-2 text-sm group/phone hover:bg-blue-50/50 dark:hover:bg-blue-900/20 rounded-lg px-1 -mx-1 transition-colors duration-200">
+                            <div className="w-5 h-5 rounded-full bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-800 dark:to-blue-700 flex items-center justify-center flex-shrink-0">
+                              <span className="text-xs">📞</span>
                             </div>
-                            <span className="text-slate-700 dark:text-slate-300 truncate">{candidate.phone_number}</span>
+                            <span className="text-slate-700 dark:text-slate-300 truncate group-hover/phone:text-blue-600 dark:group-hover/phone:text-blue-400 transition-colors duration-200">{candidate.phone_number}</span>
                           </div>
 
-                          {/* Email */}
-                          <div className="flex items-center gap-2 text-sm">
-                            <div className="w-5 h-5 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center flex-shrink-0">
-                              <span className="text-xs text-slate-500 dark:text-slate-400">✉️</span>
+                          {/* Email with hover effect */}
+                          <div className="flex items-center gap-2 text-sm group/email hover:bg-purple-50/50 dark:hover:bg-purple-900/20 rounded-lg px-1 -mx-1 transition-colors duration-200">
+                            <div className="w-5 h-5 rounded-full bg-gradient-to-br from-purple-100 to-purple-200 dark:from-purple-800 dark:to-purple-700 flex items-center justify-center flex-shrink-0">
+                              <span className="text-xs">✉️</span>
                             </div>
-                            <span className="text-slate-700 dark:text-slate-300 truncate">
+                            <span className="text-slate-700 dark:text-slate-300 truncate group-hover/email:text-purple-600 dark:group-hover/email:text-purple-400 transition-colors duration-200">
                               {candidate.email ? candidate.email : '—'}
                             </span>
                           </div>
 
-                          {/* Last Contact Date */}
+                          {/* Last Contact Date with gradient */}
                           {candidate.last_contact_date && (
-                            <div className="flex items-center gap-2 text-sm mt-1">
-                              <div className="w-5 h-5 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center flex-shrink-0">
-                                <span className="text-xs text-slate-500 dark:text-slate-400">🗓️</span>
+                            <motion.div 
+                              initial={{ opacity: 0, scale: 0.9 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              className="flex items-center gap-2 text-sm mt-1"
+                            >
+                              <div className="w-5 h-5 rounded-full bg-gradient-to-br from-amber-100 to-amber-200 dark:from-amber-800 dark:to-amber-700 flex items-center justify-center flex-shrink-0">
+                                <span className="text-xs">🗓️</span>
                               </div>
-                              <div className="text-xs rounded px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
-                                <span className="text-slate-500 dark:text-slate-400 mr-1">Last contact:</span>
+                              <div className="text-xs rounded-full px-2 py-0.5 bg-gradient-to-r from-amber-100 to-orange-100 dark:from-amber-900/30 dark:to-orange-900/30 text-amber-700 dark:text-amber-300">
+                                <span className="text-amber-600 dark:text-amber-400 mr-1">Last:</span>
                                 {format(new Date(candidate.last_contact_date), 'MMM d, yyyy')}
                               </div>
-                            </div>
+                            </motion.div>
                           )}
 
                           {/* Profile Completeness */}
@@ -616,33 +755,46 @@ export default function CandidatesPage() {
                         </div>
                       </TableCell>
 
-                      <TableCell className="py-4">
+                      <TableCell className="py-5">
                         <div className="flex flex-col gap-1.5">
                           {/* Status Row */}
                           <div className="flex items-center flex-wrap gap-1">
-                            {/* Active/Banned Status */}
-                            <Badge
-                              variant={candidate.is_banned ? "destructive" : "success"}
-                              className="font-normal px-2 py-1 h-6"
+                            {/* Enhanced Active/Banned Status */}
+                            <motion.div
+                              initial={{ scale: 0 }}
+                              animate={{ scale: 1 }}
+                              transition={{ type: "spring", stiffness: 500, damping: 15 }}
                             >
-                              {candidate.is_banned ? (
-                                <span className="flex items-center gap-1">
-                                  <AlertTriangle className="h-3 w-3" />
-                                  <span>Banned</span>
-                                </span>
-                              ) : (
-                                <span className="flex items-center gap-1">
-                                  <Check className="h-3 w-3" />
-                                  <span>Active</span>
-                                </span>
-                              )}
-                            </Badge>
-
-                            {/* Loyalty Tier */}
-                            {tierLevel && (
-                              <Badge className={`px-2 py-1 h-6 ${tierColor}`}>
-                                {tierLevel.charAt(0).toUpperCase() + tierLevel.slice(1)}
+                              <Badge
+                                variant={candidate.is_banned ? "destructive" : "success"}
+                                className={`font-normal px-2 py-1 h-6 ${candidate.is_banned ? 'bg-gradient-to-r from-red-500 to-red-600' : 'bg-gradient-to-r from-emerald-500 to-green-600'} text-white border-0 shadow-sm`}
+                              >
+                                {candidate.is_banned ? (
+                                  <span className="flex items-center gap-1">
+                                    <AlertTriangle className="h-3 w-3" />
+                                    <span>Banned</span>
+                                  </span>
+                                ) : (
+                                  <span className="flex items-center gap-1">
+                                    <Check className="h-3 w-3" />
+                                    <span>Active</span>
+                                  </span>
+                                )}
                               </Badge>
+                            </motion.div>
+
+                            {/* Enhanced Loyalty Tier with emoji */}
+                            {tierLevel && (
+                              <motion.div
+                                initial={{ scale: 0 }}
+                                animate={{ scale: 1 }}
+                                transition={{ type: "spring", stiffness: 500, damping: 15, delay: 0.1 }}
+                              >
+                                <Badge className={`px-2 py-1 h-6 ${tierColor} border shadow-sm`}>
+                                  <span className="mr-1">{loyaltyTierEmojis[tierLevel]}</span>
+                                  {tierLevel.charAt(0).toUpperCase() + tierLevel.slice(1)}
+                                </Badge>
+                              </motion.div>
                             )}
 
                           </div>
@@ -695,17 +847,22 @@ export default function CandidatesPage() {
                         </div>
                       </TableCell>
 
-                      <TableCell className="py-4">
+                      <TableCell className="py-5">
                         {candidate.performance_metrics ? (
                           <div className="flex flex-col gap-1.5">
-                            {/* Rating, Gigs & Issues */}
+                            {/* Enhanced Rating with gradient */}
                             <div className="flex items-center gap-1.5">
-                              <div className="flex items-center h-6 px-2 bg-yellow-50 dark:bg-yellow-900/20 rounded text-sm">
+                              <motion.div 
+                                initial={{ scale: 0 }}
+                                animate={{ scale: 1 }}
+                                transition={{ type: "spring", stiffness: 500, damping: 15 }}
+                                className="flex items-center h-6 px-2 bg-gradient-to-r from-yellow-100 to-amber-100 dark:from-yellow-900/30 dark:to-amber-900/30 rounded-full text-sm border border-yellow-200 dark:border-yellow-800/50 shadow-sm"
+                              >
                                 <Star className="h-3.5 w-3.5 fill-yellow-400 text-yellow-400 mr-1" />
                                 <span className="font-medium text-yellow-700 dark:text-yellow-400">
                                   {candidate.performance_metrics.avg_rating?.toFixed(1) || '—'}
                                 </span>
-                              </div>
+                              </motion.div>
 
                               <div className="text-xs bg-slate-100 dark:bg-slate-800 rounded px-2 py-0.5 text-slate-700 dark:text-slate-300">
                                 <span className="font-medium">{candidate.performance_metrics.total_gigs_completed || '0'}</span> gigs
@@ -793,7 +950,7 @@ export default function CandidatesPage() {
                       </TableCell>
 
 
-                      <TableCell className="py-4 pr-6">
+                      <TableCell className="py-5 pr-6">
                         <div className="flex items-center justify-end gap-2">
                           {/* Edit/View Link button */}
                           <TooltipProvider>
@@ -840,31 +997,41 @@ export default function CandidatesPage() {
                           </TooltipProvider>
                         </div>
                       </TableCell>
-                    </TableRow>
+                    </motion.tr>
                   );
                 })}
+                </AnimatePresence>
               </TableBody>
             </Table>
             {sortedCandidates.length === 0 && (
-              <div className="py-16 text-center">
-                <div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mx-auto mb-4">
-                  <FileText className="h-8 w-8 text-slate-400" />
+              <motion.div 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+                className="py-20 text-center"
+              >
+                <div className="relative">
+                  <div className="w-20 h-20 rounded-full bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-700 flex items-center justify-center mx-auto mb-4 shadow-lg">
+                    <FileText className="h-10 w-10 text-slate-400" />
+                  </div>
+                  <div className="absolute inset-0 w-20 h-20 rounded-full bg-gradient-to-br from-blue-400/20 to-purple-400/20 blur-xl mx-auto animate-pulse" />
                 </div>
-                <h3 className="text-base font-medium text-slate-900 dark:text-slate-200 mb-1">No candidates found</h3>
-                <p className="text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto">
-                  Try adjusting your search criteria or create a new candidate.
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-200 mb-2">No candidates found</h3>
+                <p className="text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto mb-6">
+                  {searchQuery ? `No results for "${searchQuery}"` : 'Try adjusting your search criteria or add a new candidate'}
                 </p>
-                <Button
-                  className="mt-4"
-                  variant="outline"
-                  onClick={() => setNewDialogOpen(true)}
-                >
-                  <UserPlus className="h-4 w-4 mr-2" />
-                  Add New Candidate
-                </Button>
-              </div>
+                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                  <Button
+                    className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white border-0 shadow-lg"
+                    onClick={() => setNewDialogOpen(true)}
+                  >
+                    <UserPlus className="h-4 w-4 mr-2" />
+                    Add New Candidate
+                  </Button>
+                </motion.div>
+              </motion.div>
             )}
-          </div>
+          </motion.div>
         </TabsContent>
         
         <TabsContent value="import" className="mt-0">

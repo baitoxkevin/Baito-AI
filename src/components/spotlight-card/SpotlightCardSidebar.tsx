@@ -6,10 +6,14 @@ import { NeonGradientCard } from "@/components/ui/neon-gradient-card";
 import { ShimmerButton } from "@/components/ui/shimmer-button";
 import { TextAnimate } from "@/components/ui/text-animate";
 import { SpotlightCardDropdown } from "./SpotlightCardDropdown";
+import { EditProjectDialogStepped } from "@/components/EditProjectDialogStepped";
+import { JobPostGeneratorDialog } from "@/components/JobPostGeneratorDialog";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { formatRecurringDates, getGoogleMapsLink, getWazeLink } from '@/lib/utils';
+import { supabase } from '@/lib/supabase';
 import type { Project } from '@/lib/types';
+import { logger } from '../../lib/logger';
 import {
   Shield,
   CalendarDays,
@@ -29,7 +33,10 @@ import {
   DollarSign,
   User,
   Activity,
-  AlertCircle
+  AlertCircle,
+  Edit,
+  History,
+  Megaphone
 } from "lucide-react";
 
 interface SpotlightCardSidebarProps {
@@ -39,6 +46,7 @@ interface SpotlightCardSidebarProps {
   claimsCount: number;
   activeTab?: string;
   onTabChange?: (value: string) => void;
+  onProjectUpdated?: (updatedProject: Project) => void;
 }
 
 export function SpotlightCardSidebar({
@@ -47,20 +55,102 @@ export function SpotlightCardSidebar({
   staffCount,
   claimsCount,
   activeTab = 'schedule',
-  onTabChange = () => {}
+  onTabChange = () => {},
+  onProjectUpdated
 }: SpotlightCardSidebarProps) {
   
-  const [brandLogoUrl, setBrandLogoUrl] = React.useState<string | null>(project.brand_url || null);
+  const [brandLogoUrl, setBrandLogoUrl] = React.useState<string | null>((project as unknown).brand_logo || null);
   const [isEditingBrandLogo, setIsEditingBrandLogo] = React.useState(false);
   const [tempBrandUrl, setTempBrandUrl] = React.useState('');
   const [logoError, setLogoError] = React.useState(false);
   const [activeOverviewTab, setActiveOverviewTab] = React.useState<'staffing' | 'details'>('staffing');
   const [isDropdownOpen, setIsDropdownOpen] = React.useState(false);
+  const [editDialogOpen, setEditDialogOpen] = React.useState(false);
+  const [jobPostDialogOpen, setJobPostDialogOpen] = React.useState(false);
+  const [currentProject, setCurrentProject] = React.useState(project);
+  const [customerLogo, setCustomerLogo] = React.useState<string | null>(null);
+  const [customerName, setCustomerName] = React.useState<string>('');
   const dropdownRef = React.useRef<HTMLDivElement>(null);
   
   // For testing purposes - use this URL for a sample logo (CORS-friendly image)
   const sampleLogoUrl = "https://placehold.co/300x150/2563EB/FFFFFF.png?text=Sample+Logo";
   const { toast } = useToast();
+  
+  // Update currentProject and brandLogoUrl when project prop changes
+  React.useEffect(() => {
+    setCurrentProject(project);
+    // Also update the brand logo URL from the new project data
+    setBrandLogoUrl((project as unknown).brand_logo || null);
+    setLogoError(false); // Reset logo error state
+  }, [project, project.start_date, project.end_date, project.working_hours_start, project.working_hours_end]);
+  
+  // Fetch customer logo when component mounts or project changes
+  React.useEffect(() => {
+    const fetchCustomerInfo = async () => {
+      if (!project.client_id) return;
+      
+      try {
+        // Check if client_id is in companies table first
+        const { data: companyData, error: companyError } = await supabase
+          .from('companies')
+          .select('id, name, company_name, logo_url')
+          .eq('id', project.client_id)
+          .maybeSingle();
+          
+        if (!companyError && companyData) {
+          // client_id is a company
+          setCustomerLogo(companyData.logo_url);
+          setCustomerName(companyData.company_name || companyData.name);
+        } else {
+          // Try to fetch as a user
+          const { data: clientData, error: clientError } = await supabase
+            .from('users')
+            .select('id, full_name, company_name')
+            .eq('id', project.client_id)
+            .maybeSingle();
+            
+          if (!clientError && clientData) {
+            // Try to find the company by name
+            if (clientData.company_name) {
+              const { data: relatedCompanyData, error: relatedCompanyError } = await supabase
+                .from('companies')
+                .select('id, name, company_name, logo_url')
+                .or(`name.eq.${clientData.company_name},company_name.eq.${clientData.company_name}`)
+                .limit(1);
+                
+              if (!relatedCompanyError && relatedCompanyData && relatedCompanyData.length > 0) {
+                setCustomerLogo(relatedCompanyData[0].logo_url);
+                setCustomerName(relatedCompanyData[0].company_name || relatedCompanyData[0].name || clientData.company_name || clientData.full_name);
+              } else {
+                // Fallback to client name if no company found
+                setCustomerName(clientData.company_name || clientData.full_name);
+              }
+            } else {
+              // No company name, just use the user's full name
+              setCustomerName(clientData.full_name);
+            }
+          }
+        }
+      } catch (error) {
+        logger.error('Error fetching customer info:', error);
+        // Set fallback name from project client if available
+        if ((project as unknown).client?.name) {
+          setCustomerName((project as unknown).client.name);
+        }
+      }
+    };
+    
+    fetchCustomerInfo();
+  }, [project.client_id]);
+  
+  const handleProjectUpdate = (updatedProject: Project) => {
+    setCurrentProject(updatedProject);
+    // Update brand logo from the updated project
+    setBrandLogoUrl((updatedProject as unknown).brand_logo || null);
+    setLogoError(false); // Reset logo error state
+    // Propagate this update to parent component
+    onProjectUpdated?.(updatedProject);
+  };
   
   // Close dropdown when clicking outside
   React.useEffect(() => {
@@ -91,7 +181,9 @@ export function SpotlightCardSidebar({
   
   // Helper functions for badge colors
   const getStatusColor = (status?: string) => {
-    switch(status?.toLowerCase()) {
+    // Normalize status by replacing underscores with hyphens and spaces
+    const normalizedStatus = status?.toLowerCase().replace(/_/g, '-').replace(/-/g, ' ');
+    switch(normalizedStatus) {
       case 'completed': return 'green-500/20 text-green-700 dark:text-green-300';
       case 'in progress': return 'blue-500/20 text-blue-700 dark:text-blue-300';
       case 'pending': return 'yellow-500/20 text-yellow-700 dark:text-yellow-300';
@@ -132,6 +224,45 @@ export function SpotlightCardSidebar({
           {isDropdownOpen && (
             <div className="absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5 z-30">
               <div className="py-1" role="menu" aria-orientation="vertical">
+              {/* Edit Project */}
+              <button
+                className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setEditDialogOpen(true);
+                  setIsDropdownOpen(false);
+                }}
+              >
+                <Edit className="h-4 w-4" />
+                Edit Project Details
+              </button>
+              
+              {/* Job Post Generator */}
+              <button
+                className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setJobPostDialogOpen(true);
+                  setIsDropdownOpen(false);
+                }}
+              >
+                <Megaphone className="h-4 w-4" />
+                Generate Job Post
+              </button>
+              
+              {/* View History */}
+              <button
+                className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onTabChange('history');
+                  setIsDropdownOpen(false);
+                }}
+              >
+                <History className="h-4 w-4" />
+                View History
+              </button>
+              
               {/* Copy Project ID */}
               <button
                 className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
@@ -160,7 +291,7 @@ export function SpotlightCardSidebar({
                   const data = [
                     project.id,
                     project.title,
-                    (project.client as any)?.name || '',
+                    (project.client as unknown)?.name || '',
                     project.start_date,
                     project.end_date || '',
                     project.status,
@@ -325,14 +456,23 @@ export function SpotlightCardSidebar({
             
             {/* Client logo at bottom right, outside MagicCard, bottom aligned with brand logo border */}
             <motion.div 
-              className="absolute bottom-0 right-0 w-12 h-12 bg-white dark:bg-gray-700 rounded-full flex items-center justify-center shadow-md border-2 border-white dark:border-gray-600 z-20 translate-x-1/3 translate-y-0"
+              className="absolute bottom-0 right-0 w-12 h-12 bg-white dark:bg-gray-700 rounded-full flex items-center justify-center shadow-md border-2 border-white dark:border-gray-600 z-20 translate-x-1/3 translate-y-0 overflow-hidden"
               whileHover={{ scale: 1.1 }}
               transition={{ type: "spring", stiffness: 400, damping: 17 }}
               style={{ transformOrigin: "right bottom" }}
+              title={customerName || 'Customer'}
             >
-              <span className="text-sm font-bold text-gray-500 dark:text-gray-300">
-                {(project.client as any)?.name?.charAt(0) || 'C'}
-              </span>
+              {customerLogo ? (
+                <img 
+                  src={customerLogo} 
+                  alt={customerName}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <span className="text-sm font-bold text-gray-500 dark:text-gray-300">
+                  {customerName?.charAt(0) || (project.client as unknown)?.name?.charAt(0) || 'C'}
+                </span>
+              )}
             </motion.div>
           </div>
         </div>
@@ -433,18 +573,44 @@ export function SpotlightCardSidebar({
                   Cancel
                 </button>
                 <button 
-                  onClick={() => {
+                  onClick={async () => {
                     if (tempBrandUrl.trim()) {
                       // Test if image exists/loads correctly
                       const testImg = new Image();
-                      testImg.onload = () => {
+                      testImg.onload = async () => {
                         setBrandLogoUrl(tempBrandUrl);
                         setLogoError(false);
-                        // Here you would normally update the project in the database as well
-                        toast({
-                          title: "Logo Updated",
-                          description: "Brand logo URL has been updated."
-                        });
+                        
+                        // Update the project in the database
+                        try {
+                          const { error } = await supabase
+                            .from('projects')
+                            .update({ brand_logo: tempBrandUrl })
+                            .eq('id', project.id);
+                            
+                          if (error) throw error;
+                          
+                          toast({
+                            title: "Logo Updated",
+                            description: "Brand logo URL has been updated."
+                          });
+                          
+                          // Update the parent component
+                          if (onProjectUpdated) {
+                            onProjectUpdated({
+                              ...project,
+                              brand_logo: tempBrandUrl
+                            });
+                          }
+                        } catch (error) {
+                          logger.error('Error updating brand logo:', error);
+                          toast({
+                            title: "Error",
+                            description: "Failed to update brand logo. Please try again.",
+                            variant: "destructive"
+                          });
+                        }
+                        
                         setIsEditingBrandLogo(false);
                         setTempBrandUrl('');
                       };
@@ -460,10 +626,37 @@ export function SpotlightCardSidebar({
                     } else {
                       setBrandLogoUrl(null);
                       setLogoError(false);
-                      toast({
-                        title: "Logo Removed",
-                        description: "Brand logo has been removed."
-                      });
+                      
+                      // Update the project in the database to remove logo
+                      try {
+                        const { error } = await supabase
+                          .from('projects')
+                          .update({ brand_logo: null })
+                          .eq('id', project.id);
+                          
+                        if (error) throw error;
+                        
+                        toast({
+                          title: "Logo Removed",
+                          description: "Brand logo has been removed."
+                        });
+                        
+                        // Update the parent component
+                        if (onProjectUpdated) {
+                          onProjectUpdated({
+                            ...project,
+                            brand_logo: null
+                          });
+                        }
+                      } catch (error) {
+                        logger.error('Error removing brand logo:', error);
+                        toast({
+                          title: "Error",
+                          description: "Failed to remove brand logo. Please try again.",
+                          variant: "destructive"
+                        });
+                      }
+                      
                       setIsEditingBrandLogo(false);
                       setTempBrandUrl('');
                     }
@@ -492,10 +685,10 @@ export function SpotlightCardSidebar({
         {/* Project Title */}
         <div className="mb-4 text-center">
           <h2 className="text-xl font-bold text-gray-800 dark:text-gray-200 mb-1">
-            {project.title}
+            {currentProject.title}
           </h2>
           <p className="text-gray-500 dark:text-gray-400 text-sm">
-            {(project.client as any)?.name ? `@ ${(project.client as any)?.name}` : ''}
+            {(currentProject.client as unknown)?.name ? `@ ${(currentProject.client as unknown)?.name}` : ''}
           </p>
         </div>
       </div>
@@ -517,13 +710,13 @@ export function SpotlightCardSidebar({
                 <div className="rounded-full bg-blue-100 dark:bg-blue-900/30 p-1.5">
                   <CalendarDays className="h-3.5 w-3.5 text-blue-500 flex-shrink-0" />
                 </div>
-                <span className="font-medium text-sm text-center">{formatRecurringDates(project)}</span>
+                <span className="font-medium text-sm text-center">{formatRecurringDates(currentProject)}</span>
               </div>
               <div className="flex items-center justify-center gap-2 text-gray-700 dark:text-gray-300">
                 <div className="rounded-full bg-blue-100 dark:bg-blue-900/30 p-1.5">
                   <Clock className="h-3.5 w-3.5 text-blue-500 flex-shrink-0" />
                 </div>
-                <span className="font-medium text-sm">{project.working_hours_start} - {project.working_hours_end}</span>
+                <span className="font-medium text-sm">{currentProject.working_hours_start} - {currentProject.working_hours_end}</span>
               </div>
             </div>
           </div>
@@ -541,14 +734,14 @@ export function SpotlightCardSidebar({
               <div className="rounded-full bg-red-100 dark:bg-red-900/30 p-1.5">
                 <MapPin className="h-3.5 w-3.5 text-red-500 flex-shrink-0" />
               </div>
-              <span className="font-medium text-sm text-center truncate">{project.venue_address}</span>
+              <span className="font-medium text-sm text-center truncate">{currentProject.venue_address}</span>
             </div>
             <div className="flex gap-2 justify-center mt-2">
               <ShimmerButton
                 size="sm"
                 variant="outline"
                 className="h-7 px-2 py-1 text-xs font-medium flex items-center gap-1 rounded-full bg-white dark:bg-gray-800"
-                onClick={() => window.open(getGoogleMapsLink(project.venue_address), '_blank')}
+                onClick={() => window.open(getGoogleMapsLink(currentProject.venue_address), '_blank')}
               >
                 <ExternalLink className="h-3 w-3" />
                 Maps
@@ -557,7 +750,7 @@ export function SpotlightCardSidebar({
                 size="sm"
                 variant="outline"
                 className="h-7 px-2 py-1 text-xs font-medium flex items-center gap-1 rounded-full bg-white dark:bg-gray-800"
-                onClick={() => window.open(getWazeLink(project.venue_address), '_blank')}
+                onClick={() => window.open(getWazeLink(currentProject.venue_address), '_blank')}
               >
                 <ExternalLink className="h-3 w-3" />
                 Waze
@@ -566,6 +759,21 @@ export function SpotlightCardSidebar({
           </div>
         </MagicCard>
       </div>
+      
+      {/* Edit Project Dialog */}
+      <EditProjectDialogStepped
+        project={currentProject}
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        onProjectUpdated={handleProjectUpdate}
+      />
+      
+      {/* Job Post Generator Dialog */}
+      <JobPostGeneratorDialog
+        project={currentProject}
+        open={jobPostDialogOpen}
+        onOpenChange={setJobPostDialogOpen}
+      />
       
       {/* Removed duplicate client logo from container bottom */}
     </div>

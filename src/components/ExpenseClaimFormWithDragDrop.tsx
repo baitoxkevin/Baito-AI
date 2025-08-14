@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { logger } from '../lib/logger';
 import {
   Dialog,
   DialogContent,
@@ -10,7 +11,7 @@ import {
 import {
   Form,
   FormControl,
-  FormDescription,
+  // FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -82,17 +83,26 @@ const formSchema = z.object({
   }),
   is_own_claim: z.boolean().default(true),
   staff_id: z.string().optional(),
-  documents: z.array(z.instanceof(File)).min(1, { message: 'At least one supporting document is required' }),
+  documents: z.array(z.instanceof(File))
+    .min(1, { message: 'At least one supporting document is required' })
+    .max(5, { message: 'Maximum 5 receipts allowed per claim' }),
 });
 
 type FormValues = z.infer<typeof formSchema>;
+
+interface StaffMember {
+  id: string;
+  candidate_id: string;
+  name?: string;
+  [key: string]: unknown;
+}
 
 interface ExpenseClaimFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSubmit: (values: FormValues) => Promise<void>;
   projectId: string;
-  confirmedStaff?: any[]; // Pass the confirmed staff array from parent
+  confirmedStaff?: StaffMember[]; // Pass the confirmed staff array from parent
 }
 
 // Animated particles component
@@ -188,7 +198,12 @@ const GlassCard = ({ children, className = "" }: { children: React.ReactNode; cl
 };
 
 // Enhanced button with animation
-const AnimatedButton = ({ children, className = "", ...props }: any) => {
+interface AnimatedButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  children: React.ReactNode;
+  className?: string;
+}
+
+const AnimatedButton = ({ children, className = "", ...props }: AnimatedButtonProps) => {
   return (
     <motion.div
       whileHover={{ scale: 1.02 }}
@@ -216,7 +231,7 @@ export function ExpenseClaimFormWithDragDrop({
   open,
   onOpenChange,
   onSubmit,
-  projectId,
+  projectId: _projectId,
   confirmedStaff = []
 }: ExpenseClaimFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -243,7 +258,7 @@ export function ExpenseClaimFormWithDragDrop({
       form.reset();
       onOpenChange(false);
     } catch (error) {
-      console.error('Failed to submit expense claim:', error);
+      // logger.error('Failed to submit expense claim:', error);
     } finally {
       setIsSubmitting(false);
     }
@@ -255,7 +270,7 @@ export function ExpenseClaimFormWithDragDrop({
     <Dialog 
       open={open} 
       onOpenChange={(newOpen) => {
-        console.log('Dialog open state changing to:', newOpen);
+        // logger.debug('Dialog open state changing to:', { data: newOpen });
         onOpenChange(newOpen);
       }}
       modal={true} // Ensure it's a true modal dialog
@@ -362,31 +377,37 @@ export function ExpenseClaimFormWithDragDrop({
                                     </SelectTrigger>
                                   </FormControl>
                                   <SelectContent className="bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm border-purple-200/50 dark:border-purple-800/50">
-                                    {confirmedStaff.map((staff) => (
-                                      <SelectItem key={staff.id} value={staff.id} className="focus:bg-purple-50 dark:focus:bg-purple-900/20">
-                                        <motion.div 
-                                          className="flex items-center gap-3"
-                                          whileHover={{ scale: 1.05 }}
-                                          transition={{ type: "spring", stiffness: 300 }}
-                                        >
-                                          <motion.div
-                                            whileHover={{ scale: 1.1 }}
-                                            transition={{ type: "spring", stiffness: 400 }}
+                                    {confirmedStaff.length > 0 ? (
+                                      confirmedStaff.map((staff) => (
+                                        <SelectItem key={staff.id} value={staff.id} className="focus:bg-purple-50 dark:focus:bg-purple-900/20">
+                                          <motion.div 
+                                            className="flex items-center gap-3"
+                                            whileHover={{ scale: 1.05 }}
+                                            transition={{ type: "spring", stiffness: 300 }}
                                           >
-                                            <Avatar className="h-7 w-7 ring-2 ring-purple-400/30 transition-all duration-300 hover:ring-purple-500/50">
-                                              <AvatarImage 
-                                                src={staff.avatar || `https://api.dicebear.com/9.x/avataaars/svg?seed=${staff.name}`} 
-                                                alt={staff.name} 
-                                              />
-                                              <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-500 text-white text-xs">
-                                                {staff.name.slice(0, 2).toUpperCase()}
-                                              </AvatarFallback>
-                                            </Avatar>
+                                            <motion.div
+                                              whileHover={{ scale: 1.1 }}
+                                              transition={{ type: "spring", stiffness: 400 }}
+                                            >
+                                              <Avatar className="h-7 w-7 ring-2 ring-purple-400/30 transition-all duration-300 hover:ring-purple-500/50">
+                                                <AvatarImage 
+                                                  src={staff.avatar || staff.photo || `https://api.dicebear.com/9.x/avataaars/svg?seed=${staff.name}`} 
+                                                  alt={staff.name} 
+                                                />
+                                                <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-500 text-white text-xs">
+                                                  {staff.name?.slice(0, 2).toUpperCase() || 'UN'}
+                                                </AvatarFallback>
+                                              </Avatar>
+                                            </motion.div>
+                                            <span className="font-medium">{staff.name}</span>
                                           </motion.div>
-                                          <span className="font-medium">{staff.name}</span>
-                                        </motion.div>
-                                      </SelectItem>
-                                    ))}
+                                        </SelectItem>
+                                      ))
+                                    ) : (
+                                      <div className="p-4 text-center text-sm text-gray-500">
+                                        No staff members found in this project
+                                      </div>
+                                    )}
                                   </SelectContent>
                                 </Select>
                                 <FormMessage />
@@ -430,12 +451,15 @@ export function ExpenseClaimFormWithDragDrop({
                           </FormLabel>
                           <FormControl>
                             <Input 
-                              placeholder="Enter bill, receipt, or invoice number" 
+                              placeholder="Enter main bill/receipt/invoice number" 
                               {...field} 
                               className="h-11" 
                               required
                             />
                           </FormControl>
+                          <p className="text-xs text-gray-500 mt-1">
+                            One bill number for all related receipts
+                          </p>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -606,7 +630,7 @@ export function ExpenseClaimFormWithDragDrop({
                               <FileText className="h-4 w-4 text-purple-600 dark:text-purple-400" />
                             </motion.div>
                             <span className="bg-gradient-to-r from-purple-600 to-blue-600 dark:from-purple-400 dark:to-blue-400 bg-clip-text text-transparent font-semibold">
-                              Supporting Documents *
+                              Supporting Documents * (1-5 receipts)
                             </span>
                           </FormLabel>
                           <FormControl className="flex-1 flex">
@@ -638,6 +662,7 @@ export function ExpenseClaimFormWithDragDrop({
                                     value={field.value || []}
                                     onChange={field.onChange}
                                     className="min-h-[250px] h-full flex-1"
+                                    maxFiles={5}
                                   />
                                 </div>
                                 
@@ -668,7 +693,7 @@ export function ExpenseClaimFormWithDragDrop({
                                   PNG
                                 </Badge>
                               </motion.div>
-                              <span className="text-gray-500 dark:text-gray-400">• Max 5MB per file</span>
+                              <span className="text-gray-500 dark:text-gray-400">• Max 5 receipts • 5MB per file</span>
                             </div>
                           </div>
                           <FormMessage />

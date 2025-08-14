@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase';
 import { format } from 'date-fns';
 
+import { logger } from './logger';
 // Type definitions for status values
 export type PaymentBatchStatus = 'pending' | 'approved' | 'rejected' | 'processing' | 'completed' | 'cancelled';
 export type PaymentMethod = 'bank_transfer' | 'duitnow' | 'cash' | 'cheque';
@@ -23,7 +24,7 @@ export interface CreatePaymentBatchParams {
     amount: number;
     reference?: string;
     description?: string;
-    paymentDetails?: Record<string, any>;
+    paymentDetails?: Record<string, unknown>;
   }[];
 }
 
@@ -65,7 +66,7 @@ export interface PaymentItem {
   reference?: string;
   description?: string;
   status: PaymentBatchStatus;
-  payment_details?: Record<string, any>;
+  payment_details?: Record<string, unknown>;
   created_at: string | Date;
   updated_at: string | Date;
 }
@@ -100,10 +101,30 @@ export interface PaymentBatchFilter {
 /**
  * Generate a unique batch reference for a new payment batch
  */
-export function generateBatchReference(projectId: string, prefix: string = 'PMT'): string {
-  const dateStr = format(new Date(), 'yyyyMMddHHmmss');
-  const projectHash = projectId?.substring(0, 6) || 'unknown';
-  return `${prefix}-${dateStr}-${projectHash}`;
+export function generateBatchReference(projectName: string, existingReferences: string[] = []): string {
+  // Get first 10 letters of project name, remove spaces and special chars
+  const projectPrefix = projectName
+    .replace(/[^a-zA-Z0-9]/g, '')
+    .toUpperCase()
+    .substring(0, 10)
+    .padEnd(10, 'X') || 'PROJECTXXX';
+  
+  // Find the highest number for this prefix
+  let maxNumber = 0;
+  existingReferences.forEach(ref => {
+    if (ref.startsWith(projectPrefix + '-')) {
+      const numberPart = ref.substring(projectPrefix.length + 1);
+      const num = parseInt(numberPart, 10);
+      if (!isNaN(num) && num > maxNumber) {
+        maxNumber = num;
+      }
+    }
+  });
+  
+  // Generate new reference with next number (padded to 2 digits)
+  const nextNumber = maxNumber + 1;
+  const paddedNumber = nextNumber.toString().padStart(2, '0');
+  return `${projectPrefix}-${paddedNumber}`;
 }
 
 /**
@@ -122,7 +143,7 @@ export async function submitPaymentBatch(
     description?: string;
     workingDates?: string[];
     totalDays?: number;
-    payrollDetails?: Record<string, any>;
+    payrollDetails?: Record<string, unknown>;
   }[],
   companyDetails: {
     name: string;
@@ -131,7 +152,7 @@ export async function submitPaymentBatch(
   },
   paymentMethod: PaymentMethod = "duitnow",
   notes?: string
-): Promise<{ success: boolean; batchId?: string; error?: any }> {
+): Promise<{ success: boolean; batchId?: string; error?: unknown }> {
   try {
     // Format payments for the database
     const formattedPayments = staffPayments.map(payment => ({
@@ -152,6 +173,12 @@ export async function submitPaymentBatch(
 
     // Format the payment date
     const formattedDate = format(paymentDate, 'yyyy-MM-dd');
+
+    // Validate total amount
+    const totalAmount = formattedPayments.reduce((sum, p) => sum + p.amount, 0);
+    if (totalAmount <= 0) {
+      throw new Error('Invalid payment amount: Total amount must be greater than 0');
+    }
 
     // Call the database function to submit the payment batch
     const { data, error } = await supabase.rpc('submit_payment_batch', {
@@ -174,7 +201,7 @@ export async function submitPaymentBatch(
       ...data
     };
   } catch (error) {
-    console.error('Error submitting payment batch:', error);
+    logger.error('Error submitting payment batch:', error);
     return {
       success: false,
       error: error.message || 'Failed to submit payment batch'
@@ -220,7 +247,7 @@ export async function fetchPaymentBatches(filter: PaymentBatchFilter = {}): Prom
       count: count || 0
     };
   } catch (error) {
-    console.error('Error fetching payment batches:', error);
+    logger.error('Error fetching payment batches:', error);
     return {
       data: [],
       count: 0,
@@ -247,7 +274,7 @@ export async function getPaymentBatchDetails(batchId: string): Promise<{
     
     return { data };
   } catch (error) {
-    console.error('Error fetching payment batch details:', error);
+    logger.error('Error fetching payment batch details:', error);
     return {
       error: error.message || 'Failed to fetch payment batch details'
     };
@@ -273,7 +300,7 @@ export async function getPaymentBatchHistory(batchId: string): Promise<{
       data: data || []
     };
   } catch (error) {
-    console.error('Error fetching payment batch history:', error);
+    logger.error('Error fetching payment batch history:', error);
     return {
       data: [],
       error: error.message || 'Failed to fetch payment batch history'
@@ -289,19 +316,44 @@ export async function approvePaymentBatch(
   notes?: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const { data, error } = await supabase
-      .rpc('approve_payment_batch', {
-        p_batch_id: batchId,
-        p_notes: notes
-      });
+    const { data: user } = await supabase.auth.getUser();
+    if (!user?.user) {
+      return { success: false, error: 'User not authenticated' };
+    }
+
+    // Update the payment batch directly
+    const { error } = await supabase
+      .from('payment_batches')
+      .update({
+        status: 'approved',
+        approved_by: user.user.id,
+        approved_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', batchId)
+      .eq('status', 'pending'); // Only approve if pending
 
     if (error) throw error;
+
+    // Log the approval action (ignore errors as the table might not exist)
+    try {
+      await supabase
+        .from('payment_approval_history')
+        .insert({
+          batch_id: batchId,
+          user_id: user.user.id,
+          action: 'approved',
+          notes: notes
+        });
+    } catch (historyError) {
+      logger.debug('Could not log approval history:', { data: historyError });
+    }
     
     return {
-      success: data.success
+      success: true
     };
-  } catch (error) {
-    console.error('Error approving payment batch:', error);
+  } catch (error: unknown) {
+    logger.error('Error approving payment batch:', error);
     return {
       success: false,
       error: error.message || 'Failed to approve payment batch'
@@ -317,19 +369,45 @@ export async function rejectPaymentBatch(
   notes?: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const { data, error } = await supabase
-      .rpc('reject_payment_batch', {
-        p_batch_id: batchId,
-        p_notes: notes
-      });
+    const { data: user } = await supabase.auth.getUser();
+    if (!user?.user) {
+      return { success: false, error: 'User not authenticated' };
+    }
+
+    // Update the payment batch directly
+    const { error } = await supabase
+      .from('payment_batches')
+      .update({
+        status: 'rejected',
+        approved_by: user.user.id,
+        approved_at: new Date().toISOString(),
+        rejection_reason: notes,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', batchId)
+      .eq('status', 'pending'); // Only reject if pending
 
     if (error) throw error;
+
+    // Log the rejection action (ignore errors as the table might not exist)
+    try {
+      await supabase
+        .from('payment_approval_history')
+        .insert({
+          batch_id: batchId,
+          user_id: user.user.id,
+          action: 'rejected',
+          notes: notes
+        });
+    } catch (historyError) {
+      logger.debug('Could not log rejection history:', { data: historyError });
+    }
     
     return {
-      success: data.success
+      success: true
     };
-  } catch (error) {
-    console.error('Error rejecting payment batch:', error);
+  } catch (error: unknown) {
+    logger.error('Error rejecting payment batch:', error);
     return {
       success: false,
       error: error.message || 'Failed to reject payment batch'
@@ -357,7 +435,7 @@ export async function markPaymentBatchExported(
       success: data.success
     };
   } catch (error) {
-    console.error('Error marking payment batch as exported:', error);
+    logger.error('Error marking payment batch as exported:', error);
     return {
       success: false,
       error: error.message || 'Failed to mark payment batch as exported'
@@ -385,7 +463,7 @@ export async function markPaymentBatchCompleted(
       success: data.success
     };
   } catch (error) {
-    console.error('Error marking payment batch as completed:', error);
+    logger.error('Error marking payment batch as completed:', error);
     return {
       success: false,
       error: error.message || 'Failed to mark payment batch as completed'
@@ -565,7 +643,7 @@ export async function getPaymentBatchStatistics(): Promise<{
       totalAmount
     };
   } catch (error) {
-    console.error('Error fetching payment batch statistics:', error);
+    logger.error('Error fetching payment batch statistics:', error);
     return {
       pending: 0,
       approved: 0,
@@ -594,7 +672,7 @@ export async function getPaymentBatchesByStatusCount(status: PaymentBatchStatus)
     
     return count || 0;
   } catch (error) {
-    console.error(`Error fetching ${status} payment batches count:`, error);
+    logger.error(`Error fetching ${status} payment batches count:`, error);
     return 0;
   }
 }
@@ -655,7 +733,7 @@ export async function cancelPaymentBatch(
       success: true
     };
   } catch (error) {
-    console.error('Error cancelling payment batch:', error);
+    logger.error('Error cancelling payment batch:', error);
     return {
       success: false,
       error: error.message || 'Failed to cancel payment batch'
@@ -694,7 +772,7 @@ export async function updatePaymentBatchNotes(
       success: true
     };
   } catch (error) {
-    console.error('Error updating payment batch notes:', error);
+    logger.error('Error updating payment batch notes:', error);
     return {
       success: false,
       error: error.message || 'Failed to update payment batch notes'

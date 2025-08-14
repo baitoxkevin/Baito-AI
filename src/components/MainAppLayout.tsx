@@ -6,6 +6,7 @@ import { WavesBackground } from '@/components/ui/waves-background';
 import { getSession } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 
+import { logger } from '../lib/logger';
 // Import pages
 import DashboardPage from '@/pages/DashboardPage';
 import CalendarPage from '@/pages/CalendarPage';
@@ -17,6 +18,9 @@ import SettingsPage from '@/pages/SettingsPage';
 import TeamManagementPage from '@/pages/TeamManagementPage';
 import ProjectDetailPage from '@/pages/ProjectDetailPage';
 import PaymentsPage from '@/pages/PaymentsPage';
+import GoalsPage from '@/pages/GoalsPage';
+import ExpenseClaimsPage from '@/pages/ExpenseClaimsPage';
+import WarehousePage from '@/pages/WarehousePage';
 
 interface MainAppLayoutProps {
   effectActive: boolean;
@@ -28,11 +32,11 @@ const MainAppLayout = ({ effectActive }: MainAppLayoutProps) => {
   const projectId = params.projectId;
   const location = useLocation();
   const { theme } = useTheme();
-  
+
   // Determine active view based on the current route
   const getActiveView = () => {
     const pathname = location.pathname;
-    
+
     if (projectId) return 'project-detail';
     if (pathname.startsWith('/dashboard')) return 'dashboard';
     if (pathname.startsWith('/projects')) return 'projects';
@@ -43,12 +47,15 @@ const MainAppLayout = ({ effectActive }: MainAppLayoutProps) => {
     if (pathname.startsWith('/team')) return 'team';
     if (pathname.startsWith('/invites')) return 'invites';
     if (pathname.startsWith('/payments')) return 'payments';
-    
+    if (pathname.startsWith('/goals')) return 'goals';
+    if (pathname.startsWith('/expenses')) return 'expenses';
+    if (pathname.startsWith('/warehouse')) return 'warehouse';
+
     return 'dashboard'; // default
   };
-  
+
   const activeView = getActiveView();
-  
+
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -56,22 +63,22 @@ const MainAppLayout = ({ effectActive }: MainAppLayoutProps) => {
         const session = await getSession();
         setIsAuthenticated(!!session);
       } catch (error) {
-        console.error('Auth check failed:', error);
+        logger.error('Auth check failed:', error);
         setIsAuthenticated(false);
       }
     };
-    
+
     checkAuth();
-    
+
     // Listen for auth state changes
-    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: authListener } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'SIGNED_OUT') {
         setIsAuthenticated(false);
       } else if (event === 'SIGNED_IN') {
         setIsAuthenticated(true);
       }
     });
-    
+
     // Cleanup listener on unmount
     return () => {
       authListener?.subscription.unsubscribe();
@@ -108,10 +115,10 @@ const MainAppLayout = ({ effectActive }: MainAppLayoutProps) => {
           yGap={30}
         />
       </div>
-      
+
       {/* Special effect triggered by pressing space 5 times */}
-      <div 
-        id="canvas-container" 
+      <div
+        id="canvas-container"
         className={`absolute inset-0 z-50 ${effectActive ? 'block' : 'hidden'}`}
         style={{ pointerEvents: 'none' }}
       >
@@ -168,6 +175,21 @@ const MainAppLayout = ({ effectActive }: MainAppLayoutProps) => {
               <PaymentsPage />
             </div>
           )}
+          {activeView === 'goals' && (
+            <div style={{ height: '100%' }}>
+              <GoalsPage />
+            </div>
+          )}
+          {activeView === 'expenses' && (
+            <div style={{ height: '100%' }}>
+              <ExpenseClaimsPage />
+            </div>
+          )}
+          {activeView === 'warehouse' && (
+            <div style={{ height: '100%' }}>
+              <WarehousePage />
+            </div>
+          )}
           {activeView === 'project-detail' && projectId && (
             <div style={{ height: '100%' }}>
               <ProjectDetailPage />
@@ -175,6 +197,9 @@ const MainAppLayout = ({ effectActive }: MainAppLayoutProps) => {
           )}
         </SidebarAdapter>
       </div>
+
+      {/* Quick auth check widget - disabled */}
+      {/* {import.meta.env.DEV && <QuickAuthCheck />} */}
     </div>
   );
 };

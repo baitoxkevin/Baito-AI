@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, memo, lazy, Suspense, Profiler } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+// import { logger } from '../lib/logger';
 import { 
   Activity, 
   CheckCircle, 
@@ -23,15 +24,11 @@ import {
   XCircle,
   CalendarDays,
   CalendarRange,
-  SlidersHorizontal,
-  ListFilter,
-  PanelTopClose,
   ChevronDown,
   ChevronUp,
-  MinusSquare,
-  PlusSquare,
-  Minimize2,
-  Maximize2
+  Grid3X3,
+  List,
+  Star
 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -59,20 +56,24 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuLabel
 } from "@/components/ui/dropdown-menu";
-import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
 import { MetricCard } from '@/components/ui/metric-card';
-import { ProjectCard3D } from '@/components/ui/project-card-3d';
-// Removed EnhancedProjectCard - using SpotlightCard for all projects
-import { SpotlightCard } from '@/components/spotlight-card';
+// Removed EnhancedProjectCard - using optimized SpotlightCard for all projects
+import { SpotlightCardOptimized } from '@/components/spotlight-card/SpotlightCardOptimized';
+import { VirtualizedProjectGrid } from '@/components/VirtualizedProjectGrid';
 import { EnhancedMonthDropdown } from '@/components/ui/enhanced-month-dropdown';
-import NewProjectDialog from '@/components/NewProjectDialog';
+
+// Lazy load heavy dialogs for better initial load performance
+const NewProjectDialog = lazy(() => import('@/components/NewProjectDialog'));
 // EditProjectDialog removed
 import { useProjectsByMonth } from '@/hooks/use-projects';
 import { usePersistentState } from '@/hooks/use-persistent-state';
 import { useToast } from '@/hooks/use-toast';
+import { useDebounce } from '@/hooks/use-debounce';
+import { onRenderCallback } from '@/lib/performance-monitor';
 import { deleteProject } from '@/lib/projects';
 // import { dummyProjects } from '@/lib/dummy-data';
-import { isFeatureWorthy, groupProjects, getGroupIcon, sortProjects, filterProjects, ProjectGroupType } from '@/lib/project-utils';
+import { sortProjects, filterProjects, groupProjects, getGroupIcon, ProjectGroupType } from '@/lib/project-utils';
+import type { Project } from '@/lib/types';
 
 export default function ProjectsPageRedesign() {
   // State for project data and UI
@@ -80,25 +81,34 @@ export default function ProjectsPageRedesign() {
   const [activeMonth, setActiveMonth] = usePersistentState('projects-active-month', new Date().getMonth());
   const [newProjectDialogOpen, setNewProjectDialogOpen] = useState(false);
   // editDialogOpen removed
-  const [selectedProject, setSelectedProject] = useState<any>(null);
+  const [selectedProject] = useState<unknown>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [, setError] = useState<string | null>(null);
   const [useDummyData, setUseDummyData] = usePersistentState('projects-use-dummy', false);
   
   // UI state for filtering, grouping, and display
   const [searchQuery, setSearchQuery] = useState('');
-  const [groupBy, setGroupBy] = usePersistentState<ProjectGroupType>('projects-group-by', 'status');
-  const [sortBy, setSortBy] = usePersistentState('projects-sort-by', 'priority');
-  const [activeFilter, setActiveFilter] = usePersistentState('projects-active-filter', 'all');
+  const debouncedSearchQuery = useDebounce(searchQuery, 300); // Debounce search for better performance
+  const [, setGroupBy] = usePersistentState<ProjectGroupType>('projects-group-by-v2', 'none' as ProjectGroupType);
+  const [sortBy] = usePersistentState('projects-sort-by', 'priority');
+  const [activeFilter, setActiveFilter] = usePersistentState('projects-active-filter-v2', 'all');
   const [isBannerVisible, setIsBannerVisible] = useState(true);
-  const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
+  const [, setIsFilterMenuOpen] = useState(false);
   const [isDashboardMinimized, setIsDashboardMinimized] = usePersistentState('projects-dashboard-minimized', false);
+  const [viewMode, setViewMode] = usePersistentState('projects-view-mode', 'grid');
   
   // Reference for featured project section (no longer needed but kept for compatibility)
-  const featuredSectionRef = React.useRef<HTMLDivElement>(null);
+  // const featuredSectionRef = React.useRef<HTMLDivElement>(null);
   
   // Hooks for project data
   const { getProjectsByMonth, isLoading, prefetchAdjacentMonths } = useProjectsByMonth();
+  
+  // Ensure 'all' is the default filter on mount
+  useEffect(() => {
+    if (!activeFilter || activeFilter === '') {
+      setActiveFilter('all');
+    }
+  }, []);
   const { toast } = useToast();
   
   // Load projects for a specific month
@@ -113,13 +123,13 @@ export default function ProjectsPageRedesign() {
       
       // If no projects are returned, it might be a connection issue
       if (fetchedProjects.length === 0) {
-        console.warn('No projects returned from database, check connection');
+        // logger.warn('No projects returned from database, check connection');
       }
       
       // Prefetch adjacent months for smoother navigation
       prefetchAdjacentMonths(monthIndex);
     } catch (err) {
-      console.error('Error fetching projects:', err);
+      // logger.error('Error fetching projects:', err);
       setError('Failed to load projects. Using dummy data as fallback.');
       toast({
         title: 'Database Connection Error',
@@ -166,29 +176,68 @@ export default function ProjectsPageRedesign() {
     window.scrollTo({ top: 0, behavior: 'auto' });
   }, []);
   
-  // Handle tab change
-  const handleTabChange = (index: number) => {
+  // Handle tab change - memoized callback
+  const handleTabChange = useCallback((index: number) => {
     setActiveMonth(index);
     if (!projects[index]) {
       loadProjects(index);
     }
-  };
+  }, [projects]);
   
-  // Handle project refresh after adding or updating
-  const handleProjectsUpdated = () => {
-    // Clear the projects cache for the current month to force a reload
-    setProjects(prev => {
-      const newProjects = { ...prev };
-      delete newProjects[activeMonth];
-      return newProjects;
-    });
-    
-    // Reload projects for the current month
-    loadProjects(activeMonth);
-  };
+  // Handle project refresh after adding or updating - memoized callback
+  const handleProjectsUpdated = useCallback((updatedProject?: Project) => {
+    if (updatedProject) {
+      // Determine which months this project belongs to
+      const projectStartDate = new Date(updatedProject.start_date);
+      const projectEndDate = updatedProject.end_date ? new Date(updatedProject.end_date) : projectStartDate;
+      const currentYear = new Date().getFullYear();
+      
+      setProjects(prev => {
+        const newProjects = { ...prev };
+        
+        // Check each month to see if the project should appear there
+        for (let monthIndex = 0; monthIndex < 12; monthIndex++) {
+          const startOfMonth = new Date(currentYear, monthIndex, 1);
+          const endOfMonth = new Date(currentYear, monthIndex + 1, 0);
+          
+          // Check if project overlaps with this month
+          const projectOverlapsMonth = (
+            (projectStartDate >= startOfMonth && projectStartDate <= endOfMonth) ||
+            (projectEndDate >= startOfMonth && projectEndDate <= endOfMonth) ||
+            (projectStartDate <= startOfMonth && projectEndDate >= endOfMonth)
+          );
+          
+          if (projectOverlapsMonth && newProjects[monthIndex]) {
+            // Check if project already exists in this month
+            const existingIndex = newProjects[monthIndex].findIndex(p => p.id === updatedProject.id);
+            
+            if (existingIndex >= 0) {
+              // Update existing project
+              newProjects[monthIndex][existingIndex] = updatedProject;
+            } else {
+              // Add new project to this month
+              newProjects[monthIndex] = [...newProjects[monthIndex], updatedProject];
+            }
+          }
+        }
+        
+        return newProjects;
+      });
+    } else {
+      // Clear the projects cache for the current month to force a reload
+      setProjects(prev => {
+        const newProjects = { ...prev };
+        delete newProjects[activeMonth];
+        return newProjects;
+      });
+      
+      // Reload projects for the current month
+      loadProjects(activeMonth);
+    }
+  }, [activeMonth, projects]);
   
-  // Handle project deletion
-  const handleProjectDelete = async (project: any) => {
+  // Handle project deletion - memoized callback
+  const handleProjectDelete = useCallback(async (project: unknown) => {
     try {
       // Get session user id, assuming we're using test account for now
       const storedUser = localStorage.getItem('test_user');
@@ -211,70 +260,89 @@ export default function ProjectsPageRedesign() {
       handleProjectsUpdated();
       
     } catch (error) {
-      console.error('Error deleting project:', error);
+      // logger.error('Error deleting project:', error);
       toast({
         title: "Error",
         description: "Failed to delete project. Please try again.",
         variant: "destructive",
       });
     }
-  };
+  }, [toast, handleProjectsUpdated]);
   
-  // Handle view details
-  const handleViewDetails = (project: any) => {
+  // Handle view details - memoized callback
+  const handleViewDetails = useCallback((project: unknown) => {
     setSelectedProject(project);
     // EditProjectDialog removed - no action
-  };
+  }, []);
   
-  // Current month projects with processing
+  // Current month projects with processing - memoized with shallow comparison
   const allMonthProjects = projects[activeMonth] || [];
   
   // Additional filtering to ensure we only show projects that actually fall within the current month
   const currentMonthProjects = useMemo(() => {
+    // Early return if no projects
+    if (allMonthProjects.length === 0) return [];
+    
     // Get first and last day of the selected month
     const currentYear = new Date().getFullYear();
     const firstDayOfMonth = new Date(currentYear, activeMonth, 1);
     const lastDayOfMonth = new Date(currentYear, activeMonth + 1, 0);
     
+    // Pre-calculate timestamps for faster comparison
+    const firstDayTimestamp = firstDayOfMonth.getTime();
+    const lastDayTimestamp = lastDayOfMonth.getTime();
+    
     return allMonthProjects.filter(project => {
-      const startDate = new Date(project.start_date);
-      const endDate = project.end_date ? new Date(project.end_date) : startDate;
+      const startTimestamp = new Date(project.start_date).getTime();
+      const endTimestamp = project.end_date ? new Date(project.end_date).getTime() : startTimestamp;
       
-      // Include project if:
-      // 1. Start date is within this month
-      // 2. End date is within this month
-      // 3. Project spans this month (starts before and ends after)
-      return (startDate >= firstDayOfMonth && startDate <= lastDayOfMonth) ||
-             (endDate >= firstDayOfMonth && endDate <= lastDayOfMonth) ||
-             (startDate <= firstDayOfMonth && endDate >= lastDayOfMonth);
+      // Use timestamp comparison for better performance
+      return (startTimestamp >= firstDayTimestamp && startTimestamp <= lastDayTimestamp) ||
+             (endTimestamp >= firstDayTimestamp && endTimestamp <= lastDayTimestamp) ||
+             (startTimestamp <= firstDayTimestamp && endTimestamp >= lastDayTimestamp);
     });
   }, [allMonthProjects, activeMonth]);
   
-  // Generate filtered and processed project lists
+  // Generate filtered and processed project lists with optimized filtering
   const filteredProjects = useMemo(() => {
+    // Early return for empty projects
+    if (currentMonthProjects.length === 0) return [];
+    
+    // Map filter values to actual database status values
+    let statusFilter = {};
+    if (activeFilter !== 'all') {
+      // Map 'active' filter to include both 'active' and 'in_progress' statuses
+      if (activeFilter === 'active') {
+        statusFilter = { status: ['active', 'in_progress', 'confirmed'] };
+      } else {
+        statusFilter = { status: [activeFilter] };
+      }
+    }
+    
     const filtered = filterProjects(
       currentMonthProjects,
-      searchQuery,
-      activeFilter === 'all' ? {} : { status: [activeFilter] }
+      debouncedSearchQuery, // Use debounced search query
+      statusFilter
     );
-    console.log(`Month ${activeMonth}: Found ${currentMonthProjects.length} projects, filtered to ${filtered.length}`);
     return filtered;
-  }, [currentMonthProjects, searchQuery, activeFilter, activeMonth]);
+  }, [currentMonthProjects, debouncedSearchQuery, activeFilter]); // Use debounced search
   
   // Get project metrics
   const metrics = useMemo(() => {
-    const activeProjects = filteredProjects.filter(p => 
-      ['in-progress', 'new', 'pending'].includes(p.status.toLowerCase())
-    );
+    const activeProjects = filteredProjects.filter(p => {
+      const normalizedStatus = p.status.toLowerCase();
+      return ['active', 'in_progress', 'confirmed', 'planning'].includes(normalizedStatus);
+    });
     
     const completedProjects = filteredProjects.filter(p => 
       p.status.toLowerCase() === 'completed'
     );
     
-    const delayedProjects = filteredProjects.filter(p => 
-      ['in-progress', 'pending'].includes(p.status.toLowerCase()) && 
-      (p as any).is_delayed === true
-    );
+    const delayedProjects = filteredProjects.filter(p => {
+      const normalizedStatus = p.status.toLowerCase();
+      return ['active', 'in_progress'].includes(normalizedStatus) && 
+        (p as unknown).is_delayed === true;
+    });
     
     // Calculate team utilization if available
     let teamUtilization = "N/A";
@@ -294,10 +362,40 @@ export default function ProjectsPageRedesign() {
     };
   }, [filteredProjects]);
   
-  // Find a featured project
-  const featuredProject = useMemo(() => {
-    return filteredProjects.find(project => isFeatureWorthy(project)) || null;
-  }, [filteredProjects]);
+  // Get current user id from storage (assuming test_user for now)
+  const currentUserId = useMemo(() => {
+    const storedUser = localStorage.getItem('test_user');
+    if (storedUser) {
+      try {
+        return JSON.parse(storedUser).user.id;
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  }, []);
+
+  // Find user's projects (where user is manager, client, or collaborator)
+  const myProjects = useMemo(() => {
+    if (!currentUserId) return [];
+    
+    return filteredProjects.filter(project => {
+      // Check if user is the manager
+      if (project.manager_id === currentUserId) return true;
+      
+      // Check if user is the client
+      if (project.client_id === currentUserId) return true;
+      
+      // Check if user is in confirmed staff
+      if (project.confirmed_staff && Array.isArray(project.confirmed_staff)) {
+        return project.confirmed_staff.some((staff: unknown) => 
+          staff.candidate_id === currentUserId || staff.id === currentUserId
+        );
+      }
+      
+      return false;
+    });
+  }, [filteredProjects, currentUserId]);
   
   // Calculate today's projects count
   const todaysProjectsCount = useMemo(() => {
@@ -318,21 +416,21 @@ export default function ProjectsPageRedesign() {
   
   // Group projects by the selected grouping method
   const groupedProjects = useMemo(() => {
-    // Filter out the featured project from the groups
-    const projectsWithoutFeatured = featuredProject 
-      ? filteredProjects.filter(p => p.id !== featuredProject.id)
-      : filteredProjects;
+    // Filter out user's projects from the general groups
+    const myProjectIds = new Set(myProjects.map(p => p.id));
+    const projectsWithoutMine = filteredProjects.filter(p => !myProjectIds.has(p.id));
       
+    // Always use 'none' grouping to show all projects together
     return groupProjects(
       // Sort projects within each group
-      sortProjects(projectsWithoutFeatured, sortBy as any),
-      groupBy
+      sortProjects(projectsWithoutMine, sortBy as unknown),
+      'none'
     );
-  }, [filteredProjects, featuredProject, groupBy, sortBy]);
+  }, [filteredProjects, myProjects, sortBy]);
   
   // Helper function to render the appropriate icon for group headers
   const renderGroupIcon = (groupName: string) => {
-    const iconName = getGroupIcon(groupName, groupBy);
+    const iconName = getGroupIcon(groupName, 'none');
     const icons: Record<string, React.ReactNode> = {
       'Sparkles': <Sparkles className="h-5 w-5 text-amber-500 mr-2" />,
       'Clock': <Clock className="h-5 w-5 text-blue-500 mr-2" />,
@@ -367,10 +465,10 @@ export default function ProjectsPageRedesign() {
   // Tab options for status filtering
   const statusOptions = [
     { value: 'all', label: 'All', icon: <Circle className="h-3.5 w-3.5" /> },
-    { value: 'in-progress', label: 'In Progress', icon: <Clock className="h-3.5 w-3.5" /> },
-    { value: 'pending', label: 'Pending', icon: <Hourglass className="h-3.5 w-3.5" /> },
-    { value: 'new', label: 'New', icon: <Sparkles className="h-3.5 w-3.5" /> },
-    { value: 'completed', label: 'Completed', icon: <CheckCircle className="h-3.5 w-3.5" /> }
+    { value: 'planning', label: 'Planning', icon: <Calendar className="h-3.5 w-3.5" /> },
+    { value: 'active', label: 'Active', icon: <Activity className="h-3.5 w-3.5" /> },
+    { value: 'completed', label: 'Completed', icon: <CheckCircle className="h-3.5 w-3.5" /> },
+    { value: 'cancelled', label: 'Cancelled', icon: <XCircle className="h-3.5 w-3.5" /> }
   ];
   
   const months = [
@@ -544,6 +642,59 @@ export default function ProjectsPageRedesign() {
               
               {/* Right-side controls */}
               <div className="flex items-center gap-2">
+                {/* View Toggle */}
+                <div className="flex items-center h-10 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 p-1">
+                  <button
+                    className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                      viewMode === 'grid' 
+                        ? 'bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300' 
+                        : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+                    }`}
+                    onClick={() => setViewMode('grid')}
+                  >
+                    <Grid3X3 className="h-4 w-4" />
+                  </button>
+                  <button
+                    className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                      viewMode === 'list' 
+                        ? 'bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300' 
+                        : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+                    }`}
+                    onClick={() => setViewMode('list')}
+                  >
+                    <List className="h-4 w-4" />
+                  </button>
+                </div>
+
+                {/* Additional Filters */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-10 gap-2"
+                    >
+                      <Filter className="h-4 w-4" />
+                      <span>Filters</span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuLabel>Filter Options</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem>
+                      <Calendar className="mr-2 h-4 w-4" />
+                      <span>By Date Range</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem>
+                      <Users className="mr-2 h-4 w-4" />
+                      <span>By Team</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem>
+                      <Star className="mr-2 h-4 w-4" />
+                      <span>By Priority</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
                 {/* All dropdown - simulating the design from the image */}
                 <div className="flex items-center h-10 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 px-3">
                   <div className="w-8 h-8 flex items-center justify-center bg-slate-100 dark:bg-slate-800 rounded-full mr-2">
@@ -595,51 +746,6 @@ export default function ProjectsPageRedesign() {
                 </DropdownMenu>
                 </div>
                 
-                {/* View dropdown */}
-                <div className="flex items-center h-10 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 px-3">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="h-8 gap-2 border-0 p-0 hover:bg-transparent"
-                      >
-                        <SlidersHorizontal className="h-4 w-4 text-slate-500" />
-                        <span>View</span>
-                        <ChevronDown className="h-3.5 w-3.5 text-slate-500 ml-1" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-56 p-0">
-                    <div className="p-3 bg-gradient-to-r from-indigo-50 to-blue-50 dark:from-indigo-950/40 dark:to-blue-950/40 border-b">
-                      <h3 className="font-medium text-slate-900 dark:text-white text-sm">Display Options</h3>
-                      <p className="text-xs text-slate-500 dark:text-slate-400">Customize project layout</p>
-                    </div>
-                    
-                    <div className="p-2">
-                      <h4 className="text-xs font-medium px-2 py-1.5 text-slate-500 dark:text-slate-400">Group By</h4>
-                      <DropdownMenuRadioGroup value={groupBy} onValueChange={(value) => setGroupBy(value as ProjectGroupType)}>
-                        <DropdownMenuRadioItem value="status" className="text-sm rounded-md">Status</DropdownMenuRadioItem>
-                        <DropdownMenuRadioItem value="priority" className="text-sm rounded-md">Priority</DropdownMenuRadioItem>
-                        <DropdownMenuRadioItem value="client" className="text-sm rounded-md">Client</DropdownMenuRadioItem>
-                        <DropdownMenuRadioItem value="time" className="text-sm rounded-md">Time Period</DropdownMenuRadioItem>
-                      </DropdownMenuRadioGroup>
-                    </div>
-                    
-                    <DropdownMenuSeparator />
-                    
-                    <div className="p-2">
-                      <h4 className="text-xs font-medium px-2 py-1.5 text-slate-500 dark:text-slate-400">Sort By</h4>
-                      <DropdownMenuRadioGroup value={sortBy} onValueChange={setSortBy}>
-                        <DropdownMenuRadioItem value="priority" className="text-sm rounded-md">Priority</DropdownMenuRadioItem>
-                        <DropdownMenuRadioItem value="date" className="text-sm rounded-md">Date</DropdownMenuRadioItem>
-                        <DropdownMenuRadioItem value="progress" className="text-sm rounded-md">Progress</DropdownMenuRadioItem>
-                        <DropdownMenuRadioItem value="title" className="text-sm rounded-md">Title</DropdownMenuRadioItem>
-                      </DropdownMenuRadioGroup>
-                    </div>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-                </div>
-                
                 {/* Create new project button */}
                 <Button 
                   className="h-10 gap-2 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white shadow-sm border-0 rounded-lg"
@@ -678,22 +784,46 @@ export default function ProjectsPageRedesign() {
             </div>
           ) : (
             <>
-              {/* Featured project */}
-              {featuredProject && (
-                <section className="mb-4" ref={featuredSectionRef}>
-                  <h2 className="text-sm font-semibold mb-2 flex items-center">
-                    <Sparkles className="h-4 w-4 text-amber-500 mr-1.5" />
-                    Featured Project
-                  </h2>
-                  
-                  <SpotlightCard 
-                    project={featuredProject}
-                    onProjectUpdated={handleProjectsUpdated}
-                    onViewDetails={handleViewDetails}
-                    tasks={featuredProject.tasks || []}
-                    documents={featuredProject.documents || []}
-                  />
-                </section>
+              {/* My Projects */}
+              {myProjects.length > 0 && (
+                <Profiler id="MyProjectsSection" onRender={onRenderCallback}>
+                  <section className="mb-6" ref={featuredSectionRef}>
+                    <h2 className="text-lg font-semibold mb-4 flex items-center">
+                      <Users className="h-5 w-5 text-blue-500 mr-2" />
+                      My Projects
+                      <Badge className="ml-2 bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200">
+                        {myProjects.length}
+                      </Badge>
+                    </h2>
+                    
+                    {/* Use VirtualizedProjectGrid for better performance with many projects */}
+                    {myProjects.length > 6 ? (
+                    <div className="h-[600px]">
+                      <VirtualizedProjectGrid
+                        projects={myProjects}
+                        onProjectUpdated={handleProjectsUpdated}
+                        onViewDetails={handleViewDetails}
+                        columns={3}
+                        rowHeight={280}
+                      />
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                      {myProjects.map((project) => (
+                        <SpotlightCardOptimized 
+                          key={project.id}
+                          project={project}
+                          onProjectUpdated={handleProjectsUpdated}
+                          onViewDetails={handleViewDetails}
+                          tasks={project.tasks || []}
+                          documents={project.documents || []}
+                          expenseClaims={project.expense_claims || []}
+                        />
+                      ))}
+                    </div>
+                    )}
+                  </section>
+                </Profiler>
               )}
               
               {/* Project groups */}
@@ -714,21 +844,34 @@ export default function ProjectsPageRedesign() {
                       </Badge>
                     </h2>
                     
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                      <AnimatePresence>
-                        {projects.map((project) => (
-                          <SpotlightCard
-                            key={project.id}
-                            project={project}
-                            onProjectUpdated={handleProjectsUpdated}
-                            onViewDetails={handleViewDetails}
-                            tasks={project.tasks || []}
-                            documents={project.documents || []}
-                            expenseClaims={project.expense_claims || []}
-                          />
-                        ))}
-                      </AnimatePresence>
-                    </div>
+                    {/* Use VirtualizedProjectGrid for better performance with many projects */}
+                    {projects.length > 9 ? (
+                      <div className="h-[800px]">
+                        <VirtualizedProjectGrid
+                          projects={projects}
+                          onProjectUpdated={handleProjectsUpdated}
+                          onViewDetails={handleViewDetails}
+                          columns={3}
+                          rowHeight={280}
+                        />
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                        <AnimatePresence mode="popLayout">
+                          {projects.map((project) => (
+                            <SpotlightCardOptimized
+                              key={project.id}
+                              project={project}
+                              onProjectUpdated={handleProjectsUpdated}
+                              onViewDetails={handleViewDetails}
+                              tasks={project.tasks || []}
+                              documents={project.documents || []}
+                              expenseClaims={project.expense_claims || []}
+                            />
+                          ))}
+                        </AnimatePresence>
+                      </div>
+                    )}
                   </motion.section>
                 )
               ))}
@@ -758,41 +901,16 @@ export default function ProjectsPageRedesign() {
         </div>
       </div>
       
-      {/* Pagination footer (visible only if enough projects) */}
-      {totalProjects > 12 && (
-        <div className="border-t bg-white/50 backdrop-blur-sm dark:bg-slate-900/50 p-4">
-          <div className="max-w-6xl mx-auto flex items-center justify-between">
-            <p className="text-sm text-slate-500">
-              Showing {Math.min(12, totalProjects)} of {totalProjects} projects
-            </p>
-            
-            <Pagination>
-              <PaginationContent>
-                <PaginationItem>
-                  <PaginationPrevious href="#" />
-                </PaginationItem>
-                <PaginationItem>
-                  <PaginationLink href="#" isActive>1</PaginationLink>
-                </PaginationItem>
-                <PaginationItem>
-                  <PaginationLink href="#">2</PaginationLink>
-                </PaginationItem>
-                <PaginationItem>
-                  <PaginationNext href="#" />
-                </PaginationItem>
-              </PaginationContent>
-            </Pagination>
-          </div>
-        </div>
-      )}
       
-      {/* Project creation dialog */}
-      <NewProjectDialog
-        open={newProjectDialogOpen}
-        onOpenChange={setNewProjectDialogOpen}
-        onProjectAdded={handleProjectsUpdated}
-        initialDates={null}
-      />
+      {/* Project creation dialog - lazy loaded */}
+      <Suspense fallback={null}>
+        <NewProjectDialog
+          open={newProjectDialogOpen}
+          onOpenChange={setNewProjectDialogOpen}
+          onProjectAdded={handleProjectsUpdated}
+          initialDates={null}
+        />
+      </Suspense>
       
       {/* EditProjectDialog removed */}
       

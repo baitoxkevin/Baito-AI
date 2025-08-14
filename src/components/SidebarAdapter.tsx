@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useEffect } from "react";
 import { Sidebar, SidebarBody, SidebarLink } from "@/components/ui/sidebar";
 import { useNavigate, useLocation } from "react-router-dom";
+import { logger } from '../lib/logger';
 import {
   Settings,
   LogOut,
@@ -11,7 +12,10 @@ import {
   PenTool as Tool,
   Zap,
   DollarSign,
-  CreditCard
+  CreditCard,
+  Target,
+  Receipt,
+  Package
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { supabase } from '@/lib/supabase';
@@ -109,7 +113,7 @@ function UserProfileButton({ open, setOpen }: UserProfileButtonProps) {
               setAvatarUrl(userData.raw_user_meta_data.avatar_url);
             }
           } catch (e) {
-            console.error('Error parsing user metadata:', e);
+            logger.error('Error parsing user metadata:', e);
           }
         } else {
           // Fallback to auth user data if no public user record exists
@@ -120,7 +124,7 @@ function UserProfileButton({ open, setOpen }: UserProfileButtonProps) {
         }
       }
     } catch (error) {
-      console.error('Error fetching user data:', error);
+      logger.error('Error fetching user data:', error);
     }
   };
 
@@ -245,7 +249,7 @@ export function SidebarAdapter({ children }: SidebarAdapterProps) {
         }
       }
     } catch (error) {
-      console.error('Error fetching user role:', error);
+      logger.error('Error fetching user role:', error);
     }
   };
 
@@ -273,7 +277,7 @@ export function SidebarAdapter({ children }: SidebarAdapterProps) {
       // Force navigation to login page
       navigate('/login');
     } catch (error) {
-      console.error('Error signing out:', error);
+      logger.error('Error signing out:', error);
       toast({
         title: "Error",
         description: "Failed to sign out. Please try again.",
@@ -361,6 +365,48 @@ export function SidebarAdapter({ children }: SidebarAdapterProps) {
       ),
       "aria-current": location.pathname === "/payments" ? "page" : undefined,
     }] : []),
+    {
+      label: "Expenses",
+      href: "/expenses",
+      icon: <Receipt className="sidebar-link-icon" />,
+      onClick: (e) => {
+        e.preventDefault();
+        handleNavigation("/expenses");
+      },
+      className: cn(
+        "sidebar-link",
+        location.pathname === "/expenses" && "bg-muted"
+      ),
+      "aria-current": location.pathname === "/expenses" ? "page" : undefined,
+    },
+    {
+      label: "Goals",
+      href: "/goals",
+      icon: <Target className="sidebar-link-icon" />,
+      onClick: (e) => {
+        e.preventDefault();
+        handleNavigation("/goals");
+      },
+      className: cn(
+        "sidebar-link",
+        location.pathname === "/goals" && "bg-muted"
+      ),
+      "aria-current": location.pathname === "/goals" ? "page" : undefined,
+    },
+    {
+      label: "Warehouse",
+      href: "/warehouse",
+      icon: <Package className="sidebar-link-icon" />,
+      onClick: (e) => {
+        e.preventDefault();
+        handleNavigation("/warehouse");
+      },
+      className: cn(
+        "sidebar-link",
+        location.pathname === "/warehouse" && "bg-muted"
+      ),
+      "aria-current": location.pathname === "/warehouse" ? "page" : undefined,
+    },
     {
       label: "Settings",
       href: "/settings",

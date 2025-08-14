@@ -1,227 +1,230 @@
-import React from 'react';
+import React, { memo, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
-import { MagicCard } from "@/components/ui/magic-card";
-import { NeonGradientCard } from "@/components/ui/neon-gradient-card";
-import { ShimmerButton } from "@/components/ui/shimmer-button";
-import { ShineBorder } from "@/components/ui/shine-border";
-import { TextAnimate } from "@/components/ui/text-animate";
-import { cn } from "@/lib/utils";
 import { 
   Calendar, 
   Clock, 
   MapPin, 
+  ChartBar,
   Users, 
-  DollarSign,
-  Sparkles,
-  Eye
+  FileText,
+  ArrowUpRight
 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { formatDate } from '@/lib/utils';
 import type { Project } from '@/lib/types';
-import { statusGradients, priorityColors } from './constants';
 
 interface SpotlightCardMinimizedProps {
   project: Project;
   onClick: () => void;
-  onMouseMove: (event: React.MouseEvent<HTMLDivElement>) => void;
-  mousePosition: { x: number; y: number };
+  onMouseMove?: (event: React.MouseEvent<HTMLDivElement>) => void;
+  mousePosition?: { x: number; y: number };
+  tasks?: unknown[];
+  expenseClaims?: unknown[];
 }
 
-export function SpotlightCardMinimized({ 
+export const SpotlightCardMinimized = memo(function SpotlightCardMinimized({ 
   project, 
-  onClick, 
-  onMouseMove,
-  mousePosition
+  onClick,
+  tasks = [],
+  expenseClaims = []
 }: SpotlightCardMinimizedProps) {
-  const cardRef = React.useRef<HTMLDivElement>(null);
-  
+  // Memoize expensive computations
+  const { startDate, endDate } = useMemo(() => ({
+    startDate: formatDate(project.start_date),
+    endDate: project.end_date ? formatDate(project.end_date) : null
+  }), [project.start_date, project.end_date]);
+
+  // Get logos
+  const brandLogo = (project as any).brand_logo || null;
+  const clientLogo = project.client && (project.client as any).logo_url || null;
+
+  // Memoize getInitials function
+  const getInitials = useMemo(() => (name: string) => {
+    if (!name) return '';
+    const parts = name.split(' ').filter(part => part.trim() !== '');
+    if (parts.length === 0) return '';
+    if (parts.length === 1) {
+      return parts[0].substring(0, 2).toUpperCase();
+    }
+    return (parts[0][0] + parts[1][0]).toUpperCase();
+  }, []);
+
   return (
     <motion.div
-      ref={cardRef}
-      className="relative rounded-2xl overflow-hidden cursor-pointer"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      whileHover={{ scale: 1.005 }}
-      transition={{ duration: 0.3 }}
-      onMouseMove={onMouseMove}
-      onClick={onClick}
+      whileHover={{ y: -2 }}
+      transition={{ duration: 0.15, ease: 'easeOut' }}
     >
-      <ShineBorder
-        className="relative shadow-2xl"
-        color={["#A07CFE", "#FE8FB5", "#FFBE7B"]}
-        borderRadius={16}
-        borderWidth={2}
+      <div 
+        className="relative border shadow-sm hover:shadow-lg transition-all duration-300 bg-white dark:bg-slate-900 overflow-hidden cursor-pointer rounded-lg"
+        onClick={onClick}
       >
-        <MagicCard
-          className="transition-all duration-500 bg-gradient-to-br from-white to-gray-50 dark:from-slate-900 dark:to-slate-800 overflow-hidden"
-          gradientColor={priorityColors[project.priority] ? `rgba(${priorityColors[project.priority].replace('from-', '').replace('-400', '')}, 0.1)` : "rgba(147, 51, 234, 0.1)"}
-          gradientSize={300}
-          borderRadius={16}
-        >
-          {/* Animated gradient border */}
-          <motion.div 
-            className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500"
-            initial={{ scaleX: 0.3, opacity: 0 }}
-            animate={{ scaleX: 0.6, opacity: 0.7 }}
-            whileHover={{ scaleX: 1, opacity: 1 }}
-            transition={{ duration: 0.5 }}
-            style={{ 
-              transformOrigin: 'left',
-              backgroundSize: '200% 100%',
-              animation: 'gradient-shift 3s ease infinite'
-            }}
-          />
-          
-          <CardContent className="p-8">
-            <div className="space-y-6">
-              {/* Header */}
-              <div className="flex items-start justify-between">
-                <div className="space-y-2">
-                  <div className="flex items-center gap-3">
-                    <TextAnimate
-                      text={project.title}
-                      type="fadeIn"
-                      className="text-2xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-300 bg-clip-text text-transparent"
+        {/* Top accent bar */}
+        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500" />
+        
+        <div className="p-5">
+          <div className="flex flex-col gap-4">
+            {/* Header with Logo and Title */}
+            <div className="flex items-center gap-3">
+              {/* Brand Logo with Client Logo overlay */}
+              <div className="relative shrink-0">
+                {/* Main square for brand logo */}
+                <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-800 flex items-center justify-center overflow-hidden shadow-sm">
+                  {brandLogo ? (
+                    <img
+                      src={brandLogo}
+                      alt={`${project.title} logo`}
+                      className="w-full h-full object-contain p-1.5"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = 'none';
+                        (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
+                      }}
                     />
-                    <Sparkles className="h-5 w-5 text-yellow-500 animate-pulse" />
-                  </div>
-                  <p className="text-gray-600 dark:text-gray-400 font-medium">
-                    {(project.client as any)?.name || (project.client as any)?.company_name}
-                  </p>
+                  ) : null}
+                  <span className={cn(
+                    "text-lg font-bold text-slate-600 dark:text-slate-300",
+                    brandLogo ? "hidden" : ""
+                  )}>
+                    {getInitials(project.title).charAt(0)}
+                  </span>
                 </div>
                 
-                <ShimmerButton
-                  variant="ghost"
-                  size="sm"
-                  className={cn(
-                    "text-white font-medium",
-                    `bg-gradient-to-r ${statusGradients[project.status] || statusGradients['pending']}`
-                  )}
-                >
-                  {project.status.charAt(0).toUpperCase() + project.status.slice(1)}
-                </ShimmerButton>
-              </div>
-              
-              {/* Stats Grid */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <NeonGradientCard
-                  className="bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm"
-                  borderRadius={12}
-                  borderSize={1}
-                  neonColors={{ firstColor: "#6366f1", secondColor: "#a78bfa" }}
-                >
-                  <div className="p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <Calendar className="h-5 w-5 text-blue-500" />
-                      <span className="text-xs text-gray-500">Start</span>
-                    </div>
-                    <p className="font-semibold text-sm">{formatDate(project.start_date)}</p>
+                {/* Client logo overlay - bottom right corner (always shown) */}
+                <div className="absolute -bottom-1 -right-1 h-5 w-5 rounded-full bg-white dark:bg-slate-800 p-0.5 shadow-sm transition-all duration-200 hover:h-8 hover:w-8 hover:-bottom-2 hover:-right-2 hover:z-10 cursor-pointer group">
+                  <div className="h-full w-full rounded-full bg-gray-100 dark:bg-gray-800 overflow-hidden flex items-center justify-center">
+                    {clientLogo ? (
+                      <img
+                        src={clientLogo}
+                        alt={`${(project.client as any)?.company_name || 'Client'} logo`}
+                        className="w-full h-full object-contain"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = 'none';
+                          (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
+                        }}
+                      />
+                    ) : null}
+                    <span className={cn(
+                      "text-[8px] font-bold text-slate-600 dark:text-slate-300 transition-all group-hover:text-[10px]",
+                      clientLogo ? "hidden" : ""
+                    )}>
+                      {project.client ? 
+                        getInitials((project.client as any)?.company_name || (project.client as any)?.name || 'C').charAt(0) 
+                        : 'C'
+                      }
+                    </span>
                   </div>
-                </NeonGradientCard>
-                
-                <NeonGradientCard
-                  className="bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm"
-                  borderRadius={12}
-                  borderSize={1}
-                  neonColors={{ firstColor: "#a78bfa", secondColor: "#e879f9" }}
-                >
-                  <div className="p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <Clock className="h-5 w-5 text-purple-500" />
-                      <span className="text-xs text-gray-500">Hours</span>
-                    </div>
-                    <p className="font-semibold text-sm">{project.working_hours_start} - {project.working_hours_end}</p>
-                  </div>
-                </NeonGradientCard>
-                
-                <NeonGradientCard
-                  className="bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm"
-                  borderRadius={12}
-                  borderSize={1}
-                  neonColors={{ firstColor: "#34d399", secondColor: "#10b981" }}
-                >
-                  <div className="p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <Users className="h-5 w-5 text-green-500" />
-                      <span className="text-xs text-gray-500">Staff</span>
-                    </div>
-                    <p className="font-semibold text-sm">{project.filled_positions || 0}/{project.crew_count || 0}</p>
-                  </div>
-                </NeonGradientCard>
-                
-                <NeonGradientCard
-                  className="bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm"
-                  borderRadius={12}
-                  borderSize={1}
-                  neonColors={{ firstColor: "#10b981", secondColor: "#34d399" }}
-                >
-                  <div className="p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <DollarSign className="h-5 w-5 text-emerald-500" />
-                      <span className="text-xs text-gray-500">Budget</span>
-                    </div>
-                    <p className="font-semibold text-sm">${project.budget?.toLocaleString() || 0}</p>
-                  </div>
-                </NeonGradientCard>
-              </div>
-              
-              {/* Location */}
-              <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
-                <MapPin className="h-5 w-5 text-rose-500" />
-                <span className="text-sm line-clamp-1">{project.venue_address}</span>
-              </div>
-              
-              {/* Progress bar with shimmer effect */}
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600 dark:text-gray-400">Project Progress</span>
-                  <span className="font-medium">{Math.round((project.filled_positions / project.crew_count) * 100)}%</span>
-                </div>
-                <div className="relative h-2.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                  <motion.div
-                    className="absolute inset-y-0 left-0 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500"
-                    initial={{ width: "0%" }}
-                    animate={{ width: `${(project.filled_positions / project.crew_count) * 100}%` }}
-                    transition={{ duration: 1, ease: "easeInOut" }}
-                  >
-                    <div className="absolute inset-0 bg-white/30 animate-shimmer" />
-                  </motion.div>
                 </div>
               </div>
               
-              {/* Action hints */}
-              <div className="flex items-center justify-center gap-2 pt-2">
-                <div className="flex items-center gap-1.5 text-xs text-gray-500">
-                  <motion.div
-                    animate={{ scale: [1, 1.2, 1] }}
-                    transition={{ duration: 1.5, repeat: Infinity }}
-                  >
-                    <Eye className="h-3.5 w-3.5" />
-                  </motion.div>
-                  <span>Click to view details</span>
+              {/* Title and PICs */}
+              <div className="flex-1 min-w-0">
+                <h3 className="text-base font-bold text-slate-900 dark:text-white truncate text-left mb-2">
+                  {project.title}
+                </h3>
+                
+                {/* PIC Badges below title */}
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="px-2 py-0.5 text-xs bg-slate-50 dark:bg-slate-800">
+                    {(project.client as any)?.pic_name || (project as any).client_pic || 'Not assigned'}
+                  </Badge>
+                  
+                  <Badge variant="outline" className="px-2 py-0.5 text-xs bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300">
+                    {(project as any).manager?.full_name || 'Not assigned'}
+                  </Badge>
+                </div>
+              </div>
+              
+              {/* Action Button */}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onClick();
+                }}
+              >
+                <ArrowUpRight className="h-4 w-4" />
+              </Button>
+            </div>
+            
+            {/* Divider */}
+            <div className="h-px bg-slate-200 dark:bg-slate-700" />
+            
+            {/* Date, Time and Location with additional details */}
+            <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+              <div className="flex items-center gap-3 text-sm">
+                <Calendar className="h-4 w-4 text-blue-500 shrink-0" />
+                <span className="text-slate-700 dark:text-slate-300">
+                  {startDate} - {endDate || startDate}
+                </span>
+              </div>
+              
+              <div className="flex items-center gap-3 text-sm">
+                <Users className="h-4 w-4 text-green-500 shrink-0" />
+                <span className="text-slate-700 dark:text-slate-300">
+                  {project.filled_positions || 0} / {project.crew_count || 0} filled
+                </span>
+              </div>
+              
+              <div className="flex items-center gap-3 text-sm">
+                <Clock className="h-4 w-4 text-indigo-500 shrink-0" />
+                <span className="text-slate-700 dark:text-slate-300">
+                  {project.working_hours_start} - {project.working_hours_end}
+                </span>
+              </div>
+              
+              {project.budget && (
+                <div className="flex items-center gap-3 text-sm">
+                  <span className="text-green-600 font-semibold">RM {(project as any).budget?.toLocaleString()}</span>
+                </div>
+              )}
+              
+              <div className="flex items-center gap-3 text-sm col-span-2">
+                <MapPin className="h-4 w-4 text-red-500 shrink-0" />
+                <span className="text-slate-700 dark:text-slate-300 truncate">
+                  {project.venue_address || 'To be confirmed'}
+                </span>
+              </div>
+            </div>
+            
+            {/* Divider */}
+            <div className="h-px bg-slate-200 dark:bg-slate-700" />
+            
+            {/* Stats - Centered */}
+            <div className="flex items-center justify-center gap-6">
+              <div className="flex items-center gap-2">
+                <ChartBar className="h-4 w-4 text-blue-500" />
+                <div className="text-sm">
+                  <span className="font-semibold text-slate-900 dark:text-white">{tasks.length}</span>
+                  <span className="text-slate-500 dark:text-slate-400 ml-1">Tasks</span>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <Users className="h-4 w-4 text-indigo-500" />
+                <div className="text-sm">
+                  <span className="font-semibold text-slate-900 dark:text-white">{project.crew_count || 0}</span>
+                  <span className="text-slate-500 dark:text-slate-400 ml-1">Crew</span>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <FileText className="h-4 w-4 text-purple-500" />
+                <div className="text-sm">
+                  <span className="font-semibold text-slate-900 dark:text-white">{expenseClaims.length}</span>
+                  <span className="text-slate-500 dark:text-slate-400 ml-1">Claims</span>
                 </div>
               </div>
             </div>
-          </CardContent>
-        </MagicCard>
-      </ShineBorder>
-      
-      <style>{`
-        @keyframes gradient-shift {
-          0% { background-position: 0% 50%; }
-          50% { background-position: 100% 50%; }
-          100% { background-position: 0% 50%; }
-        }
-        @keyframes shimmer {
-          0% { transform: translateX(-100%); }
-          100% { transform: translateX(200%); }
-        }
-        .animate-shimmer {
-          animation: shimmer 2s infinite;
-        }
-      `}</style>
+          </div>
+        </div>
+      </div>
     </motion.div>
   );
-}
+});
+
+SpotlightCardMinimized.displayName = 'SpotlightCardMinimized';

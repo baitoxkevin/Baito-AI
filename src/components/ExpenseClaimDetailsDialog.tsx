@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { logger } from '../lib/logger';
 import {
   Dialog,
   DialogContent,
@@ -17,7 +18,7 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
+  // CardFooter,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
@@ -25,7 +26,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useExpenseClaims } from '@/hooks/use-expense-claims';
 import { format } from 'date-fns';
 import {
@@ -33,7 +34,7 @@ import {
   Calendar, 
   Check, 
   CheckCircle2, 
-  CreditCard, 
+  // CreditCard, 
   FileText, 
   Receipt, 
   User,
@@ -42,7 +43,7 @@ import {
   DollarSign,
   Clock,
   Building2,
-  MapPin
+  // MapPin
 } from 'lucide-react';
 import { Textarea } from './ui/textarea';
 import { useToast } from '@/hooks/use-toast';
@@ -56,7 +57,7 @@ interface ExpenseClaimDetailsDialogProps {
   isAdmin?: boolean;
   onApprove?: (claimId: string) => Promise<void>;
   onReject?: (claimId: string, reason: string) => Promise<void>;
-  localClaim?: any;
+  localClaim?: unknown;
   projectTitle?: string;
 }
 
@@ -81,15 +82,15 @@ export function ExpenseClaimDetailsDialog({
 
   const [rejectionReason, setRejectionReason] = useState('');
   const [showRejectionForm, setShowRejectionForm] = useState(false);
-  const [localClaim, setLocalClaim] = useState<any>(null);
+  const [localClaim, setLocalClaim] = useState<unknown>(null);
   const [canApprove, setCanApprove] = useState(false);
   const [checkingApproval, setCheckingApproval] = useState(false);
 
   useEffect(() => {
     if (open && claimId) {
       // Always try to load from database first
-      loadClaim(claimId).catch(err => {
-        console.warn('Failed to load claim from database:', err);
+      loadClaim(claimId).catch(_err => {
+        // logger.warn('Failed to load claim from database:', err);
         // If database fails, try using local claim if available
         if (propLocalClaim) {
           setLocalClaim(propLocalClaim);
@@ -122,7 +123,7 @@ export function ExpenseClaimDetailsDialog({
         const allowed = await canApproveExpenseClaim(currentUser.id, claim.created_by);
         setCanApprove(allowed);
       } catch (error) {
-        console.error('Error checking approval permission:', error);
+        logger.error('Error checking approval permission:', error);
         setCanApprove(false);
       } finally {
         setCheckingApproval(false);
@@ -143,8 +144,8 @@ export function ExpenseClaimDetailsDialog({
     if (!dateString) return 'N/A';
     try {
       return format(new Date(dateString), 'MMM d, yyyy');
-    } catch (error) {
-      console.warn('Invalid date format:', dateString);
+    } catch (_error) {
+      // logger.warn('Invalid date format:', dateString);
       return 'Invalid Date';
     }
   };
@@ -208,7 +209,7 @@ export function ExpenseClaimDetailsDialog({
       // Trigger a refresh of the expense claims and project data
       window.location.reload(); // Simple refresh for now
     } catch (error) {
-      console.error('Error approving claim:', error);
+      logger.error('Error approving claim:', error);
       toast({
         title: "Error",
         description: "Failed to approve expense claim",

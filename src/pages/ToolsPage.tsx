@@ -12,7 +12,9 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { useEnhancedToast } from '@/hooks/use-enhanced-toast';
 import { ToastAction } from '@/components/ui/enhanced-toast';
-import { Calculator, Calendar as CalendarIcon, Clock, FileSpreadsheet, FileText, MessageSquare, Upload, Download, Loader2, Database, Receipt, DollarSign, BarChart3, Bell } from 'lucide-react';
+import { Calculator, Calendar as CalendarIcon, Clock, FileSpreadsheet, FileText, MessageSquare, Upload, Download, Loader2, Database, Receipt, DollarSign, BarChart3, Bell, Sparkles, Zap, Lock } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { cn } from '@/lib/utils';
 import DataExtractionTool from '@/components/DataExtractionTool';
 import ReceiptOCRTool, { ReceiptData } from '@/components/ReceiptOCRTool';
 import { CandidateTextImportTool } from '@/components/CandidateTextImportTool';
@@ -43,90 +45,105 @@ interface ScrapedData {
 
 const tools = [
   {
-    icon: <Database className="h-6 w-6" />,
+    icon: <Database className="h-5 w-5" />,
     title: 'Data Extraction Tool',
     description: 'Extract data from various file formats including WhatsApp chats',
     component: 'extraction',
+    status: 'active',
   },
   {
-    icon: <Receipt className="h-6 w-6" />,
+    icon: <Receipt className="h-5 w-5" />,
     title: 'Receipt OCR Scanner',
     description: 'Scan receipts to automatically extract amount and details',
     component: 'receipt',
+    status: 'active',
   },
   {
-    icon: <FileText className="h-6 w-6" />,
+    icon: <FileText className="h-5 w-5" />,
     title: 'Resume Analyzer',
     description: 'Import candidate profiles from text resumes or applications',
     component: 'resume',
+    status: 'active',
   },
   {
-    icon: <Upload className="h-6 w-6" />,
+    icon: <Upload className="h-5 w-5" />,
     title: 'Google Slides Scraper',
     description: 'Extract candidate information from Google Slides',
     component: 'slides',
+    status: 'active',
   },
   {
-    icon: <MessageSquare className="h-6 w-6" />,
+    icon: <MessageSquare className="h-5 w-5" />,
     title: 'WhatsApp Chat Scraper',
     description: 'Extract candidate information from WhatsApp chat exports',
     component: 'whatsapp',
+    status: 'active',
   },
   {
-    icon: <FileText className="h-6 w-6" />,
+    icon: <FileText className="h-5 w-5" />,
     title: 'Data Viewer',
     description: 'View and edit extracted candidate information',
     component: 'data',
+    status: 'active',
   },
   {
-    icon: <Download className="h-6 w-6" />,
+    icon: <Download className="h-5 w-5" />,
     title: 'Export Options',
     description: 'Export data to various formats',
     component: 'export',
+    status: 'active',
   },
   {
-    icon: <Calculator className="h-6 w-6" />,
+    icon: <Calculator className="h-5 w-5" />,
     title: 'Salary Calculator',
     description: 'Calculate salaries, overtime, and deductions',
+    status: 'coming-soon',
   },
   {
-    icon: <Clock className="h-6 w-6" />,
+    icon: <Clock className="h-5 w-5" />,
     title: 'Time Tracker',
     description: 'Track working hours and breaks',
+    status: 'coming-soon',
   },
   {
-    icon: <FileSpreadsheet className="h-6 w-6" />,
+    icon: <FileSpreadsheet className="h-5 w-5" />,
     title: 'Report Generator',
     description: 'Generate custom reports and analytics',
+    status: 'coming-soon',
   },
   {
-    icon: <CalendarIcon className="h-6 w-6" />,
+    icon: <CalendarIcon className="h-5 w-5" />,
     title: 'Schedule Planner',
     description: 'Plan and organize work schedules',
+    status: 'coming-soon',
   },
   {
-    icon: <DollarSign className="h-6 w-6" />,
+    icon: <DollarSign className="h-5 w-5" />,
     title: 'Payroll Manager',
     description: 'Manage project payroll and staff payments',
     component: 'payroll',
+    status: 'active',
   },
   {
-    icon: <BarChart3 className="h-6 w-6" />,
+    icon: <BarChart3 className="h-5 w-5" />,
     title: 'Payroll Reports',
     description: 'Generate payroll reports and analytics',
     component: 'payroll-reports',
+    status: 'active',
   },
   {
-    icon: <DollarSign className="h-6 w-6 text-red-600" />,
+    icon: <DollarSign className="h-5 w-5" />,
     title: 'Expense Claims Debug',
     description: 'Test expense claims approval (Admin Mode)',
     component: 'expense-debug',
+    status: 'coming-soon',
   },
   {
-    icon: <Bell className="h-6 w-6 text-purple-600" />,
+    icon: <Bell className="h-5 w-5" />,
     title: 'Toast Notifications Demo',
     description: 'Preview and test beautiful toast notifications',
     component: 'toast-demo',
+    status: 'active',
   },
 ];
 
@@ -702,6 +719,7 @@ export default function ToolsPage() {
   const [selectedProject, setSelectedProject] = useState<any>(null);
   const [projectStaff, setProjectStaff] = useState<any[]>([]);
   const [projects, setProjects] = useState<any[]>([]);
+  const [hoveredTool, setHoveredTool] = useState<number | null>(null);
   const { toast } = useToast();
 
   // Check if we have a saved active tool component from navigation
@@ -732,13 +750,13 @@ export default function ToolsPage() {
     }
   };
 
-  const handleToolClick = (component: string | undefined) => {
-    if (component) {
-      setActiveComponent(component);
+  const handleToolClick = (tool: any) => {
+    if (tool.component && tool.status === 'active') {
+      setActiveComponent(tool.component);
     } else {
       toast({
-        title: 'Coming Soon',
-        description: 'This tool is not yet available',
+        title: '🚀 Coming Soon',
+        description: `${tool.title} is currently under development. Stay tuned!`,
       });
     }
   };
@@ -773,19 +791,25 @@ export default function ToolsPage() {
   };
 
   return (
-    <div className="flex-1 p-4 md:p-6 bg-background overflow-auto">
+    <div className="flex-1 p-4 md:p-6 bg-gray-50 overflow-auto">
       <div className="max-w-[1400px] mx-auto">
         {activeComponent ? (
-          <div className="space-y-4">
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.2 }}
+            className="space-y-4"
+          >
             <div className="flex items-center justify-between">
-              <h1 className="text-2xl font-semibold">
+              <h1 className="text-xl font-semibold text-gray-900">
                 {activeComponent === 'payroll-detail' && selectedProject 
                   ? `Payroll: ${selectedProject.title}`
                   : tools.find(t => t.component === activeComponent)?.title || 'Tools'
                 }
               </h1>
               <Button 
-                variant="outline" 
+                variant="ghost" 
+                className="text-gray-600 hover:text-gray-900 hover:bg-gray-100"
                 onClick={() => {
                   if (activeComponent === 'payroll-detail') {
                     setActiveComponent('payroll');
@@ -794,11 +818,11 @@ export default function ToolsPage() {
                   }
                 }}
               >
-                {activeComponent === 'payroll-detail' ? 'Back to Projects' : 'Back to Tools'}
+                {activeComponent === 'payroll-detail' ? '← Back to Projects' : '← Back to Tools'}
               </Button>
             </div>
 
-            <Card>
+            <Card className="border border-gray-200 bg-white">
               <CardContent className="pt-6">
                 {activeComponent === 'slides' && (
                   <GoogleSlidesScraper onDataExtracted={handleDataExtracted} />
@@ -911,38 +935,86 @@ export default function ToolsPage() {
                     </ul>
                   </div>
                 )}
-              </CardContent>
-            </Card>
-          </div>
+                </CardContent>
+              </Card>
+          </motion.div>
         ) : (
           <>
-            <div className="mb-6">
-              <h1 className="text-2xl font-semibold">Tools</h1>
-              <p className="text-muted-foreground">Access and manage your productivity tools</p>
-            </div>
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.2 }}
+              className="mb-6"
+            >
+              <h1 className="text-2xl font-semibold text-gray-900">
+                Productivity Tools
+              </h1>
+              <p className="text-gray-500 text-sm mt-1">Access powerful tools to streamline your workflow</p>
+            </motion.div>
 
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {tools.map((tool, index) => (
-                <Card 
-                  key={index} 
-                  className="hover:shadow-lg transition-shadow cursor-pointer"
-                  onClick={() => handleToolClick(tool.component)}
+                <motion.div
+                  key={index}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.2, delay: index * 0.03 }}
                 >
-                  <CardHeader>
-                    <div className="flex items-center gap-2">
-                      <div className="p-2 rounded-lg bg-primary/10 text-primary">
-                        {tool.icon}
+                  <Card 
+                    className={cn(
+                      "cursor-pointer transition-all duration-200 border border-gray-200 bg-white hover:shadow-md hover:border-gray-300",
+                      tool.status === 'coming-soon' && "opacity-60"
+                    )}
+                    onClick={() => handleToolClick(tool)}
+                  >
+                    {/* Status Badge */}
+                    {tool.status === 'coming-soon' && (
+                      <div className="absolute top-3 right-3 z-10">
+                        <span className="text-xs px-2 py-0.5 rounded-md bg-gray-100 text-gray-500 font-medium">
+                          Coming Soon
+                        </span>
                       </div>
-                      <CardTitle className="text-lg">{tool.title}</CardTitle>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <CardDescription>{tool.description}</CardDescription>
-                    <Button className="w-full mt-4" variant="outline">
-                      Open Tool
-                    </Button>
-                  </CardContent>
-                </Card>
+                    )}
+                    
+                    <CardHeader className="pb-3">
+                      <div className="flex items-start gap-3">
+                        <div className="p-2 rounded-md bg-gray-50 text-gray-600">
+                          {tool.icon}
+                        </div>
+                        <div className="flex-1">
+                          <CardTitle className="text-base font-medium text-gray-900">{tool.title}</CardTitle>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    
+                    <CardContent>
+                      <CardDescription className="mb-4 text-sm text-gray-600 line-clamp-2">
+                        {tool.description}
+                      </CardDescription>
+                      
+                      <Button 
+                        className={cn(
+                          "w-full",
+                          tool.status === 'active' 
+                            ? "bg-white border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400"
+                            : "bg-gray-50 text-gray-400 cursor-not-allowed border-gray-200"
+                        )}
+                        variant="outline"
+                        size="sm"
+                        disabled={tool.status === 'coming-soon'}
+                      >
+                        {tool.status === 'active' ? (
+                          <span className="text-sm">Open Tool</span>
+                        ) : (
+                          <span className="flex items-center gap-1.5 text-sm">
+                            <Lock className="h-3.5 w-3.5" />
+                            Unavailable
+                          </span>
+                        )}
+                      </Button>
+                    </CardContent>
+                  </Card>
+                </motion.div>
               ))}
             </div>
           </>

@@ -1,374 +1,180 @@
 import { supabase } from './supabase';
 import type { Project } from './types';
 
-// Color mapping table for project themes
-const eventColors = {
-  'nestle': '#FCA5A5', // Light red for Nestle Choy Sun
-  'ribena': '#DDD6FE', // Light purple for Ribena
-  'mytown': '#FDA4AF', // Light pink for Mytown
-  'warrior': '#93C5FD', // Light blue for Warrior
-  'diy': '#FEF08A', // Light yellow for DIY/MrDIY
-  'blackmores': '#E2E8F0', // Light gray for Blackmores
-  'lapasar': '#F9A8D4', // Light pink for Lapasar
-  'spritzer': '#BBF7D0', // Light green for Spritzer
-  'redoxon': '#FDBA74', // Light orange for Redoxon
-  'double-mint': '#67E8F9', // Light cyan for Double Mint
-  'softlan': '#E2E8F0', // Light gray for Softlan
-  'colgate': '#FED7AA', // Light orange for Colgate
-  'hsbc': '#FCA5A5', // Light red for HSBC
-  'asw': '#93C5FD', // Light blue for ASW
-  'lee-frozen': '#E2E8F0', // Light gray for Lee Frozen
-  'maggle': '#E2E8F0', // Light gray for Maggle-Roots
-  'unifi': '#FEF9C3', // Light yellow for Unifi
-  'brands': '#BBF7D0', // Light green for Brands
-  'oppo': '#93C5FD', // Light blue for Oppo
-  'chrissy': '#F9A8D4', // Light pink for Chrissy
-  'xiao-mi': '#E2E8F0', // Light gray for Xiao Mi
-  'mcd': '#DDD6FE', // Light purple for MCD
-  'te': '#F472B6', // Pink for TE
-  'cpoc': '#86EFAC', // Green for CPOC
-  'drora': '#FEF9C3', // Light yellow for Dr.Ora
-  'default': '#CBD5E1', // Default color
-};
-
-// Helper function to add color to project data
-function addProjectColor(project: any): Project {
-  return {
-    ...project,
-    color: project.color || (project.event_type ? eventColors[project.event_type] || eventColors.default : eventColors.default),
-  };
-}
-
 /**
- * Fetch all projects with optimized query
+ * Optimized project fetching with better query performance
  */
 export async function fetchProjectsOptimized(): Promise<Project[]> {
-  try {
-    const { data, error } = await supabase
-      .from('projects')
-      .select('*')
-      .is('deleted_at', null)
-      .order('start_date', { ascending: true });
-
-    if (error) {
-      console.error('Error fetching projects:', error);
-      throw new Error(error.message);
-    }
-
-    if (!data) return [];
-    
-    // Transform the data to match the Project interface and add colors
-    const projects = data.map(addProjectColor);
-
-    // Fetch related client and manager data in a batch
-    const clientIds = projects.filter(p => p.client_id).map(p => p.client_id);
-    const managerIds = projects.filter(p => p.manager_id).map(p => p.manager_id);
-
-    // Only fetch if we have IDs to look up
-    if (clientIds.length > 0) {
-      try {
-        const { data: clientsData } = await supabase
-          .from('users')
-          .select('*')
-          .in('id', clientIds);
-          
-        if (clientsData && clientsData.length > 0) {
-          // Create a map for quick lookup
-          const clientMap = clientsData.reduce((map, client) => {
-            map[client.id] = client;
-            return map;
-          }, {} as Record<string, any>);
-          
-          // Add client data to projects
-          projects.forEach(project => {
-            if (project.client_id && clientMap[project.client_id]) {
-              project.client = clientMap[project.client_id];
-            }
-          });
-        }
-      } catch (error) {
-        console.warn('Error fetching client data:', error);
-      }
-    }
-    
-    // Only fetch if we have IDs to look up
-    if (managerIds.length > 0) {
-      try {
-        const { data: managersData } = await supabase
-          .from('users')
-          .select('*')
-          .in('id', managerIds);
-          
-        if (managersData && managersData.length > 0) {
-          // Create a map for quick lookup
-          const managerMap = managersData.reduce((map, manager) => {
-            map[manager.id] = manager;
-            return map;
-          }, {} as Record<string, any>);
-          
-          // Add manager data to projects
-          projects.forEach(project => {
-            if (project.manager_id && managerMap[project.manager_id]) {
-              project.manager = managerMap[project.manager_id];
-            }
-          });
-        }
-      } catch (error) {
-        console.warn('Error fetching manager data:', error);
-      }
-    }
-    
-    return projects;
-  } catch (error) {
-    console.error('Failed to fetch projects:', error);
-    return [];
+  const storedUser = localStorage.getItem('test_user');
+  if (!storedUser) {
+    throw new Error('User not logged in');
   }
+
+  const userId = JSON.parse(storedUser).user.id;
+
+  // Optimized query with selective fields and pagination
+  const { data, error } = await supabase
+    .from('projects')
+    .select(`
+      id,
+      title,
+      start_date,
+      end_date,
+      event_type,
+      working_hours_start,
+      working_hours_end,
+      crew_count,
+      filled_positions,
+      venue_address,
+      client:clients (
+        id,
+        full_name
+      ),
+      color,
+      status,
+      priority,
+      schedule_type,
+      recurrence_days,
+      recurrence_end_date
+    `)
+    .eq('user_id', userId)
+    .order('start_date', { ascending: true })
+    .limit(500); // Limit to prevent memory issues
+
+  if (error) {
+    console.error('Error fetching projects:', error);
+    throw error;
+  }
+
+  return data || [];
 }
 
 /**
- * Fetch projects by month with server-side filtering
+ * Optimized fetch by month with date indexing
  */
-export async function fetchProjectsByMonthOptimized(month: number): Promise<Project[]> {
-  try {
-    console.log(`Starting fetchProjectsByMonthOptimized for month ${month}`);
-    
-    // Return mock data for testing or when there are Supabase connection issues
-    const mockData = [
-      {
-        id: "test-1",
-        title: "Test Project 1",
-        start_date: new Date().toISOString(),
-        end_date: new Date().toISOString(),
-        status: "In Progress",
-        priority: "High",
-        color: "#ff0000",
-        event_type: "default",
-        working_hours_start: "09:00",
-        working_hours_end: "17:00",
-        venue_address: "123 Test Street",
-        filled_positions: 5,
-        crew_count: 10
-      },
-      {
-        id: "test-2",
-        title: "Test Project 2",
-        start_date: new Date().toISOString(),
-        end_date: new Date(new Date().setDate(new Date().getDate() + 3)).toISOString(),
-        status: "Planned",
-        priority: "Medium",
-        color: "#0000ff",
-        event_type: "nestle",
-        working_hours_start: "10:00",
-        working_hours_end: "18:00",
-        venue_address: "456 Demo Avenue",
-        filled_positions: 3,
-        crew_count: 8
-      }
-    ];
-    
-    // If no supabase client or in development mode without proper connection
-    if (!supabase) {
-      console.log("No supabase client, returning mock data");
-      return mockData;
-    }
-    
-    try {
-      const year = new Date().getFullYear();
-      const startOfMonth = new Date(year, month, 1).toISOString();
-      const endOfMonth = new Date(year, month + 1, 0, 23, 59, 59, 999).toISOString();
-      
-      console.log(`Querying for projects between ${startOfMonth} and ${endOfMonth}`);
-
-      // Use simplified query without joins
-      const { data, error } = await supabase
-        .from('projects')
-        .select('*')
-        .is('deleted_at', null)
-        .or(
-          // Project starts within month
-          `and(start_date.gte.${startOfMonth},start_date.lte.${endOfMonth}),` +
-          // Project ends within month
-          `and(end_date.gte.${startOfMonth},end_date.lte.${endOfMonth}),` +
-          // Project spans the entire month
-          `and(start_date.lte.${startOfMonth},end_date.gte.${endOfMonth})`
-        )
-        .order('start_date', { ascending: true });
-
-      if (error) {
-        console.error('Error fetching projects with simple query:', error);
-        console.log('Falling back to mock data due to database error');
-        return mockData;
-      }
-
-      if (!data) {
-        console.log('No data returned, falling back to mock data');
-        return mockData;
-      }
-      
-      // Create a Map to ensure uniqueness by ID (defensive programming)
-      const uniqueProjects = new Map();
-      
-      // Add colors and ensure uniqueness
-      data.forEach(project => {
-        if (!uniqueProjects.has(project.id)) {
-          uniqueProjects.set(project.id, addProjectColor(project));
-        }
-      });
-      
-      const projects = Array.from(uniqueProjects.values());
-      
-      // Fetch related client and manager data in a batch
-      const clientIds = projects.filter(p => p.client_id).map(p => p.client_id);
-      const managerIds = projects.filter(p => p.manager_id).map(p => p.manager_id);
-
-      // Only fetch if we have IDs to look up
-      if (clientIds.length > 0) {
-        try {
-          const { data: clientsData } = await supabase
-            .from('users')
-            .select('*')
-            .in('id', clientIds);
-            
-          if (clientsData && clientsData.length > 0) {
-            // Create a map for quick lookup
-            const clientMap = clientsData.reduce((map, client) => {
-              map[client.id] = client;
-              return map;
-            }, {} as Record<string, any>);
-            
-            // Add client data to projects
-            projects.forEach(project => {
-              if (project.client_id && clientMap[project.client_id]) {
-                project.client = clientMap[project.client_id];
-              }
-            });
-          }
-        } catch (error) {
-          console.warn('Error fetching client data:', error);
-        }
-      }
-      
-      // Only fetch if we have IDs to look up
-      if (managerIds.length > 0) {
-        try {
-          const { data: managersData } = await supabase
-            .from('users')
-            .select('*')
-            .in('id', managerIds);
-            
-          if (managersData && managersData.length > 0) {
-            // Create a map for quick lookup
-            const managerMap = managersData.reduce((map, manager) => {
-              map[manager.id] = manager;
-              return map;
-            }, {} as Record<string, any>);
-            
-            // Add manager data to projects
-            projects.forEach(project => {
-              if (project.manager_id && managerMap[project.manager_id]) {
-                project.manager = managerMap[project.manager_id];
-              }
-            });
-          }
-        } catch (error) {
-          console.warn('Error fetching manager data:', error);
-        }
-      }
-      
-      console.log(`Successfully processed ${projects.length} projects for month ${month}`);
-      return projects;
-      
-    } catch (innerError) {
-      console.error(`Error in database query for month ${month}:`, innerError);
-      console.log('Falling back to mock data due to query error');
-      return mockData;
-    }
-  } catch (outerError) {
-    console.error(`Failed to fetch projects for month ${month}:`, outerError);
-    console.log('Falling back to mock data due to general error');
-    return mockData;
+export async function fetchProjectsByMonthOptimized(month: number, year?: number): Promise<Project[]> {
+  const storedUser = localStorage.getItem('test_user');
+  if (!storedUser) {
+    throw new Error('User not logged in');
   }
+
+  const userId = JSON.parse(storedUser).user.id;
+  
+  // Calculate year if not provided
+  const targetYear = year ?? new Date().getFullYear();
+  
+  // Create date range for the month
+  const startDate = new Date(targetYear, month, 1);
+  const endDate = new Date(targetYear, month + 1, 0, 23, 59, 59);
+  
+  // Format dates for Supabase query
+  const startDateStr = startDate.toISOString().split('T')[0];
+  const endDateStr = endDate.toISOString().split('T')[0];
+
+  console.log(`[Optimized] Fetching projects for ${month}/${targetYear} (${startDateStr} to ${endDateStr})`);
+
+  // Use optimized query with proper date filtering
+  const { data, error } = await supabase
+    .from('projects')
+    .select(`
+      id,
+      title,
+      start_date,
+      end_date,
+      event_type,
+      working_hours_start,
+      working_hours_end,
+      crew_count,
+      filled_positions,
+      venue_address,
+      client:clients (
+        id,
+        full_name
+      ),
+      color,
+      status,
+      priority,
+      schedule_type,
+      recurrence_days,
+      recurrence_end_date
+    `)
+    .eq('user_id', userId)
+    .or(`and(start_date.lte.${endDateStr},or(end_date.gte.${startDateStr},end_date.is.null))`)
+    .order('start_date', { ascending: true });
+
+  if (error) {
+    console.error('[Optimized] Error fetching projects by month:', error);
+    throw error;
+  }
+
+  // Filter for projects that actually fall within the month
+  const filteredData = (data || []).filter(project => {
+    const projectStart = new Date(project.start_date);
+    const projectEnd = project.end_date ? new Date(project.end_date) : projectStart;
+    
+    // Check if project overlaps with the month
+    return (
+      (projectStart <= endDate && projectEnd >= startDate) ||
+      (projectStart >= startDate && projectStart <= endDate) ||
+      (projectEnd >= startDate && projectEnd <= endDate)
+    );
+  });
+
+  console.log(`[Optimized] Found ${filteredData.length} projects for month ${month}/${targetYear}`);
+  return filteredData;
 }
 
 /**
- * Delete multiple projects with a single database operation
+ * Batch delete multiple projects efficiently
  */
 export async function deleteMultipleProjectsOptimized(
   projectIds: string[], 
   userId: string
-): Promise<{ success: string[], failed: string[] }> {
-  const result = {
-    success: [] as string[],
-    failed: [] as string[],
-  };
+): Promise<{ success: string[]; failed: string[] }> {
+  const success: string[] = [];
+  const failed: string[] = [];
 
-  if (!projectIds.length) return result;
+  if (projectIds.length === 0) {
+    return { success, failed };
+  }
 
   try {
-    const timestamp = new Date().toISOString();
-    
-    // Perform batch soft delete in a single operation
+    // Batch delete in a single query
     const { data, error } = await supabase
       .from('projects')
-      .update({
-        deleted_at: timestamp,
-        deleted_by: userId,
-        updated_at: timestamp,
-      })
+      .delete()
+      .eq('user_id', userId)
       .in('id', projectIds)
       .select('id');
-    
+
     if (error) {
-      console.error('Error batch deleting projects:', error);
-      result.failed = projectIds;
-      return result;
-    }
-    
-    // Record successful deletions
-    if (data) {
-      result.success = data.map(item => item.id);
-      // Find which ones failed
-      result.failed = projectIds.filter(id => !result.success.includes(id));
-    }
-    
-    return result;
-  } catch (error) {
-    console.error('Failed to batch delete projects:', error);
-    result.failed = projectIds;
-    return result;
-  }
-}
+      console.error('[Optimized] Batch delete error:', error);
+      // If batch fails, try individual deletes
+      for (const id of projectIds) {
+        try {
+          const { error: singleError } = await supabase
+            .from('projects')
+            .delete()
+            .eq('id', id)
+            .eq('user_id', userId);
 
-/**
- * Prefetch projects data for seamless navigation
- * This function is designed to be called in the background
- */
-export async function prefetchProjects(): Promise<void> {
-  try {
-    console.log('Prefetching projects data in background...');
-    
-    // Start the network request but don't wait for the result
-    fetchProjectsOptimized()
-      .then(() => console.log('Projects data prefetched successfully'))
-      .catch(error => console.error('Error prefetching projects:', error));
+          if (singleError) {
+            failed.push(id);
+          } else {
+            success.push(id);
+          }
+        } catch {
+          failed.push(id);
+        }
+      }
+    } else {
+      // All successful
+      success.push(...(data?.map(d => d.id) || projectIds));
+    }
   } catch (error) {
-    console.error('Failed to initiate projects prefetch:', error);
+    console.error('[Optimized] Delete operation error:', error);
+    failed.push(...projectIds);
   }
-}
 
-/**
- * Prefetch calendar data for a given month
- * This function is designed to be called in the background
- */
-export async function prefetchCalendarMonth(month: number): Promise<void> {
-  try {
-    console.log(`Prefetching calendar data for month ${month} in background...`);
-    
-    // Start the network request but don't wait for the result
-    fetchProjectsByMonthOptimized(month)
-      .then(() => console.log(`Calendar data for month ${month} prefetched successfully`))
-      .catch(error => console.error(`Error prefetching calendar month ${month}:`, error));
-  } catch (error) {
-    console.error(`Failed to initiate calendar month ${month} prefetch:`, error);
-  }
+  return { success, failed };
 }

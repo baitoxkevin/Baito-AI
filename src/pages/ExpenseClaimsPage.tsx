@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { logger } from '../lib/logger';
 import { 
   Card, CardContent, CardDescription, CardHeader, CardTitle 
 } from '@/components/ui/card';
@@ -12,7 +13,9 @@ import { ExpenseClaimForm } from '@/components/ExpenseClaimForm';
 import { useExpenseClaims } from '@/hooks/use-expense-claims';
 import { ExpenseClaim } from '@/lib/expense-claim-service';
 import { useToast } from '@/hooks/use-toast';
-import { PlusCircle, Receipt } from 'lucide-react';
+import { PlusCircle, Receipt, TrendingUp, TrendingDown, DollarSign, AlertCircle } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { motion } from 'framer-motion';
 
 interface Project {
   id: string;
@@ -54,7 +57,7 @@ export default function ExpenseClaimsPage() {
         // Check if user is admin - in a real app this would be based on auth state
         setIsAdmin(true);
       } catch (error) {
-        console.error('Failed to fetch data:', error);
+        logger.error('Failed to fetch data:', error);
         toast({
           title: 'Error',
           description: 'Failed to load page data',
@@ -86,7 +89,7 @@ export default function ExpenseClaimsPage() {
       // Refresh the claims list
       fetchClaims();
     } catch (error) {
-      console.error('Failed to create expense claim:', error);
+      logger.error('Failed to create expense claim:', error);
       toast({
         title: 'Error',
         description: 'Failed to create expense claim',
@@ -117,90 +120,133 @@ export default function ExpenseClaimsPage() {
   };
 
   return (
-    <div className="container mx-auto py-6 max-w-6xl">
-      <div className="flex justify-between items-center mb-6">
+    <div className="container mx-auto px-6 py-6 max-w-7xl">
+      <motion.div 
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+        className="flex justify-between items-center mb-6"
+      >
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Expense Claims</h1>
-          <p className="text-gray-500">Manage your expense claims and receipts</p>
+          <h1 className="text-2xl font-semibold text-gray-900">
+            Expense Claims
+          </h1>
+          <p className="text-gray-500 text-sm mt-1">Manage your expense claims and receipts</p>
         </div>
-        <Button onClick={() => setIsFormDialogOpen(true)}>
+        <Button 
+          onClick={() => setIsFormDialogOpen(true)}
+          variant="outline"
+          className="border-gray-200 hover:bg-gray-50 text-gray-700"
+        >
           <PlusCircle className="mr-2 h-4 w-4" />
           New Claim
         </Button>
-      </div>
+      </motion.div>
       
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-6">
-        <Card>
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.3, delay: 0.1 }}
+        className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6"
+      >
+        <Card className="border border-gray-200 bg-white hover:shadow-sm transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
+            <CardTitle className="text-xs font-medium text-gray-600 uppercase tracking-wide">
               Total Approved
             </CardTitle>
-            <Receipt className="h-4 w-4 text-green-500" />
+            <div className="p-1.5 rounded-md bg-gray-50">
+              <TrendingUp className="h-3.5 w-3.5 text-gray-500" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">RM 8,450.00</div>
-            <p className="text-xs text-gray-500">
+            <div className="text-xl font-semibold text-gray-900">
+              RM 8,450.00
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
               From 23 approved claims
             </p>
           </CardContent>
         </Card>
         
-        <Card>
+        <Card className="border border-gray-200 bg-white hover:shadow-sm transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
+            <CardTitle className="text-xs font-medium text-gray-600 uppercase tracking-wide">
               Pending Approval
             </CardTitle>
-            <Receipt className="h-4 w-4 text-yellow-500" />
+            <div className="p-1.5 rounded-md bg-gray-50">
+              <AlertCircle className="h-3.5 w-3.5 text-gray-500" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">RM 2,370.00</div>
-            <p className="text-xs text-gray-500">
+            <div className="text-xl font-semibold text-gray-900">
+              RM 2,370.00
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
               From 8 pending claims
             </p>
           </CardContent>
         </Card>
         
-        <Card>
+        <Card className="border border-gray-200 bg-white hover:shadow-sm transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
+            <CardTitle className="text-xs font-medium text-gray-600 uppercase tracking-wide">
               This Month
             </CardTitle>
-            <Receipt className="h-4 w-4 text-blue-500" />
+            <div className="p-1.5 rounded-md bg-gray-50">
+              <DollarSign className="h-3.5 w-3.5 text-gray-500" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">RM 3,240.00</div>
-            <p className="text-xs text-gray-500">
+            <div className="text-xl font-semibold text-gray-900">
+              RM 3,240.00
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
               From 12 claims
             </p>
           </CardContent>
         </Card>
         
-        <Card>
+        <Card className="border border-gray-200 bg-white hover:shadow-sm transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
+            <CardTitle className="text-xs font-medium text-gray-600 uppercase tracking-wide">
               Rejection Rate
             </CardTitle>
-            <Receipt className="h-4 w-4 text-red-500" />
+            <div className="p-1.5 rounded-md bg-gray-50">
+              <TrendingDown className="h-3.5 w-3.5 text-gray-500" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">5.3%</div>
-            <p className="text-xs text-gray-500">
+            <div className="text-xl font-semibold text-gray-900">
+              5.3%
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
               2 rejected out of 38 submitted
             </p>
           </CardContent>
         </Card>
-      </div>
+      </motion.div>
       
-      <Tabs defaultValue="all" value={activeTab} onValueChange={handleTabChange}>
-        <TabsList>
-          <TabsTrigger value="all">All Claims</TabsTrigger>
-          <TabsTrigger value="draft">Drafts</TabsTrigger>
-          <TabsTrigger value="pending">Pending</TabsTrigger>
-          <TabsTrigger value="approved">Approved</TabsTrigger>
-          <TabsTrigger value="rejected">Rejected</TabsTrigger>
-        </TabsList>
-        
-        <TabsContent value={activeTab}>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.3, delay: 0.2 }}
+      >
+        <Tabs defaultValue="all" value={activeTab} onValueChange={handleTabChange}>
+          <TabsList className="bg-gray-50 border border-gray-200 p-0.5">
+            <TabsTrigger value="all" className="data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-gray-900 text-gray-600">All Claims</TabsTrigger>
+            <TabsTrigger value="draft" className="data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-gray-900 text-gray-600">Drafts</TabsTrigger>
+            <TabsTrigger value="pending" className="data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-gray-900 text-gray-600">Pending</TabsTrigger>
+            <TabsTrigger value="approved" className="data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-gray-900 text-gray-600">Approved</TabsTrigger>
+            <TabsTrigger value="rejected" className="data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-gray-900 text-gray-600">Rejected</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value={activeTab} className="mt-6">
+            <motion.div
+              key={activeTab}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.2 }}
+            >
           <ExpenseClaimsList
             title={`${activeTab === 'all' ? 'All' : activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} Expense Claims`}
             description={
@@ -217,10 +263,12 @@ export default function ExpenseClaimsPage() {
             filterByStatus={getFilterByStatus()}
             maxItems={50}
             showViewAll={false}
-            isAdmin={isAdmin}
-          />
-        </TabsContent>
-      </Tabs>
+              isAdmin={isAdmin}
+            />
+            </motion.div>
+          </TabsContent>
+        </Tabs>
+      </motion.div>
       
       <Dialog open={isFormDialogOpen} onOpenChange={setIsFormDialogOpen}>
         <DialogContent className="sm:max-w-[800px]">

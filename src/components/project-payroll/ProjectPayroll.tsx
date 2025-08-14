@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { format, isSameDay } from 'date-fns';
 import { motion } from 'framer-motion';
+import { logger } from '../../lib/logger';
 import {
   Table,
   TableBody,
@@ -50,9 +51,12 @@ import {
   Check,
   Plus,
   Calculator,
-  Info
+  Info,
+  AlertCircle,
+  Clock
 } from "lucide-react";
 import type { Project } from '@/lib/types';
+import type { ExpenseClaim } from '@/lib/expense-claim-service';
 import { DuitNowPaymentExport } from '@/components/duitnow-payment-export';
 import PaymentSubmissionDialog from './PaymentSubmissionDialog';
 import { logUtils } from '@/lib/activity-logger';
@@ -63,6 +67,8 @@ interface WorkingDateWithSalary {
   basicSalary: string;
   claims: string;
   commission: string;
+  start_time?: string;
+  end_time?: string;
   included?: boolean; // Not used for include/exclude but kept for compatibility
 }
 
@@ -76,6 +82,20 @@ interface StaffMember {
   workingDatesWithSalary?: WorkingDateWithSalary[];
   paymentStatus?: 'pending' | 'pushed' | 'paid';
   paymentDate?: Date;
+  bank_name?: string;
+  bank_account_number?: string;
+  email?: string;
+  phone_number?: string;
+  // Alternative field names that might be used
+  bankCode?: string;
+  bankAccountNumber?: string;
+  phone?: string;
+  candidate?: {
+    bank_name?: string;
+    bank_account_number?: string;
+    email?: string;
+    phone_number?: string;
+  };
 }
 
 interface StaffWorkingSummary {
@@ -95,6 +115,7 @@ interface ProjectPayrollProps {
   projectStartDate?: Date;
   projectEndDate?: Date;
   onEditDialogOpenChange?: (open: boolean) => void;
+  onProjectUpdate?: (project: Project) => void;
 }
 
 // Helper functions
@@ -190,8 +211,11 @@ export default function ProjectPayroll({
   confirmedStaff,
   setConfirmedStaff,
   loadingStaff = false,
-  onEditDialogOpenChange
+  onEditDialogOpenChange,
+  onProjectUpdate
 }: ProjectPayrollProps) {
+  // Debug log to see initial confirmed staff structure (commented out to reduce console noise)
+  // logger.debug('Initial confirmedStaff data:', { data: confirmedStaff });
   const [editingStaffId, setEditingStaffId] = useState<string | null>(null);
   const [sortColumn, setSortColumn] = useState<'staff' | 'position' | 'days' | 'perDay' | 'totalAmount'>('totalAmount');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
@@ -211,7 +235,54 @@ export default function ProjectPayroll({
   // Payment date selector state
   const [selectedPaymentDate, setSelectedPaymentDate] = useState<Date>(new Date());
   // State for staff expense claims
-  const [staffExpenseClaims, setStaffExpenseClaims] = useState<Record<string, any[]>>({});
+  const [staffExpenseClaims, setStaffExpenseClaims] = useState<Record<string, ExpenseClaim[]>>({});
+  // Budget editing state
+  const [isEditingBudget, setIsEditingBudget] = useState(false);
+  const [tempBudget, setTempBudget] = useState('');
+  
+  // Handle budget save
+  const handleBudgetSave = async () => {
+    try {
+      const budgetValue = parseFloat(tempBudget);
+      
+      if (isNaN(budgetValue) || budgetValue < 0) {
+        toast({
+          title: "Invalid Budget",
+          description: "Please enter a valid budget amount",
+          variant: "destructive",
+        });
+        setTempBudget(project.budget?.toString() || '0');
+        setIsEditingBudget(false);
+        return;
+      }
+
+      const { error } = await supabase
+        .from('projects')
+        .update({ budget: budgetValue })
+        .eq('id', project.id);
+
+      if (error) throw error;
+
+      // Update local state
+      if (onProjectUpdate) {
+        onProjectUpdate({ ...project, budget: budgetValue });
+      }
+
+      toast({
+        title: "Budget Updated",
+        description: `Budget set to RM ${budgetValue.toFixed(2)}`,
+      });
+
+      setIsEditingBudget(false);
+    } catch (error) {
+      logger.error('Error updating budget:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update budget",
+        variant: "destructive",
+      });
+    }
+  };
   
   // Remove the automatic focus effect to prevent selection issues
 
@@ -227,7 +298,7 @@ export default function ProjectPayroll({
             [editingStaffId]: claims
           }));
         } catch (error) {
-          console.error('Error fetching staff expense claims:', error);
+          logger.error('Error fetching staff expense claims:', error);
         }
       }
     };
@@ -277,7 +348,7 @@ export default function ProjectPayroll({
   }, [confirmedStaff, staffSummaries, sortColumn, sortDirection]);
 
   // Handle keyboard navigation between cells
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, rowIndex: number, column: 'basic' | 'claims' | 'commission', staff: StaffMember) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, rowIndex: number, column: 'basic' | 'claims' | 'commission' | 'start_time' | 'end_time', staff: StaffMember) => {
     if (!staff || !staff.workingDatesWithSalary) return;
     
     const totalRows = staff.workingDatesWithSalary.length;
@@ -304,8 +375,11 @@ export default function ProjectPayroll({
       case 'ArrowLeft':
         // Only navigate to previous cell if cursor is at the start
         if (selectionStart === 0 && selectionEnd === 0) {
-          if (column === 'claims') newColumn = 'basic';
+          if (column === 'basic') newColumn = 'end_time';
+          else if (column === 'claims') newColumn = 'basic';
           else if (column === 'commission' && showCommissionColumn) newColumn = 'claims';
+          else if (column === 'start_time') return; // Can't go left from start_time
+          else if (column === 'end_time') newColumn = 'start_time';
           e.preventDefault();
           e.stopPropagation();
         }
@@ -313,7 +387,9 @@ export default function ProjectPayroll({
       case 'ArrowRight':
         // Only navigate to next cell if cursor is at the end
         if (selectionStart === valueLength && selectionEnd === valueLength) {
-          if (column === 'basic') newColumn = 'claims';
+          if (column === 'start_time') newColumn = 'end_time';
+          else if (column === 'end_time') newColumn = 'basic';
+          else if (column === 'basic') newColumn = 'claims';
           else if (column === 'claims' && showCommissionColumn) newColumn = 'commission';
           e.preventDefault();
           e.stopPropagation();
@@ -322,15 +398,17 @@ export default function ProjectPayroll({
       case 'Tab':
         if (!e.shiftKey) {
           // Forward tab
-          if (column === 'basic') newColumn = 'claims';
+          if (column === 'start_time') newColumn = 'end_time';
+          else if (column === 'end_time') newColumn = 'basic';
+          else if (column === 'basic') newColumn = 'claims';
           else if (column === 'claims') {
             if (showCommissionColumn) newColumn = 'commission';
             else if (rowIndex < totalRows - 1) {
-              newColumn = 'basic';
+              newColumn = 'start_time';
               newRowIndex = rowIndex + 1;
             }
           } else if (column === 'commission' && rowIndex < totalRows - 1) {
-            newColumn = 'basic';
+            newColumn = 'start_time';
             newRowIndex = rowIndex + 1;
           }
           e.preventDefault(); // Prevent default tab behavior
@@ -339,7 +417,9 @@ export default function ProjectPayroll({
           if (column === 'commission') newColumn = 'claims';
           else if (column === 'claims') {
             newColumn = 'basic';
-          } else if (column === 'basic' && rowIndex > 0) {
+          } else if (column === 'basic') newColumn = 'end_time';
+          else if (column === 'end_time') newColumn = 'start_time';
+          else if (column === 'start_time' && rowIndex > 0) {
             if (showCommissionColumn) newColumn = 'commission';
             else newColumn = 'claims';
             newRowIndex = rowIndex - 1;
@@ -384,7 +464,7 @@ export default function ProjectPayroll({
                 
                 setEditingStaffId(null);
               } catch (error) {
-                console.error('Error saving payroll details:', error);
+                logger.error('Error saving payroll details:', error);
                 toast({
                   title: "Error",
                   description: "Failed to save payroll details",
@@ -403,7 +483,7 @@ export default function ProjectPayroll({
             newRowIndex = rowIndex + 1;
           }
         } catch (error) {
-          console.error('Error on Enter key action:', error);
+          logger.error('Error on Enter key action:', error);
         }
         break;
       default:
@@ -443,13 +523,24 @@ export default function ProjectPayroll({
     const totalCommission = staffSummaries.reduce((sum, staff) => sum + staff.totalCommission, 0);
     const totalAmount = totalBasicSalary + totalClaims + totalCommission;
     
+    // Calculate unpushed totals
+    const unpushedStaff = confirmedStaff.filter(s => s.paymentStatus !== 'pushed');
+    const unpushedSummaries = staffSummaries.filter(summary => {
+      const staff = confirmedStaff.find(s => s.name === summary.name);
+      return staff && staff.paymentStatus !== 'pushed';
+    });
+    
+    const unpushedTotalAmount = unpushedSummaries.reduce((sum, staff) => sum + staff.totalAmount, 0);
+    
     return {
       totalStaff: confirmedStaff.length,
       totalDays,
       totalBasicSalary,
       totalClaims,
       totalCommission,
-      totalAmount
+      totalAmount,
+      unpushedStaffCount: unpushedStaff.length,
+      unpushedTotalAmount
     };
   }, [staffSummaries, confirmedStaff]);
 
@@ -461,8 +552,8 @@ export default function ProjectPayroll({
     // Open the dialog for user input
     setIsSetBasicDialogOpen(true);
     
-    // Set a reasonable default value
-    setTempBasicValue("500");
+    // Start with empty value for user to enter
+    setTempBasicValue("");
   };
 
   // Set basic salary for selected staff dates (via dialog)
@@ -547,7 +638,7 @@ export default function ProjectPayroll({
           description: `Basic salary of RM ${basicAmount.toLocaleString()} set for ${selectedStaffForBasic.length} staff member(s)`,
         });
       } catch (error) {
-        console.error('Error updating staff salaries:', error);
+        logger.error('Error updating staff salaries:', error);
         toast({
           title: "Error",
           description: "Failed to update basic salaries",
@@ -598,32 +689,76 @@ export default function ProjectPayroll({
   };
   
   // Handle successful payment push
-  const handlePaymentPushed = (batchId: string) => {
+  const handlePaymentPushed = async (batchId: string) => {
     // Mark selected staff as pushed with the payment date
     const updatedStaff = confirmedStaff.map(staff => {
       if (selectedStaff.includes(staff.id) && staff.paymentStatus !== 'pushed') {
         return {
           ...staff,
           paymentStatus: 'pushed' as const,
-          paymentDate: selectedPaymentDate
+          paymentDate: selectedPaymentDate,
+          paymentBatchId: batchId
         };
       }
       return staff;
     });
     
-    setConfirmedStaff(updatedStaff);
+    // Update the project in the database with the new staff status first
+    try {
+      const { error } = await supabase
+        .from('projects')
+        .update({
+          confirmed_staff: updatedStaff.map(staff => ({
+            candidate_id: staff.id,
+            name: staff.name,
+            photo: staff.photo,
+            position: staff.designation,
+            status: staff.status,
+            working_dates: staff.workingDates,
+            working_dates_with_salary: staff.workingDatesWithSalary,
+            paymentStatus: staff.paymentStatus,
+            paymentDate: staff.paymentDate,
+            paymentBatchId: staff.paymentBatchId,
+            bank_name: staff.bank_name || staff.candidate?.bank_name || staff.bankCode || '',
+            bank_account_number: staff.bank_account_number || staff.candidate?.bank_account_number || staff.bankAccountNumber || ''
+          }))
+        })
+        .eq('id', project.id);
+        
+      if (error) {
+        logger.error('Error updating project staff payment status:', error);
+        toast({
+          title: "Error",
+          description: "Failed to update payment status. Please try again.",
+          variant: "destructive"
+        });
+        // Don't update local state if database update failed
+        return;
+      }
+      
+      // Only update local state after successful database update
+      setConfirmedStaff(updatedStaff);
+    } catch (error) {
+      logger.error('Error updating project:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update payment status. Please try again.",
+        variant: "destructive"
+      });
+      return;
+    }
     
-    // Clear selection of pushed staff
-    setSelectedStaff(selectedStaff.filter(id => {
-      const staff = confirmedStaff.find(s => s.id === id);
-      return staff && staff.paymentStatus === 'pushed';
-    }));
+    // Clear selection
+    setSelectedStaff([]);
     
     toast({
       title: "Payment Pushed",
       description: `Payment successfully pushed for ${updatedStaff.filter(s => s.paymentStatus === 'pushed' && s.paymentDate?.getTime() === selectedPaymentDate.getTime()).length} staff members`,
       variant: "default"
     });
+    
+    // Close the payment submission dialog
+    setShowPaymentSubmission(false);
   };
 
   // Handle export to DuitNow payment file
@@ -779,6 +914,11 @@ export default function ProjectPayroll({
           <div className="flex flex-col items-center text-center">
             <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">Total Amount</p>
             <p className="text-base font-bold text-emerald-700 dark:text-emerald-400">RM {projectSummary.totalAmount.toLocaleString()}</p>
+            {projectSummary.unpushedStaffCount < projectSummary.totalStaff && (
+              <p className="text-[10px] text-emerald-600 dark:text-emerald-500 mt-1">
+                Pending: RM {projectSummary.unpushedTotalAmount.toLocaleString()}
+              </p>
+            )}
           </div>
         </div>
       </div>
@@ -882,6 +1022,92 @@ export default function ProjectPayroll({
                             {format(staff.paymentDate, "MMM d, yyyy")}
                           </span>
                         )}
+                        {staff.paymentBatchId && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-xs text-red-600 hover:text-red-700 p-1 h-auto"
+                            onClick={async () => {
+                              if (confirm('Are you sure you want to undo this payment? It will be removed from the payment queue.')) {
+                                try {
+                                  // First, delete the payment batch
+                                  const { error: deleteError } = await supabase
+                                    .from('payment_batches')
+                                    .delete()
+                                    .eq('id', staff.paymentBatchId);
+                                    
+                                  if (deleteError) {
+                                    logger.error('Error deleting payment batch:', deleteError);
+                                    toast({
+                                      title: "Error",
+                                      description: "Failed to undo payment. Please try again.",
+                                      variant: "destructive"
+                                    });
+                                    return;
+                                  }
+                                  
+                                  // Update staff to remove payment status
+                                  const updatedStaff = confirmedStaff.map(s => {
+                                    if (s.id === staff.id) {
+                                      // Remove payment-related fields
+                                      const { paymentStatus, paymentDate, paymentBatchId, ...cleanStaff } = s;
+                                      return cleanStaff;
+                                    }
+                                    return s;
+                                  });
+                                  
+                                  // Update in database
+                                  const { error: updateError } = await supabase
+                                    .from('projects')
+                                    .update({
+                                      confirmed_staff: updatedStaff.map(s => ({
+                                        candidate_id: s.id,
+                                        name: s.name,
+                                        photo: s.photo,
+                                        position: s.designation,
+                                        status: s.status,
+                                        working_dates: s.workingDates,
+                                        working_dates_with_salary: s.workingDatesWithSalary,
+                                        paymentStatus: s.paymentStatus,
+                                        paymentDate: s.paymentDate,
+                                        paymentBatchId: s.paymentBatchId,
+                                        bank_name: s.bank_name || s.candidate?.bank_name || s.bankCode || '',
+                                        bank_account_number: s.bank_account_number || s.candidate?.bank_account_number || s.bankAccountNumber || ''
+                                      }))
+                                    })
+                                    .eq('id', project.id);
+                                    
+                                  if (updateError) {
+                                    logger.error('Error updating project:', updateError);
+                                    toast({
+                                      title: "Error",
+                                      description: "Failed to update project. Please try again.",
+                                      variant: "destructive"
+                                    });
+                                    return;
+                                  }
+                                  
+                                  // Update local state
+                                  setConfirmedStaff(updatedStaff);
+                                  
+                                  toast({
+                                    title: "Payment Undone",
+                                    description: "The payment has been removed from the queue",
+                                  });
+                                } catch (error) {
+                                  logger.error('Error undoing payment:', error);
+                                  toast({
+                                    title: "Error",
+                                    description: "Failed to undo payment",
+                                    variant: "destructive"
+                                  });
+                                }
+                              }
+                            }}
+                          >
+                            Undo
+                          </Button>
+                        )}
                       </div>
                     ) : (
                       <Badge className="bg-gray-100 dark:bg-gray-900/40 text-gray-700 dark:text-gray-300 border-0">
@@ -926,21 +1152,55 @@ export default function ProjectPayroll({
         </Table>
       </div>
         
-      {/* Budget Summary */}
-      <div className="mt-auto border-t border-gray-200 dark:border-gray-700 pt-4 flex flex-col sm:flex-row justify-between items-center">
-        <div className="text-gray-800 dark:text-gray-200 font-semibold text-sm">
-          Budget: <span className="text-indigo-600 dark:text-indigo-400">RM 20,000.00</span>
+      {/* Budget Summary - Temporarily hidden until budget column is added to database */}
+      {false && (
+        <div className="mt-auto border-t border-gray-200 dark:border-gray-700 pt-4 flex flex-col sm:flex-row justify-between items-center">
+          <div className="text-gray-800 dark:text-gray-200 font-semibold text-sm flex items-center gap-2">
+            Budget: 
+            {isEditingBudget ? (
+              <div className="flex items-center gap-2">
+                <span className="text-indigo-600 dark:text-indigo-400">RM</span>
+                <Input
+                  type="number"
+                  value={tempBudget}
+                  onChange={(e) => setTempBudget(e.target.value)}
+                  onBlur={handleBudgetSave}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      handleBudgetSave();
+                    } else if (e.key === 'Escape') {
+                      setTempBudget(project.budget?.toString() || '0');
+                      setIsEditingBudget(false);
+                    }
+                  }}
+                  className="w-32 h-7 text-sm"
+                  autoFocus
+                />
+              </div>
+            ) : (
+              <button
+                onClick={() => {
+                  setIsEditingBudget(true);
+                  setTempBudget(project.budget?.toString() || '0');
+                }}
+                className="text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 px-2 py-0.5 rounded-md transition-colors flex items-center gap-1"
+              >
+                RM {(project.budget || 0).toLocaleString()}
+                <Pencil className="h-3 w-3 opacity-50" />
+              </button>
+            )}
+          </div>
+          <div className="text-gray-800 dark:text-gray-200 text-sm mt-2 sm:mt-0">
+            <span>Spent: <span className="font-semibold text-indigo-600 dark:text-indigo-400">
+              RM {projectSummary.totalAmount.toLocaleString()}
+            </span></span>
+            <span className="mx-2">|</span>
+            <span>Remaining: <span className={`font-semibold ${(project.budget || 0) - projectSummary.totalAmount >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+              RM {((project.budget || 0) - projectSummary.totalAmount).toLocaleString()}
+            </span></span>
+          </div>
         </div>
-        <div className="text-gray-800 dark:text-gray-200 text-sm mt-2 sm:mt-0">
-          <span>Spent: <span className="font-semibold text-indigo-600 dark:text-indigo-400">
-            RM {projectSummary.totalAmount.toLocaleString()}
-          </span></span>
-          <span className="mx-2">|</span>
-          <span>Remaining: <span className="font-semibold text-indigo-600 dark:text-indigo-400">
-            RM {(20000 - projectSummary.totalAmount).toLocaleString()}
-          </span></span>
-        </div>
-      </div>
+      )}
 
       {/* Individual Staff Details Dialog */}
       <Dialog open={editingStaffId !== null} onOpenChange={(open) => {
@@ -953,7 +1213,7 @@ export default function ProjectPayroll({
         onEditDialogOpenChange?.(open);
       }}>
         <DialogContent 
-          className="max-w-2xl max-h-[90vh] p-0 flex flex-col"
+          className="max-w-5xl max-h-[90vh] p-0 flex flex-col"
           onOpenAutoFocus={(e) => {
             // Prevent auto-focus which causes text selection
             e.preventDefault();
@@ -977,18 +1237,18 @@ export default function ProjectPayroll({
                 <DialogHeader className="bg-gradient-to-r from-indigo-50 via-purple-50 to-pink-50 dark:from-slate-900 dark:via-indigo-950/20 dark:to-purple-950/20 p-4 rounded-t-lg flex-shrink-0">
                   <div className="flex gap-4">
                     <div className="flex-1">
-                      <div className="flex items-center gap-4 mb-4">
-                        <Avatar className="h-12 w-12 ring-2 ring-white dark:ring-slate-800 shadow-lg">
+                      <div className="flex items-start gap-4">
+                        <Avatar className="h-20 w-20 ring-4 ring-white dark:ring-slate-800 shadow-xl flex-shrink-0">
                           {staff.photo ? (
                             <AvatarImage src={staff.photo} alt={staff.name || 'Staff'} />
                           ) : (
-                            <AvatarFallback className="bg-gradient-to-br from-indigo-500 to-purple-500 text-white text-base font-bold shadow-inner">
+                            <AvatarFallback className="bg-gradient-to-br from-indigo-500 to-purple-500 text-white text-2xl font-bold shadow-inner">
                               {getInitials(staff.name || 'Unknown')}
                             </AvatarFallback>
                           )}
                         </Avatar>
-                        <div>
-                          <DialogTitle className="text-lg font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                        <div className="flex-1">
+                          <DialogTitle className="text-2xl font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
                             {staff.name || 'Unknown Staff'}
                             {isSaving && (
                               <div className="inline-flex text-xs items-center gap-1 text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 px-2 py-0.5 rounded-full">
@@ -997,41 +1257,43 @@ export default function ProjectPayroll({
                               </div>
                             )}
                           </DialogTitle>
-                          <DialogDescription className="text-sm text-slate-600 dark:text-slate-400">
+                          <DialogDescription className="text-base text-slate-600 dark:text-slate-400 mb-4">
                             {staff.designation || "Staff Member"}
                           </DialogDescription>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-4">
-                        <div className="flex items-center gap-2">
-                          <CalendarDays className="w-4 h-4 text-indigo-600" />
-                          <span className="text-sm text-slate-600 dark:text-slate-400">
-                            {staff.workingDatesWithSalary?.length || 0} Working Days
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <DollarSign className="w-4 h-4 text-emerald-600" />
-                          <span className="text-sm text-slate-600 dark:text-slate-400">
-                            RM {summary.totalBasicSalary.toLocaleString()} Basic
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <DollarSign className="w-4 h-4 text-purple-600" />
-                          <span className="text-sm text-slate-600 dark:text-slate-400">
-                            RM {summary.totalClaims.toLocaleString()} Claims
-                            {staffExpenseClaims[editingStaffId]?.length > 0 && (
-                              <span className="text-xs text-purple-500 ml-1">
-                                (incl. {staffExpenseClaims[editingStaffId].length} expense claim{staffExpenseClaims[editingStaffId].length > 1 ? 's' : ''})
+                          
+                          {/* Working days and amounts - positioned to align with date column */}
+                          <div className="flex items-center gap-6">
+                            <div className="flex items-center gap-2">
+                              <CalendarDays className="w-4 h-4 text-indigo-600" />
+                              <span className="text-sm text-slate-600 dark:text-slate-400 font-medium">
+                                {staff.workingDatesWithSalary?.length || 0} Working Days
                               </span>
-                            )}
-                          </span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <DollarSign className="w-4 h-4 text-emerald-600" />
+                              <span className="text-sm text-slate-600 dark:text-slate-400 font-medium">
+                                RM {summary.totalBasicSalary.toLocaleString()} Basic
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <DollarSign className="w-4 h-4 text-purple-600" />
+                              <span className="text-sm text-slate-600 dark:text-slate-400 font-medium">
+                                RM {summary.totalClaims.toLocaleString()} Claims
+                                {staffExpenseClaims[editingStaffId]?.length > 0 && (
+                                  <span className="text-xs text-purple-500 ml-1">
+                                    (incl. {staffExpenseClaims[editingStaffId].length} expense claim{staffExpenseClaims[editingStaffId].length > 1 ? 's' : ''})
+                                  </span>
+                                )}
+                              </span>
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </div>
-                    <div className="bg-white dark:bg-slate-800 rounded-xl p-3 shadow-sm border border-slate-200 dark:border-slate-700 self-stretch flex items-center">
-                      <div className="text-center w-full">
-                        <p className="text-xs text-slate-600 dark:text-slate-400 mb-1">Total Amount</p>
-                        <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400">
+                    <div className="bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-200 dark:border-slate-700 flex items-center justify-center min-w-[140px]">
+                      <div className="text-center">
+                        <p className="text-xs text-slate-600 dark:text-slate-400 mb-1 font-medium uppercase tracking-wider">Total Amount</p>
+                        <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
                           RM {summary.totalAmount.toLocaleString()}
                         </p>
                       </div>
@@ -1040,29 +1302,41 @@ export default function ProjectPayroll({
                 </DialogHeader>
                 <div className="flex-1 p-3 overflow-hidden flex flex-col min-h-0">
                   <div className="overflow-auto rounded-xl bg-white dark:bg-slate-900 flex-1 min-h-0 shadow-sm border border-slate-200 dark:border-slate-700">
-                    <Table>
+                    <Table className="border-collapse">
                       <TableHeader>
                         <TableRow className="border-b-2 border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
-                          <TableHead className="font-semibold text-slate-700 dark:text-slate-300 text-xs uppercase tracking-wider py-4 pl-6 w-[29%]">
+                          <TableHead className="font-semibold text-slate-700 dark:text-slate-300 text-xs uppercase tracking-wider py-4 pl-6 w-auto">
                             <div className="flex items-center gap-2">
                               <CalendarDays className="w-4 h-4 text-slate-500" />
                               Date
                             </div>
                           </TableHead>
-                          <TableHead className="font-semibold text-slate-700 dark:text-slate-300 text-xs uppercase tracking-wider text-center py-4 w-[16%]">
+                          <TableHead className="font-semibold text-slate-700 dark:text-slate-300 text-xs uppercase tracking-wider text-center py-4 w-[80px]">
+                            <div className="flex items-center justify-center gap-2">
+                              <Clock className="w-4 h-4 text-blue-500" />
+                              Start
+                            </div>
+                          </TableHead>
+                          <TableHead className="font-semibold text-slate-700 dark:text-slate-300 text-xs uppercase tracking-wider text-center py-4 w-[80px]">
+                            <div className="flex items-center justify-center gap-2">
+                              <Clock className="w-4 h-4 text-orange-500" />
+                              End
+                            </div>
+                          </TableHead>
+                          <TableHead className="font-semibold text-slate-700 dark:text-slate-300 text-xs uppercase tracking-wider text-center py-4 w-[120px]">
                             <div className="flex items-center justify-center gap-2">
                               <DollarSign className="w-4 h-4 text-emerald-500" />
                               Basic
                             </div>
                           </TableHead>
-                          <TableHead className="font-semibold text-slate-700 dark:text-slate-300 text-xs uppercase tracking-wider text-center py-4 w-[16%]">
+                          <TableHead className="font-semibold text-slate-700 dark:text-slate-300 text-xs uppercase tracking-wider text-center py-4 w-[120px]">
                             <div className="flex items-center justify-center gap-2">
                               <Receipt className="w-4 h-4 text-purple-500" />
                               Claims
                             </div>
                           </TableHead>
                           <TableHead 
-                            className={`text-center py-4 w-[16%] cursor-pointer transition-colors ${showCommissionColumn ? 'text-amber-600 dark:text-amber-400 font-semibold' : 'text-slate-400 dark:text-slate-500'}`}
+                            className={`text-center py-4 cursor-pointer transition-colors ${showCommissionColumn ? 'text-amber-600 dark:text-amber-400 font-semibold w-[120px]' : 'text-slate-400 dark:text-slate-500 w-0'}`}
                             onClick={() => {
                               // Check if any staff member has commission values
                               const hasCommissionValues = staff.workingDatesWithSalary?.some(
@@ -1093,7 +1367,7 @@ export default function ProjectPayroll({
                               )}
                             </div>
                           </TableHead>
-                          <TableHead className="font-semibold text-slate-700 dark:text-slate-300 text-xs uppercase tracking-wider text-right py-4 pr-6 w-[23%]">
+                          <TableHead className="font-semibold text-slate-700 dark:text-slate-300 text-xs uppercase tracking-wider text-right py-4 pr-6 w-[140px]">
                             <div className="flex items-center justify-end gap-2">
                               <Calculator className="w-4 h-4 text-indigo-500" />
                               Total
@@ -1125,7 +1399,7 @@ export default function ProjectPayroll({
                                 animate={{ opacity: 1 }}
                                 transition={{ delay: index * 0.02 }}
                               >
-                                <TableCell className="py-3 pl-6 w-[29%]">
+                                <TableCell className="py-3 pl-6">
                                   <div className="flex items-center gap-3">
                                     <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 rounded-lg flex items-center justify-center">
                                       <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400">
@@ -1142,7 +1416,69 @@ export default function ProjectPayroll({
                                     </div>
                                   </div>
                                 </TableCell>
-                                <TableCell className="p-2 w-[16%]">
+                                <TableCell className="p-2">
+                                  <div className="text-center">
+                                    <input
+                                      id={`${staff.id}-start_time-${index}`}
+                                      type="time"
+                                      value={dateEntry.start_time || project.working_hours_start || '09:00'}
+                                      disabled={staff.paymentStatus === 'pushed'}
+                                      onChange={(e) => {
+                                        const updatedStaff = confirmedStaff.map(s => {
+                                          if (s.id === staff.id) {
+                                            const updatedDates = s.workingDatesWithSalary?.map(wdws => {
+                                              if (isSameDay(new Date(wdws.date), new Date(dateEntry.date))) {
+                                                return { ...wdws, start_time: e.target.value };
+                                              }
+                                              return wdws;
+                                            }) || [];
+                                            return { ...s, workingDatesWithSalary: updatedDates };
+                                          }
+                                          return s;
+                                        });
+                                        setConfirmedStaff(updatedStaff);
+                                      }}
+                                      onKeyDown={(e) => handleKeyDown(e, index, 'start_time', staff)}
+                                      className={`text-sm font-medium text-center bg-transparent border-0 outline-none focus:ring-2 focus:ring-blue-500 rounded px-1 ${
+                                        staff.paymentStatus === 'pushed' 
+                                          ? 'text-gray-500 cursor-not-allowed' 
+                                          : 'text-slate-700 dark:text-slate-300 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800'
+                                      }`}
+                                    />
+                                  </div>
+                                </TableCell>
+                                <TableCell className="p-2">
+                                  <div className="text-center">
+                                    <input
+                                      id={`${staff.id}-end_time-${index}`}
+                                      type="time"
+                                      value={dateEntry.end_time || project.working_hours_end || '18:00'}
+                                      disabled={staff.paymentStatus === 'pushed'}
+                                      onChange={(e) => {
+                                        const updatedStaff = confirmedStaff.map(s => {
+                                          if (s.id === staff.id) {
+                                            const updatedDates = s.workingDatesWithSalary?.map(wdws => {
+                                              if (isSameDay(new Date(wdws.date), new Date(dateEntry.date))) {
+                                                return { ...wdws, end_time: e.target.value };
+                                              }
+                                              return wdws;
+                                            }) || [];
+                                            return { ...s, workingDatesWithSalary: updatedDates };
+                                          }
+                                          return s;
+                                        });
+                                        setConfirmedStaff(updatedStaff);
+                                      }}
+                                      onKeyDown={(e) => handleKeyDown(e, index, 'end_time', staff)}
+                                      className={`text-sm font-medium text-center bg-transparent border-0 outline-none focus:ring-2 focus:ring-orange-500 rounded px-1 ${
+                                        staff.paymentStatus === 'pushed' 
+                                          ? 'text-gray-500 cursor-not-allowed' 
+                                          : 'text-slate-700 dark:text-slate-300 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800'
+                                      }`}
+                                    />
+                                  </div>
+                                </TableCell>
+                                <TableCell className="p-2">
                                   <div className="relative">
                                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none">RM</span>
                                     <input
@@ -1152,6 +1488,7 @@ export default function ProjectPayroll({
                                       pattern="[0-9]*"
                                       maxLength={4}
                                       value={dateEntry.basicSalary}
+                                      disabled={staff.paymentStatus === 'pushed'}
                                       onChange={(e) => {
                                         const input = e.target;
                                         const value = input.value;
@@ -1200,14 +1537,16 @@ export default function ProjectPayroll({
                                       onKeyDown={(e) => handleKeyDown(e, index, 'basic', staff)}
                                       placeholder="0"
                                       className={`h-10 text-sm text-center font-semibold w-full pl-8 pr-2 rounded-lg border transition-all ${
-                                        focusedCell?.rowIndex === index && focusedCell.column === 'basic' 
+                                        staff.paymentStatus === 'pushed' 
+                                          ? 'bg-gray-100 dark:bg-gray-800 cursor-not-allowed opacity-60'
+                                          : focusedCell?.rowIndex === index && focusedCell.column === 'basic' 
                                           ? 'ring-2 ring-emerald-500 dark:ring-emerald-400 border-emerald-300 dark:border-emerald-600 bg-emerald-50 dark:bg-emerald-900/20' 
                                           : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 bg-white dark:bg-slate-900'
                                       }`}
                                     />
                                   </div>
                                 </TableCell>
-                                <TableCell className="p-2 w-[16%]">
+                                <TableCell className="p-2">
                                   <div className="relative">
                                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none">RM</span>
                                     {parseAmount(dateEntry.claims) > 0 && (
@@ -1229,6 +1568,7 @@ export default function ProjectPayroll({
                                       pattern="[0-9]*"
                                       maxLength={4}
                                       value={dateEntry.claims}
+                                      disabled={staff.paymentStatus === 'pushed'}
                                       onChange={(e) => {
                                         const input = e.target;
                                         const value = input.value;
@@ -1277,15 +1617,17 @@ export default function ProjectPayroll({
                                       onKeyDown={(e) => handleKeyDown(e, index, 'claims', staff)}
                                       placeholder="0"
                                       className={`h-10 text-sm text-center font-semibold w-full pl-8 pr-2 rounded-lg border transition-all ${
-                                        focusedCell?.rowIndex === index && focusedCell.column === 'claims' 
+                                        staff.paymentStatus === 'pushed' 
+                                          ? 'bg-gray-100 dark:bg-gray-800 cursor-not-allowed opacity-60'
+                                          : focusedCell?.rowIndex === index && focusedCell.column === 'claims' 
                                           ? 'ring-2 ring-purple-500 dark:ring-purple-400 border-purple-300 dark:border-purple-600 bg-purple-50 dark:bg-purple-900/20' 
                                           : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 bg-white dark:bg-slate-900'
                                       }`}
                                     />
                                   </div>
                                 </TableCell>
-                                <TableCell className="p-2 w-[16%]">
-                                  {showCommissionColumn ? (
+                                {showCommissionColumn ? (
+                                  <TableCell className="p-2">
                                     <div className="relative">
                                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none">RM</span>
                                       <input
@@ -1295,6 +1637,7 @@ export default function ProjectPayroll({
                                         pattern="[0-9]*"
                                         maxLength={4}
                                         value={dateEntry.commission}
+                                        disabled={staff.paymentStatus === 'pushed'}
                                         onChange={(e) => {
                                           const input = e.target;
                                           const value = input.value;
@@ -1343,19 +1686,17 @@ export default function ProjectPayroll({
                                         onKeyDown={(e) => handleKeyDown(e, index, 'commission', staff)}
                                         placeholder="0"
                                         className={`h-10 text-sm text-center font-semibold w-full pl-8 pr-2 rounded-lg border transition-all ${
-                                          focusedCell?.rowIndex === index && focusedCell.column === 'commission' 
+                                          staff.paymentStatus === 'pushed' 
+                                            ? 'bg-gray-100 dark:bg-gray-800 cursor-not-allowed opacity-60'
+                                            : focusedCell?.rowIndex === index && focusedCell.column === 'commission' 
                                             ? 'ring-2 ring-amber-500 dark:ring-amber-400 border-amber-300 dark:border-amber-600 bg-amber-50 dark:bg-amber-900/20' 
                                             : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 bg-white dark:bg-slate-900'
                                         }`}
                                       />
                                     </div>
-                                  ) : (
-                                    <div className="flex items-center justify-center h-10">
-                                      <span className="text-slate-300 dark:text-slate-600 text-lg">—</span>
-                                    </div>
-                                  )}
-                                </TableCell>
-                                <TableCell className="py-3 pr-6 w-[23%]">
+                                  </TableCell>
+                                ) : null}
+                                <TableCell className="py-3 pr-6">
                                   <div className="flex items-center justify-end">
                                     <div className="bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 px-3 py-1.5 rounded-lg">
                                       <span className="font-bold text-sm text-indigo-700 dark:text-indigo-300">
@@ -1368,33 +1709,25 @@ export default function ProjectPayroll({
                             );
                           })}
                       </TableBody>
-                      <tfoot>
-                        <TableRow className="bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-900 border-t-2 border-slate-300 dark:border-slate-600">
-                          <TableCell colSpan={3} className="py-4 pl-6">
-                            <div className="flex items-center justify-end gap-3">
-                              <span className="text-sm font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Grand Total</span>
-                            </div>
-                          </TableCell>
-                          {!showCommissionColumn && (
-                            <TableCell className="py-4">
-                              {/* Empty cell to fill commission column space when hidden */}
-                            </TableCell>
-                          )}
-                          <TableCell className="py-4 pr-6">
-                            <div className="flex items-center justify-end">
-                              <div className="bg-gradient-to-r from-emerald-500 to-green-500 text-white px-4 py-2 rounded-lg shadow-lg">
-                                <span className="font-bold text-base">
-                                  RM {summary.totalAmount.toLocaleString()}
-                                </span>
-                              </div>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      </tfoot>
                     </Table>
+                    {/* Grand Total Footer */}
+                    <div className="bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-900 border-t-2 border-slate-300 dark:border-slate-600 px-6 py-3 flex justify-between items-center">
+                      <span className="text-sm font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Grand Total</span>
+                      <div className="bg-gradient-to-r from-emerald-500 to-green-500 text-white px-4 py-2 rounded-lg shadow-lg">
+                        <span className="font-bold text-base">
+                          RM {summary.totalAmount.toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 </div>
                 <DialogFooter className="p-4 flex-shrink-0 border-t border-slate-200 dark:border-slate-700">
+                  {staff.paymentStatus === 'pushed' && (
+                    <div className="text-sm text-amber-600 dark:text-amber-400 flex items-center gap-2 mr-auto">
+                      <AlertCircle className="h-4 w-4" />
+                      <span>This payment has been pushed and cannot be edited</span>
+                    </div>
+                  )}
                   <Button
                     onClick={async () => {
                       try {
@@ -1423,7 +1756,7 @@ export default function ProjectPayroll({
                         
                         setEditingStaffId(null);
                       } catch (error) {
-                        console.error('Error updating staff payment details:', error);
+                        logger.error('Error updating staff payment details:', error);
                         toast({
                           title: "Error",
                           description: "Failed to update staff payment details",
@@ -1434,7 +1767,7 @@ export default function ProjectPayroll({
                       }
                     }}
                     className="dialog-save-button bg-gradient-to-r from-indigo-600 to-purple-600 text-white"
-                    disabled={isSaving}
+                    disabled={isSaving || staff.paymentStatus === 'pushed'}
                   >
                     {isSaving ? (
                       <>
@@ -1621,11 +1954,51 @@ export default function ProjectPayroll({
           })
           .map(summary => {
             const staff = confirmedStaff.find(s => s.name === summary.name);
+            
+            // Debug logging to see staff data structure (commented out to reduce console noise)
+            // logger.debug('Staff data for payment submission:', { data: {
+            //   staffId: staff?.id,
+            //   staffName: staff?.name,
+            //   directBankName: staff?.bank_name,
+            //   directAccountNumber: staff?.bank_account_number,
+            //   candidateBankName: staff?.candidate?.bank_name,
+            //   candidateAccountNumber: staff?.candidate?.bank_account_number,
+            //   bankCodeField: staff?.bankCode,
+            //   bankAccountNumberField: staff?.bankAccountNumber,
+            //   allKeys: staff ? Object.keys(staff }) : [],
+            //   fullStaffObject: staff
+            // });
+            
+            // Try multiple field names for bank details
+            const bankName = staff?.bank_name || 
+                           staff?.bankName || 
+                           staff?.bank_code || 
+                           staff?.bankCode || 
+                           staff?.candidate?.bank_name || 
+                           staff?.candidate?.bankName || 
+                           '';
+                           
+            const accountNumber = staff?.bank_account_number || 
+                                staff?.bankAccountNumber || 
+                                staff?.account_number || 
+                                staff?.accountNumber || 
+                                staff?.candidate?.bank_account_number || 
+                                staff?.candidate?.bankAccountNumber || 
+                                '';
+            
+            // logger.debug('Extracted bank details:', { data: {
+            //   staffName: staff?.name,
+            //   bankName,
+            //   accountNumber
+            // } });
+            
             return {
               staffId: staff?.id || '',
               staffName: summary.name,
               amount: summary.totalAmount,
               totalDays: summary.totalDays,
+              bankCode: bankName,
+              bankAccountNumber: accountNumber,
               workingDates: staff?.workingDatesWithSalary?.map(wdws => 
                 typeof wdws.date === 'string' ? wdws.date : wdws.date.toISOString()
               ),
@@ -1633,7 +2006,9 @@ export default function ProjectPayroll({
                 basicSalary: summary.totalBasicSalary,
                 claims: summary.totalClaims,
                 commission: summary.totalCommission
-              }
+              },
+              email: staff?.email || staff?.candidate?.email || '',
+              phone: staff?.phone || staff?.phone_number || staff?.candidate?.phone_number || ''
             };
           })
         }

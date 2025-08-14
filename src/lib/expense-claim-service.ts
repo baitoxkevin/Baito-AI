@@ -2,6 +2,7 @@ import { supabase } from './supabase';
 import { uploadMultipleReceipts } from './expense-receipt-service';
 import { ensureExpenseClaimsTable } from './ensure-expense-claims-table';
 
+import { logger } from './logger';
 export interface ExpenseClaim {
   id?: string;
   title: string;
@@ -28,7 +29,7 @@ export interface ExpenseClaim {
   submitted_by?: string;
   user_image?: string;
   receipts?: Array<{ id: string; url: string; filename: string }>;
-  metadata?: any;
+  metadata?: unknown;
   // Fields expected by the UI
   reference_number?: string;
   submitted_by_name?: string;
@@ -68,11 +69,17 @@ export async function fetchUserExpenseClaims(): Promise<ExpenseClaim[]> {
       .select('*')
       .order('created_at', { ascending: false });
     
-    if (error) throw error;
+    if (error) {
+      if (error.code === '42P01') {
+        logger.warn('Expense claims summary view does not exist, returning empty array');
+        return [];
+      }
+      throw error;
+    }
     return data || [];
   } catch (error) {
-    console.error('Error fetching expense claims:', error);
-    throw error;
+    logger.error('Error fetching expense claims:', error);
+    return [];
   }
 }
 
@@ -88,11 +95,17 @@ export async function fetchExpenseClaimsByStatus(status: ExpenseClaim['status'])
       .eq('status', status)
       .order('created_at', { ascending: false });
     
-    if (error) throw error;
+    if (error) {
+      if (error.code === '42P01') {
+        logger.warn('Expense claims summary view does not exist, returning empty array');
+        return [];
+      }
+      throw error;
+    }
     return data || [];
   } catch (error) {
-    console.error(`Error fetching ${status} expense claims:`, error);
-    throw error;
+    logger.error(`Error fetching ${status} expense claims:`, error);
+    return [];
   }
 }
 
@@ -112,7 +125,7 @@ export async function fetchProjectExpenseClaims(projectId: string): Promise<Expe
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     
     if (authError || !user) {
-      console.warn('Not authenticated, returning empty array');
+      logger.warn('Not authenticated, returning empty array');
       return [];
     }
     
@@ -126,16 +139,16 @@ export async function fetchProjectExpenseClaims(projectId: string): Promise<Expe
     // Handle errors
     if (error) {
       if (error.code === '42P01') {
-        console.warn('Expense claims table does not exist');
+        logger.warn('Expense claims table does not exist');
         return [];
       }
-      console.error('Error fetching project expense claims:', error);
+      logger.error('Error fetching project expense claims:', error);
       return [];
     }
     
     // Try to get user info separately for claims where we have user_id
     const userIds = data?.filter(claim => claim.user_id).map(claim => claim.user_id) || [];
-    let usersMap: Record<string, any> = {};
+    let usersMap: Record<string, unknown> = {};
     
     if (userIds.length > 0) {
       try {
@@ -148,9 +161,9 @@ export async function fetchProjectExpenseClaims(projectId: string): Promise<Expe
         usersMap = (usersData || []).reduce((map, user) => {
           map[user.id] = user;
           return map;
-        }, {} as Record<string, any>);
+        }, {} as Record<string, unknown>);
       } catch (userError) {
-        console.warn('Could not fetch user details for claims:', userError);
+        logger.warn('Could not fetch user details for claims:', userError);
         // Continue without user data
       }
     }
@@ -168,7 +181,7 @@ export async function fetchProjectExpenseClaims(projectId: string): Promise<Expe
     
     return transformedData;
   } catch (error) {
-    console.error('Error fetching project expense claims:', error);
+    logger.error('Error fetching project expense claims:', error);
     return [];
   }
 }
@@ -191,7 +204,7 @@ export async function fetchExpenseClaimWithReceipts(claimId: string): Promise<{
     
     // If table doesn't exist, return null instead of throwing
     if (claimError && claimError.code === '42P01') {
-      console.warn('Expense claims table does not exist. Using local data only.');
+      logger.warn('Expense claims table does not exist. Using local data only.');
       return { claim: null, receipts: [] };
     }
     
@@ -207,7 +220,7 @@ export async function fetchExpenseClaimWithReceipts(claimId: string): Promise<{
     
     // If table doesn't exist, return empty receipts
     if (receiptsError && receiptsError.code === '42P01') {
-      console.warn('Receipts table does not exist.');
+      logger.warn('Receipts table does not exist.');
       return { claim: claimWithUserInfo, receipts: [] };
     }
     
@@ -215,7 +228,7 @@ export async function fetchExpenseClaimWithReceipts(claimId: string): Promise<{
     
     return { claim, receipts: receipts || [] };
   } catch (error) {
-    console.error('Error fetching expense claim details:', error);
+    logger.error('Error fetching expense claim details:', error);
     // Don't throw the error if it's a table not exist error
     if (error && typeof error === 'object' && 'code' in error && error.code === '42P01') {
       return { claim: null, receipts: [] };
@@ -237,21 +250,32 @@ export async function createExpenseClaim(claim: Omit<ExpenseClaim, 'total_amount
       throw new Error('Authentication required to create expense claims');
     }
     
-    console.log('Authenticated user:', user.id, user.email);
+    logger.debug('Authenticated user:', { data: { id: user.id, email: user.email } });
     // Extract amount from claim data and use it for total_amount
     // Only include the fields that exist in the database table
-    const claimData: any = {
+    const claimData: Partial<ExpenseClaim> & { 
+      user_id?: string; 
+      staff_id?: string;
+      amount?: number;
+    } = {
       title: claim.title,
       description: claim.description || null,
       receipt_number: claim.receipt_number,
       total_amount: claim.amount || 0,
-      user_id: claim.user_id,
       expense_date: claim.expense_date,
       category: claim.category,
       submitted_at: claim.submitted_at || new Date().toISOString(),
       submitted_by: claim.submitted_by || 'Self',
       status: 'pending'
     };
+    
+    // Handle user_id vs staff_id
+    if (claim.user_id) {
+      claimData.user_id = claim.user_id;
+    }
+    if (claim.staff_id) {
+      claimData.staff_id = claim.staff_id;
+    }
     
     // Only add project_id if it's a valid UUID
     if (claim.project_id && claim.project_id !== 'undefined') {
@@ -266,7 +290,7 @@ export async function createExpenseClaim(claim: Omit<ExpenseClaim, 'total_amount
     // Generate a receipt number that's unique
     claimData.receipt_number = `REC-${new Date().getFullYear()}-${Date.now()}-${Math.floor(Math.random()*1000)}`;
     
-    console.log('Creating expense claim with data:', JSON.stringify(claimData, null, 2));
+    logger.debug('Creating expense claim with data:', { data: JSON.stringify(claimData, null, 2) });
     
     let { data, error } = await supabase
       .from('expense_claims')
@@ -276,7 +300,7 @@ export async function createExpenseClaim(claim: Omit<ExpenseClaim, 'total_amount
     
     // If amount field doesn't exist, retry without it
     if (error && error.message && error.message.includes('amount')) {
-      console.log('Retrying without amount field...');
+      logger.debug('Retrying without amount field...');
       delete claimData.amount;
       
       const retry = await supabase
@@ -290,7 +314,7 @@ export async function createExpenseClaim(claim: Omit<ExpenseClaim, 'total_amount
     }
     
     if (error) {
-      console.error('Supabase error when creating expense claim:', {
+      logger.error('Supabase error when creating expense claim:', {
         message: error.message,
         details: error.details,
         hint: error.hint,
@@ -299,13 +323,13 @@ export async function createExpenseClaim(claim: Omit<ExpenseClaim, 'total_amount
       });
       
       // Log the exact data we tried to insert
-      console.error('Data attempted to insert:', JSON.stringify(claimData, null, 2));
+      logger.error('Data attempted to insert:', JSON.stringify(claimData, null, 2));
       
       throw error;
     }
     return data;
   } catch (error) {
-    console.error('Error creating expense claim:', error instanceof Error ? error.message : error);
+    logger.error('Error creating expense claim:', error instanceof Error ? error.message : error);
     throw error;
   }
 }
@@ -318,10 +342,14 @@ export async function createExpenseClaim(claim: Omit<ExpenseClaim, 'total_amount
 export async function createExpenseClaimWithReceipts(
   claim: Omit<ExpenseClaim, 'total_amount' | 'status' | 'receipt_number'>,
   receiptFiles: File[]
-): Promise<{ claim: ExpenseClaim; receipts: any[] }> {
+): Promise<{ claim: ExpenseClaim; receipts: unknown[] }> {
+  logger.debug('createExpenseClaimWithReceipts called with claim:', { data: claim, files: receiptFiles?.length || 0 });
+  
   try {
     // First create the expense claim
     const createdClaim = await createExpenseClaim(claim);
+    
+    logger.debug('Created expense claim result:', { data: createdClaim });
     
     if (!createdClaim.id) {
       throw new Error('Failed to create expense claim - no ID returned');
@@ -331,6 +359,7 @@ export async function createExpenseClaimWithReceipts(
     let uploadedReceipts = [];
     if (receiptFiles && receiptFiles.length > 0) {
       uploadedReceipts = await uploadMultipleReceipts(createdClaim.id, receiptFiles);
+      logger.debug('Uploaded receipts:', { data: uploadedReceipts });
     }
     
     return {
@@ -338,7 +367,7 @@ export async function createExpenseClaimWithReceipts(
       receipts: uploadedReceipts
     };
   } catch (error) {
-    console.error('Error creating expense claim with receipts:', error instanceof Error ? error.message : error);
+    logger.error('Error creating expense claim with receipts:', error instanceof Error ? error.message : error);
     throw error;
   }
 }
@@ -363,7 +392,7 @@ export async function updateExpenseClaim(
     if (error) throw error;
     return data;
   } catch (error) {
-    console.error('Error updating expense claim:', error);
+    logger.error('Error updating expense claim:', error);
     throw error;
   }
 }
@@ -381,7 +410,7 @@ export async function softDeleteExpenseClaim(id: string): Promise<void> {
     
     if (error) throw error;
   } catch (error) {
-    console.error('Error soft deleting expense claim:', error);
+    logger.error('Error soft deleting expense claim:', error);
     throw error;
   }
 }
@@ -414,7 +443,7 @@ export async function addReceiptToExpenseClaim(
     if (error) throw error;
     return data;
   } catch (error) {
-    console.error('Error adding receipt to expense claim:', error);
+    logger.error('Error adding receipt to expense claim:', error);
     throw error;
   }
 }
@@ -437,7 +466,7 @@ export async function removeReceiptFromExpenseClaim(
     
     if (error) throw error;
   } catch (error) {
-    console.error('Error removing receipt from expense claim:', error);
+    logger.error('Error removing receipt from expense claim:', error);
     throw error;
   }
 }
@@ -458,7 +487,7 @@ export async function submitExpenseClaim(
     if (error) throw error;
     return data;
   } catch (error) {
-    console.error('Error submitting expense claim:', error);
+    logger.error('Error submitting expense claim:', error);
     throw error;
   }
 }
@@ -482,14 +511,14 @@ export async function approveExpenseClaim(
       const syncResult = await syncExpenseClaimToPayroll(data.data);
       
       if (!syncResult.success) {
-        console.warn('Failed to sync expense claim to payroll:', syncResult.message);
+        logger.warn('Failed to sync expense claim to payroll:', syncResult.message);
         // Don't fail the approval, just log the warning
       }
     }
     
     return data || { success: false, message: 'No data returned from server' };
   } catch (error) {
-    console.error('Error approving expense claim:', error);
+    logger.error('Error approving expense claim:', error);
     return { 
       success: false, 
       message: error instanceof Error ? error.message : 'Failed to approve expense claim' 
@@ -522,7 +551,7 @@ export async function rejectExpenseClaim(
       const unsyncResult = await unsyncExpenseClaimFromPayroll(claim);
       
       if (!unsyncResult.success) {
-        console.warn('Failed to unsync expense claim from payroll:', unsyncResult.message);
+        logger.warn('Failed to unsync expense claim from payroll:', unsyncResult.message);
       }
     }
     
@@ -532,7 +561,7 @@ export async function rejectExpenseClaim(
     if (error) throw error;
     return data || { success: false, message: 'No data returned from server' };
   } catch (error) {
-    console.error('Error rejecting expense claim:', error);
+    logger.error('Error rejecting expense claim:', error);
     return { 
       success: false, 
       message: error instanceof Error ? error.message : 'Failed to reject expense claim' 
@@ -567,7 +596,7 @@ export async function deleteExpenseClaim(claimId: string): Promise<{ success: bo
     // Only allow deleting if it's your own claim or you're an admin
     if (claim && claim.user_id !== user.id) {
       // TODO: Check if user is admin - for now we'll just allow it
-      console.warn('User is deleting a claim they do not own');
+      logger.warn('User is deleting a claim they do not own');
     }
     
     // If claim was approved, unsync from payroll before deleting
@@ -576,7 +605,7 @@ export async function deleteExpenseClaim(claimId: string): Promise<{ success: bo
       const unsyncResult = await unsyncExpenseClaimFromPayroll(claim);
       
       if (!unsyncResult.success) {
-        console.warn('Failed to unsync expense claim from payroll:', unsyncResult.message);
+        logger.warn('Failed to unsync expense claim from payroll:', unsyncResult.message);
         return { 
           success: false, 
           message: 'Cannot delete approved expense claim: Failed to remove from payroll' 
@@ -591,13 +620,13 @@ export async function deleteExpenseClaim(claimId: string): Promise<{ success: bo
       .eq('expense_claim_id', claimId);
       
     if (receiptsError) {
-      console.warn('Error fetching receipts for deletion:', receiptsError);
+      logger.warn('Error fetching receipts for deletion:', receiptsError);
       // Continue anyway since we want to delete the claim
     }
     
     // If we have receipt URLs, try to delete the storage objects
     if (receipts && receipts.length > 0) {
-      console.log(`Deleting ${receipts.length} receipt(s) from storage`);
+      logger.debug(`Deleting ${receipts.length} receipt(s) from storage`);
       
       // Delete files from storage for each receipt
       for (const receipt of receipts) {
@@ -611,11 +640,11 @@ export async function deleteExpenseClaim(claimId: string): Promise<{ success: bo
                 .remove([path]);
                 
               if (storageError) {
-                console.warn(`Failed to delete receipt file ${path}:`, storageError);
+                logger.warn(`Failed to delete receipt file ${path}:`, storageError);
               }
             }
           } catch (fileError) {
-            console.warn('Error parsing receipt URL for deletion:', fileError);
+            logger.warn('Error parsing receipt URL for deletion:', fileError);
           }
         }
       }
@@ -634,7 +663,7 @@ export async function deleteExpenseClaim(claimId: string): Promise<{ success: bo
       message: 'Expense claim deleted successfully' 
     };
   } catch (error) {
-    console.error('Error deleting expense claim:', error);
+    logger.error('Error deleting expense claim:', error);
     return { 
       success: false, 
       message: error instanceof Error ? error.message : 'Failed to delete expense claim' 
@@ -656,7 +685,7 @@ export async function getPendingExpenseClaimsCount(): Promise<number> {
     if (error) throw error;
     return count || 0;
   } catch (error) {
-    console.error('Error getting pending expense claims count:', error);
+    logger.error('Error getting pending expense claims count:', error);
     return 0; // Return 0 on error rather than throwing
   }
 }
@@ -742,7 +771,7 @@ export async function getExpenseClaimsStatistics(): Promise<{
       totalRejected
     };
   } catch (error) {
-    console.error('Error getting expense claims statistics:', error);
+    logger.error('Error getting expense claims statistics:', error);
     throw error;
   }
 }

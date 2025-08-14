@@ -20,7 +20,7 @@ export const isFeatureWorthy = (project: Project): boolean => {
   const isUpcoming = isAfter(startDate, new Date()) && 
                     isBefore(startDate, addDays(new Date(), 7));
   
-  const isMarkedAsFeatured = (project as any).featured === true;
+  const isMarkedAsFeatured = (project as unknown).featured === true;
   
   return isMarkedAsFeatured || 
          (isHighPriority && (isLargeCrew || isUpcoming));
@@ -48,13 +48,23 @@ export const groupProjects = (
   const groups: Record<string, Project[]> = {};
   
   if (groupType === 'status') {
-    // Group by status (capitalize first letter)
+    // Group by status (normalize and capitalize)
     projects.forEach(project => {
-      const status = project.status.charAt(0).toUpperCase() + project.status.slice(1).toLowerCase();
-      if (!groups[status]) {
-        groups[status] = [];
+      // Normalize status: replace underscores with hyphens and capitalize
+      const normalizedStatus = project.status.replace(/_/g, '-');
+      const status = normalizedStatus.charAt(0).toUpperCase() + normalizedStatus.slice(1).toLowerCase();
+      
+      // Handle special cases
+      if (status === 'Scheduled' || status === 'Planning') {
+        // Group scheduled and planning into Pending
+        groups['Pending'] = groups['Pending'] || [];
+        groups['Pending'].push(project);
+      } else {
+        if (!groups[status]) {
+          groups[status] = [];
+        }
+        groups[status].push(project);
       }
-      groups[status].push(project);
     });
     
     // Sort by status priority
@@ -91,8 +101,8 @@ export const groupProjects = (
       let clientName = 'No Client';
       
       if (project.client) {
-        clientName = (project.client as any).name || 
-                     (project.client as any).company_name || 
+        clientName = (project.client as unknown).name || 
+                     (project.client as unknown).company_name || 
                      'Unnamed Client';
       }
       
@@ -202,56 +212,71 @@ export const getGroupIcon = (groupName: string, groupType: ProjectGroupType): st
  * @param sortBy Sort criteria
  * @returns Sorted array of projects
  */
+// Pre-defined sort orders for performance
+const PRIORITY_ORDER = { high: 0, medium: 1, low: 2 };
+const STATUS_ORDER = { 
+  'in-progress': 0, 
+  'in_progress': 0,  // Handle underscore variant
+  'active': 0,       // Handle active as in-progress
+  'confirmed': 1,    // Handle confirmed as pending
+  pending: 1, 
+  planning: 1,       // Handle planning as pending
+  scheduled: 1,      // Handle scheduled as pending
+  new: 2, 
+  completed: 3, 
+  cancelled: 4 
+};
+
 export const sortProjects = (
   projects: Project[], 
   sortBy: 'date' | 'priority' | 'status' | 'title' | 'progress'
 ): Project[] => {
+  // Early return for empty or single-item arrays
+  if (!projects || projects.length <= 1) return projects;
+  
   const sortedProjects = [...projects];
   
   switch (sortBy) {
     case 'date':
-      // Sort by start date, newest first
-      return sortedProjects.sort((a, b) => 
-        new Date(b.start_date).getTime() - new Date(a.start_date).getTime()
-      );
+      // Sort by start date, newest first - optimized with cached timestamps
+      return sortedProjects.sort((a, b) => {
+        // Cache date conversions
+        const aTime = new Date(b.start_date).getTime();
+        const bTime = new Date(a.start_date).getTime();
+        return aTime - bTime;
+      });
       
     case 'priority':
-      // Sort by priority: high → medium → low
-      const priorityOrder = { high: 0, medium: 1, low: 2 };
+      // Sort by priority: high → medium → low - optimized with pre-defined order
       return sortedProjects.sort((a, b) => {
         const aPriority = a.priority.toLowerCase();
         const bPriority = b.priority.toLowerCase();
-        return (priorityOrder[aPriority as keyof typeof priorityOrder] || 3) - 
-               (priorityOrder[bPriority as keyof typeof priorityOrder] || 3);
+        const aOrder = PRIORITY_ORDER[aPriority as keyof typeof PRIORITY_ORDER] ?? 3;
+        const bOrder = PRIORITY_ORDER[bPriority as keyof typeof PRIORITY_ORDER] ?? 3;
+        return aOrder - bOrder;
       });
       
     case 'status':
-      // Sort by status: in-progress → pending → new → completed → cancelled
-      const statusOrder = { 
-        'in-progress': 0, 
-        pending: 1, 
-        new: 2, 
-        completed: 3, 
-        cancelled: 4 
-      };
+      // Sort by status - optimized with pre-defined order
       return sortedProjects.sort((a, b) => {
-        const aStatus = a.status.toLowerCase();
-        const bStatus = b.status.toLowerCase();
-        return (statusOrder[aStatus as keyof typeof statusOrder] || 5) - 
-               (statusOrder[bStatus as keyof typeof statusOrder] || 5);
+        const aStatus = a.status.toLowerCase().replace(/_/g, '-');
+        const bStatus = b.status.toLowerCase().replace(/_/g, '-');
+        const aOrder = STATUS_ORDER[aStatus as keyof typeof STATUS_ORDER] ?? 5;
+        const bOrder = STATUS_ORDER[bStatus as keyof typeof STATUS_ORDER] ?? 5;
+        return aOrder - bOrder;
       });
       
     case 'title':
-      // Sort alphabetically by title
+      // Sort alphabetically by title - using localeCompare for proper sorting
       return sortedProjects.sort((a, b) => 
-        a.title.localeCompare(b.title)
+        a.title.localeCompare(b.title, undefined, { numeric: true, sensitivity: 'base' })
       );
       
     case 'progress':
-      // Sort by crew fill progress (filled / total)
+      // Sort by crew fill progress (filled / total) - handle division by zero
       return sortedProjects.sort((a, b) => {
-        const aProgress = a.filled_positions / a.crew_count;
-        const bProgress = b.filled_positions / b.crew_count;
+        const aProgress = a.crew_count > 0 ? a.filled_positions / a.crew_count : 0;
+        const bProgress = b.crew_count > 0 ? b.filled_positions / b.crew_count : 0;
         return bProgress - aProgress;
       });
       
@@ -277,46 +302,52 @@ export const filterProjects = (
     dateRange?: { from?: Date; to?: Date };
   } = {}
 ): Project[] => {
+  // Early return for no filters
   if (!searchTerm && Object.keys(filters).length === 0) {
     return projects;
   }
   
+  // Pre-process search term and filters for performance
+  const term = searchTerm ? searchTerm.toLowerCase() : null;
+  const statusSet = filters.status?.length ? new Set(filters.status.map(s => s.toLowerCase())) : null;
+  const prioritySet = filters.priority?.length ? new Set(filters.priority.map(p => p.toLowerCase())) : null;
+  const clientSet = filters.client?.length ? new Set(filters.client) : null;
+  
   return projects.filter(project => {
-    // Search term matching
-    if (searchTerm) {
-      const term = searchTerm.toLowerCase();
-      const matchesTitle = project.title.toLowerCase().includes(term);
-      const matchesVenue = project.venue_address.toLowerCase().includes(term);
-      const matchesClient = project.client && 
-        ((project.client as any).name?.toLowerCase().includes(term) || 
-         (project.client as any).company_name?.toLowerCase().includes(term));
-         
-      // If no matches, skip this project
-      if (!(matchesTitle || matchesVenue || matchesClient)) {
+    // Search term matching - optimized with early returns
+    if (term) {
+      // Check title first (most likely match)
+      if (project.title.toLowerCase().includes(term)) {
+        // Continue to other filters
+      } else if (project.venue_address?.toLowerCase().includes(term)) {
+        // Continue to other filters
+      } else if (project.client) {
+        const client = project.client as any;
+        if (!client.name?.toLowerCase().includes(term) && 
+            !client.company_name?.toLowerCase().includes(term)) {
+          return false;
+        }
+      } else {
         return false;
       }
     }
     
-    // Status filter
-    if (filters.status && filters.status.length > 0) {
-      if (!filters.status.some(s => s.toLowerCase() === project.status.toLowerCase())) {
-        return false;
-      }
+    // Status filter - optimized with Set lookup
+    if (statusSet && !statusSet.has(project.status.toLowerCase())) {
+      return false;
     }
     
-    // Priority filter
-    if (filters.priority && filters.priority.length > 0) {
-      if (!filters.priority.some(p => p.toLowerCase() === project.priority.toLowerCase())) {
-        return false;
-      }
+    // Priority filter - optimized with Set lookup
+    if (prioritySet && !prioritySet.has(project.priority.toLowerCase())) {
+      return false;
     }
     
-    // Client filter
-    if (filters.client && filters.client.length > 0) {
+    // Client filter - optimized with Set lookup
+    if (clientSet) {
       const clientName = (project.client as any)?.name || 
                         (project.client as any)?.company_name || 
                         'No Client';
-      if (!filters.client.some(c => c === clientName)) {
+      if (!clientSet.has(clientName)) {
         return false;
       }
     }

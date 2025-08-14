@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef, lazy, Suspense, memo } from 'react';
 import { format, startOfMonth, endOfMonth, addMonths, subMonths } from 'date-fns';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
@@ -39,17 +39,28 @@ import { useProjectsByMonth, useProjects } from '@/hooks/use-projects';
 import { CalendarSkeleton } from '@/components/calendar-skeleton';
 // EditProjectDialog removed
 import NewProjectDialog from '@/components/NewProjectDialog';
-import CalendarView from '@/components/CalendarView';
+// Lazy load components for better performance
+const CalendarView = lazy(() => import('@/components/CalendarView'));
 import { formatTimeString, eventColors } from '@/lib/utils';
 import { deleteProject } from '@/lib/projects';
-import ListView from '@/components/ListView';
+const ListView = lazy(() => import('@/components/ListView'));
 import type { Project } from '@/lib/types';
 
 // Simple emergency fix version
 export default function CalendarPage() {
-  // Use refs to track loading state to prevent re-renders
+  // Performance tracking refs
   const loadingRef = useRef(false);
   const mountedRef = useRef(false);
+  const renderCount = useRef(0);
+  const lastLoadTime = useRef<number>(0);
+  const navigationDebounceRef = useRef<NodeJS.Timeout>();
+  const monthCacheRef = useRef<Map<string, Project[]>>(new Map());
+  
+  // Track render count for performance monitoring
+  renderCount.current++;
+  if (renderCount.current % 10 === 0) {
+    console.log(`[Performance] CalendarPage render #${renderCount.current}`);
+  }
   
   // Always use today's date as the initial date
   const getInitialDate = useCallback(() => {
@@ -105,11 +116,19 @@ export default function CalendarPage() {
 
   // Load projects with proper loading state - improved version for seamless loading
   const loadProjects = useCallback(async (showLoadingState = true) => {
-    // Prevent concurrent loads and return if already loading
+    // Prevent concurrent loads and implement rate limiting
     if (loadingRef.current) {
-      console.log("Already loading, skipping");
+      console.log("[Performance] Already loading, skipping");
       return;
     }
+    
+    // Rate limiting: max 1 request per 300ms
+    const now = Date.now();
+    if (now - lastLoadTime.current < 300) {
+      console.log('[Performance] Rate limiting active');
+      return;
+    }
+    lastLoadTime.current = now;
     
     // Set loading flags - but only show loading state for calendar view
     // This way ListView will keep showing current content during loading
@@ -119,14 +138,32 @@ export default function CalendarPage() {
     }
     
     try {
+      // Check cache first
+      const monthKey = `${date.getFullYear()}-${date.getMonth()}`;
+      if (!showLoadingState && monthCacheRef.current.has(monthKey)) {
+        const cachedData = monthCacheRef.current.get(monthKey)!;
+        console.log(`[Performance] Using cached data for ${monthKey}`);
+        setProjects(cachedData);
+        setExtendedProjects(cachedData);
+        return true;
+      }
+      
       // Get month and year
       const currentMonth = date.getMonth();
       const currentYear = date.getFullYear();
       
-      console.log(`Loading projects for ${currentMonth}/${currentYear}`);
+      console.log(`[Performance] Loading projects for ${currentMonth}/${currentYear}`);
       
       // Load current month data
       const currentMonthData = await getProjectsByMonth(currentMonth, currentYear);
+      
+      // Cache the data
+      monthCacheRef.current.set(monthKey, currentMonthData);
+      // Limit cache size
+      if (monthCacheRef.current.size > 12) {
+        const firstKey = monthCacheRef.current.keys().next().value;
+        monthCacheRef.current.delete(firstKey);
+      }
       console.log(`Loaded ${currentMonthData.length} projects for current month`);
       
       // Update projects state ONLY if we got data and component is still mounted
@@ -384,21 +421,26 @@ export default function CalendarPage() {
     }
   }, [projects, view]);
 
-  // Navigation with enhanced data loading - like refresh with multi-month load
+  // Debounced navigation to prevent rapid clicks
   const handlePrevMonth = useCallback(() => {
-    console.log("Previous month navigation with enhanced loading");
+    // Clear existing debounce
+    if (navigationDebounceRef.current) {
+      clearTimeout(navigationDebounceRef.current);
+    }
     
-    // Reset loading flags to force a clean load
-    loadingRef.current = false;
-    adjacentMonthsLoaded.current = false;
-    
-    // Force cache invalidation to get fresh data
-    invalidateCache();
-    
-    // Show loading state for user feedback
-    setIsLoading(true);
-    
-    // First update date to trigger view change
+    navigationDebounceRef.current = setTimeout(() => {
+      console.log("[Performance] Previous month navigation");
+      
+      const newDate = subMonths(date, 1);
+      setDate(newDate);
+      
+      // Use cached data when possible
+      loadProjects(true);
+    }, 150); // 150ms debounce
+  }, [date, loadProjects]);
+  
+  // Keep old complex loading for reference but skip it
+  const handlePrevMonthOld = useCallback(() => {
     const newDate = subMonths(date, 1);
     setDate(newDate);
     
@@ -1538,20 +1580,21 @@ export default function CalendarPage() {
             </div>
           </div>
           
-          {/* Content */}
+          {/* Content with lazy loading */}
           <div className="flex-grow overflow-auto">
-            {view === 'calendar' ? (
-              <div className="h-full">
-                <CalendarView
+            <Suspense fallback={<CalendarSkeleton />}>
+              {view === 'calendar' ? (
+                <div className="h-full">
+                  <CalendarView
                   date={date}
                   projects={filteredProjects}
                   onProjectClick={handleProjectClick}
                   onDateRangeSelect={handleDateRangeSelect}
                   onDateClick={handleDayClick}
-                />
-              </div>
-            ) : (
-              <ListView
+                  />
+                </div>
+              ) : (
+                <ListView
                 key="list-view" // Use a stable key to prevent full unmount during re-render
                 date={date}
                 projects={filteredProjects}
@@ -1567,8 +1610,9 @@ export default function CalendarPage() {
                   console.log('ListView month changed to:', format(newDate, 'MMMM yyyy'));
                   setDate(newDate);
                 }}
-              />
-            )}
+                />
+              )}
+            </Suspense>
           </div>
         </div>
       </div>

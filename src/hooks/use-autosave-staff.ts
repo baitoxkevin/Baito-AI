@@ -4,10 +4,11 @@ import { updateProject } from '@/lib/projects';
 import { recordProjectChanges } from '@/lib/project-change-service';
 import { getUser } from '@/lib/auth';
 
+import { logger } from '../lib/logger';
 interface UseAutosaveStaffOptions {
   projectId: string;
-  confirmedStaff: any[];
-  applicants: any[];
+  confirmedStaff: unknown[];
+  applicants: unknown[];
   enabled?: boolean;
   debounceDelay?: number;
 }
@@ -29,7 +30,7 @@ export function useAutosaveStaff({
   
   // Update initial values when props change on mount
   useEffect(() => {
-    console.log('[Autosave] Initializing lastSavedRef');
+    // logger.debug('[Autosave] Initializing lastSavedRef');
     lastSavedRef.current = {
       staff: JSON.stringify(confirmedStaff),
       applicants: JSON.stringify(applicants),
@@ -37,7 +38,7 @@ export function useAutosaveStaff({
   }, []); // Only run once on mount
 
   // Function to prepare staff for saving
-  const prepareStaffForSaving = (staffArray: any[]) => {
+  const prepareStaffForSaving = (staffArray: unknown[]) => {
     return staffArray.map(staff => {
       const cleanStaff = { ...staff };
       // Remove UI-specific properties
@@ -46,7 +47,7 @@ export function useAutosaveStaff({
       
       // Convert workingDates to ISO strings
       if (cleanStaff.workingDates && Array.isArray(cleanStaff.workingDates)) {
-        cleanStaff.workingDates = cleanStaff.workingDates.map((date: any) => {
+        cleanStaff.workingDates = cleanStaff.workingDates.map((date: unknown) => {
           if (date instanceof Date) {
             return date.toISOString();
           }
@@ -59,30 +60,30 @@ export function useAutosaveStaff({
   };
 
   const saveChanges = useCallback(async () => {
-    console.log('[Autosave] saveChanges called', { enabled });
+    // logger.debug('[Autosave] saveChanges called', { data: { enabled } });
     if (!enabled) {
-      console.log('[Autosave] Not enabled, returning');
+      // logger.debug('[Autosave] Not enabled, { data: returning' });
       return;
     }
 
     const currentStaff = JSON.stringify(confirmedStaff);
     const currentApplicants = JSON.stringify(applicants);
 
-    console.log('[Autosave] Comparing changes', {
-      currentStaffEquals: currentStaff === lastSavedRef.current.staff,
-      currentApplicantsEquals: currentApplicants === lastSavedRef.current.applicants,
-      currentStaffLength: confirmedStaff.length,
-      lastStaffLength: JSON.parse(lastSavedRef.current.staff || '[]').length,
-      currentApplicantsLength: applicants.length,
-      lastApplicantsLength: JSON.parse(lastSavedRef.current.applicants || '[]').length,
-    });
+    // logger.debug('[Autosave] Comparing changes', { data: {
+    //   currentStaffEquals: currentStaff === lastSavedRef.current.staff,
+    //   currentApplicantsEquals: currentApplicants === lastSavedRef.current.applicants,
+    //   currentStaffLength: confirmedStaff.length,
+    //   lastStaffLength: JSON.parse(lastSavedRef.current.staff || '[]' }).length,
+    //   currentApplicantsLength: applicants.length,
+    //   lastApplicantsLength: JSON.parse(lastSavedRef.current.applicants || '[]').length,
+    // });
 
     // Check if there are actually changes
     if (
       currentStaff === lastSavedRef.current.staff &&
       currentApplicants === lastSavedRef.current.applicants
     ) {
-      console.log('[Autosave] No changes detected, marking as saved');
+      // logger.debug('[Autosave] No changes detected, { data: marking as saved' });
       setSaveStatus('saved');
       return;
     }
@@ -97,11 +98,11 @@ export function useAutosaveStaff({
         applicants: prepareStaffForSaving(applicants),
       };
 
-      console.log('[Autosave] Saving staff changes:', {
-        projectId,
-        confirmedStaffCount: confirmedStaff.length,
-        applicantsCount: applicants.length,
-      });
+      // logger.debug('[Autosave] Saving staff changes:', { data: {
+      //   projectId,
+      //   confirmedStaffCount: confirmedStaff.length,
+      //   applicantsCount: applicants.length,
+      // } });
 
       await updateProject(projectId, updateData);
 
@@ -148,7 +149,7 @@ export function useAutosaveStaff({
         duration: 2000,
       });
     } catch (error) {
-      console.error('[Autosave] Error saving staff changes:', error);
+      logger.error('[Autosave] Error saving staff changes:', error);
       setSaveStatus('error');
       
       toast({
@@ -163,14 +164,14 @@ export function useAutosaveStaff({
 
   // Debounced save effect
   useEffect(() => {
-    console.log('[Autosave] useEffect triggered', {
-      enabled,
-      confirmedStaffLength: confirmedStaff.length,
-      applicantsLength: applicants.length,
-    });
+    // logger.debug('[Autosave] useEffect triggered', { data: {
+    //   enabled,
+    //   confirmedStaffLength: confirmedStaff.length,
+    //   applicantsLength: applicants.length,
+    // } });
     
     if (!enabled) {
-      console.log('[Autosave] Disabled, skipping');
+      // logger.debug('[Autosave] Disabled, { data: skipping' });
       return;
     }
 
@@ -185,16 +186,16 @@ export function useAutosaveStaff({
     }
 
     // Set new timeout
-    console.log(`[Autosave] Setting timeout for ${debounceDelay}ms`);
+    // logger.debug(`[Autosave] Setting timeout for ${debounceDelay}ms`);
     saveTimeoutRef.current = setTimeout(() => {
-      console.log('[Autosave] Timeout reached, calling saveChanges');
+      // logger.debug('[Autosave] Timeout reached, { data: calling saveChanges' });
       saveChanges();
     }, debounceDelay);
 
     // Cleanup function
     return () => {
       if (saveTimeoutRef.current) {
-        console.log('[Autosave] Cleanup: clearing timeout');
+        // logger.debug('[Autosave] Cleanup: clearing timeout');
         clearTimeout(saveTimeoutRef.current);
       }
     };
