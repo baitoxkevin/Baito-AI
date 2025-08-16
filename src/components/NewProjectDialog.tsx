@@ -77,6 +77,7 @@ import {
   CommandGroup,
   CommandInput,
   CommandItem,
+  CommandList,
 } from "@/components/ui/command";
 
 // Define step types
@@ -542,17 +543,17 @@ export function NewProjectDialog({
             exit={{ opacity: 0, y: -20 }}
             transition={{ duration: 0.3 }}
           >
-            <Card className="shadow-sm">
-              <CardHeader>
-                <CardTitle className="text-xl">Basic Information</CardTitle>
-                <CardDescription>Start by entering the fundamental details of your project</CardDescription>
+            <Card className="shadow-sm border-0">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-xl font-semibold">Basic Information</CardTitle>
+                <CardDescription className="text-sm">Start by entering the fundamental details of your project</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-6">
+              <CardContent className="space-y-8 pt-6 pb-8">
                 <FormField
                   control={form.control}
                   name="title"
                   render={({ field }) => (
-                    <FormItem>
+                    <FormItem className="space-y-2">
                       <FormLabel className={cn(
                         "flex items-center gap-1",
                         form.formState.errors.title && "text-red-500"
@@ -576,7 +577,7 @@ export function NewProjectDialog({
                           data-form-type="other"
                         />
                       </FormControl>
-                      <FormDescription>Choose a clear, descriptive name for your project</FormDescription>
+                      <FormDescription className="text-xs">Choose a clear, descriptive name for your project</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -585,57 +586,114 @@ export function NewProjectDialog({
                 <FormField
                   control={form.control}
                   name="client_id"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className={cn(
-                        "flex items-center gap-1",
-                        form.formState.errors.client_id && "text-red-500"
-                      )}>
-                        <Building2 className={cn(
-                          "h-4 w-4",
-                          form.formState.errors.client_id ? "text-red-500" : ""
-                        )} />
-                        Customer <span className="text-red-500">*</span>
-                      </FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl>
-                          <SelectTrigger className={cn(
-                            "h-11 transition-all hover:border-gray-400",
-                            form.formState.errors.client_id && "border-red-500 focus:border-red-500"
-                          )}>
-                            <SelectValue placeholder="Select a customer" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {customers.map((customer) => (
-                            <SelectItem key={customer.id} value={customer.id}>
-                              <div className="flex items-center gap-2">
-                                {customer.logo_url ? (
-                                  <img 
-                                    src={customer.logo_url} 
-                                    alt={customer.company_name || customer.full_name}
-                                    className="h-5 w-5 rounded object-cover"
-                                  />
-                                ) : (
-                                  <Building2 className="h-4 w-4 text-gray-500" />
+                  render={({ field }) => {
+                    const [openCustomer, setOpenCustomer] = useState(false);
+                    const selectedCustomer = customers.find(c => c.id === field.value);
+                    
+                    return (
+                      <FormItem className="space-y-2">
+                        <FormLabel className={cn(
+                          "flex items-center gap-1",
+                          form.formState.errors.client_id && "text-red-500"
+                        )}>
+                          <Building2 className={cn(
+                            "h-4 w-4",
+                            form.formState.errors.client_id ? "text-red-500" : ""
+                          )} />
+                          Customer <span className="text-red-500">*</span>
+                        </FormLabel>
+                        <Popover open={openCustomer} onOpenChange={setOpenCustomer} modal={true}>
+                          <PopoverTrigger asChild>
+                            <FormControl>
+                              <Button
+                                variant="outline"
+                                role="combobox"
+                                aria-expanded={openCustomer}
+                                className={cn(
+                                  "w-full h-11 justify-between font-normal transition-all hover:border-gray-400",
+                                  !field.value && "text-muted-foreground",
+                                  form.formState.errors.client_id && "border-red-500 focus:border-red-500"
                                 )}
-                                {customer.company_name || customer.full_name}
-                              </div>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormDescription>Select the company or client for this project</FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
+                              >
+                                <div className="flex items-center gap-2 truncate">
+                                  {selectedCustomer ? (
+                                    <>
+                                      {selectedCustomer.logo_url ? (
+                                        <img 
+                                          src={selectedCustomer.logo_url} 
+                                          alt={selectedCustomer.company_name || selectedCustomer.full_name}
+                                          className="h-5 w-5 rounded object-cover flex-shrink-0"
+                                        />
+                                      ) : (
+                                        <Building2 className="h-4 w-4 text-gray-500 flex-shrink-0" />
+                                      )}
+                                      <span className="truncate">
+                                        {selectedCustomer.company_name || selectedCustomer.full_name}
+                                      </span>
+                                    </>
+                                  ) : (
+                                    "Select a customer"
+                                  )}
+                                </div>
+                                <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                              </Button>
+                            </FormControl>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+                            <Command shouldFilter={true}>
+                              <CommandInput 
+                                placeholder="Search customers..." 
+                                className="h-9"
+                              />
+                              <CommandList>
+                                <CommandEmpty>No customer found.</CommandEmpty>
+                                <CommandGroup>
+                                  {customers.map((customer) => (
+                                    <CommandItem
+                                      key={customer.id}
+                                      value={`${customer.company_name || customer.full_name} ${customer.id}`}
+                                      onSelect={() => {
+                                        field.onChange(customer.id);
+                                        setOpenCustomer(false);
+                                      }}
+                                      className="cursor-pointer"
+                                    >
+                                      <div className="flex items-center gap-2 w-full">
+                                        {customer.logo_url ? (
+                                          <img 
+                                            src={customer.logo_url} 
+                                            alt={customer.company_name || customer.full_name}
+                                            className="h-5 w-5 rounded object-cover flex-shrink-0"
+                                          />
+                                        ) : (
+                                          <Building2 className="h-4 w-4 text-gray-500 flex-shrink-0" />
+                                        )}
+                                        <span className="truncate">
+                                          {customer.company_name || customer.full_name}
+                                        </span>
+                                        {field.value === customer.id && (
+                                          <Check className="ml-auto h-4 w-4 opacity-100" />
+                                        )}
+                                      </div>
+                                    </CommandItem>
+                                  ))}
+                                </CommandGroup>
+                              </CommandList>
+                            </Command>
+                          </PopoverContent>
+                        </Popover>
+                        <FormDescription className="text-xs">Select the company or client for this project</FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    );
+                  }}
                 />
 
                 <FormField
                   control={form.control}
                   name="manager_id"
                   render={({ field }) => (
-                    <FormItem>
+                    <FormItem className="space-y-2">
                       <FormLabel className={cn(
                         "flex items-center gap-1",
                         form.formState.errors.manager_id && "text-red-500"
@@ -666,19 +724,19 @@ export function NewProjectDialog({
                           ))}
                         </SelectContent>
                       </Select>
-                      <FormDescription>Assign the project manager responsible for this project</FormDescription>
+                      <FormDescription className="text-xs">Assign the project manager responsible for this project</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
 
                 {/* Brand Fields */}
-                <div className="grid grid-cols-2 gap-4 mt-6">
+                <div className="grid grid-cols-2 gap-6 pt-6 border-t">
                   <FormField
                     control={form.control}
                     name="brand_name"
                     render={({ field }) => (
-                      <FormItem>
+                      <FormItem className="space-y-2">
                         <FormLabel className="flex items-center gap-1">
                           <Building2 className="h-4 w-4" />
                           Brand Name
@@ -715,7 +773,7 @@ export function NewProjectDialog({
                             )}
                           </div>
                         </FormControl>
-                        <FormDescription>Enter the brand or company name</FormDescription>
+                        <FormDescription className="text-xs">Enter the brand or company name</FormDescription>
                       </FormItem>
                     )}
                   />
@@ -724,7 +782,7 @@ export function NewProjectDialog({
                     control={form.control}
                     name="brand_logo"
                     render={({ field }) => (
-                      <FormItem>
+                      <FormItem className="space-y-2">
                         <FormLabel className="flex items-center gap-1">
                           <Link className="h-4 w-4" />
                           Brand Logo URL
@@ -783,7 +841,7 @@ export function NewProjectDialog({
                             )}
                           </div>
                         </FormControl>
-                        <FormDescription>Logo URL (will auto-fetch based on brand name)</FormDescription>
+                        <FormDescription className="text-xs">Logo URL (will auto-fetch based on brand name)</FormDescription>
                       </FormItem>
                     )}
                   />
@@ -792,7 +850,7 @@ export function NewProjectDialog({
                     control={form.control}
                     name="brand_link"
                     render={({ field }) => (
-                      <FormItem className="col-span-2">
+                      <FormItem className="col-span-2 space-y-2">
                         <FormLabel className="flex items-center gap-1">
                           <Link className="h-4 w-4" />
                           Brand Website
@@ -804,24 +862,24 @@ export function NewProjectDialog({
                             className="h-11 transition-all hover:border-gray-400 focus:border-gray-600"
                           />
                         </FormControl>
-                        <FormDescription>Official brand or company website</FormDescription>
+                        <FormDescription className="text-xs">Official brand or company website</FormDescription>
                       </FormItem>
                     )}
                   />
                 </div>
 
                 {/* Additional Stakeholders (CC) */}
-                <div className="mt-6 space-y-4">
-                  <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">Additional Stakeholders (CC)</h3>
+                <div className="pt-6 space-y-6 border-t">
+                  <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Additional Stakeholders (CC)</h3>
                   
                   {/* CC Contacts */}
                   <FormField
                     control={form.control}
                     name="cc_client_ids"
                     render={({ field }) => (
-                      <FormItem>
+                      <FormItem className="space-y-2">
                         <FormLabel>CC Contacts</FormLabel>
-                        <FormDescription>
+                        <FormDescription className="text-xs">
                           {form.watch('client_id') 
                             ? "Add additional client contacts to keep informed about this project"
                             : "Select a customer first to see their contacts"}
@@ -927,9 +985,9 @@ export function NewProjectDialog({
                     control={form.control}
                     name="cc_user_ids"
                     render={({ field }) => (
-                      <FormItem>
+                      <FormItem className="space-y-2">
                         <FormLabel>CC Users</FormLabel>
-                        <FormDescription>
+                        <FormDescription className="text-xs">
                           Add additional team members to keep informed about this project
                         </FormDescription>
                         <Popover modal={true}>
@@ -1027,17 +1085,17 @@ export function NewProjectDialog({
             exit={{ opacity: 0, y: -20 }}
             transition={{ duration: 0.3 }}
           >
-            <Card className="shadow-sm">
-              <CardHeader>
-                <CardTitle className="text-xl">Event Details</CardTitle>
-                <CardDescription>Describe the nature and type of your event</CardDescription>
+            <Card className="shadow-sm border-0">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-xl font-semibold">Event Details</CardTitle>
+                <CardDescription className="text-sm">Describe the nature and type of your event</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-6">
+              <CardContent className="space-y-8 pt-6 pb-8">
                 <FormField
                   control={form.control}
                   name="event_type"
                   render={({ field }) => (
-                    <FormItem>
+                    <FormItem className="space-y-2">
                       <FormLabel className={cn(
                         "flex items-center gap-1",
                         form.formState.errors.event_type && "text-red-500"
@@ -1065,7 +1123,7 @@ export function NewProjectDialog({
                           data-form-type="other"
                         />
                       </FormControl>
-                      <FormDescription>What kind of event is this?</FormDescription>
+                      <FormDescription className="text-xs">What kind of event is this?</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -1075,7 +1133,7 @@ export function NewProjectDialog({
                   control={form.control}
                   name="project_type"
                   render={({ field }) => (
-                    <FormItem>
+                    <FormItem className="space-y-2">
                       <FormLabel>Project Category</FormLabel>
                       <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
@@ -1104,7 +1162,7 @@ export function NewProjectDialog({
                           </SelectItem>
                         </SelectContent>
                       </Select>
-                      <FormDescription>Categorize your project for better organization</FormDescription>
+                      <FormDescription className="text-xs">Categorize your project for better organization</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -1114,7 +1172,7 @@ export function NewProjectDialog({
                   control={form.control}
                   name="description"
                   render={({ field }) => (
-                    <FormItem>
+                    <FormItem className="space-y-2">
                       <FormLabel>Description</FormLabel>
                       <FormControl>
                         <Textarea 
@@ -1131,7 +1189,7 @@ export function NewProjectDialog({
                           data-form-type="other"
                         />
                       </FormControl>
-                      <FormDescription>
+                      <FormDescription className="text-xs">
                         Include any important information that team members should know
                       </FormDescription>
                     </FormItem>
@@ -1150,17 +1208,17 @@ export function NewProjectDialog({
             exit={{ opacity: 0, y: -20 }}
             transition={{ duration: 0.3 }}
           >
-            <Card className="shadow-sm">
-              <CardHeader>
-                <CardTitle className="text-xl">Location Information</CardTitle>
-                <CardDescription>Where will this project take place?</CardDescription>
+            <Card className="shadow-sm border-0">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-xl font-semibold">Location Information</CardTitle>
+                <CardDescription className="text-sm">Where will this project take place?</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-6">
+              <CardContent className="space-y-8 pt-6 pb-8">
                 <FormField
                   control={form.control}
                   name="venue_address"
                   render={({ field }) => (
-                    <FormItem>
+                    <FormItem className="space-y-2">
                       <FormLabel className={cn(
                         "flex items-center gap-1",
                         form.formState.errors.venue_address && "text-red-500"
@@ -1181,7 +1239,7 @@ export function NewProjectDialog({
                           )}
                         />
                       </FormControl>
-                      <FormDescription>Full address including street, city, and postal code</FormDescription>
+                      <FormDescription className="text-xs">Full address including street, city, and postal code</FormDescription>
                     </FormItem>
                   )}
                 />
@@ -1190,7 +1248,7 @@ export function NewProjectDialog({
                   control={form.control}
                   name="venue_details"
                   render={({ field }) => (
-                    <FormItem>
+                    <FormItem className="space-y-2">
                       <FormLabel>Additional Venue Details</FormLabel>
                       <FormControl>
                         <Textarea 
@@ -1200,7 +1258,7 @@ export function NewProjectDialog({
                           className="resize-none transition-all hover:border-gray-400 focus:border-gray-600"
                         />
                       </FormControl>
-                      <FormDescription>
+                      <FormDescription className="text-xs">
                         Include specific location details, access instructions, or landmarks
                       </FormDescription>
                       <FormMessage />
@@ -1208,7 +1266,7 @@ export function NewProjectDialog({
                   )}
                 />
 
-                <Alert className="border-blue-200 bg-blue-50 dark:bg-blue-950/20">
+                <Alert className="border-blue-200 bg-blue-50 dark:bg-blue-950/20 mt-6">
                   <MapPin className="h-4 w-4 text-blue-600" />
                   <AlertDescription className="text-blue-800 dark:text-blue-200">
                     Make sure to include clear directions and any special access requirements for the venue.
@@ -1216,7 +1274,7 @@ export function NewProjectDialog({
                 </Alert>
 
                 {/* Multiple Locations Support */}
-                <div className="space-y-4">
+                <div className="space-y-4 pt-6 border-t">
                   <div className="flex items-center justify-between">
                     <div>
                       <h4 className="text-sm font-medium">Multiple Locations</h4>
@@ -1230,7 +1288,7 @@ export function NewProjectDialog({
                     control={form.control}
                     name="locations"
                     render={({ field }) => (
-                      <FormItem>
+                      <FormItem className="space-y-2">
                         <FormControl>
                           <ProjectLocationManager
                             locations={field.value || []}
@@ -1259,19 +1317,19 @@ export function NewProjectDialog({
             exit={{ opacity: 0, y: -20 }}
             transition={{ duration: 0.3 }}
           >
-            <Card className="shadow-sm">
-              <CardHeader>
-                <CardTitle className="text-xl">Schedule & Timing</CardTitle>
-                <CardDescription>Set the dates and working hours for your project</CardDescription>
+            <Card className="shadow-sm border-0">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-xl font-semibold">Schedule & Timing</CardTitle>
+                <CardDescription className="text-sm">Set the dates and working hours for your project</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="grid grid-cols-2 gap-4">
+              <CardContent className="space-y-8 pt-6 pb-8">
+                <div className="grid grid-cols-2 gap-6">
                   <FormField
                     control={form.control}
                     name="start_date"
                     render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="flex items-center gap-1">
+                      <FormItem className="flex flex-col">
+                        <FormLabel className="flex items-center gap-1 mb-2">
                           Start Date <span className="text-red-500">*</span>
                         </FormLabel>
                         <Popover>
@@ -1284,7 +1342,7 @@ export function NewProjectDialog({
                                   !field.value && "text-muted-foreground"
                                 )}
                               >
-                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                <CalendarIcon className="mr-2 h-4 w-4 flex-shrink-0" />
                                 {field.value ? (
                                   format(field.value, "PPP")
                                 ) : (
@@ -1302,7 +1360,9 @@ export function NewProjectDialog({
                             />
                           </PopoverContent>
                         </Popover>
-                        <FormMessage />
+                        <div className="h-4">
+                          <FormMessage />
+                        </div>
                       </FormItem>
                     )}
                   />
@@ -1311,8 +1371,8 @@ export function NewProjectDialog({
                     control={form.control}
                     name="end_date"
                     render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>End Date</FormLabel>
+                      <FormItem className="flex flex-col">
+                        <FormLabel className="mb-2">End Date</FormLabel>
                         <Popover>
                           <PopoverTrigger asChild>
                             <FormControl>
@@ -1323,7 +1383,7 @@ export function NewProjectDialog({
                                   !field.value && "text-muted-foreground"
                                 )}
                               >
-                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                <CalendarIcon className="mr-2 h-4 w-4 flex-shrink-0" />
                                 {field.value ? (
                                   format(field.value, "PPP")
                                 ) : (
@@ -1344,20 +1404,21 @@ export function NewProjectDialog({
                             />
                           </PopoverContent>
                         </Popover>
-                        <FormDescription>Leave empty for single-day projects</FormDescription>
-                        <FormMessage />
+                        <FormDescription className="text-xs mt-1 text-muted-foreground">
+                          Leave empty for single-day projects
+                        </FormDescription>
                       </FormItem>
                     )}
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-6">
                   <FormField
                     control={form.control}
                     name="working_hours_start"
                     render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="flex items-center gap-1">
+                      <FormItem className="flex flex-col">
+                        <FormLabel className="flex items-center gap-1 mb-2">
                           <Clock className="h-4 w-4" />
                           Start Time <span className="text-red-500">*</span>
                         </FormLabel>
@@ -1368,7 +1429,9 @@ export function NewProjectDialog({
                             className="h-11 transition-all hover:border-gray-400 focus:border-gray-600"
                           />
                         </FormControl>
-                        <FormMessage />
+                        <div className="h-4">
+                          <FormMessage />
+                        </div>
                       </FormItem>
                     )}
                   />
@@ -1377,8 +1440,8 @@ export function NewProjectDialog({
                     control={form.control}
                     name="working_hours_end"
                     render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="flex items-center gap-1">
+                      <FormItem className="flex flex-col">
+                        <FormLabel className="flex items-center gap-1 mb-2">
                           <Clock className="h-4 w-4" />
                           End Time <span className="text-red-500">*</span>
                         </FormLabel>
@@ -1389,7 +1452,9 @@ export function NewProjectDialog({
                             className="h-11 transition-all hover:border-gray-400 focus:border-gray-600"
                           />
                         </FormControl>
-                        <FormMessage />
+                        <div className="h-4">
+                          <FormMessage />
+                        </div>
                       </FormItem>
                     )}
                   />
@@ -1399,7 +1464,7 @@ export function NewProjectDialog({
                   control={form.control}
                   name="schedule_type"
                   render={({ field }) => (
-                    <FormItem>
+                    <FormItem className="space-y-2 pt-4">
                       <FormLabel>Schedule Type</FormLabel>
                       <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
@@ -1413,7 +1478,7 @@ export function NewProjectDialog({
                           <SelectItem value="multiple">Multiple Days</SelectItem>
                         </SelectContent>
                       </Select>
-                      <FormDescription>How often does this project occur?</FormDescription>
+                      <FormDescription className="text-xs">How often does this project occur?</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -1431,18 +1496,18 @@ export function NewProjectDialog({
             exit={{ opacity: 0, y: -20 }}
             transition={{ duration: 0.3 }}
           >
-            <Card className="shadow-sm">
-              <CardHeader>
-                <CardTitle className="text-xl">Staffing Requirements</CardTitle>
-                <CardDescription>Define the team size and supervision needs</CardDescription>
+            <Card className="shadow-sm border-0">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-xl font-semibold">Staffing Requirements</CardTitle>
+                <CardDescription className="text-sm">Define the team size and supervision needs</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="grid grid-cols-2 gap-4">
+              <CardContent className="space-y-8 pt-6 pb-8">
+                <div className="grid grid-cols-2 gap-6">
                   <FormField
                     control={form.control}
                     name="crew_count"
                     render={({ field }) => (
-                      <FormItem>
+                      <FormItem className="space-y-2">
                         <FormLabel className="flex items-center gap-1">
                           <Users className="h-4 w-4" />
                           Crew Count <span className="text-red-500">*</span>
@@ -1459,7 +1524,7 @@ export function NewProjectDialog({
                             }}
                           />
                         </FormControl>
-                        <FormDescription>Total number of crew members needed</FormDescription>
+                        <FormDescription className="text-xs">Total number of crew members needed</FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -1469,7 +1534,7 @@ export function NewProjectDialog({
                     control={form.control}
                     name="supervisors_required"
                     render={({ field }) => (
-                      <FormItem>
+                      <FormItem className="space-y-2">
                         <FormLabel className="flex items-center gap-1">
                           <UserCheck className="h-4 w-4" />
                           Supervisors
@@ -1487,14 +1552,14 @@ export function NewProjectDialog({
                             }}
                           />
                         </FormControl>
-                        <FormDescription>Number of supervisors (if any)</FormDescription>
+                        <FormDescription className="text-xs">Number of supervisors (if any)</FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
                 </div>
 
-                <Alert className="border-amber-200 bg-amber-50 dark:bg-amber-950/20">
+                <Alert className="border-amber-200 bg-amber-50 dark:bg-amber-950/20 mt-6">
                   <Info className="h-4 w-4 text-amber-600" />
                   <AlertDescription className="text-amber-800 dark:text-amber-200">
                     <strong>Tip:</strong> Consider adding 10-15% extra crew members for large events to account for last-minute changes or no-shows.
@@ -1513,18 +1578,18 @@ export function NewProjectDialog({
             exit={{ opacity: 0, y: -20 }}
             transition={{ duration: 0.3 }}
           >
-            <Card className="shadow-sm">
-              <CardHeader>
-                <CardTitle className="text-xl">Advanced Settings</CardTitle>
-                <CardDescription>Configure status, priority, and budget</CardDescription>
+            <Card className="shadow-sm border-0">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-xl font-semibold">Advanced Settings</CardTitle>
+                <CardDescription className="text-sm">Configure status, priority, and budget</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="grid grid-cols-2 gap-4">
+              <CardContent className="space-y-8 pt-6 pb-8">
+                <div className="grid grid-cols-2 gap-6">
                   <FormField
                     control={form.control}
                     name="status"
                     render={({ field }) => (
-                      <FormItem>
+                      <FormItem className="space-y-2">
                         <FormLabel>Status</FormLabel>
                         <Select onValueChange={field.onChange} value={field.value}>
                           <FormControl>
@@ -1574,7 +1639,7 @@ export function NewProjectDialog({
                     control={form.control}
                     name="priority"
                     render={({ field }) => (
-                      <FormItem>
+                      <FormItem className="space-y-2">
                         <FormLabel>Priority</FormLabel>
                         <Select onValueChange={field.onChange} value={field.value}>
                           <FormControl>
@@ -1600,12 +1665,12 @@ export function NewProjectDialog({
                   />
                 </div>
 
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-3 gap-6 pt-4">
                   <FormField
                     control={form.control}
                     name="budget"
                     render={({ field }) => (
-                      <FormItem className="col-span-2">
+                      <FormItem className="col-span-2 space-y-2">
                         <FormLabel className="flex items-center gap-1">
                           <DollarSign className="h-4 w-4" />
                           Budget (RM)
@@ -1624,7 +1689,7 @@ export function NewProjectDialog({
                             }}
                           />
                         </FormControl>
-                        <FormDescription>Estimated budget for this project</FormDescription>
+                        <FormDescription className="text-xs">Estimated budget for this project</FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -1634,7 +1699,7 @@ export function NewProjectDialog({
                     control={form.control}
                     name="invoice_number"
                     render={({ field }) => (
-                      <FormItem>
+                      <FormItem className="space-y-2">
                         <FormLabel className="flex items-center gap-1">
                           <Link className="h-4 w-4" />
                           Invoice Link/Number
@@ -1646,7 +1711,7 @@ export function NewProjectDialog({
                             className="h-11 transition-all hover:border-gray-400 focus:border-gray-600"
                           />
                         </FormControl>
-                        <FormDescription>Invoice number or link</FormDescription>
+                        <FormDescription className="text-xs">Invoice number or link</FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -1670,16 +1735,16 @@ export function NewProjectDialog({
             transition={{ duration: 0.3 }}
             className="space-y-4"
           >
-            <Card className="shadow-sm">
-              <CardContent className="pt-6">
-                <div className="space-y-6">
+            <Card className="shadow-sm border-0">
+              <CardContent className="pt-8 pb-8">
+                <div className="space-y-8">
                   {/* Project Information */}
                   <div>
-                    <h4 className="font-medium text-sm text-gray-500 mb-3 flex items-center gap-2">
+                    <h4 className="font-medium text-sm text-gray-500 mb-4 flex items-center gap-2">
                       <FileText className="h-4 w-4" />
                       PROJECT INFORMATION
                     </h4>
-                    <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div className="grid grid-cols-2 gap-x-8 gap-y-4 text-sm">
                       <div>
                         <p className="text-muted-foreground">Project Name</p>
                         <p className="font-medium">{values.title || '-'}</p>
@@ -1763,11 +1828,11 @@ export function NewProjectDialog({
 
                   {/* Schedule & Location */}
                   <div>
-                    <h4 className="font-medium text-sm text-gray-500 mb-3 flex items-center gap-2">
+                    <h4 className="font-medium text-sm text-gray-500 mb-4 flex items-center gap-2">
                       <Calendar className="h-4 w-4" />
                       SCHEDULE & LOCATION
                     </h4>
-                    <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div className="grid grid-cols-2 gap-x-8 gap-y-4 text-sm">
                       <div>
                         <p className="text-muted-foreground">Start Date</p>
                         <p className="font-medium">{values.start_date ? format(values.start_date, 'PPP') : '-'}</p>
@@ -1813,11 +1878,11 @@ export function NewProjectDialog({
 
                   {/* Staffing & Budget */}
                   <div>
-                    <h4 className="font-medium text-sm text-gray-500 mb-3 flex items-center gap-2">
+                    <h4 className="font-medium text-sm text-gray-500 mb-4 flex items-center gap-2">
                       <Users className="h-4 w-4" />
                       STAFFING & SETTINGS
                     </h4>
-                    <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div className="grid grid-cols-2 gap-x-8 gap-y-4 text-sm">
                       <div>
                         <p className="text-muted-foreground">Crew Count</p>
                         <p className="font-medium">{values.crew_count} members</p>
@@ -1857,12 +1922,12 @@ export function NewProjectDialog({
   return (
     <>
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl p-0 h-[90vh] max-h-[800px] flex flex-col overflow-hidden">
+      <DialogContent className="max-w-6xl p-0 h-[92vh] max-h-[900px] flex flex-col overflow-hidden">
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col h-full" autoComplete="off" noValidate>
             <div className="flex flex-1 overflow-hidden">
               {/* Left Sidebar */}
-              <div className="w-72 bg-gray-50 dark:bg-gray-900 p-4 flex flex-col border-r">
+              <div className="w-80 bg-gray-50 dark:bg-gray-900 p-6 flex flex-col border-r">
                 <div className="flex-1 overflow-y-auto">
                   <div className="mb-8 relative">
                     {/* Animated gradient background for main title */}
@@ -1873,14 +1938,14 @@ export function NewProjectDialog({
                       style={{ backgroundSize: "200% 100%" }}
                     />
                     <div className="relative z-10 p-4">
-                      <h2 className="text-2xl font-semibold text-gray-800 dark:text-gray-100">Create Project</h2>
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
+                      <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100">Create Project</h2>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-3">
                         Complete all steps to set up your new project.
                       </p>
                     </div>
                   </div>
 
-                  <nav className="space-y-1">
+                  <nav className="space-y-2">
                     {steps.map((step, index) => {
                       const isActive = currentStep === step.id;
                       const isVisited = visitedSteps.has(step.id);
@@ -1895,16 +1960,16 @@ export function NewProjectDialog({
                             setVisitedSteps(prev => new Set([...prev, step.id]));
                           }}
                           className={cn(
-                            "w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200",
+                            "w-full flex items-center gap-3 px-4 py-3.5 rounded-lg text-sm font-medium transition-all duration-200",
                             isActive
-                              ? "bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 shadow-md"
-                              : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+                              ? "bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 shadow-lg border border-gray-200 dark:border-gray-700"
+                              : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800/50"
                           )}
                           whileHover={{ scale: 1.02 }}
                           whileTap={{ scale: 0.98 }}
                         >
                           <div className={cn(
-                            "flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-colors",
+                            "flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center transition-all",
                             isActive
                               ? "bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900"
                               : isVisited
@@ -1920,7 +1985,7 @@ export function NewProjectDialog({
                           <div className="flex-1 text-left">
                             <p className="font-medium">{step.label}</p>
                             {isActive && (
-                              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                                 {step.description}
                               </p>
                             )}
@@ -1935,7 +2000,7 @@ export function NewProjectDialog({
                 </div>
 
                 {/* Step Progress at bottom of sidebar */}
-                <div className="mt-6 pt-6 border-t">
+                <div className="mt-8 pt-6 border-t">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Progress</span>
                     <span className="text-sm text-gray-500">
@@ -1956,7 +2021,7 @@ export function NewProjectDialog({
               {/* Right Content */}
               <div className="flex-1 flex flex-col bg-gray-50/50 dark:bg-gray-900/50">
                 {/* Header */}
-                <div className="p-6 pb-4 border-b">
+                <div className="px-8 py-6 border-b bg-white dark:bg-gray-900">
                   <div className="flex justify-between items-start relative">
                     {/* Animated gradient background */}
                     <motion.div 
@@ -1966,11 +2031,11 @@ export function NewProjectDialog({
                       style={{ backgroundSize: "200% 100%" }}
                     />
                     <div className="relative z-10 flex-1">
-                      <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                      <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
                         {React.createElement(steps[currentStepIndex].icon, { className: "h-5 w-5" })}
                         {steps[currentStepIndex].label}
                       </h3>
-                      <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                      <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
                         {steps[currentStepIndex].description}
                       </p>
                     </div>
@@ -1985,7 +2050,7 @@ export function NewProjectDialog({
                 </div>
 
                 {/* Scrollable Content Area */}
-                <div className="flex-1 overflow-y-auto p-6">
+                <div className="flex-1 overflow-y-auto px-8 py-8">
                   <AnimatePresence mode="wait">
                     <div key={currentStep}>
                       {renderStepContent()}
@@ -1996,7 +2061,7 @@ export function NewProjectDialog({
             </div>
 
             {/* Fixed Footer */}
-            <div className="border-t bg-white dark:bg-gray-900 p-6 flex-shrink-0">
+            <div className="border-t bg-white dark:bg-gray-900 px-8 py-6 flex-shrink-0">
               <div className="flex justify-between gap-4">
                 <Button
                   type="button"

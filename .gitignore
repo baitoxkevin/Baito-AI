@@ -29,6 +29,25 @@ dist-ssr
 *.sln
 *.sw?
 
+# Backup and temporary files
+*.backup
+*.old
+*.tmp
+*-backup*
+*.patch
+
+# Archive folders
+archive/
+
+# MCP servers (if needed locally)
+mcp-servers/
+
+# Test and debug files
+test-*.js
+debug.*
+*.test.tsx
+*.test.ts
+
 **/.claude/settings.local.json
 
 # Local Netlify folder

@@ -1,8 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
-import { fetchProjectsOptimized, fetchProjectsByMonthOptimized, deleteMultipleProjectsOptimized } from '@/lib/optimized-queries';
-import { createProject, updateProject, deleteProject } from '@/lib/projects';
+import { fetchProjects, fetchProjectsByMonth, createProject, updateProject, deleteProject } from '@/lib/projects';
 import type { Project } from '@/lib/types';
-import { useCache } from '@/lib/cache-optimized';
 import { useToast } from '@/hooks/use-toast';
 import { getUser, getSession } from '@/lib/auth';
 
@@ -26,7 +24,6 @@ interface AppStateContextType {
   // Projects by month
   getProjectsByMonth: (month: number) => Promise<Project[]>;
   isLoadingProjectsByMonth: boolean;
-  prefetchAdjacentMonths: (currentMonth: number) => void;
   
   // User state
   currentUser: any; // Use proper user type if available
@@ -48,7 +45,6 @@ const AppStateContext = createContext<AppStateContextType>({
   clearProjectSelections: () => {},
   getProjectsByMonth: async () => [],
   isLoadingProjectsByMonth: false,
-  prefetchAdjacentMonths: () => {},
   currentUser: null,
   isLoadingUser: true,
 });
@@ -62,34 +58,36 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   
   const { toast } = useToast();
 
-  // Cache setup for projects
-  const {
-    getData: getProjects,
-    isLoading: isLoadingProjects,
-    invalidateCache: invalidateProjectsCache
-  } = useCache<Project[], []>(
-    'projects',
-    fetchProjectsOptimized,
-    {
-      expireAfter: 5 * 60 * 1000, // 5 minutes
-      staleAfter: 1 * 60 * 1000,  // 1 minute
-    }
-  );
+  const [isLoadingProjects, setIsLoadingProjects] = useState(false);
+  const [isLoadingProjectsByMonth, setIsLoadingProjectsByMonth] = useState(false);
 
-  // Cache setup for projects by month
-  const {
-    getData: getProjectsByMonth,
-    isLoading: isLoadingProjectsByMonth,
-    invalidateCache: invalidateMonthCache,
-    prefetch
-  } = useCache<Project[], [number]>(
-    'projectsByMonth',
-    fetchProjectsByMonthOptimized,
-    {
-      expireAfter: 10 * 60 * 1000, // 10 minutes
-      staleAfter: 2 * 60 * 1000,   // 2 minutes
+  // Simple data fetching functions
+  const getProjects = useCallback(async () => {
+    setIsLoadingProjects(true);
+    try {
+      const data = await fetchProjects();
+      setProjects(data);
+      return data;
+    } catch (error) {
+      console.error('Error fetching projects:', error);
+      throw error;
+    } finally {
+      setIsLoadingProjects(false);
     }
-  );
+  }, []);
+
+  const getProjectsByMonth = useCallback(async (month: number) => {
+    setIsLoadingProjectsByMonth(true);
+    try {
+      const data = await fetchProjectsByMonth(month);
+      return data;
+    } catch (error) {
+      console.error('Error fetching projects by month:', error);
+      throw error;
+    } finally {
+      setIsLoadingProjectsByMonth(false);
+    }
+  }, []);
 
   // Load user data on initialization - but skip for public routes
   useEffect(() => {
@@ -168,8 +166,8 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     try {
       const newProject = await createProject(project);
       setProjects(prevProjects => [...prevProjects, newProject]);
-      invalidateProjectsCache();
-      invalidateMonthCache();
+      // Refresh projects data
+      await getProjects();
       
       toast({
         title: 'Project Created',
@@ -188,7 +186,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       
       throw error;
     }
-  }, [invalidateProjectsCache, invalidateMonthCache, toast]);
+  }, [getProjects, toast]);
 
   // Function to update a project
   const updateProjectData = useCallback(async (id: string, updates: Partial<Project>) => {
@@ -197,8 +195,8 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       setProjects(prevProjects =>
         prevProjects.map(project => (project.id === id ? updatedProject : project))
       );
-      invalidateProjectsCache();
-      invalidateMonthCache();
+      // Refresh projects data
+      await getProjects();
       
       // Only show toast for user-initiated updates, not automatic refreshes
       if (updates.modified_by) {
@@ -220,7 +218,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       
       throw error;
     }
-  }, [invalidateProjectsCache, invalidateMonthCache, toast]);
+  }, [getProjects, toast]);
 
   // Function to delete a project
   const removeProject = useCallback(async (id: string) => {
@@ -231,8 +229,8 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       
       await deleteProject(id, currentUser.id);
       setProjects(prevProjects => prevProjects.filter(project => project.id !== id));
-      invalidateProjectsCache();
-      invalidateMonthCache();
+      // Refresh projects data
+      await getProjects();
       
       toast({
         title: 'Project Deleted',
@@ -249,7 +247,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       
       throw error;
     }
-  }, [currentUser, invalidateProjectsCache, invalidateMonthCache, toast]);
+  }, [currentUser, getProjects, toast]);
 
   // Function to delete multiple projects efficiently
   const removeMultipleProjects = useCallback(async (projectIds: string[]) => {
@@ -260,7 +258,19 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         throw new Error('User not authenticated');
       }
       
-      const result = await deleteMultipleProjectsOptimized(projectIds, currentUser.id);
+      // Delete projects one by one (simplified approach without optimization)
+      const results = await Promise.allSettled(
+        projectIds.map(id => deleteProject(id, currentUser.id))
+      );
+      
+      const result = {
+        success: projectIds.filter((_, index) => 
+          results[index].status === 'fulfilled' && results[index].value === true
+        ),
+        failed: projectIds.filter((_, index) => 
+          results[index].status === 'rejected' || results[index].value === false
+        )
+      };
       
       // Remove successfully deleted projects from state
       if (result.success.length > 0) {
@@ -269,7 +279,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         );
         // Clear selections after deletion
         setSelectedProjects([]);
-        invalidateProjectsCache();
+        await getProjects();
         invalidateMonthCache();
       }
       
@@ -291,12 +301,12 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       
       throw error;
     }
-  }, [currentUser, invalidateProjectsCache, invalidateMonthCache, toast]);
+  }, [currentUser, getProjects, toast]);
 
   // Function to refresh the projects list
   const refreshProjects = useCallback(async () => {
     try {
-      invalidateProjectsCache();
+      await getProjects();
       const data = await getProjects();
       setProjects(data);
       
@@ -316,7 +326,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         variant: 'destructive',
       });
     }
-  }, [getProjects, invalidateProjectsCache, toast]);
+  }, [getProjects, toast]);
 
   // Toggle project selection
   const toggleProjectSelection = useCallback((projectId: string) => {
@@ -352,14 +362,11 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     setSelectedProjects([]);
   }, []);
 
-  // Prefetch adjacent months for better UX
+  // Simplified approach without prefetching
   const prefetchAdjacentMonths = useCallback((currentMonth: number) => {
-    const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1;
-    const nextMonth = currentMonth === 11 ? 0 : currentMonth + 1;
-    
-    prefetch(prevMonth);
-    prefetch(nextMonth);
-  }, [prefetch]);
+    // This is now a no-op since we removed caching
+    console.log('Prefetching disabled for month', currentMonth);
+  }, []);
 
   return (
     <AppStateContext.Provider 

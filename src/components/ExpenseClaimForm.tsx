@@ -20,7 +20,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { ExpenseClaim } from '@/lib/expense-claim-service';
 import { Receipt } from '@/lib/receipt-service';
-import { CheckCircle2, Plus, Receipt as ReceiptIcon, Trash2, ScanLine } from 'lucide-react';
+import { CheckCircle2, Plus, Receipt as ReceiptIcon, Trash2, ScanLine, CreditCard } from 'lucide-react';
 import { format } from 'date-fns';
 import { fetchUserReceipts, addReceipt } from '@/lib/receipt-service';
 import { useExpenseClaims } from '@/hooks/use-expense-claims';

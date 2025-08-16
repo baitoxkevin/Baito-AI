@@ -45,6 +45,42 @@ const loyaltyTierEmojis = {
   diamond: '💠',
 } as const;
 
+// Helper functions for data formatting
+const formatPhoneNumber = (phone: string | null | undefined): string => {
+  if (!phone || phone.trim() === '' || phone.toLowerCase() === 'app' || phone.length < 3) {
+    return 'No phone';
+  }
+  
+  // Handle cases where job description or other text was mistakenly entered as phone
+  if (phone.length > 50 || phone.includes('Promoter') || phone.includes('@') || phone.includes('counter') || phone.includes('charge')) {
+    return 'Invalid phone';
+  }
+  
+  // Clean the phone number
+  const cleaned = phone.replace(/\D/g, '');
+  
+  // Malaysian number format
+  if (cleaned.length >= 10 && (cleaned.startsWith('60') || cleaned.startsWith('0'))) {
+    if (cleaned.startsWith('60')) {
+      const number = cleaned.substring(2);
+      return `+60 ${number.substring(0, 2)}-${number.substring(2, 5)} ${number.substring(5)}`;
+    } else if (cleaned.startsWith('0')) {
+      const number = cleaned.substring(1);
+      return `+60 ${number.substring(0, 2)}-${number.substring(2, 5)} ${number.substring(5)}`;
+    }
+  }
+  
+  // Return original if can't format properly (but truncate if too long)
+  return phone.length > 20 ? phone.substring(0, 20) + '...' : phone;
+};
+
+const formatEmail = (email: string | null | undefined): string => {
+  if (!email || email.trim() === '' || !email.includes('@')) {
+    return 'No email';
+  }
+  return email;
+};
+
 export default function CandidatesPage() {
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -61,6 +97,35 @@ export default function CandidatesPage() {
   const [sortField, setSortField] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const { toast } = useToast();
+
+  // Helper function to format phone numbers consistently
+  const formatPhoneNumber = (phone: string | null | undefined): string | JSX.Element => {
+    if (!phone || phone.trim() === '' || phone.toLowerCase() === 'app' || phone.length < 8) {
+      return <span className="text-slate-400 italic">No phone</span>;
+    }
+    
+    // Clean phone number - remove all non-digit characters except +
+    const cleaned = phone.replace(/[^0-9+]/g, '');
+    
+    // Format Malaysian phone numbers
+    if (cleaned.startsWith('+60')) {
+      return cleaned.replace(/(\+60)(\d{1,2})(\d{3,4})(\d{4})/, '$1 $2-$3 $4');
+    } else if (cleaned.startsWith('60')) {
+      return `+${cleaned.replace(/(60)(\d{1,2})(\d{3,4})(\d{4})/, '$1 $2-$3 $4')}`;
+    } else if (cleaned.startsWith('0')) {
+      return cleaned.replace(/(0)(\d{1,2})(\d{3,4})(\d{4})/, '$1$2-$3 $4');
+    }
+    
+    return phone;
+  };
+
+  // Helper function to validate and format email
+  const formatEmail = (email: string | null | undefined): string | JSX.Element => {
+    if (!email || email.trim() === '' || !email.includes('@')) {
+      return <span className="text-slate-400 italic">No email</span>;
+    }
+    return email;
+  };
 
   const loadCandidates = async () => {
     try {
@@ -123,12 +188,15 @@ export default function CandidatesPage() {
     loadCandidates();
   }, []);
 
-  // Filter candidates based on search query
-  const filteredCandidates = candidates.filter(candidate =>
-    candidate.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    candidate.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    candidate.phone_number.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Filter candidates based on search query with safe null checks
+  const filteredCandidates = candidates.filter(candidate => {
+    const query = searchQuery.toLowerCase();
+    const fullName = (candidate.full_name || '').toLowerCase();
+    const email = (candidate.email || '').toLowerCase();
+    const phone = (candidate.phone_number || '').toLowerCase();
+    
+    return fullName.includes(query) || email.includes(query) || phone.includes(query);
+  });
 
   // Sort candidates based on selected field
   const sortedCandidates = [...filteredCandidates].sort((a, b) => {
@@ -427,7 +495,7 @@ export default function CandidatesPage() {
               <TableHeader className="bg-gradient-to-r from-slate-50 to-blue-50/30 dark:from-slate-800/50 dark:to-blue-900/20 border-b border-slate-200/50 dark:border-slate-700/50">
                 <TableRow>
                   <TableHead
-                    className="font-semibold w-[24%] text-slate-900 dark:text-slate-200 pl-6 py-5 cursor-pointer hover:bg-slate-100/50 dark:hover:bg-slate-800/50 transition-all duration-200 group"
+                    className="font-semibold w-[26%] text-slate-900 dark:text-slate-200 pl-6 py-4 cursor-pointer hover:bg-slate-100/50 dark:hover:bg-slate-800/50 transition-all duration-200 group"
                     onClick={() => {
                       setSortField('name');
                       setSortDirection(prev => sortField === 'name' ? (prev === 'asc' ? 'desc' : 'asc') : 'asc');
@@ -448,9 +516,9 @@ export default function CandidatesPage() {
                       )}
                     </div>
                   </TableHead>
-                  <TableHead className="font-semibold w-[22%] text-slate-900 dark:text-slate-200 py-5">Info</TableHead>
+                  <TableHead className="font-semibold w-[18%] text-slate-900 dark:text-slate-200 py-4">Info</TableHead>
                   <TableHead
-                    className="font-semibold w-[22%] text-slate-900 dark:text-slate-200 py-5 cursor-pointer hover:bg-slate-100/50 dark:hover:bg-slate-800/50 transition-all duration-200 group"
+                    className="font-semibold w-[20%] text-slate-900 dark:text-slate-200 py-4 cursor-pointer hover:bg-slate-100/50 dark:hover:bg-slate-800/50 transition-all duration-200 group"
                     onClick={() => {
                       // Create dropdown menu for sorting options
                       const menu = document.createElement('div');
@@ -513,7 +581,7 @@ export default function CandidatesPage() {
                     </div>
                   </TableHead>
                   <TableHead
-                    className="font-semibold w-[22%] text-slate-900 dark:text-slate-200 py-5 cursor-pointer hover:bg-slate-100/50 dark:hover:bg-slate-800/50 transition-all duration-200 group"
+                    className="font-semibold w-[24%] text-slate-900 dark:text-slate-200 py-4 cursor-pointer hover:bg-slate-100/50 dark:hover:bg-slate-800/50 transition-all duration-200 group"
                     onClick={() => {
                       setSortField('rating');
                       setSortDirection(prev => sortField === 'rating' ? (prev === 'asc' ? 'desc' : 'asc') : 'desc');
@@ -534,7 +602,7 @@ export default function CandidatesPage() {
                       )}
                     </div>
                   </TableHead>
-                  <TableHead className="font-semibold w-[10%] text-right text-slate-900 dark:text-slate-200 pr-6 py-5">Actions</TableHead>
+                  <TableHead className="font-semibold w-[12%] text-right text-slate-900 dark:text-slate-200 pr-6 py-4">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -610,16 +678,16 @@ export default function CandidatesPage() {
                       animate={{ opacity: 1, x: 0 }}
                       exit={{ opacity: 0, x: 20 }}
                       transition={{ duration: 0.3, delay: index * 0.05 }}
-                      className="cursor-pointer hover:bg-gradient-to-r hover:from-slate-50/50 hover:to-blue-50/30 dark:hover:from-slate-800/30 dark:hover:to-blue-900/20 border-b border-slate-100/50 dark:border-slate-800/50 transition-all duration-300 group"
+                      className="cursor-pointer hover:bg-gradient-to-r hover:from-slate-50/50 hover:to-blue-50/30 dark:hover:from-slate-800/30 dark:hover:to-blue-900/20 border-b border-slate-100/50 dark:border-slate-800/50 transition-all duration-300 group h-auto"
                       onClick={() => {
                         setSelectedCandidate(candidate);
                         setDetailsDialogOpen(true);
                       }}
                     >
-                      <TableCell className="py-5 pl-6">
-                        <div className="flex items-center gap-3">
+                      <TableCell className="py-4 px-3">
+                        <div className="flex items-center gap-3 h-full">
                           {/* Enhanced Avatar with Status Indicator */}
-                          <div className="relative group">
+                          <div className="relative group flex-shrink-0">
                             <div className="h-12 w-12 rounded-full bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-600 flex items-center justify-center text-slate-600 dark:text-slate-300 font-medium text-sm overflow-hidden ring-2 ring-white dark:ring-slate-800 shadow-md group-hover:scale-110 transition-transform duration-300">
                               {candidate.profile_photo ? (
                                 <img
@@ -667,23 +735,33 @@ export default function CandidatesPage() {
                         </div>
                       </TableCell>
 
-                      <TableCell className="py-5">
-                        <div className="flex flex-col gap-1.5">
-                          {/* Phone with hover effect */}
-                          <div className="flex items-center gap-2 text-sm group/phone hover:bg-blue-50/50 dark:hover:bg-blue-900/20 rounded-lg px-1 -mx-1 transition-colors duration-200">
+                      <TableCell className="py-4 px-3 max-w-0">
+                        <div className="flex flex-col gap-2 min-w-0">
+                          {/* Phone with hover effect and validation */}
+                          <div className="flex items-center gap-2 text-sm group/phone hover:bg-blue-50/50 dark:hover:bg-blue-900/20 rounded-lg px-2 py-1 transition-colors duration-200 min-w-0">
                             <div className="w-5 h-5 rounded-full bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-800 dark:to-blue-700 flex items-center justify-center flex-shrink-0">
                               <span className="text-xs">📞</span>
                             </div>
-                            <span className="text-slate-700 dark:text-slate-300 truncate group-hover/phone:text-blue-600 dark:group-hover/phone:text-blue-400 transition-colors duration-200">{candidate.phone_number}</span>
+                            <span className={`truncate transition-colors duration-200 min-w-0 ${
+                              formatPhoneNumber(candidate.phone_number) === 'No phone' || formatPhoneNumber(candidate.phone_number) === 'Invalid phone'
+                                ? 'text-slate-400 dark:text-slate-500 italic' 
+                                : 'text-slate-700 dark:text-slate-300 group-hover/phone:text-blue-600 dark:group-hover/phone:text-blue-400'
+                            }`}>
+                              {formatPhoneNumber(candidate.phone_number)}
+                            </span>
                           </div>
 
-                          {/* Email with hover effect */}
-                          <div className="flex items-center gap-2 text-sm group/email hover:bg-purple-50/50 dark:hover:bg-purple-900/20 rounded-lg px-1 -mx-1 transition-colors duration-200">
+                          {/* Email with hover effect and validation */}
+                          <div className="flex items-center gap-2 text-sm group/email hover:bg-purple-50/50 dark:hover:bg-purple-900/20 rounded-lg px-2 py-1 transition-colors duration-200">
                             <div className="w-5 h-5 rounded-full bg-gradient-to-br from-purple-100 to-purple-200 dark:from-purple-800 dark:to-purple-700 flex items-center justify-center flex-shrink-0">
                               <span className="text-xs">✉️</span>
                             </div>
-                            <span className="text-slate-700 dark:text-slate-300 truncate group-hover/email:text-purple-600 dark:group-hover/email:text-purple-400 transition-colors duration-200">
-                              {candidate.email ? candidate.email : '—'}
+                            <span className={`truncate transition-colors duration-200 ${
+                              formatEmail(candidate.email) === 'No email'
+                                ? 'text-slate-400 dark:text-slate-500 italic'
+                                : 'text-slate-700 dark:text-slate-300 group-hover/email:text-purple-600 dark:group-hover/email:text-purple-400'
+                            }`}>
+                              {formatEmail(candidate.email)}
                             </span>
                           </div>
 
@@ -692,12 +770,12 @@ export default function CandidatesPage() {
                             <motion.div 
                               initial={{ opacity: 0, scale: 0.9 }}
                               animate={{ opacity: 1, scale: 1 }}
-                              className="flex items-center gap-2 text-sm mt-1"
+                              className="flex items-center gap-2 text-sm"
                             >
                               <div className="w-5 h-5 rounded-full bg-gradient-to-br from-amber-100 to-amber-200 dark:from-amber-800 dark:to-amber-700 flex items-center justify-center flex-shrink-0">
                                 <span className="text-xs">🗓️</span>
                               </div>
-                              <div className="text-xs rounded-full px-2 py-0.5 bg-gradient-to-r from-amber-100 to-orange-100 dark:from-amber-900/30 dark:to-orange-900/30 text-amber-700 dark:text-amber-300">
+                              <div className="text-xs rounded px-2 py-1 bg-gradient-to-r from-amber-100 to-orange-100 dark:from-amber-900/30 dark:to-orange-900/30 text-amber-700 dark:text-amber-300">
                                 <span className="text-amber-600 dark:text-amber-400 mr-1">Last:</span>
                                 {format(new Date(candidate.last_contact_date), 'MMM d, yyyy')}
                               </div>
@@ -739,11 +817,11 @@ export default function CandidatesPage() {
                               }
 
                               return (
-                                <div className="flex items-center gap-2 text-sm mt-1">
+                                <div className="flex items-center gap-2 text-sm">
                                   <div className="w-5 h-5 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center flex-shrink-0">
                                     <span className="text-xs text-slate-500 dark:text-slate-400">📋</span>
                                   </div>
-                                  <div className={`text-xs rounded px-1.5 py-0.5 ${bgColorClass} ${textColorClass}`}>
+                                  <div className={`text-xs rounded px-2 py-1 ${bgColorClass} ${textColorClass}`}>
                                     <span>Profile {completenessPercent}% complete</span>
                                   </div>
                                 </div>
@@ -755,10 +833,10 @@ export default function CandidatesPage() {
                         </div>
                       </TableCell>
 
-                      <TableCell className="py-5">
-                        <div className="flex flex-col gap-1.5">
+                      <TableCell className="py-4 px-3 max-w-0">
+                        <div className="flex flex-col gap-2 h-full justify-start min-w-0">
                           {/* Status Row */}
-                          <div className="flex items-center flex-wrap gap-1">
+                          <div className="flex items-center flex-wrap gap-1.5">
                             {/* Enhanced Active/Banned Status */}
                             <motion.div
                               initial={{ scale: 0 }}
@@ -800,7 +878,7 @@ export default function CandidatesPage() {
                           </div>
 
                           {/* Details Row */}
-                          <div className="flex items-center flex-wrap gap-2 mt-1">
+                          <div className="flex items-center flex-wrap gap-1.5">
                             {/* Age */}
                             {age !== "-" && (
                               <div className="flex items-center gap-1 text-xs px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
@@ -826,7 +904,7 @@ export default function CandidatesPage() {
                           </div>
 
                           {/* Employment Type */}
-                          <div className="flex items-center gap-2 mt-1.5">
+                          <div className="flex items-center flex-wrap gap-1.5">
                             {candidate.employment_type && (
                               <div className="text-xs rounded px-2 py-1 bg-violet-50 dark:bg-violet-900/20 text-violet-700 dark:text-violet-300 border border-violet-100 dark:border-violet-800/40">
                                 {candidate.employment_type === 'full_time' ? 'Full-time' :
@@ -847,9 +925,9 @@ export default function CandidatesPage() {
                         </div>
                       </TableCell>
 
-                      <TableCell className="py-5">
+                      <TableCell className="py-4 px-3">
                         {candidate.performance_metrics ? (
-                          <div className="flex flex-col gap-1.5">
+                          <div className="flex flex-col gap-2 h-full justify-start">
                             {/* Enhanced Rating with gradient */}
                             <div className="flex items-center gap-1.5">
                               <motion.div 
@@ -891,7 +969,7 @@ export default function CandidatesPage() {
                             </div>
 
                             {/* Metrics */}
-                            <div className="flex items-center gap-1.5">
+                            <div className="flex items-center gap-1">
                               <div className="flex-1 text-xs rounded px-1.5 py-0.5 bg-blue-50 dark:bg-blue-900/20 text-center">
                                 <div className="font-medium text-blue-700 dark:text-blue-400">
                                   {candidate.performance_metrics.reliability_score?.toFixed(0) || '0'}%
@@ -909,7 +987,7 @@ export default function CandidatesPage() {
 
                             {/* Issues Section - Expanded Issues Only */}
                             {expandedIssues[candidate.id] && (
-                              <div className="mt-1.5 text-xs animate-in fade-in-0 slide-in-from-top-1">
+                              <div className="text-xs animate-in fade-in-0 slide-in-from-top-1">
                                 <div className="grid grid-cols-3 gap-1 w-full">
                                   {/* No Shows */}
                                   <div className={`px-1.5 py-1 rounded flex flex-col items-center justify-center
@@ -950,7 +1028,7 @@ export default function CandidatesPage() {
                       </TableCell>
 
 
-                      <TableCell className="py-5 pr-6">
+                      <TableCell className="py-4 px-3">
                         <div className="flex items-center justify-end gap-2">
                           {/* Edit/View Link button */}
                           <TooltipProvider>

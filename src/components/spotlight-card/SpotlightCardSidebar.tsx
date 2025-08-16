@@ -455,25 +455,29 @@ export function SpotlightCardSidebar({
             </MagicCard>
             
             {/* Client logo at bottom right, outside MagicCard, bottom aligned with brand logo border */}
-            <motion.div 
-              className="absolute bottom-0 right-0 w-12 h-12 bg-white dark:bg-gray-700 rounded-full flex items-center justify-center shadow-md border-2 border-white dark:border-gray-600 z-20 translate-x-1/3 translate-y-0 overflow-hidden"
-              whileHover={{ scale: 1.1 }}
-              transition={{ type: "spring", stiffness: 400, damping: 17 }}
-              style={{ transformOrigin: "right bottom" }}
+            <div 
+              className="absolute bottom-0 right-0 w-12 h-12 bg-white dark:bg-gray-700 rounded-full flex items-center justify-center shadow-md border-2 border-white dark:border-gray-600 z-20 overflow-hidden"
+              style={{ transform: 'translateX(33.333%)' }}
               title={customerName || 'Customer'}
             >
-              {customerLogo ? (
-                <img 
-                  src={customerLogo} 
-                  alt={customerName}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <span className="text-sm font-bold text-gray-500 dark:text-gray-300">
-                  {customerName?.charAt(0) || (project.client as unknown)?.name?.charAt(0) || 'C'}
-                </span>
-              )}
-            </motion.div>
+              <motion.div
+                className="w-full h-full flex items-center justify-center"
+                whileHover={{ scale: 1.05 }}
+                transition={{ type: "spring", stiffness: 400, damping: 25 }}
+              >
+                {customerLogo ? (
+                  <img 
+                    src={customerLogo} 
+                    alt={customerName}
+                    className="w-full h-full object-cover rounded-full"
+                  />
+                ) : (
+                  <span className="text-sm font-bold text-gray-500 dark:text-gray-300">
+                    {customerName?.charAt(0) || (project.client as unknown)?.name?.charAt(0) || 'C'}
+                  </span>
+                )}
+              </motion.div>
+            </div>
           </div>
         </div>
         

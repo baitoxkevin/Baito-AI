@@ -12,7 +12,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { useEnhancedToast } from '@/hooks/use-enhanced-toast';
 import { ToastAction } from '@/components/ui/enhanced-toast';
-import { Calculator, Calendar as CalendarIcon, Clock, FileSpreadsheet, FileText, MessageSquare, Upload, Download, Loader2, Database, Receipt, DollarSign, BarChart3, Bell, Sparkles, Zap, Lock } from 'lucide-react';
+import { Calculator, Calendar as CalendarIcon, Clock, FileSpreadsheet, FileText, MessageSquare, Upload, Download, Loader2, Database, Receipt, DollarSign, BarChart3, Bell, Sparkles, Zap, Lock, ArrowRight, Star, TrendingUp, Activity, Shield, Layers } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import DataExtractionTool from '@/components/DataExtractionTool';
@@ -791,39 +791,40 @@ export default function ToolsPage() {
   };
 
   return (
-    <div className="flex-1 p-4 md:p-6 bg-gray-50 overflow-auto">
-      <div className="max-w-[1400px] mx-auto">
-        {activeComponent ? (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.2 }}
-            className="space-y-4"
-          >
-            <div className="flex items-center justify-between">
-              <h1 className="text-xl font-semibold text-gray-900">
-                {activeComponent === 'payroll-detail' && selectedProject 
-                  ? `Payroll: ${selectedProject.title}`
-                  : tools.find(t => t.component === activeComponent)?.title || 'Tools'
-                }
-              </h1>
-              <Button 
-                variant="ghost" 
-                className="text-gray-600 hover:text-gray-900 hover:bg-gray-100"
-                onClick={() => {
-                  if (activeComponent === 'payroll-detail') {
-                    setActiveComponent('payroll');
-                  } else {
-                    setActiveComponent(null);
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/30">
+      <div className="flex-1 p-6 md:p-8 overflow-auto">
+        <div className="max-w-[1400px] mx-auto">
+          {activeComponent ? (
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.2 }}
+              className="space-y-6"
+            >
+              <div className="flex items-center justify-between">
+                <h1 className="text-2xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">
+                  {activeComponent === 'payroll-detail' && selectedProject 
+                    ? `Payroll: ${selectedProject.title}`
+                    : tools.find(t => t.component === activeComponent)?.title || 'Tools'
                   }
-                }}
-              >
-                {activeComponent === 'payroll-detail' ? '← Back to Projects' : '← Back to Tools'}
-              </Button>
-            </div>
+                </h1>
+                <Button 
+                  variant="ghost" 
+                  className="text-slate-600 hover:text-slate-800 hover:bg-white/70 backdrop-blur-sm"
+                  onClick={() => {
+                    if (activeComponent === 'payroll-detail') {
+                      setActiveComponent('payroll');
+                    } else {
+                      setActiveComponent(null);
+                    }
+                  }}
+                >
+                  {activeComponent === 'payroll-detail' ? '← Back to Projects' : '← Back to Tools'}
+                </Button>
+              </div>
 
-            <Card className="border border-gray-200 bg-white">
-              <CardContent className="pt-6">
+              <Card className="bg-white/70 backdrop-blur-sm border-0 shadow-xl">
+                <CardContent className="p-8">
                 {activeComponent === 'slides' && (
                   <GoogleSlidesScraper onDataExtracted={handleDataExtracted} />
                 )}
@@ -861,49 +862,77 @@ export default function ToolsPage() {
                     <p className="text-yellow-600">Expense Claims Debug component is not yet implemented</p>
                   </div>
                 )}
-                {activeComponent === 'toast-demo' && (
-                  <ToastDemo />
-                )}
+                  {activeComponent === 'toast-demo' && (
+                    <div className="bg-gradient-to-br from-white to-slate-50 rounded-xl p-2">
+                      <ToastDemo />
+                    </div>
+                  )}
                 {activeComponent === 'resume' && (
                   <CandidateTextImportTool />
                 )}
-                {(activeComponent === 'payroll' || activeComponent === 'PayrollManager') && (
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-semibold mb-4">Select a Project for Payroll</h3>
-                    {projects.length === 0 ? (
-                      <p className="text-muted-foreground">No projects available</p>
-                    ) : (
-                      <div className="grid gap-4 md:grid-cols-2">
-                        {projects.map((project) => (
-                          <Card
-                            key={project.id}
-                            className="cursor-pointer hover:shadow-lg transition-shadow"
-                            onClick={async () => {
-                              setSelectedProject(project);
-                              // Load project staff
-                              const { data: staff } = await supabase
-                                .from('project_staff')
-                                .select('*')
-                                .eq('project_id', project.id);
-                              
-                              if (staff) {
-                                setProjectStaff(staff);
-                              }
-                              setActiveComponent('payroll-detail');
-                            }}
-                          >
-                            <CardHeader>
-                              <CardTitle>{project.title}</CardTitle>
-                              <CardDescription>
-                                {project.start_date} - {project.end_date}
-                              </CardDescription>
-                            </CardHeader>
-                          </Card>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
+                  {(activeComponent === 'payroll' || activeComponent === 'PayrollManager') && (
+                    <div className="space-y-6">
+                      <h3 className="text-xl font-bold text-slate-800 mb-6">Select a Project for Payroll</h3>
+                      {projects.length === 0 ? (
+                        <div className="text-center py-12">
+                          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center">
+                            <Database className="h-8 w-8 text-slate-400" />
+                          </div>
+                          <p className="text-slate-500 text-lg">No projects available</p>
+                        </div>
+                      ) : (
+                        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                          {projects.map((project, index) => (
+                            <motion.div
+                              key={project.id}
+                              initial={{ opacity: 0, y: 20 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ duration: 0.3, delay: index * 0.1 }}
+                            >
+                              <Card
+                                className="group relative overflow-hidden bg-gradient-to-br from-white to-blue-50/30 border-0 shadow-lg hover:shadow-xl cursor-pointer transition-all duration-300 hover:scale-105"
+                                onClick={async () => {
+                                  setSelectedProject(project);
+                                  // Load project staff
+                                  const { data: staff } = await supabase
+                                    .from('project_staff')
+                                    .select('*')
+                                    .eq('project_id', project.id);
+                                  
+                                  if (staff) {
+                                    setProjectStaff(staff);
+                                  }
+                                  setActiveComponent('payroll-detail');
+                                }}
+                              >
+                                <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-indigo-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                                
+                                <CardHeader className="relative">
+                                  <div className="flex items-start justify-between">
+                                    <div className="flex-1">
+                                      <CardTitle className="text-lg font-bold text-slate-800 mb-2 group-hover:text-blue-700 transition-colors">
+                                        {project.title}
+                                      </CardTitle>
+                                      <CardDescription className="text-slate-600 flex items-center gap-2">
+                                        <CalendarIcon className="h-4 w-4" />
+                                        {project.start_date} - {project.end_date}
+                                      </CardDescription>
+                                    </div>
+                                    <ArrowRight className="h-5 w-5 text-slate-400 group-hover:text-blue-500 group-hover:translate-x-1 transition-all duration-300" />
+                                  </div>
+                                </CardHeader>
+                                
+                                {/* Shine effect */}
+                                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500">
+                                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent transform -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+                                </div>
+                              </Card>
+                            </motion.div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 {activeComponent === 'payroll-detail' && selectedProject && (
                   <PayrollManager
                     confirmedStaff={projectStaff}
@@ -920,105 +949,295 @@ export default function ToolsPage() {
                     }}
                   />
                 )}
-                {activeComponent === 'payroll-reports' && (
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-semibold mb-4">Payroll Reports</h3>
-                    <p className="text-muted-foreground">
-                      Payroll reports functionality coming soon. This will include:
-                    </p>
-                    <ul className="list-disc list-inside space-y-2 text-muted-foreground">
-                      <li>Monthly payroll summaries</li>
-                      <li>Staff payment history</li>
-                      <li>Project cost breakdowns</li>
-                      <li>Tax and compliance reports</li>
-                      <li>Export to various formats</li>
-                    </ul>
-                  </div>
-                )}
-                </CardContent>
-              </Card>
-          </motion.div>
-        ) : (
-          <>
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.2 }}
-              className="mb-6"
-            >
-              <h1 className="text-2xl font-semibold text-gray-900">
-                Productivity Tools
-              </h1>
-              <p className="text-gray-500 text-sm mt-1">Access powerful tools to streamline your workflow</p>
+                  {activeComponent === 'payroll-reports' && (
+                    <div className="space-y-6">
+                      <h3 className="text-xl font-bold text-slate-800 mb-6">Payroll Reports</h3>
+                      <div className="text-center py-12">
+                        <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-gradient-to-br from-blue-100 to-indigo-100 flex items-center justify-center">
+                          <BarChart3 className="h-10 w-10 text-blue-600" />
+                        </div>
+                        <p className="text-slate-600 text-lg mb-6">
+                          Comprehensive payroll reporting features are coming soon!
+                        </p>
+                        <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-6 max-w-md mx-auto">
+                          <h4 className="font-semibold text-slate-800 mb-4">Upcoming Features:</h4>
+                          <ul className="space-y-3 text-left text-slate-600">
+                            <li className="flex items-center gap-3">
+                              <Star className="h-4 w-4 text-blue-500" />
+                              Monthly payroll summaries
+                            </li>
+                            <li className="flex items-center gap-3">
+                              <Star className="h-4 w-4 text-blue-500" />
+                              Staff payment history
+                            </li>
+                            <li className="flex items-center gap-3">
+                              <Star className="h-4 w-4 text-blue-500" />
+                              Project cost breakdowns
+                            </li>
+                            <li className="flex items-center gap-3">
+                              <Star className="h-4 w-4 text-blue-500" />
+                              Tax and compliance reports
+                            </li>
+                            <li className="flex items-center gap-3">
+                              <Star className="h-4 w-4 text-blue-500" />
+                              Export to various formats
+                            </li>
+                          </ul>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  </CardContent>
+                </Card>
             </motion.div>
-
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {tools.map((tool, index) => (
+          ) : (
+            <>
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.2 }}
+                className="mb-8"
+              >
+                <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-6">
+                  <div className="mb-6 lg:mb-0">
+                    <h1 className="text-4xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent mb-3">
+                      Productivity Tools
+                    </h1>
+                    <p className="text-slate-600 text-lg">Access powerful tools designed to streamline your workflow and boost productivity</p>
+                  </div>
+                  
+                  <div className="flex gap-4">
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ duration: 0.3, delay: 0.1 }}
+                      className="flex items-center gap-3 px-4 py-3 bg-white/70 backdrop-blur-sm rounded-xl shadow-lg border-0"
+                    >
+                      <div className="p-2 bg-gradient-to-br from-green-500 to-emerald-500 rounded-lg">
+                        <Activity className="h-4 w-4 text-white" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-slate-700">Active Tools</p>
+                        <p className="text-lg font-bold text-slate-800">{tools.filter(t => t.status === 'active').length}</p>
+                      </div>
+                    </motion.div>
+                    
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ duration: 0.3, delay: 0.2 }}
+                      className="flex items-center gap-3 px-4 py-3 bg-white/70 backdrop-blur-sm rounded-xl shadow-lg border-0"
+                    >
+                      <div className="p-2 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-lg">
+                        <Layers className="h-4 w-4 text-white" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-slate-700">Total Tools</p>
+                        <p className="text-lg font-bold text-slate-800">{tools.length}</p>
+                      </div>
+                    </motion.div>
+                  </div>
+                </div>
+                
+                {/* Quick Stats Bar */}
                 <motion.div
-                  key={index}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ duration: 0.2, delay: index * 0.03 }}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3, delay: 0.3 }}
+                  className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6"
                 >
-                  <Card 
-                    className={cn(
-                      "cursor-pointer transition-all duration-200 border border-gray-200 bg-white hover:shadow-md hover:border-gray-300",
-                      tool.status === 'coming-soon' && "opacity-60"
-                    )}
-                    onClick={() => handleToolClick(tool)}
-                  >
-                    {/* Status Badge */}
-                    {tool.status === 'coming-soon' && (
-                      <div className="absolute top-3 right-3 z-10">
-                        <span className="text-xs px-2 py-0.5 rounded-md bg-gray-100 text-gray-500 font-medium">
-                          Coming Soon
-                        </span>
+                  <div className="bg-gradient-to-br from-emerald-50 to-teal-50 p-4 rounded-xl border-0 shadow-sm">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-lg shadow-lg">
+                        <TrendingUp className="h-4 w-4 text-white" />
                       </div>
-                    )}
-                    
-                    <CardHeader className="pb-3">
-                      <div className="flex items-start gap-3">
-                        <div className="p-2 rounded-md bg-gray-50 text-gray-600">
-                          {tool.icon}
-                        </div>
-                        <div className="flex-1">
-                          <CardTitle className="text-base font-medium text-gray-900">{tool.title}</CardTitle>
-                        </div>
+                      <div>
+                        <p className="text-sm font-medium text-emerald-700">Data Processing</p>
+                        <p className="text-lg font-bold text-slate-800">5 Tools</p>
                       </div>
-                    </CardHeader>
-                    
-                    <CardContent>
-                      <CardDescription className="mb-4 text-sm text-gray-600 line-clamp-2">
-                        {tool.description}
-                      </CardDescription>
-                      
-                      <Button 
-                        className={cn(
-                          "w-full",
-                          tool.status === 'active' 
-                            ? "bg-white border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400"
-                            : "bg-gray-50 text-gray-400 cursor-not-allowed border-gray-200"
-                        )}
-                        variant="outline"
-                        size="sm"
-                        disabled={tool.status === 'coming-soon'}
-                      >
-                        {tool.status === 'active' ? (
-                          <span className="text-sm">Open Tool</span>
-                        ) : (
-                          <span className="flex items-center gap-1.5 text-sm">
-                            <Lock className="h-3.5 w-3.5" />
-                            Unavailable
-                          </span>
-                        )}
-                      </Button>
-                    </CardContent>
-                  </Card>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-4 rounded-xl border-0 shadow-sm">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-lg shadow-lg">
+                        <Shield className="h-4 w-4 text-white" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-blue-700">Security & Admin</p>
+                        <p className="text-lg font-bold text-slate-800">3 Tools</p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-gradient-to-br from-violet-50 to-purple-50 p-4 rounded-xl border-0 shadow-sm">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-gradient-to-br from-violet-500 to-purple-500 rounded-lg shadow-lg">
+                        <Zap className="h-4 w-4 text-white" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-violet-700">Automation</p>
+                        <p className="text-lg font-bold text-slate-800">6 Tools</p>
+                      </div>
+                    </div>
+                  </div>
                 </motion.div>
-              ))}
-            </div>
-          </>
-        )}
+              </motion.div>
+
+              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {tools.map((tool, index) => {
+                  const isActive = tool.status === 'active';
+                  
+                  return (
+                    <motion.div
+                      key={index}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3, delay: index * 0.05 }}
+                      whileHover={{ y: -5 }}
+                    >
+                      <Card 
+                        className={cn(
+                          "group relative overflow-hidden cursor-pointer transition-all duration-500 border-0 shadow-lg hover:shadow-2xl",
+                          isActive 
+                            ? "bg-white/80 backdrop-blur-sm hover:bg-white/90 hover:scale-[1.02]" 
+                            : "bg-slate-100/60 backdrop-blur-sm opacity-75 hover:opacity-90"
+                        )}
+                        onClick={() => handleToolClick(tool)}
+                      >
+                        {/* Enhanced Gradient Background Effect */}
+                        <div className={cn(
+                          "absolute inset-0 opacity-0 transition-opacity duration-500",
+                          isActive && "group-hover:opacity-100"
+                        )}>
+                          <div className="absolute inset-0 bg-gradient-to-br from-blue-500/8 via-indigo-500/8 to-purple-500/8" />
+                          <div className="absolute inset-0 bg-gradient-to-t from-white/10 to-transparent" />
+                        </div>
+                        
+                        {/* Enhanced Status Badge */}
+                        <div className="absolute top-4 right-4 z-10">
+                          {tool.status === 'coming-soon' ? (
+                            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-200/90 backdrop-blur-sm shadow-sm border border-slate-300/50">
+                              <Clock className="h-3 w-3 text-slate-600" />
+                              <span className="text-xs font-semibold text-slate-600">Soon</span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-100/90 backdrop-blur-sm shadow-sm border border-emerald-200/50">
+                              <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                              <span className="text-xs font-semibold text-emerald-700">Active</span>
+                            </div>
+                          )}
+                        </div>
+                        
+                        {/* Tool Category Indicator */}
+                        <div className="absolute top-4 left-4 z-10">
+                          <div className={cn(
+                            "w-1 h-8 rounded-full",
+                            isActive 
+                              ? "bg-gradient-to-b from-blue-500 to-indigo-500" 
+                              : "bg-slate-300"
+                          )} />
+                        </div>
+                        
+                        <CardHeader className="pb-4 relative pt-6">
+                          <div className="flex items-start gap-4 ml-4">
+                            <div className={cn(
+                              "p-3 rounded-xl transition-all duration-500 shadow-lg",
+                              isActive 
+                                ? "bg-gradient-to-br from-blue-500 to-indigo-500 text-white group-hover:shadow-xl group-hover:scale-110 group-hover:rotate-3" 
+                                : "bg-slate-300 text-slate-500"
+                            )}>
+                              {tool.icon}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <CardTitle className={cn(
+                                "text-lg font-bold mb-2 transition-colors duration-300",
+                                isActive ? "text-slate-800 group-hover:text-blue-700" : "text-slate-600"
+                              )}>
+                                {tool.title}
+                              </CardTitle>
+                              {isActive && (
+                                <div className="flex items-center gap-2 mb-2">
+                                  <div className="h-1.5 w-1.5 rounded-full bg-green-500" />
+                                  <span className="text-xs font-medium text-green-600">Ready to use</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </CardHeader>
+                        
+                        <CardContent className="relative">
+                          <CardDescription className={cn(
+                            "mb-6 text-sm leading-relaxed transition-colors duration-300",
+                            isActive ? "text-slate-600" : "text-slate-500"
+                          )}>
+                            {tool.description}
+                          </CardDescription>
+                          
+                          {/* Feature highlights for active tools */}
+                          {isActive && (
+                            <div className="mb-4 flex flex-wrap gap-2">
+                              <div className="px-2 py-1 text-xs bg-blue-100/70 text-blue-700 rounded-md font-medium">
+                                Professional
+                              </div>
+                              <div className="px-2 py-1 text-xs bg-green-100/70 text-green-700 rounded-md font-medium">
+                                Secure
+                              </div>
+                            </div>
+                          )}
+                          
+                          <Button 
+                            className={cn(
+                              "w-full font-semibold transition-all duration-500 relative overflow-hidden",
+                              isActive
+                                ? "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg hover:shadow-xl border-0 group-hover:scale-105"
+                                : "bg-slate-300 text-slate-500 cursor-not-allowed hover:bg-slate-300 border-0"
+                            )}
+                            size="sm"
+                            disabled={tool.status === 'coming-soon'}
+                          >
+                            {isActive ? (
+                              <span className="flex items-center gap-2 relative z-10">
+                                <Sparkles className="h-4 w-4" />
+                                Launch Tool
+                                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                              </span>
+                            ) : (
+                              <span className="flex items-center gap-2">
+                                <Lock className="h-4 w-4" />
+                                Coming Soon
+                              </span>
+                            )}
+                            
+                            {/* Button shine effect */}
+                            {isActive && (
+                              <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent transform -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-500" />
+                              </div>
+                            )}
+                          </Button>
+                        </CardContent>
+                        
+                        {/* Enhanced shine effect on hover for active tools */}
+                        {isActive && (
+                          <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700">
+                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent transform -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
+                          </div>
+                        )}
+                        
+                        {/* Bottom gradient accent */}
+                        <div className={cn(
+                          "absolute bottom-0 left-0 right-0 h-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300",
+                          isActive && "bg-gradient-to-r from-blue-500 to-indigo-500"
+                        )} />
+                      </Card>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );

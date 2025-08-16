@@ -7,6 +7,7 @@ import { Loader2, Mail, Lock } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { signIn } from '@/lib/auth';
 import { Toaster } from '@/components/ui/toaster';
+import { ForgotPasswordDialog } from '@/components/ForgotPasswordDialog';
 
 // Performance monitoring (only in development)
 if (process.env.NODE_ENV === 'development') {
@@ -34,6 +35,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showContent, setShowContent] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -210,6 +212,17 @@ export default function LoginPage() {
               </div>
             </div>
 
+            {/* Forgot Password Link */}
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={() => setShowForgotPassword(true)}
+                className="text-sm text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
+              >
+                Forgot your password?
+              </button>
+            </div>
+
             <div className="pt-2">
               <Button 
                 type="submit" 
@@ -234,6 +247,12 @@ export default function LoginPage() {
           </p>
         </div>
       </div>
+
+      {/* Forgot Password Dialog */}
+      <ForgotPasswordDialog 
+        open={showForgotPassword}
+        onOpenChange={setShowForgotPassword}
+      />
 
       {/* Optimized animations with GPU acceleration */}
       <style>{`

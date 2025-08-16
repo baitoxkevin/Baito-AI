@@ -1,4 +1,4 @@
-import React, { memo, useMemo } from 'react';
+import React, { memo, useMemo, useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Calendar, 
@@ -6,11 +6,9 @@ import {
   MapPin, 
   ChartBar,
   Users, 
-  FileText,
-  ArrowUpRight
+  FileText
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { formatDate } from '@/lib/utils';
 import type { Project } from '@/lib/types';
@@ -30,16 +28,8 @@ export const SpotlightCardMinimized = memo(function SpotlightCardMinimized({
   tasks = [],
   expenseClaims = []
 }: SpotlightCardMinimizedProps) {
-  // Memoize expensive computations
-  const { startDate, endDate } = useMemo(() => ({
-    startDate: formatDate(project.start_date),
-    endDate: project.end_date ? formatDate(project.end_date) : null
-  }), [project.start_date, project.end_date]);
-
-  // Get logos
-  const brandLogo = (project as any).brand_logo || null;
-  const clientLogo = project.client && (project.client as any).logo_url || null;
-
+  const [clientData, setClientData] = useState<any>(project.client);
+  
   // Memoize getInitials function
   const getInitials = useMemo(() => (name: string) => {
     if (!name) return '';
@@ -50,6 +40,70 @@ export const SpotlightCardMinimized = memo(function SpotlightCardMinimized({
     }
     return (parts[0][0] + parts[1][0]).toUpperCase();
   }, []);
+  
+  // Fetch client data if missing
+  useEffect(() => {
+    const fetchClientData = async () => {
+      if (!project.client_id || clientData) return;
+      
+      try {
+        // Import supabase dynamically to avoid circular dependencies
+        const { supabase } = await import('@/lib/supabase');
+        
+        // First try to fetch from users table
+        const { data: userData, error: userError } = await supabase
+          .from('users')
+          .select('id, full_name, email, avatar_url, company_name')
+          .eq('id', project.client_id)
+          .single();
+        
+        if (userData && !userError) {
+          setClientData(userData);
+          return;
+        }
+        
+        // If not found in users, try companies table
+        const { data: companyData, error: companyError } = await supabase
+          .from('companies')
+          .select('id, company_name, logo_url, pic_name')
+          .eq('id', project.client_id)
+          .single();
+        
+        if (companyData && !companyError) {
+          // Transform company data to match expected format
+          setClientData({
+            full_name: companyData.company_name,
+            company_name: companyData.company_name,
+            avatar_url: companyData.logo_url,
+            pic_name: companyData.pic_name
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching client data:', error);
+      }
+    };
+    
+    fetchClientData();
+  }, [project.client_id, clientData]);
+  // Memoize expensive computations
+  const { startDate, endDate } = useMemo(() => ({
+    startDate: formatDate(project.start_date),
+    endDate: project.end_date ? formatDate(project.end_date) : null
+  }), [project.start_date, project.end_date]);
+
+  // Helper function to get first word only
+  const getFirstWord = (text: string): string => {
+    if (!text || text === 'Not assigned') return text;
+    return text.split(' ')[0];
+  };
+
+  // Get logos and client info
+  const brandLogo = (project as any).brand_logo || null;
+  const client = clientData || project.client;
+  const clientLogo = client?.logo_url || client?.avatar_url || null;
+  const clientFullName = client?.full_name || client?.company_name || 'Not assigned';
+  const clientName = getFirstWord(clientFullName); // Display only first word
+  const clientInitials = clientFullName !== 'Not assigned' ? getInitials(clientFullName) : 'NA';
 
   return (
     <motion.div
@@ -92,14 +146,17 @@ export const SpotlightCardMinimized = memo(function SpotlightCardMinimized({
                   </span>
                 </div>
                 
-                {/* Client logo overlay - bottom right corner (always shown) */}
-                <div className="absolute -bottom-1 -right-1 h-5 w-5 rounded-full bg-white dark:bg-slate-800 p-0.5 shadow-sm transition-all duration-200 hover:h-8 hover:w-8 hover:-bottom-2 hover:-right-2 hover:z-10 cursor-pointer group">
-                  <div className="h-full w-full rounded-full bg-gray-100 dark:bg-gray-800 overflow-hidden flex items-center justify-center">
+                {/* Client avatar overlay - bottom right corner */}
+                <div 
+                  className="absolute -bottom-1 -right-1 h-6 w-6 rounded-full bg-white dark:bg-slate-800 p-0.5 shadow-md transition-all duration-200 hover:scale-150 hover:-bottom-2 hover:-right-2 hover:z-10 cursor-pointer group" 
+                  title={clientFullName}
+                >
+                  <div className="h-full w-full rounded-full bg-gradient-to-br from-blue-400 to-purple-500 overflow-hidden flex items-center justify-center">
                     {clientLogo ? (
                       <img
                         src={clientLogo}
-                        alt={`${(project.client as any)?.company_name || 'Client'} logo`}
-                        className="w-full h-full object-contain"
+                        alt={`${clientName} avatar`}
+                        className="w-full h-full object-cover"
                         onError={(e) => {
                           (e.target as HTMLImageElement).style.display = 'none';
                           (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
@@ -107,13 +164,10 @@ export const SpotlightCardMinimized = memo(function SpotlightCardMinimized({
                       />
                     ) : null}
                     <span className={cn(
-                      "text-[8px] font-bold text-slate-600 dark:text-slate-300 transition-all group-hover:text-[10px]",
+                      "text-[9px] font-semibold text-white transition-all group-hover:text-[11px]",
                       clientLogo ? "hidden" : ""
                     )}>
-                      {project.client ? 
-                        getInitials((project.client as any)?.company_name || (project.client as any)?.name || 'C').charAt(0) 
-                        : 'C'
-                      }
+                      {clientInitials.substring(0, 2).toUpperCase()}
                     </span>
                   </div>
                 </div>
@@ -128,27 +182,14 @@ export const SpotlightCardMinimized = memo(function SpotlightCardMinimized({
                 {/* PIC Badges below title */}
                 <div className="flex items-center gap-2">
                   <Badge variant="outline" className="px-2 py-0.5 text-xs bg-slate-50 dark:bg-slate-800">
-                    {(project.client as any)?.pic_name || (project as any).client_pic || 'Not assigned'}
+                    {clientName}
                   </Badge>
                   
                   <Badge variant="outline" className="px-2 py-0.5 text-xs bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300">
-                    {(project as any).manager?.full_name || 'Not assigned'}
+                    {project.manager?.full_name || 'Not assigned'}
                   </Badge>
                 </div>
               </div>
-              
-              {/* Action Button */}
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onClick();
-                }}
-              >
-                <ArrowUpRight className="h-4 w-4" />
-              </Button>
             </div>
             
             {/* Divider */}
@@ -177,9 +218,11 @@ export const SpotlightCardMinimized = memo(function SpotlightCardMinimized({
                 </span>
               </div>
               
-              {project.budget && (
+              {(project as any).budget && (
                 <div className="flex items-center gap-3 text-sm">
-                  <span className="text-green-600 font-semibold">RM {(project as any).budget?.toLocaleString()}</span>
+                  <span className="text-green-600 dark:text-green-400 font-semibold">
+                    RM {((project as any).budget || 0).toLocaleString()}
+                  </span>
                 </div>
               )}
               

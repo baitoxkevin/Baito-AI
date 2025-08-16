@@ -53,6 +53,8 @@ export function SpotlightCommand() {
       
       if (data) {
         setProjects(data);
+      } else {
+        setProjects([]);
       }
     };
     
@@ -233,15 +235,22 @@ export function SpotlightCommand() {
           <CommandSeparator />
 
           <CommandGroup heading="Project Payroll">
-            {projects.map((project) => (
-              <CommandItem 
-                key={project.id} 
-                onSelect={() => handleProjectPayroll(project.id)}
-              >
+            {projects && projects.length > 0 ? (
+              projects.map((project) => (
+                <CommandItem 
+                  key={project.id} 
+                  onSelect={() => handleProjectPayroll(project.id)}
+                >
+                  <Banknote className="mr-2 h-4 w-4" />
+                  <span>Payroll: {project.title}</span>
+                </CommandItem>
+              ))
+            ) : (
+              <CommandItem disabled>
                 <Banknote className="mr-2 h-4 w-4" />
-                <span>Payroll: {project.title}</span>
+                <span className="text-gray-500">No projects available</span>
               </CommandItem>
-            ))}
+            )}
           </CommandGroup>
           
           <CommandSeparator />

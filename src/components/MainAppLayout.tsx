@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense, lazy } from 'react';
 import { useParams, useLocation, Navigate } from 'react-router-dom';
 import { useTheme } from 'next-themes';
 import SidebarAdapter from '@/components/SidebarAdapter';

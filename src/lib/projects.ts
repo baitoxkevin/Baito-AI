@@ -65,25 +65,52 @@ export async function fetchProjects(): Promise<Project[]> {
     // Only fetch if we have IDs to look up
     if (clientIds.length > 0) {
       try {
+        // Try to fetch from users table first
         const { data: clientsData } = await supabase
           .from('users')
           .select('*')
           .in('id', clientIds);
           
+        const clientMap: Record<string, any> = {};
+        
         if (clientsData && clientsData.length > 0) {
-          // Create a map for quick lookup
-          const clientMap = clientsData.reduce((map, client) => {
-            map[client.id] = client;
-            return map;
-          }, {} as Record<string, any>);
-          
-          // Add client data to projects
-          projects.forEach(project => {
-            if (project.client_id && clientMap[project.client_id]) {
-              project.client = clientMap[project.client_id];
-            }
+          // Add users to the map
+          clientsData.forEach(client => {
+            clientMap[client.id] = client;
           });
         }
+        
+        // For any IDs not found in users, try companies table
+        const missingIds = clientIds.filter(id => !clientMap[id]);
+        if (missingIds.length > 0) {
+          const { data: companiesData } = await supabase
+            .from('companies')
+            .select('*')
+            .in('id', missingIds);
+            
+          if (companiesData && companiesData.length > 0) {
+            // Transform company data to match user format and add to map
+            companiesData.forEach(company => {
+              clientMap[company.id] = {
+                id: company.id,
+                full_name: company.company_name,
+                company_name: company.company_name,
+                email: company.company_email,
+                contact_phone: company.company_phone_no,
+                avatar_url: company.logo_url,
+                logo_url: company.logo_url,
+                pic_name: company.pic_name
+              };
+            });
+          }
+        }
+        
+        // Add client data to projects
+        projects.forEach(project => {
+          if (project.client_id && clientMap[project.client_id]) {
+            project.client = clientMap[project.client_id];
+          }
+        });
       } catch (error) {
         console.warn('Error fetching client data:', error);
       }
@@ -217,25 +244,52 @@ export async function fetchProjectsByMonth(year: number, month: number): Promise
     // Only fetch if we have IDs to look up
     if (clientIds.length > 0) {
       try {
+        // Try to fetch from users table first
         const { data: clientsData } = await supabase
           .from('users')
           .select('*')
           .in('id', clientIds);
           
+        const clientMap: Record<string, any> = {};
+        
         if (clientsData && clientsData.length > 0) {
-          // Create a map for quick lookup
-          const clientMap = clientsData.reduce((map, client) => {
-            map[client.id] = client;
-            return map;
-          }, {} as Record<string, any>);
-          
-          // Add client data to projects
-          projects.forEach(project => {
-            if (project.client_id && clientMap[project.client_id]) {
-              project.client = clientMap[project.client_id];
-            }
+          // Add users to the map
+          clientsData.forEach(client => {
+            clientMap[client.id] = client;
           });
         }
+        
+        // For any IDs not found in users, try companies table
+        const missingIds = clientIds.filter(id => !clientMap[id]);
+        if (missingIds.length > 0) {
+          const { data: companiesData } = await supabase
+            .from('companies')
+            .select('*')
+            .in('id', missingIds);
+            
+          if (companiesData && companiesData.length > 0) {
+            // Transform company data to match user format and add to map
+            companiesData.forEach(company => {
+              clientMap[company.id] = {
+                id: company.id,
+                full_name: company.company_name,
+                company_name: company.company_name,
+                email: company.company_email,
+                contact_phone: company.company_phone_no,
+                avatar_url: company.logo_url,
+                logo_url: company.logo_url,
+                pic_name: company.pic_name
+              };
+            });
+          }
+        }
+        
+        // Add client data to projects
+        projects.forEach(project => {
+          if (project.client_id && clientMap[project.client_id]) {
+            project.client = clientMap[project.client_id];
+          }
+        });
       } catch (error) {
         console.warn('Error fetching client data:', error);
       }

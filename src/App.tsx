@@ -165,12 +165,12 @@ function App() {
             element={<MainAppLayout effectActive={effectActive} />} 
           />
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
-        </Routes>
-        <SpotlightCommand />
-        <EnhancedToaster />
-      </BrowserRouter>
-    </AppStateProvider>
-    </GlobalErrorBoundary>
+          </Routes>
+          <SpotlightCommand />
+          <EnhancedToaster />
+        </BrowserRouter>
+      </AppStateProvider>
+  </GlobalErrorBoundary>
   );
 }
 
