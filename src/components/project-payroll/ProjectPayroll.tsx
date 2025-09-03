@@ -59,6 +59,7 @@ import type { Project } from '@/lib/types';
 import type { ExpenseClaim } from '@/lib/expense-claim-service';
 import { DuitNowPaymentExport } from '@/components/duitnow-payment-export';
 import PaymentSubmissionDialog from './PaymentSubmissionDialog';
+import { ExpenseClaimDialog } from './ExpenseClaimDialog';
 import { logUtils } from '@/lib/activity-logger';
 
 // Types
@@ -219,11 +220,12 @@ export default function ProjectPayroll({
   const [editingStaffId, setEditingStaffId] = useState<string | null>(null);
   const [sortColumn, setSortColumn] = useState<'staff' | 'position' | 'days' | 'perDay' | 'totalAmount'>('totalAmount');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
-  const [showCommissionColumn, setShowCommissionColumn] = useState(false);
+  const [showCommissionColumn, setShowCommissionColumn] = useState(true);
   const [isSetBasicDialogOpen, setIsSetBasicDialogOpen] = useState(false);
   const [tempBasicValue, setTempBasicValue] = useState("");
   const [selectedStaffForBasic, setSelectedStaffForBasic] = useState<string[]>([]);
   const [isSaving, setIsSaving] = useState(false);
+  const [isSettingBasicSalary, setIsSettingBasicSalary] = useState(false);
   const [selectedStaff, setSelectedStaff] = useState<string[]>([]);
   // Keyboard navigation state
   const [focusedCell, setFocusedCell] = useState<{ rowIndex: number; column: 'basic' | 'claims' | 'commission' } | null>(null);
@@ -239,6 +241,14 @@ export default function ProjectPayroll({
   // Budget editing state
   const [isEditingBudget, setIsEditingBudget] = useState(false);
   const [tempBudget, setTempBudget] = useState('');
+  // Expense claim dialog state
+  const [showExpenseClaimDialog, setShowExpenseClaimDialog] = useState(false);
+  const [selectedClaimContext, setSelectedClaimContext] = useState<{
+    staffId: string;
+    staffName: string;
+    date: Date | string;
+    currentAmount: string;
+  } | null>(null);
   
   // Handle budget save
   const handleBudgetSave = async () => {
@@ -615,7 +625,7 @@ export default function ProjectPayroll({
     // Update the database
     const updateProject = async () => {
       try {
-        setIsSaving(true);
+        setIsSettingBasicSalary(true);
         const { error } = await supabase
           .from('projects')
           .update({ 
@@ -645,7 +655,7 @@ export default function ProjectPayroll({
           variant: "destructive"
         });
       } finally {
-        setIsSaving(false);
+        setIsSettingBasicSalary(false);
       }
     };
     
@@ -1549,18 +1559,30 @@ export default function ProjectPayroll({
                                 <TableCell className="p-2">
                                   <div className="relative">
                                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none">RM</span>
-                                    {parseAmount(dateEntry.claims) > 0 && (
-                                      <TooltipProvider>
-                                        <Tooltip>
-                                          <TooltipTrigger asChild>
-                                            <Info className="absolute right-2 top-1/2 -translate-y-1/2 h-3 w-3 text-purple-500 cursor-help" />
-                                          </TooltipTrigger>
-                                          <TooltipContent>
-                                            <p className="text-xs">May include expense claims</p>
-                                          </TooltipContent>
-                                        </Tooltip>
-                                      </TooltipProvider>
-                                    )}
+                                    <TooltipProvider>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <Info 
+                                            className="absolute right-2 top-1/2 -translate-y-1/2 h-3 w-3 text-purple-500 cursor-pointer hover:text-purple-600" 
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              if (staff.paymentStatus !== 'pushed') {
+                                                setSelectedClaimContext({
+                                                  staffId: staff.id,
+                                                  staffName: staff.name || 'Unknown',
+                                                  date: dateEntry.date,
+                                                  currentAmount: dateEntry.claims
+                                                });
+                                                setShowExpenseClaimDialog(true);
+                                              }
+                                            }}
+                                          />
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                          <p className="text-xs">Click to add expense claim</p>
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
                                     <input
                                       id={`${staff.id}-claims-${index}`}
                                       type="text"
@@ -1900,10 +1922,10 @@ export default function ProjectPayroll({
             </Button>
             <Button 
               onClick={setBasicSalaryForSelectedStaff}
-              disabled={selectedStaffForBasic.length === 0 || !tempBasicValue || isSaving}
+              disabled={selectedStaffForBasic.length === 0 || !tempBasicValue || isSettingBasicSalary}
               className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white"
             >
-              {isSaving ? (
+              {isSettingBasicSalary ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                   Saving...
@@ -1915,6 +1937,63 @@ export default function ProjectPayroll({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Expense Claim Dialog */}
+      {showExpenseClaimDialog && selectedClaimContext && (
+        <ExpenseClaimDialog
+          open={showExpenseClaimDialog}
+          onOpenChange={setShowExpenseClaimDialog}
+          projectId={project.id}
+          staffId={selectedClaimContext.staffId}
+          staffName={selectedClaimContext.staffName}
+          claimDate={selectedClaimContext.date}
+          currentAmount={selectedClaimContext.currentAmount}
+          onClaimSubmitted={(newAmount) => {
+            // Update the claims amount for this staff and date
+            const updatedStaff = confirmedStaff.map(s => {
+              if (s.id === selectedClaimContext.staffId) {
+                const updatedDates = s.workingDatesWithSalary?.map(wdws => {
+                  const dateToCompare = wdws.date instanceof Date ? wdws.date : new Date(wdws.date);
+                  const contextDate = selectedClaimContext.date instanceof Date ? selectedClaimContext.date : new Date(selectedClaimContext.date);
+                  if (isSameDay(dateToCompare, contextDate)) {
+                    return { ...wdws, claims: newAmount.toString() };
+                  }
+                  return wdws;
+                }) || [];
+                return { ...s, workingDatesWithSalary: updatedDates };
+              }
+              return s;
+            });
+            setConfirmedStaff(updatedStaff);
+            
+            // Update database
+            supabase
+              .from('projects')
+              .update({ 
+                confirmed_staff: updatedStaff.map(s => ({
+                  candidate_id: s.id,
+                  name: s.name,
+                  photo: s.photo,
+                  position: s.designation,
+                  status: s.status,
+                  working_dates: s.workingDates,
+                  working_dates_with_salary: s.workingDatesWithSalary
+                }))
+              })
+              .eq('id', project.id)
+              .then(({ error }) => {
+                if (error) {
+                  logger.error('Error updating claims amount:', error);
+                  toast({
+                    title: "Error",
+                    description: "Failed to update claims amount",
+                    variant: "destructive"
+                  });
+                }
+              });
+          }}
+        />
+      )}
 
       {/* DuitNow Payment Export Dialog */}
       <DuitNowPaymentExport

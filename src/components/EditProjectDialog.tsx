@@ -137,6 +137,8 @@ export function EditProjectDialog({
   const [customers, setCustomers] = useState<{ id: string; full_name: string; company_name?: string }[]>([]);
   const [contacts, setContacts] = useState<{ id: string; name: string; company_id: string; company_name: string; email?: string; designation?: string }[]>([]);
   const [managers, setManagers] = useState<{ id: string; full_name: string; }[]>([]);
+  const [startDateOpen, setStartDateOpen] = useState(false);
+  const [endDateOpen, setEndDateOpen] = useState(false);
   const { toast } = useToast();
 
   const form = useForm<EditProjectFormValues>({
@@ -843,7 +845,7 @@ export function EditProjectDialog({
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Start Date</FormLabel>
-                      <Popover modal={true}>
+                      <Popover modal={true} open={startDateOpen} onOpenChange={setStartDateOpen}>
                         <PopoverTrigger asChild>
                           <FormControl>
                             <Button
@@ -868,6 +870,7 @@ export function EditProjectDialog({
                             selected={field.value}
                             onSelect={(date) => {
                               field.onChange(date);
+                              setStartDateOpen(false);
                             }}
                             initialFocus
                           />
@@ -884,7 +887,7 @@ export function EditProjectDialog({
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>End Date</FormLabel>
-                      <Popover>
+                      <Popover open={endDateOpen} onOpenChange={setEndDateOpen}>
                         <PopoverTrigger asChild>
                           <FormControl>
                             <Button
@@ -907,7 +910,10 @@ export function EditProjectDialog({
                           <Calendar
                             mode="single"
                             selected={field.value}
-                            onSelect={field.onChange}
+                            onSelect={(date) => {
+                              field.onChange(date);
+                              setEndDateOpen(false);
+                            }}
                             disabled={(date) =>
                               date < form.getValues('start_date')
                             }

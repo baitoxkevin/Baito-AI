@@ -52,6 +52,7 @@ import {
 } from '@/components/ui/tooltip';
 import { Badge } from '@/components/ui/badge';
 import type { Candidate } from '@/lib/types';
+import { parseICNumber, calculateAge } from '@/lib/ic-parser';
 
 interface EditCandidateDialogProps {
   open: boolean;
@@ -159,15 +160,16 @@ export default function EditCandidateDialog({
       // Populate form data from candidate
       const updatedFormData = {
         legal_name: candidate.full_name || '',
-        entity_type: candidate.entity_type || 'individual',
-        registration_type: candidate.registration_type || 'nric',
+        // Get these from custom_fields if they exist there
+        entity_type: candidate.custom_fields?.entity_type || 'individual',
+        registration_type: candidate.custom_fields?.registration_type || 'nric',
         registration_id: candidate.ic_number || '',
-        old_registration_id: candidate.old_registration_id || '',
+        old_registration_id: candidate.custom_fields?.old_registration_id || '',
         unique_id: candidate.unique_id || '',
-        tin: candidate.tin || '',
-        sst_registration_no: candidate.sst_registration_no || '',
-        is_customer: candidate.is_customer || false,
-        is_supplier: candidate.is_supplier || false,
+        tin: candidate.custom_fields?.tin || '',
+        sst_registration_no: candidate.custom_fields?.sst_registration_no || '',
+        is_customer: candidate.custom_fields?.is_customer || false,
+        is_supplier: candidate.custom_fields?.is_supplier || false,
         
         // Contact Information
         phone_number: candidate.phone_number || '',
@@ -187,31 +189,31 @@ export default function EditCandidateDialog({
         country_code_mailing: candidate.address_mailing?.country_code || 'MY',
         use_business_address: !candidate.address_mailing?.street, // Assume using business address if no mailing street
         
-        // Financial Information 
-        receivable_ac_code: candidate.receivable_ac_code || '',
-        payable_ac_code: candidate.payable_ac_code || '',
-        income_ac_code: candidate.income_ac_code || '',
-        expense_ac_code: candidate.expense_ac_code || '',
+        // Financial Information from custom_fields
+        receivable_ac_code: candidate.custom_fields?.receivable_ac_code || '',
+        payable_ac_code: candidate.custom_fields?.payable_ac_code || '',
+        income_ac_code: candidate.custom_fields?.income_ac_code || '',
+        expense_ac_code: candidate.custom_fields?.expense_ac_code || '',
         
         // Additional information
         gender: candidate.gender || 'male',
         date_of_birth: candidate.date_of_birth ? new Date(candidate.date_of_birth).toISOString().split('T')[0] : '',
         nationality: candidate.nationality || 'Malaysian',
         emergency_contact_name: candidate.emergency_contact_name || '',
-        emergency_contact_number: candidate.emergency_contact_number || '',
+        emergency_contact_number: candidate.emergency_contact_number || candidate.emergency_contact_phone || '',
         
-        // Additional candidate fields from custom_fields
-        age: candidate.custom_fields?.age || '',
-        race: candidate.custom_fields?.race || '',
-        tshirt_size: candidate.custom_fields?.tshirt_size || '',
+        // Additional candidate fields - check main fields first, then custom_fields
+        age: candidate.custom_fields?.age || calculateAge(candidate.date_of_birth)?.toString() || '',
+        race: candidate.race || candidate.custom_fields?.race || '',
+        tshirt_size: candidate.shirt_size || candidate.custom_fields?.tshirt_size || '',
         transportation: candidate.vehicle_type || candidate.custom_fields?.transportation || '',
-        spoken_languages: candidate.custom_fields?.spoken_languages || '',
+        spoken_languages: candidate.languages_spoken || candidate.custom_fields?.spoken_languages || '',
         height: candidate.custom_fields?.height || '',
         typhoid: candidate.custom_fields?.typhoid || 'no',
-        work_experience: candidate.custom_fields?.experience_summary || '',
+        work_experience: candidate.work_experience || candidate.custom_fields?.work_experience || candidate.custom_fields?.experience_summary || '',
         
         // Photos
-        profile_photo: candidate.custom_fields?.profile_photo || candidate.profile_photo || '',
+        profile_photo: candidate.profile_photo || candidate.custom_fields?.profile_photo || '',
         full_body_photo: candidate.custom_fields?.full_body_photo || '',
       };
       
@@ -375,7 +377,20 @@ export default function EditCandidateDialog({
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!candidate) return;
+    if (!candidate) {
+      console.error('No candidate data available');
+      return;
+    }
+    
+    // Validate required fields
+    if (!formData.legal_name || !formData.phone_number) {
+      toast({
+        title: 'Validation Error',
+        description: 'Please fill in all required fields (Name and Phone Number).',
+        variant: 'destructive',
+      });
+      return;
+    }
     
     setIsLoading(true);
     
@@ -405,6 +420,9 @@ export default function EditCandidateDialog({
     }
 
     try {
+      console.log('Starting candidate update for ID:', candidate.id);
+      console.log('Form data:', submissionData);
+      
       // Prepare photo data for storage
       const photoData = {
         profile_photo: formData.profile_photo,
@@ -426,8 +444,25 @@ export default function EditCandidateDialog({
         half_body_photos: photoData.half_body_photos || [],
       };
       
-      // Update the candidate record
-      const { error } = await supabase.from('candidates').update({
+      // Prepare all custom data including accounting fields
+      const extendedCustomFields = {
+        ...customFields,
+        // Accounting/Business fields that may not exist in main table
+        entity_type: submissionData.entity_type || 'individual',
+        registration_type: submissionData.registration_type || 'nric',
+        old_registration_id: submissionData.old_registration_id || '',
+        tin: submissionData.tin || '',
+        sst_registration_no: submissionData.sst_registration_no || '',
+        is_customer: submissionData.is_customer || false,
+        is_supplier: submissionData.is_supplier || false,
+        receivable_ac_code: submissionData.receivable_ac_code || '',
+        payable_ac_code: submissionData.payable_ac_code || '',
+        income_ac_code: submissionData.income_ac_code || '',
+        expense_ac_code: submissionData.expense_ac_code || '',
+      };
+
+      // Prepare update data
+      const updateData = {
         full_name: submissionData.legal_name,
         ic_number: submissionData.registration_id,
         date_of_birth: submissionData.date_of_birth || null,
@@ -437,20 +472,7 @@ export default function EditCandidateDialog({
         nationality: submissionData.nationality,
         emergency_contact_name: submissionData.emergency_contact_name,
         emergency_contact_number: submissionData.emergency_contact_number,
-        
-        // Add new fields
-        entity_type: submissionData.entity_type,
-        registration_type: submissionData.registration_type,
-        old_registration_id: submissionData.old_registration_id,
         unique_id: submissionData.unique_id,
-        tin: submissionData.tin,
-        sst_registration_no: submissionData.sst_registration_no,
-        is_customer: submissionData.is_customer,
-        is_supplier: submissionData.is_supplier,
-        receivable_ac_code: submissionData.receivable_ac_code,
-        payable_ac_code: submissionData.payable_ac_code,
-        income_ac_code: submissionData.income_ac_code,
-        expense_ac_code: submissionData.expense_ac_code,
         
         // Additional candidate fields
         has_vehicle: submissionData.transportation === 'Car' || submissionData.transportation === 'Motorcycle',
@@ -473,14 +495,39 @@ export default function EditCandidateDialog({
           country_code: submissionData.country_code_mailing,
         },
         
-        // Custom fields including photos
-        custom_fields: customFields,
+        // Store simple address fields as well (only if they have values)
+        home_address: submissionData.street_mailing && submissionData.city_mailing ? 
+          `${submissionData.street_mailing}, ${submissionData.city_mailing}, ${submissionData.state_mailing} ${submissionData.postcode_mailing}`.trim() : '',
+        business_address: submissionData.street_business && submissionData.city_business ? 
+          `${submissionData.street_business}, ${submissionData.city_business}, ${submissionData.state_business} ${submissionData.postcode_business}`.trim() : '',
+        
+        // Store shirt size in the correct field
+        shirt_size: submissionData.tshirt_size || '',
+        
+        // Store languages in the correct field
+        languages_spoken: submissionData.spoken_languages || '',
+        
+        // Store race if available
+        race: submissionData.race || '',
+        
+        // Custom fields including photos and all extended data
+        custom_fields: extendedCustomFields,
         
         // Update timestamps
         updated_at: new Date().toISOString(),
-      }).eq('id', candidate.id);
+      };
+      
+      console.log('Update data prepared:', updateData);
+      
+      // Execute the update
+      const { error } = await supabase.from('candidates').update(updateData).eq('id', candidate.id);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase update error:', error);
+        throw error;
+      }
+      
+      console.log('Candidate updated successfully');
       
       toast({
         title: 'Candidate updated',
@@ -489,11 +536,23 @@ export default function EditCandidateDialog({
       
       onCandidateUpdated();
       onOpenChange(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating candidate:', error);
+      
+      // More specific error messages based on error type
+      let errorMessage = 'Failed to update candidate. Please try again.';
+      
+      if (error?.code === 'PGRST204') {
+        errorMessage = 'No candidate found with this ID.';
+      } else if (error?.code === '23505') {
+        errorMessage = 'A candidate with this email or IC number already exists.';
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+      
       toast({
-        title: 'Error',
-        description: 'Failed to update candidate. Please try again.',
+        title: 'Error updating candidate',
+        description: errorMessage,
         variant: 'destructive',
       });
     } finally {
@@ -503,7 +562,43 @@ export default function EditCandidateDialog({
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    
+    // Special handling for IC number (registration_id)
+    if (name === 'registration_id') {
+      const icResult = parseICNumber(value);
+      
+      if (icResult.isValid && icResult.dateOfBirth) {
+        // Auto-fill date of birth and age
+        setFormData(prev => ({ 
+          ...prev, 
+          [name]: value,
+          date_of_birth: icResult.dateOfBirth,
+          age: icResult.age?.toString() || ''
+        }));
+        
+        // Show a subtle notification
+        toast({
+          title: 'IC Number Recognized',
+          description: `Date of birth: ${icResult.dateOfBirth}, Age: ${icResult.age} years`,
+          duration: 2000,
+        });
+      } else {
+        // Just update the IC field
+        setFormData(prev => ({ ...prev, [name]: value }));
+      }
+    } 
+    // Special handling for date_of_birth to calculate age
+    else if (name === 'date_of_birth') {
+      const age = calculateAge(value);
+      setFormData(prev => ({ 
+        ...prev, 
+        [name]: value,
+        age: age?.toString() || ''
+      }));
+    }
+    else {
+      setFormData(prev => ({ ...prev, [name]: value }));
+    }
   };
   
   const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1433,7 +1528,7 @@ export default function EditCandidateDialog({
                   <div className="border border-slate-200 dark:border-slate-700 rounded-lg p-4 bg-slate-50 dark:bg-slate-800/30 space-y-4">
                     <div className="grid grid-cols-2 gap-4">
                       <div className="grid gap-3">
-                        <Label htmlFor="phone_number">Contact No.</Label>
+                        <Label htmlFor="phone_number">Contact No. *</Label>
                         <Input
                           id="phone_number"
                           name="phone_number"
@@ -1539,13 +1634,15 @@ export default function EditCandidateDialog({
                     
                     <div className="grid grid-cols-3 gap-4">
                       <div className="grid gap-3">
-                        <Label htmlFor="age">Age</Label>
+                        <Label htmlFor="age">Age (Auto-calculated)</Label>
                         <Input
                           id="age"
                           name="age"
                           value={formData.age}
                           onChange={handleInputChange}
-                          className={inputClass}
+                          className={`${inputClass} bg-gray-100 dark:bg-gray-800`}
+                          readOnly
+                          placeholder="Calculated from DOB"
                         />
                       </div>
                       

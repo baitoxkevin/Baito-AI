@@ -108,6 +108,7 @@ export interface Candidate {
   nationality?: string;
   emergency_contact_name?: string;
   emergency_contact_number?: string;
+  emergency_contact_phone?: string; // Alias for compatibility
   emergency_contact_relationship?: string;
   bank_name?: string;
   bank_account_number?: string;
@@ -117,6 +118,7 @@ export interface Candidate {
   highest_education?: string;
   field_of_study?: string;
   work_experience?: string;
+  years_experience?: number; // Added missing field
   has_vehicle?: boolean;
   vehicle_type?: string;
   is_banned?: boolean;
@@ -138,6 +140,14 @@ export interface Candidate {
   updated_at: string;
   address?: string;
   address_home?: string;
+  current_projects_count?: number; // Added missing field
+  employment_type?: 'full_time' | 'part_time' | 'contract' | 'casual'; // Added missing field
+  last_contact_date?: string; // Added missing field
+  language_proficiency?: Array<{
+    language: string;
+    proficiency_level: string;
+    is_primary: boolean;
+  }>; // Added missing field
   performance_metrics?: {
     reliability_score: number;
     response_rate: number;
@@ -161,15 +171,6 @@ export interface Candidate {
     ban_date: string;
     is_permanent: boolean;
   };
-}
-
-export interface ProjectLocation {
-  id?: string;
-  project_id?: string;
-  address: string;
-  date: string; // ISO string
-  is_primary: boolean;
-  notes?: string;
 }
 
 export interface ProjectStaffMember {
@@ -197,7 +198,7 @@ export interface Project {
   working_hours_start: string;
   working_hours_end: string;
   event_type: string;
-  project_type?: 'recruitment' | 'internal_event' | 'custom';
+  project_type?: 'recruitment' | 'internal_event' | 'custom' | null;
   venue_address: string;
   venue_details?: string;
   supervisors_required: number;
@@ -210,6 +211,21 @@ export interface Project {
   client?: User;
   manager?: User;
   
+  // New fields for branding
+  brand_name?: string | null;
+  brand_logo?: string | null;
+  
+  // New fields for finance
+  budget?: number | null;
+  invoice_number?: string | null;
+  
+  // New fields for CC stakeholders
+  cc_client_ids?: string[] | null;
+  cc_user_ids?: string[] | null;
+  
+  // Additional optional field
+  description?: string | null;
+  
   // Staff management
   confirmed_staff?: ProjectStaffMember[];
   applicants?: ProjectStaffMember[];
@@ -219,8 +235,6 @@ export interface Project {
   recurrence_pattern?: 'daily' | 'weekly' | 'biweekly' | 'monthly';
   recurrence_days?: number[]; // 0-6 for days of week (0 = Sunday)
   
-  // For multiple locations
-  locations?: ProjectLocation[];
 }
 
 // Removed KanbanBoard interface

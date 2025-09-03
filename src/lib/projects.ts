@@ -332,12 +332,32 @@ export async function fetchProjectsByMonth(year: number, month: number): Promise
 export async function createProject(project: Omit<Project, 'id'>): Promise<Project | null> {
   console.log('[projects.ts] createProject - Function start. Input project data:', JSON.stringify(project, null, 2));
   try {
-    // Remove logo_url field which doesn't exist in the database
-    const { logo_url, ...projectWithoutLogo } = project;
+    // Remove fields that don't exist in the database or shouldn't be inserted
+    const { 
+      logo_url, 
+      client, 
+      manager, 
+      confirmed_staff, 
+      applicants, 
+      locations,
+      ...projectToInsert 
+    } = project;
+
+    // Ensure all required fields are present
+    const projectData = {
+      ...projectToInsert,
+      filled_positions: projectToInsert.filled_positions ?? 0,
+      supervisors_required: projectToInsert.supervisors_required ?? 0,
+      color: projectToInsert.color || eventColors[projectToInsert.event_type as keyof typeof eventColors] || eventColors.default,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    console.log('[projects.ts] createProject - Inserting project data:', JSON.stringify(projectData, null, 2));
 
     const { data, error } = await supabase
       .from('projects')
-      .insert([projectWithoutLogo])
+      .insert([projectData])
       .select()
       .single();
 
@@ -347,16 +367,17 @@ export async function createProject(project: Omit<Project, 'id'>): Promise<Proje
     }
 
     console.log('[projects.ts] createProject - Supabase response data:', JSON.stringify(data, null, 2));
-    // Add color to the project if not provided
-    const projectWithColor = {
+    
+    // Return the complete project
+    const completeProject = {
       ...data,
       color: data.color || eventColors[data.event_type as keyof typeof eventColors] || eventColors.default,
     };
 
-    console.log('[projects.ts] createProject - Returning projectWithColor:', JSON.stringify(projectWithColor, null, 2));
-    return projectWithColor;
+    console.log('[projects.ts] createProject - Returning complete project:', JSON.stringify(completeProject, null, 2));
+    return completeProject;
   } catch (error) {
-    console.error('[projects.ts] createProject - Catch block error:', JSON.stringify(error, null, 2));
+    console.error('[projects.ts] createProject - Catch block error:', error);
     return null;
   }
 }

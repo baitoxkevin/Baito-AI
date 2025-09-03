@@ -31,7 +31,6 @@ import {
   ChevronDown
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
-import { ProjectLocationManager } from '@/components/ProjectLocationManager';
 import {
   Dialog,
   DialogContent,
@@ -117,12 +116,6 @@ const projectSchema = z.object({
   // Location
   venue_address: z.string().min(1, 'Venue address is required'),
   venue_details: z.string().optional(),
-  locations: z.array(z.object({
-    address: z.string().min(1, 'Address is required'),
-    date: z.string(),
-    is_primary: z.boolean(),
-    notes: z.string().optional(),
-  })).optional(),
   
   // Schedule
   start_date: z.date({
@@ -173,10 +166,13 @@ export function NewProjectDialog({
 }: NewProjectDialogProps) {
   const [currentStep, setCurrentStep] = useState<Step>('project-info');
   const [isLoading, setIsLoading] = useState(false);
+  const [isDataLoaded, setIsDataLoaded] = useState(false);
   const [customers, setCustomers] = useState<{ id: string; full_name: string; company_name?: string; logo_url?: string }[]>([]);
   const [contacts, setContacts] = useState<{ id: string; name: string; company_id: string; company_name: string; email?: string; designation?: string }[]>([]);
   const [managers, setManagers] = useState<{ id: string; full_name: string; }[]>([]);
   const [visitedSteps, setVisitedSteps] = useState<Set<Step>>(new Set(['project-info']));
+  const [isLoadingContacts, setIsLoadingContacts] = useState(false);
+  const [contactsError, setContactsError] = useState<string | null>(null);
   const [showLogoSelector, setShowLogoSelector] = useState(false);
   const [currentBrandName, setCurrentBrandName] = useState('');
   const { toast } = useToast();
@@ -208,14 +204,13 @@ export function NewProjectDialog({
       invoice_number: '',
       cc_client_ids: [],
       cc_user_ids: [],
-      locations: [],
     },
     mode: 'onChange',
   });
 
   useEffect(() => {
     if (open) {
-      // Reset to default values immediately
+      // Complete form reset
       form.reset({
         title: '',
         client_id: '',
@@ -229,7 +224,7 @@ export function NewProjectDialog({
         venue_address: '',
         venue_details: '',
         start_date: initialDates?.start || new Date(),
-        end_date: initialDates?.end,
+        end_date: initialDates?.end || undefined,
         working_hours_start: '09:00',
         working_hours_end: '18:00',
         schedule_type: 'single',
@@ -241,24 +236,26 @@ export function NewProjectDialog({
         invoice_number: '',
         cc_client_ids: [],
         cc_user_ids: [],
-        locations: [],
-      }, {
-        keepErrors: false,
-        keepDirty: false,
-        keepValues: false,
-        keepTouched: false,
-        keepIsValid: false,
-        keepIsSubmitting: false,
-        keepIsValidating: false,
-        keepSubmitCount: false,
-      });
+        });
       
-      fetchCustomersAndManagers();
+      // Clear all form states
+      form.clearErrors();
+      
+      // Reset UI states
       setCurrentStep('project-info');
       setVisitedSteps(new Set(['project-info']));
+      setShowLogoSelector(false);
+      setCurrentBrandName('');
+      setIsLoading(false);
+      
+      // Fetch fresh data
+      fetchCustomersAndManagers();
+    } else {
+      // Clean up when dialog closes
+      setIsLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, form, initialDates]);
+  }, [open]);
 
   // Clear CC contacts when customer changes
   useEffect(() => {
@@ -272,6 +269,9 @@ export function NewProjectDialog({
   }, [form]);
 
   const fetchCustomersAndManagers = async () => {
+    setIsLoadingContacts(true);
+    setContactsError(null);
+    
     try {
       const [companiesResult, contactsResult, managersResult] = await Promise.all([
         supabase.from('companies').select('id, name, company_name, logo_url').order('name'),
@@ -311,6 +311,7 @@ export function NewProjectDialog({
         
         setCustomers(fallbackCustomers);
         setManagers(fallbackManagers);
+        setIsDataLoaded(true);
         
         // Still try to use contacts if they loaded successfully
         if (!contactsResult.error && contactsResult.data) {
@@ -355,6 +356,7 @@ export function NewProjectDialog({
       })) || []);
 
       setManagers(managersResult.data || []);
+      setIsDataLoaded(true);
     } catch (error) {
       logger.error('Error fetching data:', error);
       
@@ -369,6 +371,7 @@ export function NewProjectDialog({
       setCustomers(emergencyFallback);
       setManagers(emergencyManager);
       setContacts([]);
+      setIsDataLoaded(true);
       
       toast({
         title: "Limited Functionality",
@@ -394,6 +397,13 @@ export function NewProjectDialog({
         setCurrentStep(nextStep);
         setVisitedSteps(prev => new Set([...prev, nextStep]));
       }
+    } else {
+      // Show validation errors
+      toast({
+        title: "请填写必填字段",
+        description: "请检查并填写所有标记为红色的必填字段",
+        variant: "destructive",
+      });
     }
     // Prevent form submission
     return false;
@@ -426,8 +436,22 @@ export function NewProjectDialog({
   };
 
   const onSubmit = async (values: ProjectFormValues) => {
+    // Final validation before submit
+    const isFormValid = await form.trigger();
+    if (!isFormValid) {
+      toast({
+        title: "表单验证失败",
+        description: "请检查所有必填字段是否已正确填写",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     setIsLoading(true);
     try {
+      // Log the data being submitted
+      console.log('[NewProjectDialog] Submitting project data:', values);
+      
       // Get current user for notification
       const currentUser = await getUser();
       const userName = currentUser?.full_name || currentUser?.email || 'Someone';
@@ -440,7 +464,7 @@ export function NewProjectDialog({
         description: values.description || null,
         venue_details: values.venue_details || null,
         supervisors_required: values.supervisors_required ?? 0,
-        budget: values.budget || null,
+        budget: values.budget || 0,
         invoice_number: values.invoice_number || null,
         brand_name: values.brand_name || null,
         brand_logo: values.brand_logo || null,
@@ -448,45 +472,17 @@ export function NewProjectDialog({
         end_date: values.end_date ? values.end_date.toISOString() : null,
         cc_client_ids: values.cc_client_ids || [],
         cc_user_ids: values.cc_user_ids || [],
+        // Ensure required fields have values
+        filled_positions: 0,
+        color: '#' + Math.floor(Math.random()*16777215).toString(16),
       };
       
-      // Extract locations from processedData
-      const { locations, ...projectData } = processedData;
-      
-      const result = await createProject(projectData);
+      const result = await createProject(processedData);
       
       if (!result) {
         throw new Error("Failed to create project");
       }
 
-      // Save locations if any
-      if (locations && locations.length > 0) {
-        try {
-          const locationsToInsert = locations.map(loc => ({
-            project_id: result.id,
-            address: loc.address,
-            date: loc.date,
-            is_primary: loc.is_primary,
-            notes: loc.notes || null
-          }));
-
-          const { error: locationsError } = await supabase
-            .from('project_locations')
-            .insert(locationsToInsert);
-
-          if (locationsError) {
-            // Only log error if it's not a "table doesn't exist" error
-            if (locationsError.code === '42P01') {
-              logger.warn('Project locations table does not exist yet - skipping locations save');
-            } else {
-              logger.error('Failed to save project locations:', locationsError);
-            }
-            // Don't fail the entire operation if locations fail
-          }
-        } catch (locError) {
-          logger.error('Error saving project locations:', locError);
-        }
-      }
 
       // Email notification temporarily disabled
       // TODO: Re-enable when email_notifications table is properly set up
@@ -648,7 +644,7 @@ export function NewProjectDialog({
                               <CommandList>
                                 <CommandEmpty>No customer found.</CommandEmpty>
                                 <CommandGroup>
-                                  {customers.map((customer) => (
+                                  {Array.isArray(customers) && customers.map((customer) => (
                                     <CommandItem
                                       key={customer.id}
                                       value={`${customer.company_name || customer.full_name} ${customer.id}`}
@@ -827,6 +823,11 @@ export function NewProjectDialog({
                                   className="h-8 w-auto object-contain"
                                   onError={(e) => {
                                     e.currentTarget.style.display = 'none';
+                                    // Add error message
+                                    const errorSpan = document.createElement('span');
+                                    errorSpan.className = 'text-xs text-red-500';
+                                    errorSpan.textContent = 'Logo 加载失败';
+                                    e.currentTarget.parentElement?.appendChild(errorSpan);
                                   }}
                                 />
                                 <a 
@@ -884,7 +885,7 @@ export function NewProjectDialog({
                             ? "Add additional client contacts to keep informed about this project"
                             : "Select a customer first to see their contacts"}
                         </FormDescription>
-                        <Popover modal={true}>
+                        <Popover>
                           <PopoverTrigger asChild>
                             <FormControl>
                               <Button
@@ -914,21 +915,26 @@ export function NewProjectDialog({
                                   : "No contact found"}
                               </CommandEmpty>
                               <CommandGroup>
-                                {contacts
-                                  .filter(contact => contact.company_id === form.getValues('client_id'))
-                                  .map((contact) => (
-                                  <CommandItem
-                                    key={contact.id}
-                                    value={contact.id}
-                                    onSelect={() => {
-                                      const currentValue = field.value || [];
-                                      const isSelected = currentValue.includes(contact.id);
-                                      const newValue = isSelected
-                                        ? currentValue.filter((id) => id !== contact.id)
-                                        : [...currentValue, contact.id];
-                                      field.onChange(newValue);
-                                    }}
-                                  >
+                                {isLoadingContacts ? (
+                                  <div className="p-2 text-sm text-muted-foreground">Loading contacts...</div>
+                                ) : contactsError ? (
+                                  <div className="p-2 text-sm text-destructive">{contactsError}</div>
+                                ) : Array.isArray(contacts) && contacts.length > 0 ? (
+                                  contacts
+                                    .filter(contact => contact?.company_id === form.getValues('client_id'))
+                                    .map((contact) => contact ? (
+                                      <CommandItem
+                                        key={contact.id}
+                                        value={`${contact.name || ''} ${contact.designation || ''} ${contact.email || ''}`}
+                                        onSelect={() => {
+                                          const currentValue = field.value || [];
+                                          const isSelected = currentValue.includes(contact.id);
+                                          const newValue = isSelected
+                                            ? currentValue.filter((id) => id !== contact.id)
+                                            : [...currentValue, contact.id];
+                                          field.onChange(newValue);
+                                        }}
+                                      >
                                     <div className="flex items-center">
                                       <div className={cn(
                                         "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
@@ -945,13 +951,20 @@ export function NewProjectDialog({
                                         </div>
                                       </div>
                                     </div>
-                                  </CommandItem>
-                                ))}
+                                      </CommandItem>
+                                    ) : null)
+                                ) : (
+                                  <div className="p-2 text-sm text-muted-foreground">
+                                    {form.watch('client_id') 
+                                      ? "No contacts available for this company"
+                                      : "Please select a customer first"}
+                                  </div>
+                                )}
                               </CommandGroup>
                             </Command>
                           </PopoverContent>
                         </Popover>
-                        {field.value?.length > 0 && (
+                        {field.value?.length > 0 && Array.isArray(contacts) && (
                           <div className="flex flex-wrap gap-2 mt-2">
                             {field.value.map((contactId) => {
                               const contact = contacts.find(c => c.id === contactId);
@@ -990,7 +1003,7 @@ export function NewProjectDialog({
                         <FormDescription className="text-xs">
                           Add additional team members to keep informed about this project
                         </FormDescription>
-                        <Popover modal={true}>
+                        <Popover>
                           <PopoverTrigger asChild>
                             <FormControl>
                               <Button
@@ -1013,21 +1026,24 @@ export function NewProjectDialog({
                               <CommandInput placeholder="Search users..." />
                               <CommandEmpty>No user found.</CommandEmpty>
                               <CommandGroup>
-                                {managers
-                                  .filter(m => m.id !== form.getValues('manager_id'))
-                                  .map((manager) => (
-                                    <CommandItem
-                                      key={manager.id}
-                                      value={manager.id}
-                                      onSelect={() => {
-                                        const currentValue = field.value || [];
-                                        const isSelected = currentValue.includes(manager.id);
-                                        const newValue = isSelected
-                                          ? currentValue.filter((id) => id !== manager.id)
-                                          : [...currentValue, manager.id];
-                                        field.onChange(newValue);
-                                      }}
-                                    >
+                                {isLoadingContacts ? (
+                                  <div className="p-2 text-sm text-muted-foreground">Loading users...</div>
+                                ) : Array.isArray(managers) && managers.length > 0 ? (
+                                  managers
+                                    .filter(m => m?.id !== form.getValues('manager_id'))
+                                    .map((manager) => manager ? (
+                                      <CommandItem
+                                        key={manager.id}
+                                        value={`${manager.full_name || ''}`}
+                                        onSelect={() => {
+                                          const currentValue = field.value || [];
+                                          const isSelected = currentValue.includes(manager.id);
+                                          const newValue = isSelected
+                                            ? currentValue.filter((id) => id !== manager.id)
+                                            : [...currentValue, manager.id];
+                                          field.onChange(newValue);
+                                        }}
+                                      >
                                       <div className="flex items-center">
                                         <div className={cn(
                                           "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
@@ -1039,13 +1055,18 @@ export function NewProjectDialog({
                                         </div>
                                         {manager.full_name}
                                       </div>
-                                    </CommandItem>
-                                  ))}
+                                      </CommandItem>
+                                    ) : null)
+                                ) : (
+                                  <div className="p-2 text-sm text-muted-foreground">
+                                    No users available
+                                  </div>
+                                )}
                               </CommandGroup>
                             </Command>
                           </PopoverContent>
                         </Popover>
-                        {field.value?.length > 0 && (
+                        {field.value?.length > 0 && Array.isArray(managers) && (
                           <div className="flex flex-wrap gap-2 mt-2">
                             {field.value.map((userId) => {
                               const user = managers.find(m => m.id === userId);
@@ -1273,37 +1294,6 @@ export function NewProjectDialog({
                   </AlertDescription>
                 </Alert>
 
-                {/* Multiple Locations Support */}
-                <div className="space-y-4 pt-6 border-t">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="text-sm font-medium">Multiple Locations</h4>
-                      <p className="text-sm text-muted-foreground">
-                        Add multiple venues for events happening at different locations
-                      </p>
-                    </div>
-                  </div>
-                  
-                  <FormField
-                    control={form.control}
-                    name="locations"
-                    render={({ field }) => (
-                      <FormItem className="space-y-2">
-                        <FormControl>
-                          <ProjectLocationManager
-                            locations={field.value || []}
-                            onChange={field.onChange}
-                            projectDates={{
-                              start: form.watch('start_date'),
-                              end: form.watch('end_date')
-                            }}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
               </CardContent>
             </Card>
           </motion.div>
@@ -1396,10 +1386,17 @@ export function NewProjectDialog({
                             <CalendarComponent
                               mode="single"
                               selected={field.value}
-                              onSelect={field.onChange}
-                              disabled={(date) =>
-                                date < form.getValues('start_date')
-                              }
+                              onSelect={(date) => {
+                                field.onChange(date);
+                                // Clear validation error when valid date is selected
+                                if (date && form.getValues('start_date') && date >= form.getValues('start_date')) {
+                                  form.clearErrors('end_date');
+                                }
+                              }}
+                              disabled={(date) => {
+                                const startDate = form.getValues('start_date');
+                                return startDate ? date < startDate : false;
+                              }}
                               initialFocus
                             />
                           </PopoverContent>
@@ -1683,8 +1680,15 @@ export function NewProjectDialog({
                             min="0"
                             placeholder="0.00"
                             className="h-11 transition-all hover:border-gray-400 focus:border-gray-600"
+                            onKeyDown={(e) => {
+                              // Prevent minus sign and scientific notation
+                              if (e.key === '-' || e.key === 'e' || e.key === 'E') {
+                                e.preventDefault();
+                              }
+                            }}
                             onChange={(e) => {
                               const value = parseFloat(e.target.value);
+                              // Ensure only positive values
                               field.onChange(isNaN(value) ? 0 : Math.max(0, value));
                             }}
                           />
@@ -1766,7 +1770,7 @@ export function NewProjectDialog({
                         <p className="text-muted-foreground">Manager</p>
                         <p className="font-medium">{manager?.full_name || '-'}</p>
                       </div>
-                      {values.cc_client_ids?.length > 0 && (
+                      {values.cc_client_ids?.length > 0 && Array.isArray(contacts) && (
                         <div className="col-span-2">
                           <p className="text-muted-foreground">CC Contacts</p>
                           <div className="flex flex-wrap gap-1 mt-1">
@@ -1782,7 +1786,7 @@ export function NewProjectDialog({
                           </div>
                         </div>
                       )}
-                      {values.cc_user_ids?.length > 0 && (
+                      {values.cc_user_ids?.length > 0 && Array.isArray(managers) && (
                         <div className="col-span-2">
                           <p className="text-muted-foreground">CC Users</p>
                           <div className="flex flex-wrap gap-1 mt-1">
@@ -1849,30 +1853,6 @@ export function NewProjectDialog({
                         <p className="text-muted-foreground">Venue</p>
                         <p className="font-medium">{values.venue_address || '-'}</p>
                       </div>
-                      {values.locations && values.locations.length > 0 && (
-                        <div className="col-span-2">
-                          <p className="text-muted-foreground mb-2">Additional Locations</p>
-                          <div className="space-y-2">
-                            {values.locations.map((location, idx) => (
-                              <div key={idx} className="flex items-start gap-2 text-sm">
-                                <MapPin className="h-3 w-3 mt-0.5 text-muted-foreground" />
-                                <div className="flex-1">
-                                  <p className="font-medium">
-                                    {location.address}
-                                    {location.is_primary && (
-                                      <Badge variant="secondary" className="ml-2 text-xs">Primary</Badge>
-                                    )}
-                                  </p>
-                                  <p className="text-xs text-muted-foreground">
-                                    {format(new Date(location.date), 'PPP')}
-                                    {location.notes && ` - ${location.notes}`}
-                                  </p>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
                     </div>
                   </div>
 
@@ -1954,10 +1934,22 @@ export function NewProjectDialog({
                         <motion.button
                           key={step.id}
                           type="button"
-                          onClick={() => {
-                            // Allow free navigation to any step
-                            setCurrentStep(step.id);
-                            setVisitedSteps(prev => new Set([...prev, step.id]));
+                          onClick={async () => {
+                            // Validate current step before switching
+                            const fieldsToValidate = getFieldsForStep(currentStep);
+                            const isValid = await form.trigger(fieldsToValidate as (keyof ProjectFormValues)[]);
+                            
+                            if (isValid || index < currentStepIndex) {
+                              // Allow navigation if validation passes or going back
+                              setCurrentStep(step.id);
+                              setVisitedSteps(prev => new Set([...prev, step.id]));
+                            } else {
+                              toast({
+                                title: "请完成当前步骤",
+                                description: "请填写当前步骤的必填字段后再继续",
+                                variant: "destructive",
+                              });
+                            }
                           }}
                           className={cn(
                             "w-full flex items-center gap-3 px-4 py-3.5 rounded-lg text-sm font-medium transition-all duration-200",
@@ -2094,8 +2086,9 @@ export function NewProjectDialog({
                     <Button 
                       type="submit" 
                       size="lg"
-                      disabled={isLoading}
-                      className="min-w-[160px] bg-gradient-to-r from-gray-700 to-gray-900 hover:from-gray-800 hover:to-black text-white"
+                      disabled={isLoading || !form.formState.isValid}
+                      className="min-w-[160px] bg-gradient-to-r from-gray-700 to-gray-900 hover:from-gray-800 hover:to-black text-white disabled:opacity-50"
+                      title={!form.formState.isValid ? "请填写所有必填字段" : ""}
                     >
                       {isLoading ? (
                         <>

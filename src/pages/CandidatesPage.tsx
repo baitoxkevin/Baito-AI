@@ -11,7 +11,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { PlusIcon, Search, Loader2, Star, Car, X, FileText, UserPlus, Upload, Share2, Check, Flag, AlertTriangle, ArrowUp, ArrowDown, Filter, Users, TrendingUp, Award, Activity } from 'lucide-react';
+import { PlusIcon, Search, Loader2, Star, Car, X, FileText, UserPlus, Upload, Share2, Check, Flag, AlertTriangle, ArrowUp, ArrowDown, Filter, Users, TrendingUp, Award, Activity, Edit } from 'lucide-react';
 import {
   Tooltip,
   TooltipContent,
@@ -24,6 +24,7 @@ import { format, differenceInYears } from 'date-fns';
 import type { Candidate } from '@/lib/types';
 import NewCandidateDialog from '@/components/NewCandidateDialog';
 import { CandidateDetailsDialog } from '@/components/CandidateDetailsDialog';
+import EditCandidateDialog from '@/components/EditCandidateDialog';
 import { CandidateTextImportTool } from '@/components/CandidateTextImportTool';
 import ReportDialog from '@/components/ReportDialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -88,6 +89,8 @@ export default function CandidatesPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editCandidate, setEditCandidate] = useState<Candidate | null>(null);
   const [reportDialogOpen, setReportDialogOpen] = useState(false);
   const [reportCandidate, setReportCandidate] = useState<Candidate | null>(null);
   const [activeTab, setActiveTab] = useState<string>("candidates");
@@ -793,7 +796,7 @@ export default function CandidatesPage() {
                               candidate.address,
                               candidate.date_of_birth,
                               candidate.emergency_contact_name,
-                              candidate.emergency_contact_phone
+                              candidate.emergency_contact_number || candidate.emergency_contact_phone
                             ];
 
                             const filledFields = requiredFields.filter(field => field && String(field).trim() !== '').length;
@@ -1030,7 +1033,31 @@ export default function CandidatesPage() {
 
                       <TableCell className="py-4 px-3">
                         <div className="flex items-center justify-end gap-2">
-                          {/* Edit/View Link button */}
+                          {/* Edit Button */}
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  size="icon"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setEditCandidate(candidate);
+                                    setEditDialogOpen(true);
+                                  }}
+                                  className="h-8 w-8 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-green-50 hover:text-green-700 dark:hover:bg-green-900/20 dark:hover:text-green-400"
+                                >
+                                  <Edit className="h-4 w-4" />
+                                  <span className="sr-only">Edit candidate</span>
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent side="top">
+                                <p>Edit candidate information</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+
+                          {/* Share Link button */}
                           <TooltipProvider>
                             <Tooltip>
                               <TooltipTrigger asChild>
@@ -1139,6 +1166,12 @@ export default function CandidatesPage() {
         open={reportDialogOpen}
         onOpenChange={setReportDialogOpen}
         candidate={reportCandidate}
+      />
+      <EditCandidateDialog
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        onCandidateUpdated={loadCandidates}
+        candidate={editCandidate}
       />
     </div>
   );

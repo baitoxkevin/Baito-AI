@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Test Candidate Edit</title>
+</head>
+<body>
+    <h1>测试候选人编辑功能</h1>
+    <button onclick="testEdit()">测试编辑功能</button>
+    <pre id="result"></pre>
+
+    <script>
+        async function testEdit() {
+            const resultEl = document.getElementById('result');
+            
+            // 测试数据
+            const testData = {
+                full_name: 'Test User',
+                ic_number: '123456789012',
+                phone_number: '0123456789',
+                email: 'test@example.com',
+                gender: 'male',
+                nationality: 'Malaysian',
+                custom_fields: {
+                    test: 'data'
+                }
+            };
+            
+            try {
+                // 这里替换为您的 Supabase URL 和 anon key
+                const response = await fetch('YOUR_SUPABASE_URL/rest/v1/candidates?id=eq.YOUR_CANDIDATE_ID', {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'apikey': 'YOUR_ANON_KEY',
+                        'Authorization': 'Bearer YOUR_ANON_KEY',
+                        'Prefer': 'return=minimal'
+                    },
+                    body: JSON.stringify(testData)
+                });
+                
+                if (!response.ok) {
+                    const error = await response.text();
+                    resultEl.textContent = 'Error: ' + error;
+                } else {
+                    resultEl.textContent = 'Success! Status: ' + response.status;
+                }
+            } catch (error) {
+                resultEl.textContent = 'Error: ' + error.message;
+            }
+        }
+    </script>
+</body>
+</html>

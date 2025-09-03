@@ -32,6 +32,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabase';
 import { CheckCircle, Building, FileText, Home, CreditCard, User, UserCheck, Car, Languages, Camera, Upload, X } from 'lucide-react';
 import { ProfileUpload } from '@/components/ui/profile-upload';
+import { parseICNumber, calculateAge } from '@/lib/ic-parser';
 
 interface NewCandidateDialogProps {
   open: boolean;
@@ -187,10 +188,23 @@ export default function NewCandidateDialog({
   
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate required fields first
+    if (!formData.legal_name || !formData.phone_number) {
+      toast({
+        title: 'Validation Error',
+        description: 'Please fill in all required fields (Name and Phone Number).',
+        variant: 'destructive',
+      });
+      setActiveTab('basic');
+      return;
+    }
+    
     setIsLoading(true);
     
+    // Skip photo validation - photos are optional
     // Validate photos before proceeding
-    if (!validatePhotos()) {
+    /*if (!validatePhotos()) {
       setIsLoading(false);
       setActiveTab("photos");
       
@@ -201,7 +215,7 @@ export default function NewCandidateDialog({
       });
       
       return;
-    }
+    }*/
     
     // If using business address for mailing, copy over the values
     const submissionData = { ...formData };
@@ -437,6 +451,18 @@ export default function NewCandidateDialog({
         expense_ac_code: submissionData.expense_ac_code || '',
       };
       
+      console.log('Inserting new candidate with data:', {
+        full_name: submissionData.legal_name,
+        ic_number: submissionData.registration_id,
+        phone_number: submissionData.phone_number,
+        email: submissionData.email,
+      });
+      
+      // Ensure email is null if empty (not empty string)
+      const emailValue = submissionData.email && submissionData.email.trim() !== '' 
+        ? submissionData.email 
+        : null;
+      
       const { data, error } = await supabase.from('candidates').insert([
         {
           // Core fields that exist in the table schema
@@ -445,11 +471,27 @@ export default function NewCandidateDialog({
           date_of_birth: submissionData.date_of_birth || null,
           phone_number: submissionData.phone_number,
           gender: submissionData.gender,
-          email: submissionData.email, // Can be null now
+          email: emailValue, // Can be null now
           nationality: submissionData.nationality,
           emergency_contact_name: submissionData.emergency_contact_name,
           emergency_contact_number: submissionData.emergency_contact_number,
           unique_id: submissionData.unique_id,
+          
+          // Add these fields that exist in the database
+          shirt_size: submissionData.tshirt_size || '',
+          languages_spoken: submissionData.spoken_languages || '',
+          race: submissionData.race || '',
+          work_experience: submissionData.work_experience || '',
+          
+          // Store simple address fields as well (only if they have values)
+          home_address: submissionData.street_mailing && submissionData.city_mailing ? 
+            [submissionData.street_mailing, submissionData.city_mailing, submissionData.state_mailing, submissionData.postcode_mailing]
+              .filter(Boolean)
+              .join(', ') : null,
+          business_address: submissionData.street_business && submissionData.city_business ? 
+            [submissionData.street_business, submissionData.city_business, submissionData.state_business, submissionData.postcode_business]
+              .filter(Boolean)
+              .join(', ') : null,
           
           // All custom fields in the JSONB column
           custom_fields: customFields,
@@ -457,21 +499,21 @@ export default function NewCandidateDialog({
           // Photo field that's in the schema
           profile_photo: photoData.profile_photo,
           
-          // Address information
-          address_business: {
-            street: submissionData.street_business,
-            city: submissionData.city_business,
-            state: submissionData.state_business,
-            postcode: submissionData.postcode_business,
-            country_code: submissionData.country_code_business,
-          },
-          address_mailing: {
-            street: submissionData.street_mailing,
-            city: submissionData.city_mailing,
-            state: submissionData.state_mailing,
-            postcode: submissionData.postcode_mailing,
-            country_code: submissionData.country_code_mailing,
-          },
+          // Address information - only include if has data
+          address_business: submissionData.street_business || submissionData.city_business ? {
+            street: submissionData.street_business || '',
+            city: submissionData.city_business || '',
+            state: submissionData.state_business || '',
+            postcode: submissionData.postcode_business || '',
+            country_code: submissionData.country_code_business || 'MY',
+          } : null,
+          address_mailing: submissionData.street_mailing || submissionData.city_mailing ? {
+            street: submissionData.street_mailing || '',
+            city: submissionData.city_mailing || '',
+            state: submissionData.state_mailing || '',
+            postcode: submissionData.postcode_mailing || '',
+            country_code: submissionData.country_code_mailing || 'MY',
+          } : null,
           
           // Default values
           has_vehicle: submissionData.transportation === 'Car' || submissionData.transportation === 'Motorcycle',
@@ -482,76 +524,42 @@ export default function NewCandidateDialog({
       ]).select();
 
       if (error) {
+        console.error('Error inserting candidate:', error);
+        
         // If there was an error despite our duplicate checking
         if (error.code === '23505') { // Unique constraint violation
           console.error('Duplicate key error despite our checks:', error);
           
-          // Try one more approach - use upsert instead
-          const { data: upsertData, error: upsertError } = await supabase
-            .from('candidates')
-            .upsert(
-              {
-                // Core fields that exist in the table schema
-                full_name: submissionData.legal_name,
-                ic_number: submissionData.registration_id,
-                date_of_birth: submissionData.date_of_birth || null,
-                phone_number: submissionData.phone_number,
-                gender: submissionData.gender,
-                email: submissionData.email, // Can be null now
-                nationality: submissionData.nationality,
-                emergency_contact_name: submissionData.emergency_contact_name,
-                emergency_contact_number: submissionData.emergency_contact_number,
-                unique_id: submissionData.unique_id,
-                
-                // All custom fields in the JSONB column
-                custom_fields: customFields,
-                
-                // Photo field that's in the schema
-                profile_photo: photoData.profile_photo,
-                
-                // Address information
-                address_business: {
-                  street: submissionData.street_business,
-                  city: submissionData.city_business,
-                  state: submissionData.state_business,
-                  postcode: submissionData.postcode_business,
-                  country_code: submissionData.country_code_business,
-                },
-                address_mailing: {
-                  street: submissionData.street_mailing,
-                  city: submissionData.city_mailing,
-                  state: submissionData.state_mailing,
-                  postcode: submissionData.postcode_mailing,
-                  country_code: submissionData.country_code_mailing,
-                },
-                
-                // Default values
-                has_vehicle: submissionData.transportation === 'Car' || submissionData.transportation === 'Motorcycle',
-                vehicle_type: submissionData.transportation === 'Car' ? 'Car' : 
-                              submissionData.transportation === 'Motorcycle' ? 'Motorcycle' : null,
-                is_banned: false,
-              },
-              {
-                // Use registration_id (IC number) as conflict target instead of email
-                // since email can now be NULL
-                onConflict: 'ic_number',
-                ignoreDuplicates: false
-              }
-            )
-            .select();
-            
-          if (upsertError) throw upsertError;
-          
-          console.log('Candidate upserted successfully:', upsertData);
+          // More specific error message for duplicates
+          let duplicateField = 'record';
+          if (error.message?.includes('ic_number')) {
+            duplicateField = 'IC number';
+          } else if (error.message?.includes('email')) {
+            duplicateField = 'email address';
+          }
           
           toast({
-            title: 'Candidate updated',
-            description: 'An existing candidate was updated with this information.',
+            title: 'Duplicate Entry',
+            description: `A candidate with this ${duplicateField} already exists.`,
+            variant: 'destructive',
           });
-          
-        } else {
-          throw error;
+          setIsLoading(false);
+          return;
         }
+        
+        // Handle other errors
+        let errorMessage = 'Failed to add candidate. Please try again.';
+        if (error.message) {
+          errorMessage = error.message;
+        }
+        
+        toast({
+          title: 'Error',
+          description: errorMessage,
+          variant: 'destructive',
+        });
+        setIsLoading(false);
+        return;
       } else {
         console.log('Candidate added successfully:', data);
         
@@ -564,11 +572,11 @@ export default function NewCandidateDialog({
       console.log('Calling onCandidateAdded callback');
       onCandidateAdded();
       onOpenChange(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error adding candidate:', error);
       toast({
         title: 'Error',
-        description: error.message || 'Failed to add candidate. Please try again.',
+        description: error?.message || 'Failed to add candidate. Please try again.',
         variant: 'destructive',
       });
     } finally {
@@ -578,7 +586,43 @@ export default function NewCandidateDialog({
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    
+    // Special handling for IC number (registration_id)
+    if (name === 'registration_id') {
+      const icResult = parseICNumber(value);
+      
+      if (icResult.isValid && icResult.dateOfBirth) {
+        // Auto-fill date of birth and age
+        setFormData(prev => ({ 
+          ...prev, 
+          [name]: value,
+          date_of_birth: icResult.dateOfBirth,
+          age: icResult.age?.toString() || ''
+        }));
+        
+        // Show a subtle notification
+        toast({
+          title: 'IC Number Recognized',
+          description: `Date of birth: ${icResult.dateOfBirth}, Age: ${icResult.age} years`,
+          duration: 2000,
+        });
+      } else {
+        // Just update the IC field
+        setFormData(prev => ({ ...prev, [name]: value }));
+      }
+    } 
+    // Special handling for date_of_birth to calculate age
+    else if (name === 'date_of_birth') {
+      const age = calculateAge(value);
+      setFormData(prev => ({ 
+        ...prev, 
+        [name]: value,
+        age: age?.toString() || ''
+      }));
+    }
+    else {
+      setFormData(prev => ({ ...prev, [name]: value }));
+    }
   };
   
   const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1553,7 +1597,7 @@ export default function NewCandidateDialog({
                   <div className="border border-slate-200 dark:border-slate-700 rounded-lg p-4 bg-slate-50 dark:bg-slate-800/30 space-y-4">
                     <div className="grid grid-cols-2 gap-4">
                       <div className="grid gap-3">
-                        <Label htmlFor="phone_number">Contact No.</Label>
+                        <Label htmlFor="phone_number">Contact No. *</Label>
                         <Input
                           id="phone_number"
                           name="phone_number"
@@ -1658,13 +1702,15 @@ export default function NewCandidateDialog({
                     
                     <div className="grid grid-cols-3 gap-4">
                       <div className="grid gap-3">
-                        <Label htmlFor="age">Age</Label>
+                        <Label htmlFor="age">Age (Auto-calculated)</Label>
                         <Input
                           id="age"
                           name="age"
                           value={formData.age}
                           onChange={handleInputChange}
-                          className={inputClass}
+                          className={`${inputClass} bg-gray-100 dark:bg-gray-800`}
+                          readOnly
+                          placeholder="Calculated from DOB"
                         />
                       </div>
                       

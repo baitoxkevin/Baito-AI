@@ -64,19 +64,45 @@ export interface Receipt {
  */
 export async function fetchUserExpenseClaims(): Promise<ExpenseClaim[]> {
   try {
-    const { data, error } = await supabase
+    // First try to fetch from the view
+    const { data: viewData, error: viewError } = await supabase
       .from('expense_claims_summary')
       .select('*')
       .order('created_at', { ascending: false });
     
-    if (error) {
-      if (error.code === '42P01') {
-        logger.warn('Expense claims summary view does not exist, returning empty array');
+    if (!viewError) {
+      return viewData || [];
+    }
+    
+    // If view doesn't exist, fetch directly from table
+    if (viewError.code === '42P01') {
+      logger.warn('Expense claims summary view does not exist, fetching from table directly');
+      
+      const { data, error } = await supabase
+        .from('expense_claims')
+        .select(`
+          *,
+          projects!project_id(title)
+        `)
+        .order('created_at', { ascending: false });
+      
+      if (error) {
+        logger.error('Error fetching expense claims from table:', error);
         return [];
       }
-      throw error;
+      
+      // Transform data to match expected format
+      return (data || []).map(claim => ({
+        ...claim,
+        receipt_number: claim.bill_number,
+        total_amount: claim.amount,
+        date: claim.expense_date,
+        user_id: claim.submitted_by,
+        project_title: claim.projects?.title
+      }));
     }
-    return data || [];
+    
+    throw viewError;
   } catch (error) {
     logger.error('Error fetching expense claims:', error);
     return [];
@@ -89,20 +115,47 @@ export async function fetchUserExpenseClaims(): Promise<ExpenseClaim[]> {
  */
 export async function fetchExpenseClaimsByStatus(status: ExpenseClaim['status']): Promise<ExpenseClaim[]> {
   try {
-    const { data, error } = await supabase
+    // First try to fetch from the view
+    const { data: viewData, error: viewError } = await supabase
       .from('expense_claims_summary')
       .select('*')
       .eq('status', status)
       .order('created_at', { ascending: false });
     
-    if (error) {
-      if (error.code === '42P01') {
-        logger.warn('Expense claims summary view does not exist, returning empty array');
+    if (!viewError) {
+      return viewData || [];
+    }
+    
+    // If view doesn't exist, fetch directly from table
+    if (viewError.code === '42P01') {
+      logger.warn('Expense claims summary view does not exist, fetching from table directly');
+      
+      const { data, error } = await supabase
+        .from('expense_claims')
+        .select(`
+          *,
+          projects!project_id(title)
+        `)
+        .eq('status', status)
+        .order('created_at', { ascending: false });
+      
+      if (error) {
+        logger.error('Error fetching expense claims from table:', error);
         return [];
       }
-      throw error;
+      
+      // Transform data to match expected format
+      return (data || []).map(claim => ({
+        ...claim,
+        receipt_number: claim.bill_number,
+        total_amount: claim.amount,
+        date: claim.expense_date,
+        user_id: claim.submitted_by,
+        project_title: claim.projects?.title
+      }));
     }
-    return data || [];
+    
+    throw viewError;
   } catch (error) {
     logger.error(`Error fetching ${status} expense claims:`, error);
     return [];

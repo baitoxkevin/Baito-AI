@@ -9,7 +9,7 @@ import { ShineBorder } from "@/components/ui/shine-border";
 import { cn } from "@/lib/utils";
 import type { Project } from '@/lib/types';
 import { statusGradients, priorityColors } from './constants';
-import { EditProjectDetailsDialog } from './EditProjectDetailsDialog';
+import { EditProjectDialogStepped } from '@/components/EditProjectDialogStepped';
 import {
   Activity,
   TrendingUp,
@@ -229,11 +229,11 @@ export function SpotlightCardOverview({
         </Card>
       </ShineBorder>
 
-      <EditProjectDetailsDialog
+      <EditProjectDialogStepped
         project={currentProject}
         open={editDialogOpen}
         onOpenChange={setEditDialogOpen}
-        onProjectUpdate={handleProjectUpdate}
+        onProjectUpdated={handleProjectUpdate}
       />
     </div>
   );

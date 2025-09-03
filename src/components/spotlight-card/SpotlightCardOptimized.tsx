@@ -1,4 +1,4 @@
-import React, { memo, lazy, Suspense, useCallback } from 'react';
+import React, { memo, lazy, Suspense, useCallback, forwardRef } from 'react';
 import { Loader2 } from 'lucide-react';
 import { SpotlightCardMinimized } from './SpotlightCardMinimized';
 import type { Project } from '@/lib/types';
@@ -24,19 +24,19 @@ const CardLoadingPlaceholder = () => (
   </div>
 );
 
-export const SpotlightCardOptimized = memo(({ 
+export const SpotlightCardOptimized = memo(forwardRef<HTMLDivElement, SpotlightCardOptimizedProps>(({ 
   project, 
   onProjectUpdated,
   onViewDetails,
   tasks = [],
   documents = [],
   expenseClaims = []
-}: SpotlightCardOptimizedProps) => {
-  // Track if card should be expanded
+}, ref) => {
+  // Track if card should be expanded - default to false for minimized appearance
   const storageKey = `spotlight-expanded-${project.id}`;
   const [isExpanded, setIsExpanded] = React.useState(() => {
-    const stored = localStorage.getItem(storageKey);
-    return stored === 'true';
+    // Always start minimized, ignore localStorage for initial state
+    return false;
   });
 
   // Track if component should be mounted (for lazy loading)
@@ -73,7 +73,7 @@ export const SpotlightCardOptimized = memo(({
       />
     </Suspense>
   );
-}, (prevProps, nextProps) => {
+}), (prevProps, nextProps) => {
   // Custom comparison function for memo
   // Only re-render if key properties change
   return (

@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { logger } from '../lib/logger';
+// import { checkProjectLocationsTable } from '@/lib/create-project-locations-table'; // Removed - Multiple Locations feature removed
 // Removed Calendar and Popover imports - using native date inputs instead
 import { cn } from '@/lib/utils';
 import { FileText, MapPin, Clock, Users, Cog, Palette, Share2, Check, ChevronRight, Building2, Loader2, Search, User } from 'lucide-react';
@@ -21,7 +22,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { BrandLogoSelector } from '@/components/BrandLogoSelector';
-import { ProjectLocationManager } from '@/components/ProjectLocationManager';
+// import { ProjectLocationManager } from '@/components/ProjectLocationManager'; // Removed - Multiple Locations feature removed
 
 type Step = 'project-info' | 'event-details' | 'location' | 'schedule' | 'staffing' | 'advanced' | 'review';
 
@@ -35,13 +36,7 @@ const formSchema = z.object({
   // venue_name: z.string().optional(), // Not in DB - only venue_address exists
   venue_address: z.string().optional(),
   venue_details: z.string().optional(), // This field exists in DB
-  locations: z.array(z.object({
-    id: z.string().optional(),
-    address: z.string().min(1, 'Address is required'),
-    date: z.string(),
-    is_primary: z.boolean(),
-    notes: z.string().optional(),
-  })).optional(),
+  // locations removed - Multiple Locations feature removed
   // contact_name: z.string().optional(), // Not in DB
   // contact_phone: z.string().optional(), // Not in DB
   // contact_email: z.string().email().optional().or(z.literal('')), // Not in DB
@@ -140,32 +135,7 @@ export function EditProjectDialogStepped({ project, open, onOpenChange, onProjec
     },
   });
 
-  const loadProjectLocations = useCallback(async (projectId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('project_locations')
-        .select('*')
-        .eq('project_id', projectId)
-        .order('is_primary', { ascending: false })
-        .order('date', { ascending: true });
-
-      if (error) {
-        // If table doesn't exist, just log and continue
-        if (error.code === '42P01') {
-          logger.warn('Project locations table does not exist yet');
-        } else {
-          logger.error('Failed to load project locations:', error);
-        }
-        return;
-      }
-
-      if (data && data.length > 0) {
-        form.setValue('locations', data);
-      }
-    } catch (error) {
-      logger.error('Error loading project locations:', error);
-    }
-  }, [form]);
+  // loadProjectLocations removed - Multiple Locations feature removed
 
   const fetchCompaniesAndManagers = useCallback(async () => {
     try {
@@ -192,11 +162,13 @@ export function EditProjectDialogStepped({ project, open, onOpenChange, onProjec
   useEffect(() => {
     if (open) {
       fetchCompaniesAndManagers();
+      // Locations table check removed - Multiple Locations feature removed
     }
   }, [open, fetchCompaniesAndManagers]);
 
   useEffect(() => {
-    if (project) {
+    if (project && open) {
+      console.log('Dialog opened for project:', project.id);
       form.reset({
         title: project.title || '',
         description: project.description || '',
@@ -232,15 +204,12 @@ export function EditProjectDialogStepped({ project, open, onOpenChange, onProjec
         // payment_terms: project.payment_terms || '', // Not in DB
         brand_name: project.brand_name || '',
         brand_logo: project.brand_logo || '',
-        locations: [], // Will be loaded separately
+        // locations removed - Multiple Locations feature removed
       });
       
-      // Load project locations
-      if (project.id) {
-        loadProjectLocations(project.id);
-      }
+      // Locations loading removed - Multiple Locations feature removed
     }
-  }, [project, form]);
+  }, [project, open, form]);
 
   const currentStepIndex = steps.findIndex(s => s.id === currentStep);
   const progressPercentage = ((currentStepIndex + 1) / steps.length) * 100;
@@ -301,8 +270,8 @@ export function EditProjectDialogStepped({ project, open, onOpenChange, onProjec
     try {
       setIsSubmitting(true);
 
-      // Extract locations from data
-      const { locations, ...projectData } = data;
+      // Locations removed - Multiple Locations feature removed
+      const projectData = data;
       
       const updateData: Record<string, unknown> = {
         ...projectData,
@@ -336,48 +305,7 @@ export function EditProjectDialogStepped({ project, open, onOpenChange, onProjec
 
       if (error) throw error;
 
-      // Handle locations update
-      if (locations && project.id) {
-        try {
-          // Delete existing locations
-          const { error: deleteError } = await supabase
-            .from('project_locations')
-            .delete()
-            .eq('project_id', project.id);
-
-          // Only log error if it's not a "table doesn't exist" error
-          if (deleteError && deleteError.code !== '42P01') {
-            logger.error('Failed to delete existing locations:', deleteError);
-          }
-
-          // Insert new locations if any
-          if (locations.length > 0) {
-            const locationsToInsert = locations.map(loc => ({
-              project_id: project.id,
-              address: loc.address,
-              date: loc.date,
-              is_primary: loc.is_primary,
-              notes: loc.notes || null
-            }));
-
-            const { error: locationsError } = await supabase
-              .from('project_locations')
-              .insert(locationsToInsert);
-
-            if (locationsError) {
-              // Only log error if it's not a "table doesn't exist" error
-              if (locationsError.code === '42P01') {
-                logger.warn('Project locations table does not exist yet - skipping locations save');
-              } else {
-                logger.error('Failed to save project locations:', locationsError);
-              }
-              // Don't fail the entire operation if locations fail
-            }
-          }
-        } catch (locError) {
-          logger.error('Error updating project locations:', locError);
-        }
-      }
+      // Locations saving removed - Multiple Locations feature removed
 
       // Fetch manager information if manager_id exists
       const projectWithDetails = { ...updatedProject };
@@ -822,37 +750,6 @@ export function EditProjectDialogStepped({ project, open, onOpenChange, onProjec
               )}
             />
             
-            {/* Multiple Locations Support */}
-            <div className="space-y-4 mt-6">
-              <Separator />
-              <div>
-                <h4 className="text-sm font-medium mb-1">Multiple Locations</h4>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Add multiple venues for events happening at different locations
-                </p>
-              </div>
-              
-              <FormField
-                control={form.control}
-                name="locations"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormControl>
-                      <ProjectLocationManager
-                        locations={field.value || []}
-                        onChange={field.onChange}
-                        projectDates={{
-                          start: form.watch('start_date'),
-                          end: form.watch('end_date')
-                        }}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-            
             {/* Contact fields don't exist in the database
             <Separator className="my-4" />
             <h4 className="text-sm font-medium">Contact Information</h4>
@@ -1269,8 +1166,8 @@ export function EditProjectDialogStepped({ project, open, onOpenChange, onProjec
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl h-[80vh] p-0">
-        <div className="flex h-full relative">
+      <DialogContent className="fixed left-[50%] top-[50%] translate-x-[-50%] translate-y-[-50%] max-w-4xl w-[90vw] max-h-[85vh] p-0 overflow-hidden bg-white dark:bg-gray-900 rounded-lg shadow-2xl">
+        <div className="flex h-[85vh] relative">
           {/* Sidebar */}
           <div className="w-64 bg-gray-50 dark:bg-gray-900 p-6 border-r">
             <DialogHeader className="mb-6 relative">

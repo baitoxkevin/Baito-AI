@@ -74,11 +74,14 @@ import { deleteProject } from '@/lib/projects';
 // import { dummyProjects } from '@/lib/dummy-data';
 import { sortProjects, filterProjects, groupProjects, getGroupIcon, ProjectGroupType } from '@/lib/project-utils';
 import type { Project } from '@/lib/types';
+import { getCachedYearProjectsCount } from '@/lib/year-statistics';
 
 export default function ProjectsPageRedesign() {
   // State for project data and UI
   const [projects, setProjects] = usePersistentState<Record<number, any[]>>('projects-data', {});
   const [activeMonth, setActiveMonth] = usePersistentState('projects-active-month', new Date().getMonth());
+  const [yearProjectsCount, setYearProjectsCount] = useState<number>(0);
+  const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
   const [newProjectDialogOpen, setNewProjectDialogOpen] = useState(false);
   // editDialogOpen removed
   const [selectedProject] = useState<unknown>(null);
@@ -109,6 +112,21 @@ export default function ProjectsPageRedesign() {
       setActiveFilter('all');
     }
   }, []);
+  
+  // Load year projects count
+  useEffect(() => {
+    const loadYearCount = async () => {
+      const count = await getCachedYearProjectsCount(currentYear);
+      setYearProjectsCount(count);
+    };
+    
+    loadYearCount();
+    
+    // Refresh count every minute
+    const interval = setInterval(loadYearCount, 60000);
+    return () => clearInterval(interval);
+  }, [currentYear]);
+  
   const { toast } = useToast();
   
   // Load projects for a specific month
@@ -207,7 +225,12 @@ export default function ProjectsPageRedesign() {
             (projectStartDate <= startOfMonth && projectEndDate >= endOfMonth)
           );
           
-          if (projectOverlapsMonth && newProjects[monthIndex]) {
+          if (projectOverlapsMonth) {
+            // Initialize month array if it doesn't exist
+            if (!newProjects[monthIndex]) {
+              newProjects[monthIndex] = [];
+            }
+            
             // Check if project already exists in this month
             const existingIndex = newProjects[monthIndex].findIndex(p => p.id === updatedProject.id);
             
@@ -377,7 +400,7 @@ export default function ProjectsPageRedesign() {
 
   // Find user's projects (where user is manager, client, or collaborator)
   const myProjects = useMemo(() => {
-    if (!currentUserId) return [];
+    if (!currentUserId || !filteredProjects || !Array.isArray(filteredProjects)) return [];
     
     return filteredProjects.filter(project => {
       // Check if user is the manager
@@ -417,8 +440,8 @@ export default function ProjectsPageRedesign() {
   // Group projects by the selected grouping method
   const groupedProjects = useMemo(() => {
     // Filter out user's projects from the general groups
-    const myProjectIds = new Set(myProjects.map(p => p.id));
-    const projectsWithoutMine = filteredProjects.filter(p => !myProjectIds.has(p.id));
+    const myProjectIds = new Set((myProjects || []).map(p => p.id));
+    const projectsWithoutMine = (filteredProjects || []).filter(p => !myProjectIds.has(p.id));
       
     // Always use 'none' grouping to show all projects together
     return groupProjects(
@@ -584,12 +607,29 @@ export default function ProjectsPageRedesign() {
                 {/* Total projects this year widget */}
                 <div className="metric-card col-span-1 bg-gradient-to-br from-purple-500 to-indigo-600 dark:from-purple-700 dark:to-indigo-800 rounded-xl border border-purple-300/30 dark:border-purple-800/30 shadow-sm p-4 flex flex-col overflow-hidden relative">
                   <div className="flex justify-between items-center">
-                    <span className="text-xs font-medium text-white">All Projects {new Date().getFullYear()}</span>
-                    <CalendarRange className="h-4 w-4 text-white/80" />
+                    <span className="text-xs font-medium text-white">All Projects {currentYear}</span>
+                    <div className="flex items-center gap-1">
+                      <button 
+                        onClick={() => setCurrentYear(prev => prev - 1)}
+                        className="text-white/80 hover:text-white text-xs p-0.5"
+                      >
+                        ←
+                      </button>
+                      <CalendarRange className="h-4 w-4 text-white/80" />
+                      <button 
+                        onClick={() => setCurrentYear(prev => prev + 1)}
+                        className="text-white/80 hover:text-white text-xs p-0.5"
+                      >
+                        →
+                      </button>
+                    </div>
                   </div>
                   <div className="flex-grow flex flex-col justify-center items-center">
-                    <div className="text-4xl font-bold text-white">{Object.values(projects).flat().length}</div>
+                    <div className="text-4xl font-bold text-white">{yearProjectsCount}</div>
                   </div>
+                  
+                  {/* Decorative circle */}
+                  <div className="absolute -bottom-8 -right-8 w-32 h-32 bg-white/10 rounded-full"></div>
                 </div>
               </div>
             </div>
@@ -796,18 +836,7 @@ export default function ProjectsPageRedesign() {
                       </Badge>
                     </h2>
                     
-                    {/* Use VirtualizedProjectGrid for better performance with many projects */}
-                    {myProjects.length > 6 ? (
-                    <div className="h-[600px]">
-                      <VirtualizedProjectGrid
-                        projects={myProjects}
-                        onProjectUpdated={handleProjectsUpdated}
-                        onViewDetails={handleViewDetails}
-                        columns={3}
-                        rowHeight={280}
-                      />
-                    </div>
-                  ) : (
+                    {/* Always use regular grid layout for consistent display */}
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                       {myProjects.map((project) => (
                         <SpotlightCardOptimized 
@@ -821,7 +850,6 @@ export default function ProjectsPageRedesign() {
                         />
                       ))}
                     </div>
-                    )}
                   </section>
                 </Profiler>
               )}
@@ -844,34 +872,22 @@ export default function ProjectsPageRedesign() {
                       </Badge>
                     </h2>
                     
-                    {/* Use VirtualizedProjectGrid for better performance with many projects */}
-                    {projects.length > 9 ? (
-                      <div className="h-[800px]">
-                        <VirtualizedProjectGrid
-                          projects={projects}
-                          onProjectUpdated={handleProjectsUpdated}
-                          onViewDetails={handleViewDetails}
-                          columns={3}
-                          rowHeight={280}
-                        />
-                      </div>
-                    ) : (
-                      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                        <AnimatePresence mode="popLayout">
-                          {projects.map((project) => (
-                            <SpotlightCardOptimized
-                              key={project.id}
-                              project={project}
-                              onProjectUpdated={handleProjectsUpdated}
-                              onViewDetails={handleViewDetails}
-                              tasks={project.tasks || []}
-                              documents={project.documents || []}
-                              expenseClaims={project.expense_claims || []}
-                            />
-                          ))}
-                        </AnimatePresence>
-                      </div>
-                    )}
+                    {/* Always use regular grid layout for consistent display */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                      <AnimatePresence mode="popLayout">
+                        {projects.map((project) => (
+                          <SpotlightCardOptimized
+                            key={project.id}
+                            project={project}
+                            onProjectUpdated={handleProjectsUpdated}
+                            onViewDetails={handleViewDetails}
+                            tasks={project.tasks || []}
+                            documents={project.documents || []}
+                            expenseClaims={project.expense_claims || []}
+                          />
+                        ))}
+                      </AnimatePresence>
+                    </div>
                   </motion.section>
                 )
               ))}
