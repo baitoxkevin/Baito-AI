@@ -6,6 +6,13 @@
   NODE_VERSION = "18"
   NPM_FLAGS = "--production=false"
 
+# Use modern build image (Ubuntu Focal 20.04 for Node 18 compatibility)
+[context.deploy-preview]
+  environment = { AWS_LAMBDA_JS_RUNTIME = "nodejs18.x" }
+
+[context.production]
+  environment = { AWS_LAMBDA_JS_RUNTIME = "nodejs18.x" }
+
 [context.production.environment]
   NODE_ENV = "production"
 
