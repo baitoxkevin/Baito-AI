@@ -25,6 +25,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import NewCompanyDialog from '@/components/NewCompanyDialog';
 import NewCandidateDialog from '@/components/NewCandidateDialog';
 import NewUserDialog from '@/components/NewUserDialog';
+import { PerformanceMonitor } from '@/components/PerformanceMonitor';
 import type { Company, Candidate, User } from '@/lib/types';
 import { getUserProfile } from '@/lib/auth';
 
@@ -644,11 +645,12 @@ export default function SettingsPage() {
           <h3 className="text-lg font-medium mb-4">Other Settings</h3>
           
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-4">
+            <TabsList className="grid w-full grid-cols-5">
               <TabsTrigger value="candidates">Candidates</TabsTrigger>
               <TabsTrigger value="staff">Staff Management</TabsTrigger>
               <TabsTrigger value="auth">Auth Check</TabsTrigger>
               <TabsTrigger value="admin">Admin</TabsTrigger>
+              <TabsTrigger value="performance">Performance</TabsTrigger>
             </TabsList>
           
           {/* Candidates Tab */}
@@ -1082,6 +1084,11 @@ export default function SettingsPage() {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Performance Tab */}
+        <TabsContent value="performance" className="space-y-4">
+          <PerformanceMonitor />
         </TabsContent>
       </Tabs>
       </div>

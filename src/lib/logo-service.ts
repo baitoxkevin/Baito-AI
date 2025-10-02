@@ -141,6 +141,9 @@ export class LogoService {
       'mamee': 'mamee.com',
       'gardenia': 'gardenia.com.my',
       'massimo': 'massimo.com.my',
+      'mrdiy': 'mrdiy.com.my',
+      'mr diy': 'mrdiy.com.my',
+      'mr.diy': 'mrdiy.com.my',
     };
 
     const mappedDomain = brandMappings[cleanName];
@@ -339,6 +342,9 @@ export async function fetchMultipleBrandLogos(brandName: string): Promise<Array<
     'airasia': 'airasia.com',
     'grab': 'grab.com',
     'shopee': 'shopee.com.my',
+    'mrdiy': 'mrdiy.com.my',
+    'mr diy': 'mrdiy.com.my',
+    'mr.diy': 'mrdiy.com.my',
   };
   
   const lowerBrand = normalizedBrand.toLowerCase().trim();

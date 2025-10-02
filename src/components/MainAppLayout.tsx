@@ -1,4 +1,4 @@
-import { useState, useEffect, Suspense, lazy } from 'react';
+import React, { useState, useEffect, Suspense, lazy, useMemo, memo } from 'react';
 import { useParams, useLocation, Navigate } from 'react-router-dom';
 import { useTheme } from 'next-themes';
 import SidebarAdapter from '@/components/SidebarAdapter';
@@ -26,15 +26,15 @@ interface MainAppLayoutProps {
   effectActive: boolean;
 }
 
-const MainAppLayout = ({ effectActive }: MainAppLayoutProps) => {
+const MainAppLayout = memo(({ effectActive }: MainAppLayoutProps) => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const params = useParams();
   const projectId = params.projectId;
   const location = useLocation();
   const { theme } = useTheme();
 
-  // Determine active view based on the current route
-  const getActiveView = () => {
+  // Determine active view based on the current route - memoized
+  const activeView = useMemo(() => {
     const pathname = location.pathname;
 
     if (projectId) return 'project-detail';
@@ -52,16 +52,23 @@ const MainAppLayout = ({ effectActive }: MainAppLayoutProps) => {
     if (pathname.startsWith('/warehouse')) return 'warehouse';
 
     return 'dashboard'; // default
-  };
-
-  const activeView = getActiveView();
+  }, [location.pathname, projectId]);
 
 
   useEffect(() => {
     const checkAuth = async () => {
       try {
+        // First check for an existing session
         const session = await getSession();
-        setIsAuthenticated(!!session);
+        if (session) {
+          setIsAuthenticated(true);
+          return;
+        }
+        
+        // If no session, wait a bit and check again (handles race conditions)
+        await new Promise(resolve => setTimeout(resolve, 200));
+        const retrySession = await getSession();
+        setIsAuthenticated(!!retrySession);
       } catch (error) {
         logger.error('Auth check failed:', error);
         setIsAuthenticated(false);
@@ -71,11 +78,14 @@ const MainAppLayout = ({ effectActive }: MainAppLayoutProps) => {
     checkAuth();
 
     // Listen for auth state changes
-    const { data: authListener } = supabase.auth.onAuthStateChange((event) => {
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_OUT') {
         setIsAuthenticated(false);
-      } else if (event === 'SIGNED_IN') {
+      } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
         setIsAuthenticated(true);
+      } else if (event === 'INITIAL_SESSION') {
+        // Handle initial session on page load
+        setIsAuthenticated(!!session);
       }
     });
 
@@ -202,6 +212,6 @@ const MainAppLayout = ({ effectActive }: MainAppLayoutProps) => {
       {/* {import.meta.env.DEV && <QuickAuthCheck />} */}
     </div>
   );
-};
+});
 
 export default MainAppLayout;

@@ -12,6 +12,9 @@ import CandidateDashboardPage from './pages/CandidateDashboardPage';
 import JobDiscoveryPage from './pages/JobDiscoveryPage'; // Added
 import SetPasswordPage from './pages/SetPasswordPage';
 import LocationFeatureDemo from './pages/LocationFeatureDemo';
+import DatePickerTestPage from './pages/DatePickerTestPage';
+import AmountInputTestPage from './pages/AmountInputTestPage';
+import StaffDashboardPage from './pages/StaffDashboardPage';
 import { renderCanvas } from './components/ui/canvas';
 import { SpotlightCommand } from './components/SpotlightCommand';
 import { GlobalErrorBoundary } from './components/GlobalErrorBoundary';
@@ -87,6 +90,7 @@ function App() {
           <Route path="/set-password" element={<SetPasswordPage />} />
           <Route path="/receipt-scanner" element={<ReceiptScannerPage />} />
           <Route path="/job-discovery" element={<JobDiscoveryPage />} /> {/* Added Route */}
+          <Route path="/staff-dashboard" element={<StaffDashboardPage />} />
           <Route path="/location-feature-demo" element={<LocationFeatureDemo />} />
           {/* Candidate update routes with secure token */}
           <Route path="/candidate-update-mobile/:candidateId" element={<MobileCandidateUpdatePage />} />
@@ -145,6 +149,14 @@ function App() {
           <Route 
             path="/settings" 
             element={<MainAppLayout effectActive={effectActive} />} 
+          />
+          <Route 
+            path="/date-picker-test" 
+            element={<DatePickerTestPage />} 
+          />
+          <Route 
+            path="/amount-input-test" 
+            element={<AmountInputTestPage />} 
           />
           <Route 
             path="/payments" 

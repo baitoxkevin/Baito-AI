@@ -18,6 +18,7 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { AmountInput } from '@/components/ui/amount-input';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import {
@@ -527,19 +528,17 @@ export function ExpenseClaimFormWithDragDrop({
                               Amount (RM) *
                             </FormLabel>
                             <FormControl>
-                              <div className="relative">
-                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium text-gray-500">
-                                  RM
-                                </span>
-                                <Input
-                                  placeholder="0.00"
-                                  className="pl-10 h-11"
-                                  type="number"
-                                  step="0.01"
-                                  {...field}
-                                  required
-                                />
-                              </div>
+                              <AmountInput
+                                placeholder="0.00"
+                                className="h-11"
+                                currency="RM"
+                                preventSelectAll={true}
+                                formatOnBlur={true}
+                                minValue={0}
+                                value={field.value}
+                                onChange={field.onChange}
+                                required
+                              />
                             </FormControl>
                             <FormMessage />
                           </FormItem>

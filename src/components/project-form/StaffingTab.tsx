@@ -395,6 +395,67 @@ const StaffingTab = ({
     }
   };
   
+  // Batch add applicants implementation with optimized performance
+  const batchAddApplicants = useCallback(async (newApplicantsList: StaffMember[]) => {
+    if (!setApplicants) return;
+
+    // Filter out duplicates
+    const uniqueNewApplicants = newApplicantsList.filter(
+      newApp => !applicants.some(existingApp => existingApp.id === newApp.id)
+    );
+
+    if (uniqueNewApplicants.length === 0) {
+      toast({
+        title: "All candidates already exist",
+        description: "These candidates are already in the applicants list",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      // Update local state immediately for instant UI feedback
+      const updatedApplicants = [...applicants, ...uniqueNewApplicants];
+      setApplicants(updatedApplicants);
+
+      // Show success toast immediately
+      toast({
+        title: "Applicants Added",
+        description: `Successfully added ${uniqueNewApplicants.length} applicant${uniqueNewApplicants.length > 1 ? 's' : ''}`,
+      });
+
+      // Update database asynchronously in the background
+      if (projectId) {
+        const { error } = await supabase
+          .from('projects')
+          .update({
+            applicants: updatedApplicants.map(app => ({
+              candidate_id: app.id,
+              name: app.name,
+              photo: app.photo,
+              position: app.designation,
+              status: app.status,
+              applied_date: app.appliedDate
+            }))
+          })
+          .eq('id', projectId);
+
+        if (error) {
+          // If database update fails, rollback the local state
+          setApplicants(applicants);
+          throw error;
+        }
+      }
+    } catch (error) {
+      console.error('Error adding applicants:', error);
+      toast({
+        title: "Error",
+        description: "Failed to add applicants to database. Changes were reverted.",
+        variant: "destructive"
+      });
+    }
+  }, [applicants, setApplicants, projectId, toast]);
+
   // Standalone implementation for adding applicants
   const effectiveHandleAddApplicant = async (applicant: StaffMember) => {
     if (!setApplicants) return;
@@ -639,22 +700,24 @@ const StaffingTab = ({
   
   // Add a flag to track if we've already fetched
   const [hasFetchedCandidates, setHasFetchedCandidates] = useState(false);
-  
-  // Fetch candidates from database
+  const [isFetchingCandidates, setIsFetchingCandidates] = useState(false);
+
+  // Fetch candidates from database - only once on component mount
   useEffect(() => {
-    if (hasFetchedCandidates) return; // Prevent duplicate fetches
-    
+    // Prevent duplicate fetches or if already fetching
+    if (hasFetchedCandidates || isFetchingCandidates) return;
+
     const fetchCandidates = async () => {
       try {
-        // logger.debug('[StaffingTab] Starting to fetch candidates from database...');
-        setHasFetchedCandidates(true); // Mark as fetched immediately
-        
+        setIsFetchingCandidates(true);
+        setHasFetchedCandidates(true); // Mark as fetched immediately to prevent duplicate calls
+
         const { data, error } = await supabase
           .from('candidates')
           .select('id, full_name, phone_number, profile_photo')
           .eq('is_banned', false)
           .order('full_name');
-          
+
         if (error) {
           logger.error('[StaffingTab] Database error:', error);
           toast({
@@ -662,10 +725,11 @@ const StaffingTab = ({
             description: error.message,
             variant: "destructive"
           });
+          // Reset fetch flag on error to allow retry
+          setHasFetchedCandidates(false);
           return;
         }
-        
-        
+
         // Transform candidates to match our interface
         const transformedCandidates = (data || []).map(candidate => ({
           id: candidate.id,
@@ -673,8 +737,7 @@ const StaffingTab = ({
           designation: candidate.phone_number ? `Phone: ${candidate.phone_number}` : undefined,
           photo: candidate.profile_photo // Use profile_photo field from database
         }));
-        
-        // logger.debug('[StaffingTab] Transformed candidates:', { data: transformedCandidates.length });
+
         setDatabaseCandidates(transformedCandidates);
       } catch (error) {
         logger.error('[StaffingTab] Error in fetchCandidates:', error);
@@ -683,11 +746,15 @@ const StaffingTab = ({
           description: "Failed to load candidates from database",
           variant: "destructive"
         });
+        // Reset fetch flag on error to allow retry
+        setHasFetchedCandidates(false);
+      } finally {
+        setIsFetchingCandidates(false);
       }
     };
-    
+
     fetchCandidates();
-  }, [hasFetchedCandidates]); // Only fetch once
+  }, [hasFetchedCandidates, isFetchingCandidates]); // Depend on both flags
   
   // Create stable arrays for memo dependencies
   const assignedIdsArray = useMemo(() => {
@@ -1108,7 +1175,7 @@ const StaffingTab = ({
 
   return (
     <div className="w-full py-4">
-      <div className="max-h-[calc(100vh-350px)] overflow-y-auto px-1">
+      <div className="px-1">
       {/* Assigned Staff Members */}
       <div className="mb-8">
         <div className="flex items-center justify-between mb-4">
@@ -1738,16 +1805,31 @@ const StaffingTab = ({
       {/* Add Candidate Dialog */}
       <AddCandidateRedesigned
         isOpen={showAddCandidateDialog}
-        onOpenChange={setShowAddCandidateDialog}
-        onAddCandidate={(candidateId: string, candidateName: string, candidatePhoto?: string, designation?: string) => {
-          effectiveHandleAddApplicant({
-            id: candidateId,
-            name: candidateName,
-            photo: candidatePhoto,
-            designation: designation || 'Crew',
-            status: 'pending',
+        onOpenChange={(open) => {
+          setShowAddCandidateDialog(open);
+          // If dialog is closing after adding candidates, update the local candidates list
+          if (!open && hasFetchedCandidates) {
+            // Trigger a re-computation of available candidates
+            // by updating the database candidates with current staff/applicants
+            const allAssignedIds = new Set([
+              ...confirmedStaff.map(s => s.id),
+              ...applicants.map(a => a.id)
+            ]);
+            // Filter database candidates to exclude newly added ones
+            setDatabaseCandidates(prev => prev.filter(c => !allAssignedIds.has(c.id)));
+          }
+        }}
+        onBatchAddCandidates={(candidatesToAdd) => {
+          const newApplicants = candidatesToAdd.map(candidate => ({
+            id: candidate.id,
+            name: candidate.name,
+            photo: candidate.photo,
+            designation: candidate.designation || 'Crew',
+            status: 'pending' as const,
             appliedDate: new Date()
-          });
+          }));
+
+          batchAddApplicants(newApplicants);
         }}
         existingStaffIds={confirmedStaff.map(s => s.id)}
         existingApplicantIds={applicants.map(a => a.id)}

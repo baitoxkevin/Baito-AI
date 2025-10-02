@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { AmountInput } from "@/components/ui/amount-input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
@@ -373,14 +374,16 @@ const ExpensesTab = ({ expenses, setExpenses, projectId }: ExpensesTabProps) => 
               </div>
               
               <div className="grid gap-2">
-                <Label htmlFor="expenseAmount">Amount*</Label>
-                <Input
+                <Label htmlFor="expenseAmount">Amount (RM)*</Label>
+                <AmountInput
                   id="expenseAmount"
-                  type="number"
-                  step="0.01"
-                  value={newExpense.amount}
-                  onChange={(e) => setNewExpense({ ...newExpense, amount: parseFloat(e.target.value) || 0 })}
+                  value={newExpense.amount.toString()}
+                  onChange={(value) => setNewExpense({ ...newExpense, amount: parseFloat(value) || 0 })}
                   placeholder="0.00"
+                  currency="RM"
+                  preventSelectAll={true}
+                  formatOnBlur={true}
+                  minValue={0}
                 />
               </div>
               

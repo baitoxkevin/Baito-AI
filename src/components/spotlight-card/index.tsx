@@ -207,8 +207,8 @@ interface SpotlightCardProps {
   expenseClaims: unknown[];
 }
 
-export function SpotlightCard({ 
-  project, 
+export const SpotlightCard = React.memo(function SpotlightCard({
+  project,
   onProjectUpdated,
   onViewDetails,
   documents = [],
@@ -945,7 +945,7 @@ export function SpotlightCard({
                     )}
                     
                     {activeTab === 'staffing' && (
-                      <div className="bg-white dark:bg-slate-800 rounded-lg p-6 h-full flex flex-col">
+                      <div className="bg-white dark:bg-slate-800 rounded-lg p-6 h-full overflow-y-auto">
                         <StaffingTab
                           confirmedStaff={confirmedStaff}
                           setConfirmedStaff={(newConfirmedStaff) => {
@@ -1584,7 +1584,7 @@ export function SpotlightCard({
       </Dialog>
     </>
   );
-}
+});
 
 // Separate component for Schedule tab to improve performance
 function ScheduleTabContent({ 

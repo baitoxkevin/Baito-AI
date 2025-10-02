@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
 import type { Project, User, Client } from './types';
 import { getUser } from './auth';
+import { activityLogger } from './activity-logger';
 
 // Add event colors for dummy data and fallback colors
 const eventColors = {
@@ -58,9 +59,10 @@ export async function fetchProjects(): Promise<Project[]> {
       };
     });
 
-    // Fetch related client and manager data in a batch
+    // Fetch related client, manager, and creator data in a batch
     const clientIds = projects.filter(p => p.client_id).map(p => p.client_id);
     const managerIds = projects.filter(p => p.manager_id).map(p => p.manager_id);
+    const creatorIds = projects.filter(p => p.created_by).map(p => p.created_by!);
 
     // Only fetch if we have IDs to look up
     if (clientIds.length > 0) {
@@ -123,14 +125,14 @@ export async function fetchProjects(): Promise<Project[]> {
           .from('users')
           .select('*')
           .in('id', managerIds);
-          
+
         if (managersData && managersData.length > 0) {
           // Create a map for quick lookup
           const managerMap = managersData.reduce((map, manager) => {
             map[manager.id] = manager;
             return map;
           }, {} as Record<string, any>);
-          
+
           // Add manager data to projects
           projects.forEach(project => {
             if (project.manager_id && managerMap[project.manager_id]) {
@@ -140,6 +142,34 @@ export async function fetchProjects(): Promise<Project[]> {
         }
       } catch (error) {
         console.warn('Error fetching manager data:', error);
+      }
+    }
+
+    // Fetch creator data
+    if (creatorIds.length > 0) {
+      try {
+        const { data: creatorsData } = await supabase
+          .from('users')
+          .select('id, full_name, email')
+          .in('id', creatorIds);
+
+        if (creatorsData && creatorsData.length > 0) {
+          // Create a map for quick lookup
+          const creatorMap = creatorsData.reduce((map, creator) => {
+            map[creator.id] = creator;
+            return map;
+          }, {} as Record<string, any>);
+
+          // Add creator name to projects (store as string for display)
+          projects.forEach(project => {
+            if (project.created_by && creatorMap[project.created_by]) {
+              const creator = creatorMap[project.created_by];
+              (project as any).creator_name = creator.full_name || creator.email || 'Unknown User';
+            }
+          });
+        }
+      } catch (error) {
+        console.warn('Error fetching creator data:', error);
       }
     }
 
@@ -212,12 +242,12 @@ export async function fetchProjectsByMonth(year: number, month: number): Promise
       .from('projects')
       .select('*')
       .is('deleted_at', null)
-      // This OR query finds projects that:
-      // 1. Start within or after our expanded range
-      // 2. End within or after our expanded range
-      // 3. Start before and end after our expanded range (spanning it)
-      .or(`start_date.gte.${expandedStartStr},start_date.lte.${expandedEndStr}`)
-      .or(`end_date.gte.${expandedStartStr},end_date.lte.${expandedEndStr}`)
+      // This OR query finds projects that overlap with the expanded date range
+      // Projects that either:
+      // 1. Start within the expanded range
+      // 2. End within the expanded range  
+      // 3. Span across the entire range (start before and end after)
+      .or(`start_date.gte.${expandedStartStr},start_date.lte.${expandedEndStr},end_date.gte.${expandedStartStr},end_date.lte.${expandedEndStr},and(start_date.lte.${expandedStartStr},end_date.gte.${expandedEndStr})`)
       .order('start_date', { ascending: true });
     
     if (error) {
@@ -332,15 +362,18 @@ export async function fetchProjectsByMonth(year: number, month: number): Promise
 export async function createProject(project: Omit<Project, 'id'>): Promise<Project | null> {
   console.log('[projects.ts] createProject - Function start. Input project data:', JSON.stringify(project, null, 2));
   try {
+    // Get current user to set as creator
+    const currentUser = await getUser();
+
     // Remove fields that don't exist in the database or shouldn't be inserted
-    const { 
-      logo_url, 
-      client, 
-      manager, 
-      confirmed_staff, 
-      applicants, 
+    const {
+      logo_url,
+      client,
+      manager,
+      confirmed_staff,
+      applicants,
       locations,
-      ...projectToInsert 
+      ...projectToInsert
     } = project;
 
     // Ensure all required fields are present
@@ -349,6 +382,7 @@ export async function createProject(project: Omit<Project, 'id'>): Promise<Proje
       filled_positions: projectToInsert.filled_positions ?? 0,
       supervisors_required: projectToInsert.supervisors_required ?? 0,
       color: projectToInsert.color || eventColors[projectToInsert.event_type as keyof typeof eventColors] || eventColors.default,
+      created_by: currentUser?.id || null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
@@ -367,7 +401,28 @@ export async function createProject(project: Omit<Project, 'id'>): Promise<Proje
     }
 
     console.log('[projects.ts] createProject - Supabase response data:', JSON.stringify(data, null, 2));
-    
+
+    // Log project creation activity
+    try {
+      await activityLogger.log({
+        action: 'create_project',
+        activity_type: 'data_change',
+        project_id: data.id,
+        details: {
+          project_title: data.title,
+          event_type: data.event_type,
+          start_date: data.start_date,
+          end_date: data.end_date,
+          crew_count: data.crew_count,
+          created_by: currentUser?.id,
+          creator_name: currentUser?.full_name || currentUser?.email || 'Unknown User'
+        }
+      });
+    } catch (logError) {
+      console.warn('[projects.ts] createProject - Failed to log activity:', logError);
+      // Don't fail the creation if logging fails
+    }
+
     // Return the complete project
     const completeProject = {
       ...data,

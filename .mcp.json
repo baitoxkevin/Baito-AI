@@ -1,13 +1,11 @@
 {
   "mcpServers": {
     "supabase": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@supabase/mcp-server-supabase@latest",
-        "--access-token",
-        "***REMOVED***"
-      ]
+      "type": "http",
+      "url": "https://mcp.supabase.com/mcp?project_ref=aoiwrdzlichescqgnohi",
+      "headers": {
+        "Authorization": "Bearer sbp_16987deaa8ff445fde3f7da3a661d89153147e43"
+      }
     },
     "magicuidesign-mcp": {
       "command": "npx",
@@ -20,6 +18,10 @@
     "context7": {
       "command": "npx",
       "args": ["-y", "@upstash/context7-mcp"]
+    },
+    "chrome-devtools": {
+      "command": "npx",
+      "args": ["chrome-devtools-mcp@latest"]
     }
   }
 }

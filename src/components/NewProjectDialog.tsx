@@ -48,6 +48,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -55,6 +65,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import { AmountInput } from "@/components/ui/amount-input";
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import {
   Popover,
@@ -122,8 +133,8 @@ const projectSchema = z.object({
     required_error: 'Start date is required',
   }),
   end_date: z.date().optional(),
-  working_hours_start: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Invalid time format'),
-  working_hours_end: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Invalid time format'),
+  working_hours_start: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Please use HH:MM format (e.g., 09:00)'),
+  working_hours_end: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Please use HH:MM format (e.g., 18:00)'),
   schedule_type: z.string().optional().default('single'),
   
   // Staffing
@@ -175,6 +186,9 @@ export function NewProjectDialog({
   const [contactsError, setContactsError] = useState<string | null>(null);
   const [showLogoSelector, setShowLogoSelector] = useState(false);
   const [currentBrandName, setCurrentBrandName] = useState('');
+  const [brandLogoError, setBrandLogoError] = useState(false);
+  const [showCCResetConfirm, setShowCCResetConfirm] = useState(false);
+  const [pendingClientId, setPendingClientId] = useState<string | null>(null);
   const { toast } = useToast();
 
   const form = useForm<ProjectFormValues>({
@@ -246,6 +260,7 @@ export function NewProjectDialog({
       setVisitedSteps(new Set(['project-info']));
       setShowLogoSelector(false);
       setCurrentBrandName('');
+      setBrandLogoError(false);
       setIsLoading(false);
       
       // Fetch fresh data
@@ -257,12 +272,17 @@ export function NewProjectDialog({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  // Clear CC contacts when customer changes
+  // Handle CC contacts when customer changes
   useEffect(() => {
     const subscription = form.watch((value, { name }) => {
-      if (name === 'client_id') {
-        // Clear CC contacts when customer changes
-        form.setValue('cc_client_ids', []);
+      if (name === 'client_id' && value.client_id) {
+        const currentCCContacts = form.getValues('cc_client_ids') || [];
+
+        // If there are CC contacts selected, show confirmation
+        if (currentCCContacts.length > 0) {
+          setPendingClientId(value.client_id);
+          setShowCCResetConfirm(true);
+        }
       }
     });
     return () => subscription.unsubscribe();
@@ -271,7 +291,8 @@ export function NewProjectDialog({
   const fetchCustomersAndManagers = async () => {
     setIsLoadingContacts(true);
     setContactsError(null);
-    
+    setIsDataLoaded(false);
+
     try {
       const [companiesResult, contactsResult, managersResult] = await Promise.all([
         supabase.from('companies').select('id, name, company_name, logo_url').order('name'),
@@ -312,7 +333,8 @@ export function NewProjectDialog({
         setCustomers(fallbackCustomers);
         setManagers(fallbackManagers);
         setIsDataLoaded(true);
-        
+        setIsLoadingContacts(false);
+
         // Still try to use contacts if they loaded successfully
         if (!contactsResult.error && contactsResult.data) {
           setContacts(contactsResult.data.map(contact => ({
@@ -357,6 +379,7 @@ export function NewProjectDialog({
 
       setManagers(managersResult.data || []);
       setIsDataLoaded(true);
+      setIsLoadingContacts(false);
     } catch (error) {
       logger.error('Error fetching data:', error);
       
@@ -372,7 +395,8 @@ export function NewProjectDialog({
       setManagers(emergencyManager);
       setContacts([]);
       setIsDataLoaded(true);
-      
+      setIsLoadingContacts(false);
+
       toast({
         title: "Limited Functionality",
         description: "Could not load full data. Basic options are available.",
@@ -400,8 +424,8 @@ export function NewProjectDialog({
     } else {
       // Show validation errors
       toast({
-        title: "请填写必填字段",
-        description: "请检查并填写所有标记为红色的必填字段",
+        title: "Please fill in required fields",
+        description: "Check and fill all required fields marked in red",
         variant: "destructive",
       });
     }
@@ -440,8 +464,8 @@ export function NewProjectDialog({
     const isFormValid = await form.trigger();
     if (!isFormValid) {
       toast({
-        title: "表单验证失败",
-        description: "请检查所有必填字段是否已正确填写",
+        title: "Form validation failed",
+        description: "Please check that all required fields are filled correctly",
         variant: "destructive",
       });
       return;
@@ -642,37 +666,43 @@ export function NewProjectDialog({
                                 className="h-9"
                               />
                               <CommandList>
-                                <CommandEmpty>No customer found.</CommandEmpty>
+                                <CommandEmpty>
+                                  {isLoadingContacts ? "Loading customers..." : "No customer found."}
+                                </CommandEmpty>
                                 <CommandGroup>
-                                  {Array.isArray(customers) && customers.map((customer) => (
-                                    <CommandItem
-                                      key={customer.id}
-                                      value={`${customer.company_name || customer.full_name} ${customer.id}`}
-                                      onSelect={() => {
-                                        field.onChange(customer.id);
-                                        setOpenCustomer(false);
-                                      }}
-                                      className="cursor-pointer"
-                                    >
-                                      <div className="flex items-center gap-2 w-full">
-                                        {customer.logo_url ? (
-                                          <img 
-                                            src={customer.logo_url} 
-                                            alt={customer.company_name || customer.full_name}
-                                            className="h-5 w-5 rounded object-cover flex-shrink-0"
-                                          />
-                                        ) : (
-                                          <Building2 className="h-4 w-4 text-gray-500 flex-shrink-0" />
-                                        )}
-                                        <span className="truncate">
-                                          {customer.company_name || customer.full_name}
-                                        </span>
-                                        {field.value === customer.id && (
-                                          <Check className="ml-auto h-4 w-4 opacity-100" />
-                                        )}
-                                      </div>
-                                    </CommandItem>
-                                  ))}
+                                  {isLoadingContacts ? (
+                                    <div className="p-2 text-sm text-muted-foreground">Loading customers...</div>
+                                  ) : (
+                                    Array.isArray(customers) ? customers.map((customer) => (
+                                      <CommandItem
+                                        key={customer.id}
+                                        value={`${customer.company_name || customer.full_name} ${customer.id}`}
+                                        onSelect={() => {
+                                          field.onChange(customer.id);
+                                          setOpenCustomer(false);
+                                        }}
+                                        className="cursor-pointer"
+                                      >
+                                        <div className="flex items-center gap-2 w-full">
+                                          {customer.logo_url ? (
+                                            <img
+                                              src={customer.logo_url}
+                                              alt={customer.company_name || customer.full_name}
+                                              className="h-5 w-5 rounded object-cover flex-shrink-0"
+                                            />
+                                          ) : (
+                                            <Building2 className="h-4 w-4 text-gray-500 flex-shrink-0" />
+                                          )}
+                                          <span className="truncate">
+                                            {customer.company_name || customer.full_name}
+                                          </span>
+                                          {field.value === customer.id && (
+                                            <Check className="ml-auto h-4 w-4 opacity-100" />
+                                          )}
+                                        </div>
+                                      </CommandItem>
+                                    )) : null
+                                  )}
                                 </CommandGroup>
                               </CommandList>
                             </Command>
@@ -710,7 +740,14 @@ export function NewProjectDialog({
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {managers.map((manager) => (
+                          {isLoadingContacts ? (
+                            <SelectItem disabled value="loading">
+                              <div className="flex items-center gap-2">
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                                Loading managers...
+                              </div>
+                            </SelectItem>
+                          ) : managers.map((manager) => (
                             <SelectItem key={manager.id} value={manager.id}>
                               <div className="flex items-center gap-2">
                                 <UserCheck className="h-3 w-3 text-gray-500" />
@@ -786,9 +823,13 @@ export function NewProjectDialog({
                         <FormControl>
                           <div className="space-y-2">
                             <div className="flex gap-2">
-                              <Input 
-                                {...field} 
-                                placeholder="https://example.com/logo.png" 
+                              <Input
+                                {...field}
+                                onChange={(e) => {
+                                  field.onChange(e);
+                                  setBrandLogoError(false); // Reset error when URL changes
+                                }}
+                                placeholder="https://example.com/logo.png"
                                 className="h-11 transition-all hover:border-gray-400 focus:border-gray-600"
                               />
                               <Button
@@ -817,27 +858,27 @@ export function NewProjectDialog({
                             </div>
                             {field.value && (
                               <div className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                                <img 
-                                  src={field.value} 
-                                  alt="Brand logo preview" 
-                                  className="h-8 w-auto object-contain"
-                                  onError={(e) => {
-                                    e.currentTarget.style.display = 'none';
-                                    // Add error message
-                                    const errorSpan = document.createElement('span');
-                                    errorSpan.className = 'text-xs text-red-500';
-                                    errorSpan.textContent = 'Logo 加载失败';
-                                    e.currentTarget.parentElement?.appendChild(errorSpan);
-                                  }}
-                                />
-                                <a 
-                                  href={field.value} 
-                                  target="_blank" 
-                                  rel="noopener noreferrer"
-                                  className="text-xs text-blue-500 hover:text-blue-700 underline"
-                                >
-                                  View full size
-                                </a>
+                                {!brandLogoError ? (
+                                  <>
+                                    <img
+                                      src={field.value}
+                                      alt="Brand logo preview"
+                                      className="h-8 w-auto object-contain"
+                                      onError={() => setBrandLogoError(true)}
+                                      onLoad={() => setBrandLogoError(false)}
+                                    />
+                                    <a
+                                      href={field.value}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-xs text-blue-500 hover:text-blue-700 underline"
+                                    >
+                                      View full size
+                                    </a>
+                                  </>
+                                ) : (
+                                  <span className="text-xs text-red-500">Failed to load logo - please check the URL</span>
+                                )}
                               </div>
                             )}
                           </div>
@@ -1673,24 +1714,18 @@ export function NewProjectDialog({
                           Budget (RM)
                         </FormLabel>
                         <FormControl>
-                          <Input 
-                            {...field} 
-                            type="number"
-                            step="0.01"
-                            min="0"
+                          <AmountInput
+                            value={field.value || ''}
+                            onChange={(value) => {
+                              const numValue = parseFloat(value);
+                              field.onChange(isNaN(numValue) ? 0 : numValue);
+                            }}
                             placeholder="0.00"
+                            currency="RM"
+                            preventSelectAll={true}
+                            formatOnBlur={true}
+                            minValue={0}
                             className="h-11 transition-all hover:border-gray-400 focus:border-gray-600"
-                            onKeyDown={(e) => {
-                              // Prevent minus sign and scientific notation
-                              if (e.key === '-' || e.key === 'e' || e.key === 'E') {
-                                e.preventDefault();
-                              }
-                            }}
-                            onChange={(e) => {
-                              const value = parseFloat(e.target.value);
-                              // Ensure only positive values
-                              field.onChange(isNaN(value) ? 0 : Math.max(0, value));
-                            }}
                           />
                         </FormControl>
                         <FormDescription className="text-xs">Estimated budget for this project</FormDescription>
@@ -1945,8 +1980,8 @@ export function NewProjectDialog({
                               setVisitedSteps(prev => new Set([...prev, step.id]));
                             } else {
                               toast({
-                                title: "请完成当前步骤",
-                                description: "请填写当前步骤的必填字段后再继续",
+                                title: "Please complete current step",
+                                description: "Fill in the required fields in the current step before continuing",
                                 variant: "destructive",
                               });
                             }
@@ -2088,7 +2123,7 @@ export function NewProjectDialog({
                       size="lg"
                       disabled={isLoading || !form.formState.isValid}
                       className="min-w-[160px] bg-gradient-to-r from-gray-700 to-gray-900 hover:from-gray-800 hover:to-black text-white disabled:opacity-50"
-                      title={!form.formState.isValid ? "请填写所有必填字段" : ""}
+                      title={!form.formState.isValid ? "Please fill in all required fields" : ""}
                     >
                       {isLoading ? (
                         <>
@@ -2133,6 +2168,40 @@ export function NewProjectDialog({
         });
       }}
     />
+
+    <AlertDialog open={showCCResetConfirm} onOpenChange={setShowCCResetConfirm}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Change Customer?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Changing the customer will clear your selected CC contacts. Do you want to continue?
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel
+            onClick={() => {
+              // Revert to previous customer
+              const previousClientId = form.getValues('client_id');
+              if (previousClientId !== pendingClientId) {
+                form.setValue('client_id', previousClientId);
+              }
+              setPendingClientId(null);
+            }}
+          >
+            Cancel
+          </AlertDialogCancel>
+          <AlertDialogAction
+            onClick={() => {
+              // Clear CC contacts and proceed with change
+              form.setValue('cc_client_ids', []);
+              setPendingClientId(null);
+            }}
+          >
+            Continue
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
     </>
   );
 }

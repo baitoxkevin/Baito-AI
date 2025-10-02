@@ -104,7 +104,7 @@ export default function ProjectsPageRedesign() {
   // const featuredSectionRef = React.useRef<HTMLDivElement>(null);
   
   // Hooks for project data
-  const { getProjectsByMonth, isLoading, prefetchAdjacentMonths } = useProjectsByMonth();
+  const { getProjectsByMonth, isLoading, prefetchAdjacentMonths, invalidateCache } = useProjectsByMonth();
   
   // Ensure 'all' is the default filter on mount
   useEffect(() => {
@@ -130,9 +130,9 @@ export default function ProjectsPageRedesign() {
   const { toast } = useToast();
   
   // Load projects for a specific month
-  const loadProjects = async (monthIndex: number) => {
-    // Skip if projects are already loaded for this month
-    if (projects[monthIndex]) return;
+  const loadProjects = useCallback(async (monthIndex: number, forceRefresh: boolean = false) => {
+    // Skip if projects are already loaded for this month (unless force refresh)
+    if (projects[monthIndex] && !forceRefresh) return;
     
     try {
       const currentYear = new Date().getFullYear();
@@ -176,12 +176,12 @@ export default function ProjectsPageRedesign() {
       
       setProjects(prev => ({ ...prev, [monthIndex]: filteredProjects }));
     }
-  };
+  }, [projects, getProjectsByMonth, prefetchAdjacentMonths, toast, setUseDummyData, setError]);
   
   // Load projects for the active month on initial render
   useEffect(() => {
     loadProjects(activeMonth);
-  }, [activeMonth]);
+  }, [activeMonth, loadProjects]);
   
   // No scroll effects - bentobox is always single line
   
@@ -203,7 +203,24 @@ export default function ProjectsPageRedesign() {
   }, [projects]);
   
   // Handle project refresh after adding or updating - memoized callback
-  const handleProjectsUpdated = useCallback((updatedProject?: Project) => {
+  const handleProjectsUpdated = useCallback(async (updatedProject?: Project) => {
+    // If no specific project provided (e.g., after creation), refresh all loaded months
+    if (!updatedProject) {
+      // Invalidate the cache first
+      invalidateCache(activeMonth, currentYear);
+
+      // Force reload the active month with fresh data
+      const freshProjects = await getProjectsByMonth(activeMonth, currentYear);
+      setProjects(prev => ({ ...prev, [activeMonth]: freshProjects }));
+
+      // Also refresh year count
+      const count = await getCachedYearProjectsCount(currentYear);
+      setYearProjectsCount(count);
+
+      return;
+    }
+    
+    // If a specific project was updated, handle it
     if (updatedProject) {
       // Determine which months this project belongs to
       const projectStartDate = new Date(updatedProject.start_date);
@@ -257,7 +274,7 @@ export default function ProjectsPageRedesign() {
       // Reload projects for the current month
       loadProjects(activeMonth);
     }
-  }, [activeMonth, projects]);
+  }, [activeMonth, currentYear, invalidateCache, getProjectsByMonth, setProjects, setYearProjectsCount, loadProjects]);
   
   // Handle project deletion - memoized callback
   const handleProjectDelete = useCallback(async (project: unknown) => {

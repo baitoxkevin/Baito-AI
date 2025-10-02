@@ -51,8 +51,14 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { format } from 'date-fns';
 import { useToast } from "@/hooks/use-toast";
-import { approvePaymentBatch, rejectPaymentBatch } from '@/lib/payment-queue-service';
+import {
+  approvePaymentBatch,
+  rejectPaymentBatch,
+  getPaymentBatchDetails,
+  PaymentBatchDetails
+} from '@/lib/payment-queue-service';
 import { supabase } from '@/lib/supabase';
+import { ECPExportDialog } from '@/components/payroll-manager/ECPExportDialog';
 import {
   Tooltip,
   TooltipContent,
@@ -95,6 +101,8 @@ export default function PaymentsPage() {
   });
   const [userRole, setUserRole] = useState<string>('admin');
   const [canApprove, setCanApprove] = useState(true);
+  const [showECPExport, setShowECPExport] = useState(false);
+  const [selectedBatchForECP, setSelectedBatchForECP] = useState<PaymentBatchDetails | null>(null);
   const [sortConfig, setSortConfig] = useState<{
     key: 'project' | 'by' | 'staff' | 'date' | 'status' | 'amount';
     direction: 'asc' | 'desc' | null;
@@ -479,6 +487,33 @@ export default function PaymentsPage() {
     }
     
     setExpandedProjects(newExpanded);
+  };
+
+  // Handle ECP Export
+  const handleECPExport = async (batchId: string) => {
+    try {
+      // Fetch full batch details with payment items
+      const { data: batchDetails, error } = await getPaymentBatchDetails(batchId);
+
+      if (error || !batchDetails) {
+        toast({
+          title: "Error",
+          description: "Failed to load payment batch details",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      setSelectedBatchForECP(batchDetails);
+      setShowECPExport(true);
+    } catch (error) {
+      console.error('Error loading batch for ECP export:', error);
+      toast({
+        title: "Error",
+        description: "Failed to prepare ECP export",
+        variant: "destructive"
+      });
+    }
   };
 
   // Export to Excel
@@ -1009,9 +1044,11 @@ export default function PaymentsPage() {
                                       <Eye className="h-4 w-4 mr-2" />
                                       View Details
                                     </DropdownMenuItem>
-                                    <DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      onClick={() => handleECPExport(payment.id)}
+                                    >
                                       <FileSpreadsheet className="h-4 w-4 mr-2" />
-                                      Export Batch
+                                      Export to ECP
                                     </DropdownMenuItem>
                                     {payment.status === 'pending' && (
                                       <DropdownMenuItem 
@@ -1365,6 +1402,12 @@ export default function PaymentsPage() {
         </motion.div>
       </div>
     </div>
+      {/* ECP Export Dialog */}
+      <ECPExportDialog
+        batch={selectedBatchForECP}
+        open={showECPExport}
+        onOpenChange={setShowECPExport}
+      />
     </TooltipProvider>
   );
 }

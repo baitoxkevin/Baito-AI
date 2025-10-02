@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { AmountInput } from "@/components/ui/amount-input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -44,6 +45,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
@@ -865,22 +867,14 @@ export default function PayrollManager({
                   <div className="flex items-center gap-4">
                     <div className="flex items-center gap-2">
                       <Label className="text-sm font-medium text-blue-700 dark:text-blue-300">Payment Date:</Label>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button variant="outline" className="w-[150px] justify-start text-left font-normal">
-                            <CalendarPicker className="mr-2 h-4 w-4" />
-                            {format(selectedPaymentDate, "MMM d, yyyy")}
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <CalendarComponent
-                            mode="single"
-                            selected={selectedPaymentDate}
-                            onSelect={(date) => date && setSelectedPaymentDate(date)}
-                            initialFocus
-                          />
-                        </PopoverContent>
-                      </Popover>
+                      <DatePicker
+                        date={selectedPaymentDate}
+                        onDateChange={(date) => date && setSelectedPaymentDate(date)}
+                        placeholder="Select date"
+                        buttonClassName="w-[150px] justify-start text-left font-normal"
+                        dateFormat="MMM d, yyyy"
+                        fromDate={new Date(new Date().setHours(0, 0, 0, 0))}
+                      />
                     </div>
                     <div className="text-xs text-blue-600 dark:text-blue-400">
                       Selected: {confirmedStaff.filter(s => s.selected && s.paymentStatus !== 'pushed').length} staff ready for payment
@@ -1356,12 +1350,15 @@ export default function PayrollManager({
               <Label htmlFor="basicSalary" className="text-sm font-medium text-slate-700 dark:text-slate-300">
                 Basic Salary
               </Label>
-              <Input
+              <AmountInput
                 id="basicSalary"
-                type="text"
                 value={tempBasicSalary}
-                onChange={(e) => setTempBasicSalary(e.target.value)}
+                onChange={(value) => setTempBasicSalary(value)}
                 placeholder="0.00"
+                currency="RM"
+                preventSelectAll={true}
+                formatOnBlur={true}
+                minValue={0}
                 className="focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400"
               />
             </div>
@@ -1370,12 +1367,15 @@ export default function PayrollManager({
               <Label htmlFor="claims" className="text-sm font-medium text-slate-700 dark:text-slate-300">
                 Claims {currentEditDate?.dateEntry.isExpenseApproved && '(Approved)'}
               </Label>
-              <Input
+              <AmountInput
                 id="claims"
-                type="text"
                 value={tempClaims}
-                onChange={(e) => setTempClaims(e.target.value)}
+                onChange={(value) => setTempClaims(value)}
                 placeholder="0.00"
+                currency="RM"
+                preventSelectAll={true}
+                formatOnBlur={true}
+                minValue={0}
                 disabled={currentEditDate?.dateEntry.isExpenseApproved === true}
                 className={`focus:ring-2 focus:ring-purple-500 dark:focus:ring-purple-400 ${
                   currentEditDate?.dateEntry.isExpenseApproved ? 'bg-gray-100 cursor-not-allowed' : ''
@@ -1388,12 +1388,15 @@ export default function PayrollManager({
                 <Label htmlFor="commission" className="text-sm font-medium text-slate-700 dark:text-slate-300">
                   Commission
                 </Label>
-                <Input
+                <AmountInput
                   id="commission"
-                  type="text"
                   value={tempCommission}
-                  onChange={(e) => setTempCommission(e.target.value)}
+                  onChange={(value) => setTempCommission(value)}
                   placeholder="0.00"
+                  currency="RM"
+                  preventSelectAll={true}
+                  formatOnBlur={true}
+                  minValue={0}
                   className="focus:ring-2 focus:ring-pink-500 dark:focus:ring-pink-400"
                 />
               </div>
@@ -1590,20 +1593,17 @@ export default function PayrollManager({
                   <label htmlFor="basicSalary" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Basic Salary Amount (RM)
                   </label>
-                  <div className="relative rounded-md shadow-sm">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <span className="text-gray-500 dark:text-gray-400 sm:text-sm">RM</span>
-                    </div>
-                    <input
-                      type="text"
-                      name="basicSalary"
-                      id="basicSalary"
-                      className="focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-10 pr-4 py-3 text-lg sm:text-sm border border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 rounded-md"
-                      placeholder="0.00"
-                      value={tempBasicValue}
-                      onChange={(e) => setTempBasicValue(e.target.value)}
-                    />
-                  </div>
+                  <AmountInput
+                    id="basicSalary"
+                    value={tempBasicValue}
+                    onChange={(value) => setTempBasicValue(value)}
+                    placeholder="0.00"
+                    currency="RM"
+                    preventSelectAll={true}
+                    formatOnBlur={true}
+                    minValue={0}
+                    className="text-lg"
+                  />
                   <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
                     This amount will be applied to all working dates for the selected staff members.
                   </p>

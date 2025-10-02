@@ -24,7 +24,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import UserProfileDialog from '@/components/UserProfileDialog';
 
-const LOGO_URL = "https://i.postimg.cc/28D4j6hk/Submark-Alternative-Colour.png";
+const LOGO_URL = "/favicon.png";
 
 const Logo = () => {
   return (

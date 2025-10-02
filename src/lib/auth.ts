@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
 import { getAvatarUrl } from './avatar-service';
 import type { UserProfile } from './types';
+import { setSentryUser, clearSentryUser, captureException } from './sentry';
 
 // Connection health check
 let isConnectionHealthy = true;
@@ -75,10 +76,21 @@ export async function signIn(email: string, password: string) {
       checkOrCreateProfile(data.user.id, email).catch(err => {
         console.error('Profile creation error (non-blocking):', err);
       });
+
+      // Set Sentry user context for error tracking
+      setSentryUser({
+        id: data.user.id,
+        email: data.user.email,
+      });
     }
 
     return data;
   } catch (error) {
+    // Log error to Sentry
+    if (error instanceof Error) {
+      captureException(error, { context: { action: 'signIn', email } });
+    }
+
     if (error instanceof Error && error.message.includes('timeout')) {
       throw error;
     }
@@ -201,8 +213,18 @@ export async function signUp(email: string, password: string, fullName?: string)
  * Sign out the current user
  */
 export async function signOut() {
-  const { error } = await supabase.auth.signOut();
-  if (error) throw error;
+  try {
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
+
+    // Clear Sentry user context on sign out
+    clearSentryUser();
+  } catch (error) {
+    if (error instanceof Error) {
+      captureException(error, { context: { action: 'signOut' } });
+    }
+    throw error;
+  }
 }
 
 /**

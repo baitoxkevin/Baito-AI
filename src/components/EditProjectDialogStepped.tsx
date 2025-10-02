@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { AmountInput } from '@/components/ui/amount-input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { logger } from '../lib/logger';
@@ -1013,11 +1014,14 @@ export function EditProjectDialogStepped({ project, open, onOpenChange, onProjec
                 <FormItem>
                   <FormLabel>Budget</FormLabel>
                   <FormControl>
-                    <Input 
-                      type="number" 
-                      placeholder="Enter budget amount" 
-                      {...field}
-                      onChange={(e) => field.onChange(parseFloat(e.target.value) || undefined)}
+                    <AmountInput 
+                      placeholder="0.00" 
+                      value={field.value || ''}
+                      onChange={(value) => field.onChange(parseFloat(value) || undefined)}
+                      currency="RM"
+                      preventSelectAll={true}
+                      formatOnBlur={true}
+                      minValue={0}
                     />
                   </FormControl>
                   <FormMessage />

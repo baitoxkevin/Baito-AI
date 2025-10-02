@@ -206,6 +206,7 @@ export interface Project {
   logo_url?: string;
   deleted_at?: string;
   deleted_by?: string;
+  created_by?: string;
   created_at: string;
   updated_at: string;
   client?: User;

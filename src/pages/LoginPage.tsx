@@ -18,7 +18,7 @@ if (process.env.NODE_ENV === 'development') {
   }).catch(console.error);
 }
 
-const LOGO_URL = "https://i.postimg.cc/28D4j6hk/Submark-Alternative-Colour.png";
+const LOGO_URL = "/favicon.png";
 
 // Preload logo for better performance
 if (typeof window !== 'undefined') {
@@ -57,10 +57,13 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      const { user } = await signIn(email, password);
+      const { user, session } = await signIn(email, password);
       
-      if (user) {
-        // Navigate immediately for perceived performance
+      if (user && session) {
+        // Small delay to ensure session is propagated before navigation
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        // Navigate after session is confirmed
         navigate('/dashboard');
         
         // Show toast after navigation (non-blocking)

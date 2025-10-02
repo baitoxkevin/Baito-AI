@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { AmountInput } from "@/components/ui/amount-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -352,20 +353,16 @@ export function ExpenseClaimDialog({
               <Label htmlFor="amount">
                 Amount (RM) <span className="text-red-500">*</span>
               </Label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">
-                  RM
-                </span>
-                <Input
-                  id="amount"
-                  type="number"
-                  step="0.01"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  placeholder="0.00"
-                  className="pl-10"
-                />
-              </div>
+              <AmountInput
+                id="amount"
+                value={amount}
+                onChange={(value) => setAmount(value)}
+                placeholder="0.00"
+                currency="RM"
+                preventSelectAll={true}
+                formatOnBlur={true}
+                minValue={0}
+              />
             </div>
           </div>
 

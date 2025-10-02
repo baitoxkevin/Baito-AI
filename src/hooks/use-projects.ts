@@ -1,8 +1,17 @@
 import { useEffect, useState } from 'react';
-import { fetchProjects, fetchProjectsByMonth, createProject, updateProject, deleteProject, deleteMultipleProjects } from '@/lib/projects';
+// Use optimized version with caching
+import {
+  fetchProjects,
+  createProject,
+  updateProject,
+  deleteProject,
+  prefetchProjects,
+  getCacheStats
+} from '@/lib/projects-optimized';
+import { fetchProjectsByMonth, deleteMultipleProjects } from '@/lib/projects';
 import type { Project } from '@/lib/types';
 import { useCache } from '@/lib/cache';
-
+import { cacheService } from '@/lib/cache-config';
 import { logger } from '../lib/logger';
 export function useProjects() {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -29,6 +38,8 @@ export function useProjects() {
       const newProject = await createProject(project);
       setProjects(prevProjects => [...prevProjects, newProject]);
       invalidateCache(); // Invalidate cache after creating a new project
+      // Also invalidate centralized cache
+      await cacheService.invalidateProject(newProject.id);
       return newProject;
     } catch (error) {
       logger.error('Error adding project:', error);
@@ -44,6 +55,8 @@ export function useProjects() {
         prevProjects.map(project => (project.id === id ? updatedProject : project))
       );
       invalidateCache(); // Invalidate cache after updating a project
+      // Also invalidate centralized cache
+      await cacheService.invalidateProject(id);
       return updatedProject;
     } catch (error) {
       logger.error('Error updating project:', error);
@@ -57,6 +70,8 @@ export function useProjects() {
       await deleteProject(id, userId);
       setProjects(prevProjects => prevProjects.filter(project => project.id !== id));
       invalidateCache(); // Invalidate cache after deleting a project
+      // Also invalidate centralized cache
+      await cacheService.invalidateProject(id);
     } catch (error) {
       logger.error('Error removing project:', error);
       throw error;

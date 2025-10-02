@@ -95,24 +95,36 @@ export const CalendarTab = ({ startDate, endDate, confirmedStaff, setConfirmedSt
   const [currentDate, setCurrentDate] = useState(startDate ? new Date(normalizedStartDate) : new Date());
   const [editingLocation, setEditingLocation] = useState(false);
   const [tempLocation, setTempLocation] = useState(location || '');
-  
-  // Standalone function to update location
+  const isUpdatingRef = React.useRef(false);
+
+  // Standalone function to update location with deduplication
   const handleLocationUpdate = async (newLocation: string) => {
+    // Prevent duplicate calls - this fixes the 8 duplicate log issue
+    if (isUpdatingRef.current) {
+      return;
+    }
+
+    // Check if location actually changed
+    if (newLocation === location) {
+      return;
+    }
+
+    isUpdatingRef.current = true;
+
     try {
-      // Update locally first
+      // ONLY call onLocationEdit - parent handles DB update and logging
+      // This prevents duplicate database updates
       if (onLocationEdit) {
-        onLocationEdit(newLocation);
-      }
-      
-      // Update database if projectId is provided
-      if (projectId) {
+        await onLocationEdit(newLocation);
+      } else if (projectId) {
+        // Fallback: update DB directly only if no parent handler
         const { error } = await supabase
           .from('projects')
           .update({ venue_address: newLocation })
           .eq('id', projectId);
-          
+
         if (error) throw error;
-        
+
         toast({
           title: "Location updated",
           description: "Project location has been updated successfully",
@@ -126,6 +138,11 @@ export const CalendarTab = ({ startDate, endDate, confirmedStaff, setConfirmedSt
         description: "Failed to update location",
         variant: "destructive"
       });
+    } finally {
+      // Reset the flag after a short delay
+      setTimeout(() => {
+        isUpdatingRef.current = false;
+      }, 500);
     }
   };
   

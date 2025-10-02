@@ -1,4 +1,4 @@
-import { useMemo, useRef, useEffect, useState, useCallback } from 'react';
+import React, { useMemo, useRef, useEffect, useState, useCallback, memo } from 'react';
 import { 
   format, startOfMonth, endOfMonth, eachDayOfInterval, isWeekend, 
   addMonths, differenceInDays, isSameMonth, isSameDay 
@@ -24,12 +24,12 @@ interface ProjectTooltipProps {
   onSelect?: (id: string, selected: boolean) => void;
 }
 
-const ProjectTooltip = ({ project, onDelete, isSelected = false, onSelect }: ProjectTooltipProps) => {
+const ProjectTooltip = memo(({ project, onDelete, isSelected = false, onSelect }: ProjectTooltipProps) => {
   const { toast } = useToast();
-  
-  const handleDelete = (e: React.MouseEvent) => {
+
+  const handleDelete = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
-    
+
     if (onDelete) {
       try {
         onDelete(project);
@@ -41,14 +41,14 @@ const ProjectTooltip = ({ project, onDelete, isSelected = false, onSelect }: Pro
         });
       }
     }
-  };
-  
-  const handleSelect = (e: React.MouseEvent) => {
+  }, [onDelete, project, toast]);
+
+  const handleSelect = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     if (onSelect) {
       onSelect(project.id, !isSelected);
     }
-  };
+  }, [onSelect, project.id, isSelected]);
   
   return (
     <div className="space-y-2 p-2 max-w-xs">
@@ -103,7 +103,7 @@ const ProjectTooltip = ({ project, onDelete, isSelected = false, onSelect }: Pro
       </div>
     </div>
   );
-};
+});
 
 interface ProjectCardProps {
   project: Project;
@@ -303,12 +303,12 @@ export default function ListView({
       </div>
     );
   }
-  
+
   if (!Array.isArray(projects)) {
-    console.error('ListView: projects prop must be an array');
+    console.error('ListView: projects prop must be an array, received:', typeof projects);
     return (
-      <div className="p-4 bg-red-50 border border-red-200 rounded-md">
-        <p className="text-red-600">Error: invalid projects data</p>
+      <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-md">
+        <p className="text-yellow-600">Warning: No projects to display (invalid data format)</p>
       </div>
     );
   }
@@ -489,40 +489,60 @@ export default function ListView({
     console.log(`Received ${validProjects.length} valid projects to display`);
     
     // Filter projects with a more lenient approach for real data
+    // IMPORTANT: For ListView, we want to show ALL projects we receive
+    // The parent component (CalendarPage) should handle the month filtering
     const relevantProjects = validProjects.filter(project => {
       try {
         const projectStart = new Date(project.start_date);
         const projectEnd = project.end_date ? new Date(project.end_date) : projectStart;
-        
+
         // Make sure dates array isn't empty
         if (!dates.length) {
           return true; // Show all projects if date range is empty
         }
-        
+
         // Get visible date range
         const visibleStartDate = dates[0];
         const visibleEndDate = dates[dates.length - 1];
-        
-        // Use an extremely permissive filter with real data
-        // Show any project that's within a year of our visible range
-        const oneYearMs = 365 * 24 * 60 * 60 * 1000;
-        
+
+        // VERY PERMISSIVE FILTER - Show any project that could be relevant
+        // This includes projects that:
+        // 1. Start within the visible range
+        // 2. End within the visible range
+        // 3. Span across the visible range
+        // 4. Are anywhere near the visible range (within 2 years)
+        const twoYearsMs = 2 * 365 * 24 * 60 * 60 * 1000;
+
         // Standard overlap checks
         const projectStartsInRange = projectStart >= visibleStartDate && projectStart <= visibleEndDate;
         const projectEndsInRange = projectEnd >= visibleStartDate && projectEnd <= visibleEndDate;
         const projectSpansRange = projectStart <= visibleStartDate && projectEnd >= visibleEndDate;
-        
-        // Check if project is within a year of visible range
-        const projectNearRange = 
-          Math.abs(projectStart.getTime() - visibleStartDate.getTime()) < oneYearMs ||
-          Math.abs(projectStart.getTime() - visibleEndDate.getTime()) < oneYearMs ||
-          Math.abs(projectEnd.getTime() - visibleStartDate.getTime()) < oneYearMs || 
-          Math.abs(projectEnd.getTime() - visibleEndDate.getTime()) < oneYearMs;
-          
-        return projectStartsInRange || projectEndsInRange || projectSpansRange || projectNearRange;
+
+        // Very permissive proximity check - within 2 years of visible range
+        const projectNearRange =
+          Math.abs(projectStart.getTime() - visibleStartDate.getTime()) < twoYearsMs ||
+          Math.abs(projectStart.getTime() - visibleEndDate.getTime()) < twoYearsMs ||
+          Math.abs(projectEnd.getTime() - visibleStartDate.getTime()) < twoYearsMs ||
+          Math.abs(projectEnd.getTime() - visibleEndDate.getTime()) < twoYearsMs;
+
+        // Return true for any project that matches any condition
+        const shouldShow = projectStartsInRange || projectEndsInRange || projectSpansRange || projectNearRange;
+
+        if (!shouldShow && isInitialRender) {
+          // Log why this project was filtered out for debugging
+          console.log(`Project ${project.title} filtered out:`, {
+            projectStart: format(projectStart, 'yyyy-MM-dd'),
+            projectEnd: format(projectEnd, 'yyyy-MM-dd'),
+            visibleStart: format(visibleStartDate, 'yyyy-MM-dd'),
+            visibleEnd: format(visibleEndDate, 'yyyy-MM-dd')
+          });
+        }
+
+        return shouldShow;
       } catch (e) {
-        console.error(`Error processing project date filter: ${project.id}`);
-        return false;
+        console.error(`Error processing project date filter: ${project.id}`, e);
+        // In case of error, show the project rather than hide it
+        return true;
       }
     });
     

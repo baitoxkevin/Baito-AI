@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { AmountInput } from "@/components/ui/amount-input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -583,19 +584,17 @@ const EditProjectForm: React.FC<EditProjectFormProps> = ({
                                 <Label htmlFor="basicAmount" className="text-sm font-semibold text-indigo-700 dark:text-indigo-300">
                                   Basic Salary Amount
                                 </Label>
-                                <div className="relative">
-                                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-indigo-600 dark:text-indigo-400 font-medium">
-                                    $
-                                  </span>
-                                  <Input
-                                    id="basicAmount"
-                                    type="text"
-                                    value={tempBasicValue}
-                                    onChange={(e) => setTempBasicValue(e.target.value)}
-                                    placeholder="0.00"
-                                    className="pl-10 h-12 text-lg font-medium border-2 border-indigo-300 dark:border-indigo-600 bg-white dark:bg-slate-900 focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-500 dark:focus:ring-indigo-400/20 dark:focus:border-indigo-400 transition-all duration-200"
-                                  />
-                                </div>
+                                <AmountInput
+                                  id="basicAmount"
+                                  value={tempBasicValue}
+                                  onChange={setTempBasicValue}
+                                  placeholder="0.00"
+                                  currency="RM"
+                                  preventSelectAll={true}
+                                  formatOnBlur={true}
+                                  minValue={0}
+                                  className="h-12 text-lg font-medium border-2 border-indigo-300 dark:border-indigo-600 bg-white dark:bg-slate-900 focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-500 dark:focus:ring-indigo-400/20 dark:focus:border-indigo-400 transition-all duration-200"
+                                />
                                 <p className="text-xs text-indigo-600 dark:text-indigo-400 mt-1">
                                   Enter the daily rate for selected staff members
                                 </p>

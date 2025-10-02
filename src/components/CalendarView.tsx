@@ -229,26 +229,59 @@ const CalendarView = React.forwardRef<HTMLDivElement, CalendarViewProps>(({
 
   // Memoize these calculations to prevent unnecessary re-renders
   const { monthStart, monthEnd, calendarStart, calendarEnd, daysInMonth, weeks } = useMemo(() => {
+    // Add error checking for date
+    if (!date || !(date instanceof Date) || isNaN(date.getTime())) {
+      console.error('CalendarView: Invalid date provided:', date);
+      // Use today as fallback
+      const fallbackDate = new Date();
+      const monthStart = startOfMonth(fallbackDate);
+      const monthEnd = endOfMonth(fallbackDate);
+      const calendarStart = new Date(monthStart);
+      const dayOfWeek = calendarStart.getDay();
+      const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+      calendarStart.setDate(calendarStart.getDate() - daysToMonday);
+      const calendarEnd = new Date(calendarStart);
+      calendarEnd.setDate(calendarStart.getDate() + 41);
+      const daysInMonth = eachDayOfInterval({
+        start: calendarStart,
+        end: calendarEnd,
+      });
+      return { monthStart, monthEnd, calendarStart, calendarEnd, daysInMonth, weeks: 6 };
+    }
+
     const monthStart = startOfMonth(date);
     const monthEnd = endOfMonth(date);
-    
+
     // Always create a 6-week calendar for consistency
     // Start on Monday (1) of the week containing the 1st of the month
     const calendarStart = new Date(monthStart);
-    calendarStart.setDate(calendarStart.getDate() - (monthStart.getDay() - 1 + 7) % 7);
-    
+    // Get day of week (0 = Sunday, 1 = Monday, ..., 6 = Saturday)
+    const dayOfWeek = calendarStart.getDay();
+    // Calculate how many days to go back to get to Monday
+    // If Sunday (0), go back 6 days; if Monday (1), go back 0 days; if Tuesday (2), go back 1 day, etc.
+    const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+    calendarStart.setDate(calendarStart.getDate() - daysToMonday);
+
     // Always show 6 weeks (42 days) regardless of month
     const calendarEnd = new Date(calendarStart);
     calendarEnd.setDate(calendarStart.getDate() + 41); // 6 weeks = 42 days - 1
-    
+
     const daysInMonth = eachDayOfInterval({
       start: calendarStart,
       end: calendarEnd,
     });
-    
+
+    console.log('Calendar calculation:', {
+      date: date.toISOString(),
+      monthStart: monthStart.toISOString(),
+      calendarStart: calendarStart.toISOString(),
+      calendarEnd: calendarEnd.toISOString(),
+      daysCount: daysInMonth.length
+    });
+
     // Should always be 6 weeks
     const weeks = 6;
-    
+
     return { monthStart, monthEnd, calendarStart, calendarEnd, daysInMonth, weeks };
   }, [date]);
   
@@ -723,21 +756,72 @@ const CalendarView = React.forwardRef<HTMLDivElement, CalendarViewProps>(({
         )}
       </div>
       <div ref={containerRef} className="px-1 sm:px-2 pt-0.5 pb-2 flex flex-col flex-grow overflow-auto h-full">
-        <div className="grid grid-cols-7 gap-0.5 sm:gap-1 grid-rows-[auto_repeat(6,120px)] mt-0 pb-8 relative" 
-             style={{ height: '780px', paddingBottom: '60px' }}>
+        <div className="grid grid-cols-7 gap-1 mt-0 pb-8 relative bg-gray-100"
+             style={{
+               height: '780px',
+               paddingBottom: '60px',
+               isolation: 'isolate',
+               gridTemplateRows: 'auto auto repeat(6, 120px)'
+             }}>
           {/* Add styles for project bars to ensure they don't overlap date numbers */}
           <style>{`
+            /* FORCE calendar cells to be visible */
+            [role="gridcell"] {
+              background-color: white !important;
+              border: 2px solid #e5e7eb !important;
+              z-index: 10 !important;
+              position: relative !important;
+              display: flex !important;
+              flex-direction: column !important;
+              min-height: 120px !important;
+              height: 120px !important;
+              width: 100% !important;
+              opacity: 1 !important;
+              visibility: visible !important;
+            }
+
+            /* Dark mode support */
+            .dark [role="gridcell"] {
+              background-color: #1f2937 !important;
+              border: 2px solid #374151 !important;
+            }
+
+            /* Ensure grid container is visible */
+            .grid {
+              background-color: transparent !important;
+              width: 100% !important;
+              height: 100% !important;
+              display: grid !important;
+            }
+
             /* Ensure date display area has consistent spacing */
             .date-display {
               height: 30px !important;
               min-height: 30px !important;
               z-index: 45 !important;
               position: relative !important;
-              background: inherit !important;
+              background: transparent !important;
               padding-top: 6px !important;
               margin-bottom: 0px !important;
               border-bottom: 1px solid rgba(229, 231, 235, 0.4) !important;
               pointer-events: auto !important;
+              display: flex !important;
+              justify-content: space-between !important;
+              align-items: center !important;
+            }
+
+            /* Day number visibility */
+            .day-number {
+              z-index: 50 !important;
+              display: block !important;
+              visibility: visible !important;
+              opacity: 1 !important;
+              color: #1f2937 !important;
+              font-weight: 500 !important;
+            }
+
+            .dark .day-number {
+              color: #f3f4f6 !important;
             }
             /* Set consistent z-index values as requested */
             .project-segment {
@@ -806,6 +890,20 @@ const CalendarView = React.forwardRef<HTMLDivElement, CalendarViewProps>(({
             </div>
           ))}
 
+          {/* Debug info */}
+          <div className="col-span-7 text-center py-2 bg-red-100 border border-red-500">
+            <p className="text-red-800 text-xs">
+              DEBUG: Rendering {daysInMonth.length} calendar days for {format(date, 'MMMM yyyy')}
+            </p>
+          </div>
+
+          {/* Test grid cells - if these don't show, grid is broken */}
+          {Array.from({ length: 7 }, (_, i) => (
+            <div key={`test-${i}`} className="bg-yellow-200 border-2 border-yellow-500 h-20 flex items-center justify-center">
+              <span className="text-yellow-800 font-bold">TEST {i + 1}</span>
+            </div>
+          ))}
+
           {/* Calendar days */}
           {daysInMonth.map((day, index) => {
             const isToday = isSameDay(day, today);
@@ -815,19 +913,13 @@ const CalendarView = React.forwardRef<HTMLDivElement, CalendarViewProps>(({
             return (
               <div
                 key={day.toISOString()}
-                className={cn(
-                  "relative border cursor-pointer select-none p-0",
-                  "transition-colors duration-200 flex flex-col",
-                  "rounded-lg overflow-hidden", // Added rounded corners that wrap the div content
-                  // All cells get same background for consistency, just different text color
-                  isToday ? "bg-primary/5" : "bg-card",
-                  !isCurrentMonth ? "text-gray-400 dark:text-gray-600 opacity-90" : "",
-                  isToday ? "border-primary border-2 shadow-sm" : "",
-                  isHighlighted ? "bg-primary/10 border-primary shadow-md" : "border-gray-200 dark:border-gray-800",
-                  "hover:bg-gray-50/70 dark:hover:bg-gray-900/50 active:bg-gray-100 dark:active:bg-gray-800/70",
-                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                )}
-                style={{ height: '120px', boxSizing: 'border-box' }}
+                className="relative cursor-pointer select-none p-0 transition-colors duration-200 flex flex-col rounded-lg overflow-hidden bg-white border-2 border-gray-300 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                style={{
+                  height: '120px',
+                  boxSizing: 'border-box',
+                  zIndex: 1,
+                  position: 'relative'
+                }}
                 role="gridcell"
                 tabIndex={0}
                 aria-label={format(day, 'EEEE, MMMM d, yyyy')}
@@ -1226,12 +1318,12 @@ const CalendarView = React.forwardRef<HTMLDivElement, CalendarViewProps>(({
                         
                         // Always use a valid row position - ensure no row is undefined
                         // If row is somehow invalid, default to first row
-                        const rowPosition = projectItem.row >= 0 && projectItem.row < rowPositions.length 
-                            ? rowPositions[projectItem.row] 
+                        const rowPosition = projectItem.row >= 0 && projectItem.row < rowPositions.length
+                            ? rowPositions[projectItem.row]
                             : rowPositions[0];
-                        
+
                         // Fixed positioning using exact formula specified
-                        const topOffset = headerHeight + (span.row * 120) + rowPositions[projectItem.row];
+                        const topOffset = headerHeight + (span.row * 120) + rowPosition;
                         
                         // This ensures events stay at the exact same vertical position across weeks
                         

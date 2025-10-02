@@ -108,6 +108,26 @@ export function SpotlightCardOverview({
               <p className="text-sm text-gray-500">Event Type</p>
               <p className="text-sm mt-1">{currentProject.event_type || 'Standard'}</p>
             </div>
+
+            {currentProject.created_at && (
+              <div className="pt-3 border-t">
+                <p className="text-sm text-gray-500">Created</p>
+                <p className="text-sm mt-1">
+                  {new Date(currentProject.created_at).toLocaleDateString('en-MY', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })}
+                </p>
+                {(currentProject as any).creator_name && (
+                  <p className="text-xs text-gray-400 mt-1">
+                    by {(currentProject as any).creator_name}
+                  </p>
+                )}
+              </div>
+            )}
           </CardContent>
         </MagicCard>
         

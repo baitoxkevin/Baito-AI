@@ -41,9 +41,9 @@ import { CalendarSkeleton } from '@/components/calendar-skeleton';
 import NewProjectDialog from '@/components/NewProjectDialog';
 // Lazy load components for better performance
 const CalendarView = lazy(() => import('@/components/CalendarView'));
+const ListView = lazy(() => import('@/components/ListView'));
 import { formatTimeString, eventColors } from '@/lib/utils';
 import { deleteProject } from '@/lib/projects';
-const ListView = lazy(() => import('@/components/ListView'));
 import type { Project } from '@/lib/types';
 
 // Simple emergency fix version
@@ -250,91 +250,111 @@ export default function CalendarPage() {
   useEffect(() => {
     console.log("CalendarPage mounted");
     mountedRef.current = true;
-    
+
     // Initial load on mount - make it aggressive like the refresh button
     if (!initialLoadRef.current) {
       initialLoadRef.current = true;
       console.log("Initial projects load - forcing aggressive load with expanded date range");
-      
+
       // Force today's date to ensure we're showing the current month
       const today = new Date();
       setDate(today);
-      
+
       // Reset all loading flags
       loadingRef.current = false;
       adjacentMonthsLoaded.current = false;
-      
+
       // Force cache invalidation to get fresh data
       invalidateCache();
-      
+
       // Always show loading state for initial load
       setIsLoading(true);
-      
-      // Start with just current month for instant load
-      // List view will load more as needed when scrolling
-      const initialMonthsRange = { start: 0, end: 0 }; // Just current month initially
+
+      // For list view, load multiple months initially for better UX
+      const initialMonthsRange = view === 'list' ? { start: -6, end: 6 } : { start: 0, end: 0 };
       setLoadedMonthsRange(initialMonthsRange);
-      setViewMonthsCount(1); // Just current month for instant display
-      
+      setViewMonthsCount(view === 'list' ? 13 : 1); // 13 months for list, 1 for calendar
+
       // Track the earliest month with projects for auto-scrolling
       let earliestMonthWithProjects = null;
       let latestMonthWithProjects = null;
-      
+
       // Delay loading slightly to ensure state updates
       setTimeout(() => {
-        // Special handling for initial load - load only nearby months for faster initial render
+        // Special handling for initial load - load multiple months for list view
         if (view === 'list') {
-          // For list view, load just current month for instant display
-          // ListView will handle loading more months as user scrolls
-          getProjectsByMonth(date.getMonth(), date.getFullYear()).then(currentMonthProjects => {
-            // Just load current month initially
-            const results = [currentMonthProjects];
+          // For list view, load multiple months initially
+          // This provides a better initial experience with more data visible
+          const loadPromises = [];
+          const currentMonth = today.getMonth();
+          const currentYear = today.getFullYear();
+
+          // Load current month and adjacent months
+          for (let offset = -6; offset <= 6; offset++) {
+            loadPromises.push(
+              getProjectsByMonth(currentMonth + offset, currentYear)
+                .catch(error => {
+                  console.error(`Failed to load month offset ${offset}:`, error);
+                  return []; // Return empty array on error
+                })
+            );
+          }
+
+          Promise.all(loadPromises).then(allResults => {
             // Combine all projects, removing duplicates
             const allProjects = [];
             const projectIds = new Set();
-            
-            // For single month load, just add all projects
-            if (currentMonthProjects.length > 0) {
-              earliestMonthWithProjects = 0;
-              latestMonthWithProjects = 0;
-              
-              currentMonthProjects.forEach(project => {
-                if (!projectIds.has(project.id)) {
-                  projectIds.add(project.id);
-                  allProjects.push(project);
+
+            // Process all results
+            allResults.forEach((monthProjects, index) => {
+              const monthOffset = index - 6; // -6 to +6
+
+              if (monthProjects && monthProjects.length > 0) {
+                // Track which months have projects
+                if (earliestMonthWithProjects === null || monthOffset < earliestMonthWithProjects) {
+                  earliestMonthWithProjects = monthOffset;
                 }
-              });
-            }
-            
-            console.log(`Loaded ${allProjects.length} projects from ${results.length} months`);
-            console.log(`Earliest month with projects: ${earliestMonthWithProjects}, Latest: ${latestMonthWithProjects}`);
-            
-            // Update projects with current month only (for calendar view)
-            setProjects(results[0] || []);
-            
-            // Update extended projects with all the results (for list view)
+                if (latestMonthWithProjects === null || monthOffset > latestMonthWithProjects) {
+                  latestMonthWithProjects = monthOffset;
+                }
+
+                // Add unique projects
+                monthProjects.forEach(project => {
+                  if (!projectIds.has(project.id)) {
+                    projectIds.add(project.id);
+                    allProjects.push(project);
+                  }
+                });
+              }
+            });
+
+            console.log(`Initial load: Loaded ${allProjects.length} unique projects from ${allResults.length} months`);
+            console.log(`Months with projects: ${earliestMonthWithProjects} to ${latestMonthWithProjects}`);
+
+            // Get current month projects specifically
+            const currentMonthProjects = allResults[6] || []; // Index 6 is offset 0 (current month)
+
+            // Update both projects and extendedProjects
+            setProjects(currentMonthProjects);
             setExtendedProjects(allProjects);
-            
-            // IMPORTANT: Check if current month has no projects but other months do have projects
-            if (results[0].length === 0 && allProjects.length > 0) {
-              console.log("Current month has no projects, but other months do - adjusting view");
-              
-              // Determine which month to target (prefer most recent past month with projects)
+
+            // Check if we need to auto-scroll to a month with projects
+            if (currentMonthProjects.length === 0 && allProjects.length > 0) {
+              console.log("Current month has no projects, but other months do - will auto-scroll");
+
+              // Find the nearest month with projects
               const targetMonthOffset = earliestMonthWithProjects !== null ? earliestMonthWithProjects : 0;
-              
-              // Store target month for auto-scrolling after render
-              // Store it as a custom data attribute that ListView can check
-              window.sessionStorage.setItem('calendarAutoScrollTarget', 
+
+              window.sessionStorage.setItem('calendarAutoScrollTarget',
                 JSON.stringify({
                   targetMonth: targetMonthOffset,
                   hasProjects: allProjects.length > 0,
-                  // Add a timestamp to prevent stale data
                   timestamp: Date.now()
                 })
               );
               console.log(`Set auto-scroll target to month offset: ${targetMonthOffset}`);
             }
-            
+
             // Finish loading
             setIsLoading(false);
           }).catch(error => {
@@ -1283,12 +1303,12 @@ export default function CalendarPage() {
     if (view === 'list') {
       // In list view, we'll force an update with the date we have
       console.log(`CalendarPage: Filtering extended projects for ListView (${format(date, 'MMMM yyyy')})`);
-      
+
       // SIMPLIFIED LIST VIEW LOGIC - Be more permissive about what we show
       // Mix in both regular and extended projects for maximum visibility
       const allProjects = [];
       const projectIds = new Set();
-      
+
       // First add extended projects if available
       if (extendedProjects && extendedProjects.length > 0) {
         console.log(`Adding ${extendedProjects.length} extended projects`);
@@ -1299,7 +1319,7 @@ export default function CalendarPage() {
           }
         });
       }
-      
+
       // Then add regular projects as backup
       if (projects && projects.length > 0) {
         console.log(`Adding ${projects.length} regular projects`);
@@ -1310,11 +1330,11 @@ export default function CalendarPage() {
           }
         });
       }
-      
+
       // Debug projects
       console.log(`Total projects to send to ListView: ${allProjects.length}`);
       if (allProjects.length > 0) {
-        console.log('Sample projects:', 
+        console.log('Sample projects:',
           allProjects.slice(0, Math.min(3, allProjects.length)).map(p => ({
             id: p.id,
             title: p.title,
@@ -1323,7 +1343,7 @@ export default function CalendarPage() {
           }))
         );
       }
-      
+
       // Always return whatever projects we have, even if empty
       // The ListView component will handle further filtering based on its dates
       return allProjects;

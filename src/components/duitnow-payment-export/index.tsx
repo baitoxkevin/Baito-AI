@@ -37,6 +37,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Calendar } from "@/components/ui/calendar";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -157,7 +158,7 @@ export function DuitNowPaymentExport({
   const [includeAllStaff, setIncludeAllStaff] = useState(false);
   const [defaultBankCode, setDefaultBankCode] = useState<string>('MBB0228');
   const [effectivePaymentDate, setEffectivePaymentDate] = useState<Date>(paymentDate || new Date());
-  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  // const [isCalendarOpen, setIsCalendarOpen] = useState(false); // 不再需要，DatePicker组件内部管理状态
   const [hasCopiedBatchId, setHasCopiedBatchId] = useState(false);
   const [hasCopiedProjectName, setHasCopiedProjectName] = useState(false);
   
@@ -530,30 +531,17 @@ export function DuitNowPaymentExport({
                     <div>
                       <Label className="text-xs text-slate-500 dark:text-slate-400">Payment Date</Label>
                       <div className="relative mt-1">
-                        <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
-                          <PopoverTrigger asChild>
-                            <Button
-                              variant="outline"
-                              className="w-full pl-3 text-left font-normal flex justify-between items-center border-slate-200 dark:border-slate-700"
-                            >
-                              <span>{format(effectivePaymentDate, 'PPP')}</span>
-                              <CalendarIcon className="h-4 w-4 opacity-70" />
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0" align="start">
-                            <Calendar
-                              mode="single"
-                              selected={effectivePaymentDate}
-                              onSelect={(date) => {
-                                if (date) {
-                                  setEffectivePaymentDate(date);
-                                  setIsCalendarOpen(false);
-                                }
-                              }}
-                              initialFocus
-                            />
-                          </PopoverContent>
-                        </Popover>
+                        <DatePicker
+                          date={effectivePaymentDate}
+                          onDateChange={(date) => {
+                            if (date) {
+                              setEffectivePaymentDate(date);
+                            }
+                          }}
+                          placeholder="Select payment date"
+                          buttonClassName="w-full pl-3 text-left font-normal flex justify-between items-center border-slate-200 dark:border-slate-700"
+                          fromDate={new Date(new Date().setHours(0, 0, 0, 0))}
+                        />
                       </div>
                     </div>
                   </div>

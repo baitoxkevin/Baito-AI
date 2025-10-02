@@ -56,6 +56,12 @@ const editProjectSchema = z.object({
   crew_count: z.number().min(1, 'Must have at least one crew member'),
   supervisors_required: z.number().min(0).max(9).optional(),
   budget: z.number().min(0).optional(),
+  invoice_number: z.string().optional(),
+  invoice_amount: z.number().min(0).optional(),
+  invoice_status: z.enum(['pending', 'sent', 'paid', 'overdue', 'cancelled']).optional(),
+  invoice_date: z.date().optional(),
+  invoice_due_date: z.date().optional(),
+  invoice_notes: z.string().optional(),
 });
 
 type EditProjectFormValues = z.infer<typeof editProjectSchema>;
@@ -93,6 +99,12 @@ export function EditProjectDetailsDialog({
       crew_count: project.crew_count,
       supervisors_required: project.supervisors_required || 0,
       budget: project.budget || 0,
+      invoice_number: (project as any).invoice_number || '',
+      invoice_amount: (project as any).invoice_amount || 0,
+      invoice_status: (project as any).invoice_status || 'pending',
+      invoice_date: (project as any).invoice_date ? new Date((project as any).invoice_date) : undefined,
+      invoice_due_date: (project as any).invoice_due_date ? new Date((project as any).invoice_due_date) : undefined,
+      invoice_notes: (project as any).invoice_notes || '',
     },
   });
 
@@ -448,12 +460,171 @@ export function EditProjectDetailsDialog({
                   <FormItem>
                     <FormLabel>Budget (RM)</FormLabel>
                     <FormControl>
-                      <Input 
-                        {...field} 
+                      <Input
+                        {...field}
                         type="number"
                         step="0.01"
                         onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
                       />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            {/* Invoice Details */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-semibold text-gray-700">Invoice Details</h3>
+
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="invoice_number"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Invoice Number</FormLabel>
+                      <FormControl>
+                        <Input {...field} placeholder="INV-001" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="invoice_status"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Invoice Status</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select status" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="pending">Pending</SelectItem>
+                          <SelectItem value="sent">Sent</SelectItem>
+                          <SelectItem value="paid">Paid</SelectItem>
+                          <SelectItem value="overdue">Overdue</SelectItem>
+                          <SelectItem value="cancelled">Cancelled</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <FormField
+                control={form.control}
+                name="invoice_amount"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Invoice Amount (RM)</FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        type="number"
+                        step="0.01"
+                        onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="invoice_date"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Invoice Date</FormLabel>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant="outline"
+                              className={cn(
+                                'w-full pl-3 text-left font-normal',
+                                !field.value && 'text-muted-foreground'
+                              )}
+                            >
+                              {field.value ? (
+                                format(field.value, 'PPP')
+                              ) : (
+                                <span>Pick a date</span>
+                              )}
+                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={field.value}
+                            onSelect={field.onChange}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="invoice_due_date"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Due Date</FormLabel>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant="outline"
+                              className={cn(
+                                'w-full pl-3 text-left font-normal',
+                                !field.value && 'text-muted-foreground'
+                              )}
+                            >
+                              {field.value ? (
+                                format(field.value, 'PPP')
+                              ) : (
+                                <span>Pick a date</span>
+                              )}
+                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={field.value}
+                            onSelect={field.onChange}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <FormField
+                control={form.control}
+                name="invoice_notes"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Invoice Notes</FormLabel>
+                    <FormControl>
+                      <Textarea {...field} placeholder="Additional invoice notes..." rows={3} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

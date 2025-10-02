@@ -31,8 +31,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
@@ -103,7 +102,6 @@ export function PaymentSubmissionDialog({
   
   // Workflow state
   const [step, setStep] = useState<'form' | 'confirm' | 'processing' | 'success' | 'error'>('form');
-  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [submissionError, setSubmissionError] = useState<string | null>(null);
   
   // Form state
@@ -371,30 +369,18 @@ export function PaymentSubmissionDialog({
                         <div className="grid grid-cols-1 gap-4">
                           <div className="space-y-2">
                             <Label htmlFor="payment-date">Payment Date</Label>
-                            <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
-                              <PopoverTrigger asChild>
-                                <Button
-                                  variant="outline"
-                                  className="w-full pl-3 text-left font-normal flex justify-between items-center border-slate-200 dark:border-slate-700"
-                                >
-                                  <span>{format(effectivePaymentDate, 'PPP')}</span>
-                                  <CalendarIcon className="h-4 w-4 opacity-70" />
-                                </Button>
-                              </PopoverTrigger>
-                              <PopoverContent className="w-auto p-0" align="start">
-                                <Calendar
-                                  mode="single"
-                                  selected={effectivePaymentDate}
-                                  onSelect={(date) => {
-                                    if (date) {
-                                      setEffectivePaymentDate(date);
-                                      setIsCalendarOpen(false);
-                                    }
-                                  }}
-                                  initialFocus
-                                />
-                              </PopoverContent>
-                            </Popover>
+                            <DatePicker
+                              date={effectivePaymentDate}
+                              onDateChange={(date) => {
+                                if (date) {
+                                  setEffectivePaymentDate(date);
+                                }
+                              }}
+                              placeholder="Select payment date"
+                              buttonClassName="w-full pl-3 text-left font-normal flex justify-between items-center border-slate-200 dark:border-slate-700"
+                              align="start"
+                              fromDate={new Date(new Date().setHours(0, 0, 0, 0))}
+                            />
                           </div>
                         </div>
                         

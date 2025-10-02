@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { format, isSameDay } from 'date-fns';
 import { motion } from 'framer-motion';
 import { logger } from '../../lib/logger';
@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { AmountInput } from "@/components/ui/amount-input";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -32,6 +33,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
 import { Calendar } from "@/components/ui/calendar";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Label } from "@/components/ui/label";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -556,12 +558,24 @@ export default function ProjectPayroll({
 
   // Set basic salary for all staff - opens the dialog
   const setBasicSalaryForAll = () => {
-    // First, select all staff by default
-    setSelectedStaffForBasic(confirmedStaff.map(s => s.id));
-    
+    // Check if there are any unpushed staff
+    const unpushedStaff = confirmedStaff.filter(s => s.paymentStatus !== 'pushed');
+
+    if (unpushedStaff.length === 0) {
+      toast({
+        title: "Cannot Set Basic Salary",
+        description: "All staff payments have been pushed and cannot be edited",
+        variant: "warning"
+      });
+      return;
+    }
+
+    // Only select unpushed staff
+    setSelectedStaffForBasic(unpushedStaff.map(s => s.id));
+
     // Open the dialog for user input
     setIsSetBasicDialogOpen(true);
-    
+
     // Start with empty value for user to enter
     setTempBasicValue("");
   };
@@ -836,9 +850,10 @@ export default function ProjectPayroll({
           </h3>
           
           <Button
-            className="flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold rounded-md px-4 py-2 hover:opacity-90 transition"
+            className="flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold rounded-md px-4 py-2 hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed"
             onClick={setBasicSalaryForAll}
-            disabled={isSaving}
+            disabled={isSaving || confirmedStaff.every(s => s.paymentStatus === 'pushed')}
+            title={confirmedStaff.every(s => s.paymentStatus === 'pushed') ? "All payments have been pushed and cannot be edited" : "Set basic salary for unpushed staff"}
           >
             {isSaving ? (
               <>
@@ -859,22 +874,14 @@ export default function ProjectPayroll({
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
               <Label className="text-sm font-medium text-gray-700 dark:text-gray-300">Payment Date:</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className="w-[150px] justify-start text-left font-normal">
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {format(selectedPaymentDate, "MMM d, yyyy")}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={selectedPaymentDate}
-                    onSelect={(date) => date && setSelectedPaymentDate(date)}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
+              <DatePicker
+                date={selectedPaymentDate}
+                onDateChange={(date) => date && setSelectedPaymentDate(date)}
+                placeholder="Select date"
+                buttonClassName="w-[150px] justify-start text-left font-normal"
+                dateFormat="MMM d, yyyy"
+                fromDate={new Date(new Date().setHours(0, 0, 0, 0))}
+              />
             </div>
             <div className="text-xs text-gray-600 dark:text-gray-400">
               Selected: {confirmedStaff.filter(s => selectedStaff.includes(s.id) && s.paymentStatus !== 'pushed').length} staff ready for payment
@@ -1533,14 +1540,19 @@ export default function ProjectPayroll({
                                         }, 0);
                                       }}
                                       onFocus={(e) => {
-                                        // Prevent auto-selection on focus
                                         const input = e.target;
                                         const value = input.value;
                                         const length = value.length;
                                         // Use requestAnimationFrame to ensure it happens after browser's default behavior
                                         requestAnimationFrame(() => {
                                           if (input === document.activeElement) {
-                                            input.setSelectionRange(length, length);
+                                            // If value is "0", select all so typing replaces it
+                                            if (value === "0") {
+                                              input.setSelectionRange(0, length);
+                                            } else {
+                                              // Otherwise, move cursor to end
+                                              input.setSelectionRange(length, length);
+                                            }
                                           }
                                         });
                                       }}
@@ -1625,14 +1637,19 @@ export default function ProjectPayroll({
                                         }, 0);
                                       }}
                                       onFocus={(e) => {
-                                        // Prevent auto-selection on focus
                                         const input = e.target;
                                         const value = input.value;
                                         const length = value.length;
                                         // Use requestAnimationFrame to ensure it happens after browser's default behavior
                                         requestAnimationFrame(() => {
                                           if (input === document.activeElement) {
-                                            input.setSelectionRange(length, length);
+                                            // If value is "0", select all so typing replaces it
+                                            if (value === "0") {
+                                              input.setSelectionRange(0, length);
+                                            } else {
+                                              // Otherwise, move cursor to end
+                                              input.setSelectionRange(length, length);
+                                            }
                                           }
                                         });
                                       }}
@@ -1694,14 +1711,19 @@ export default function ProjectPayroll({
                                           }, 0);
                                         }}
                                         onFocus={(e) => {
-                                          // Prevent auto-selection on focus
                                           const input = e.target;
                                           const value = input.value;
                                           const length = value.length;
                                           // Use requestAnimationFrame to ensure it happens after browser's default behavior
                                           requestAnimationFrame(() => {
                                             if (input === document.activeElement) {
-                                              input.setSelectionRange(length, length);
+                                              // If value is "0", select all so typing replaces it
+                                              if (value === "0") {
+                                                input.setSelectionRange(0, length);
+                                              } else {
+                                                // Otherwise, move cursor to end
+                                                input.setSelectionRange(length, length);
+                                              }
                                             }
                                           });
                                         }}
@@ -1846,12 +1868,16 @@ export default function ProjectPayroll({
                     ({selectedStaffForBasic.length}/{confirmedStaff.length} selected)
                   </span>
                 </div>
-                {confirmedStaff.map((staff) => (
-                  <label key={staff.id} className="flex items-center space-x-2 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 p-2 rounded-md">
+                {confirmedStaff.map((staff) => {
+                  const isPushed = staff.paymentStatus === 'pushed';
+                  return (
+                  <label key={staff.id} className={`flex items-center space-x-2 p-2 rounded-md ${isPushed ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800'}`}>
                     <input
                       type="checkbox"
                       checked={selectedStaffForBasic.includes(staff.id)}
+                      disabled={isPushed}
                       onChange={(e) => {
+                        if (isPushed) return;
                         if (e.target.checked) {
                           setSelectedStaffForBasic([...selectedStaffForBasic, staff.id]);
                         } else {
@@ -1871,17 +1897,23 @@ export default function ProjectPayroll({
                         )}
                       </Avatar>
                       <div className="flex-1">
-                        <p className="text-sm font-medium text-slate-900 dark:text-slate-100">{staff.name || 'Unknown'}</p>
+                        <p className={`text-sm font-medium ${isPushed ? 'text-slate-500 dark:text-slate-600' : 'text-slate-900 dark:text-slate-100'}`}>{staff.name || 'Unknown'}</p>
                         {staff.designation && (
                           <p className="text-xs text-slate-600 dark:text-slate-400">{staff.designation}</p>
                         )}
                       </div>
+                      {isPushed && (
+                        <Badge className="bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 border-0 text-xs">
+                          Pushed
+                        </Badge>
+                      )}
                       <span className="text-xs text-slate-500">
                         {staff.workingDatesWithSalary?.length || 0} days
                       </span>
                     </div>
                   </label>
-                ))}
+                  );
+                })}
               </div>
             </div>
             
@@ -1890,19 +1922,17 @@ export default function ProjectPayroll({
               <label htmlFor="basicAmount" className="text-sm font-semibold text-indigo-700 dark:text-indigo-300">
                 Basic Salary Amount
               </label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-indigo-600 dark:text-indigo-400 font-medium">
-                  RM
-                </span>
-                <Input
-                  id="basicAmount"
-                  type="text"
-                  value={tempBasicValue}
-                  onChange={(e) => setTempBasicValue(e.target.value)}
-                  placeholder="0.00"
-                  className="pl-10 h-12 text-lg font-medium"
-                />
-              </div>
+              <AmountInput
+                id="basicAmount"
+                value={tempBasicValue}
+                onChange={(value) => setTempBasicValue(value)}
+                placeholder="0.00"
+                currency="RM"
+                preventSelectAll={true}
+                formatOnBlur={true}
+                minValue={0}
+                className="h-12 text-lg"
+              />
               <p className="text-xs text-indigo-600 dark:text-indigo-400 mt-1">
                 Enter the daily rate for selected staff members
               </p>
