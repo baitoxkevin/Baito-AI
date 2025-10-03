@@ -33,7 +33,7 @@ interface Context {
 // ==========================================
 
 const OPENROUTER_API_KEY = Deno.env.get('OPENROUTER_API_KEY')!
-const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY')! // For embeddings
+const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY') // For embeddings (optional)
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 
@@ -444,23 +444,19 @@ async function executeTool(
 async function queryProjects(supabase: any, args: any, context: Context) {
   let query = supabase
     .from('projects')
-    .select('id, title, date, company_id, companies(name), status, crew_count, filled_positions')
-    .order('date', { ascending: false })
+    .select('id, title, start_date, end_date, client_id, status, priority, crew_count, filled_positions, venue_address, working_hours_start, working_hours_end, brand_name')
+    .order('start_date', { ascending: false })
 
   if (args.status) {
     query = query.eq('status', args.status)
   }
 
   if (args.date_from) {
-    query = query.gte('date', args.date_from)
+    query = query.gte('start_date', args.date_from)
   }
 
   if (args.date_to) {
-    query = query.lte('date', args.date_to)
-  }
-
-  if (args.company_name) {
-    query = query.ilike('companies.name', `%${args.company_name}%`)
+    query = query.lte('start_date', args.date_to)
   }
 
   query = query.limit(args.limit || 10)
@@ -471,78 +467,232 @@ async function queryProjects(supabase: any, args: any, context: Context) {
 
   return {
     projects: data,
-    count: data.length
+    count: data.length,
+    message: `Found ${data.length} project(s)`
   }
 }
 
 async function queryCandidates(supabase: any, args: any, context: Context) {
+  console.log('[queryCandidates] Starting with args:', JSON.stringify(args))
+
   let query = supabase
     .from('candidates')
-    .select('id, name, ic_number, phone, status')
-    .order('name', { ascending: true })
+    .select('id, full_name, ic_number, phone_number, email, status, has_vehicle, vehicle_type, address, skills')
+    .order('full_name', { ascending: true })
 
   if (args.status) {
+    console.log('[queryCandidates] Filtering by status:', args.status)
     query = query.eq('status', args.status)
+  }
+
+  if (args.has_vehicle !== undefined) {
+    console.log('[queryCandidates] Filtering by has_vehicle:', args.has_vehicle)
+    query = query.eq('has_vehicle', args.has_vehicle)
+  }
+
+  // Filter by availability date if provided
+  if (args.available_date) {
+    // Check candidates NOT assigned to any project on that date
+    const { data: busyCandidates } = await supabase
+      .from('project_staff')
+      .select('candidate_id')
+      .eq('status', 'confirmed')
+
+    const busyIds = busyCandidates?.map((s: any) => s.candidate_id) || []
+    if (busyIds.length > 0) {
+      query = query.not('id', 'in', `(${busyIds.join(',')})`)
+    }
   }
 
   query = query.limit(args.limit || 20)
 
+  console.log('[queryCandidates] Executing Supabase query...')
   const { data, error } = await query
 
-  if (error) throw error
+  if (error) {
+    console.error('[queryCandidates] ERROR:', JSON.stringify(error))
+    throw error
+  }
 
-  // TODO: Check availability if date provided
-  // TODO: Filter by skills if provided
+  console.log(`[queryCandidates] SUCCESS: Found ${data.length} candidates`)
 
   return {
     candidates: data,
-    count: data.length
+    count: data.length,
+    message: `Found ${data.length} candidate(s)`
   }
 }
 
 async function getProjectDetails(supabase: any, args: any, context: Context) {
   const { data, error } = await supabase
     .from('projects')
-    .select(`
-      *,
-      companies(name, address),
-      project_staff(
-        candidates(id, name, phone)
-      )
-    `)
+    .select('*')
     .eq('id', args.project_id)
     .single()
 
   if (error) throw error
 
-  return data
+  // Get project staff separately
+  const { data: staff } = await supabase
+    .from('project_staff')
+    .select('candidate_id, role, status, candidates(id, full_name, phone_number, email)')
+    .eq('project_id', args.project_id)
+
+  return {
+    ...data,
+    staff: staff || []
+  }
 }
 
 async function calculateRevenue(supabase: any, args: any, context: Context) {
-  // Simplified revenue calculation
-  // TODO: Implement proper revenue calculation based on completed projects
-
-  const { data, error } = await supabase
+  // Revenue calculation with date filtering
+  let query = supabase
     .from('projects')
-    .select('id, invoice_amount')
+    .select('id, budget, status, start_date')
     .eq('status', 'completed')
+
+  // Add date filtering based on period
+  if (args.period === 'this_month' || args.month) {
+    const now = new Date()
+    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1)
+    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+    query = query.gte('start_date', firstDay.toISOString().split('T')[0])
+                 .lte('start_date', lastDay.toISOString().split('T')[0])
+  } else if (args.date_from) {
+    query = query.gte('start_date', args.date_from)
+  }
+
+  if (args.date_to) {
+    query = query.lte('start_date', args.date_to)
+  }
+
+  const { data, error } = await query
 
   if (error) throw error
 
-  const total = data.reduce((sum: number, p: any) => sum + (p.invoice_amount || 0), 0)
+  const total = data.reduce((sum: number, p: any) => sum + (p.budget || 0), 0)
 
   return {
-    period: args.period,
+    period: args.period || 'custom range',
     total_revenue: total,
-    project_count: data.length
+    project_count: data.length,
+    message: `Total revenue from ${data.length} completed projects: RM ${total.toLocaleString()}`
   }
 }
 
 async function checkSchedulingConflicts(supabase: any, args: any, context: Context) {
-  // TODO: Implement conflict detection logic
+  const { date_from, date_to } = args
+
+  // Get all projects in date range with staff assignments
+  const { data: projects, error: projError } = await supabase
+    .from('projects')
+    .select(`
+      id,
+      title,
+      start_date,
+      end_date,
+      crew_count,
+      filled_positions,
+      status,
+      project_staff(
+        candidate_id,
+        role,
+        status,
+        candidates(id, full_name, phone_number)
+      )
+    `)
+    .gte('start_date', date_from)
+    .lte('start_date', date_to)
+    .neq('status', 'cancelled')
+
+  if (projError) throw projError
+
+  const conflicts: any[] = []
+
+  // 1. Check for understaffed projects
+  const understaffed = projects.filter((p: any) =>
+    p.filled_positions < p.crew_count
+  )
+
+  understaffed.forEach((project: any) => {
+    conflicts.push({
+      type: 'understaffed',
+      severity: 'high',
+      project_id: project.id,
+      project_title: project.title,
+      start_date: project.start_date,
+      needed: project.crew_count - project.filled_positions,
+      message: `Project "${project.title}" needs ${project.crew_count - project.filled_positions} more staff members`
+    })
+  })
+
+  // 2. Check for double-booked candidates
+  const candidateSchedules: Record<string, any[]> = {}
+
+  projects.forEach((project: any) => {
+    if (project.project_staff) {
+      project.project_staff.forEach((staff: any) => {
+        if (!candidateSchedules[staff.candidate_id]) {
+          candidateSchedules[staff.candidate_id] = []
+        }
+        candidateSchedules[staff.candidate_id].push({
+          project_id: project.id,
+          project_title: project.title,
+          project_date: project.start_date,
+          candidate_name: staff.candidates?.full_name || 'Unknown',
+          role: staff.role
+        })
+      })
+    }
+  })
+
+  // Find candidates with multiple assignments
+  Object.entries(candidateSchedules).forEach(([candidateId, assignments]) => {
+    if (assignments.length > 1) {
+      // Check if assignments overlap by date
+      const dates = assignments.map(a => a.project_date)
+      const uniqueDates = new Set(dates)
+
+      if (dates.length !== uniqueDates.size) {
+        // Double booking detected - same date
+        conflicts.push({
+          type: 'double_booking',
+          severity: 'critical',
+          candidate_id: candidateId,
+          candidate_name: assignments[0].candidate_name,
+          projects: assignments,
+          message: `${assignments[0].candidate_name} is assigned to ${assignments.length} projects on the same date`
+        })
+      }
+    }
+  })
+
+  // 3. Check for overstaffed projects (nice to have)
+  const overstaffed = projects.filter((p: any) =>
+    p.filled_positions > p.crew_count
+  )
+
+  overstaffed.forEach((project: any) => {
+    conflicts.push({
+      type: 'overstaffed',
+      severity: 'low',
+      project_id: project.id,
+      project_title: project.title,
+      start_date: project.start_date,
+      excess: project.filled_positions - project.crew_count,
+      message: `Project "${project.title}" has ${project.filled_positions - project.crew_count} extra staff members`
+    })
+  })
+
   return {
-    conflicts: [],
-    message: 'No conflicts detected'
+    conflicts,
+    understaffed_count: understaffed.length,
+    double_booked_count: Object.values(candidateSchedules).filter(a => a.length > 1).length,
+    overstaffed_count: overstaffed.length,
+    total_conflicts: conflicts.length,
+    message: conflicts.length === 0
+      ? 'No scheduling conflicts detected'
+      : `Found ${conflicts.length} scheduling conflicts: ${understaffed.length} understaffed, ${Object.values(candidateSchedules).filter(a => a.length > 1).length} double-booked, ${overstaffed.length} overstaffed`
   }
 }
 
@@ -566,14 +716,15 @@ async function createConversation(supabase: any, userId: string): Promise<string
 }
 
 async function getUserContext(supabase: any, userId: string, conversationId: string): Promise<Context> {
+  // Try to get user role from users table (auth schema)
   const { data: user, error } = await supabase
-    .from('user_profiles')
+    .from('users')
     .select('role')
     .eq('id', userId)
     .single()
 
-  if (error) {
-    console.warn('Could not fetch user profile, using default role')
+  if (error || !user) {
+    console.warn('Could not fetch user, using default permissions')
     return {
       userId,
       conversationId,
@@ -640,7 +791,12 @@ async function loadConversationHistory(supabase: any, conversationId: string): P
   }))
 }
 
-async function getSemanticMemory(supabase: any, conversationId: string, embedding: number[]) {
+async function getSemanticMemory(supabase: any, conversationId: string, embedding: number[] | null) {
+  if (!embedding) {
+    console.log('No embedding provided, skipping semantic search')
+    return []
+  }
+
   const { data, error } = await supabase.rpc('search_conversation_history', {
     query_embedding: embedding,
     p_conversation_id: conversationId,
@@ -671,25 +827,36 @@ function buildContextMessage(context: Context, semanticMemory: any[]): string {
   return msg
 }
 
-async function getEmbedding(text: string): Promise<number[]> {
-  const response = await fetch('https://api.openai.com/v1/embeddings', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${OPENAI_API_KEY}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      model: 'text-embedding-3-small',
-      input: text
-    })
-  })
-
-  if (!response.ok) {
-    throw new Error('Failed to generate embedding')
+async function getEmbedding(text: string): Promise<number[] | null> {
+  if (!OPENAI_API_KEY) {
+    console.log('OPENAI_API_KEY not set, skipping embedding generation')
+    return null
   }
 
-  const data = await response.json()
-  return data.data[0].embedding
+  try {
+    const response = await fetch('https://api.openai.com/v1/embeddings', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${OPENAI_API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: 'text-embedding-3-small',
+        input: text
+      })
+    })
+
+    if (!response.ok) {
+      console.error('Failed to generate embedding:', response.statusText)
+      return null
+    }
+
+    const data = await response.json()
+    return data.data[0].embedding
+  } catch (error) {
+    console.error('Error generating embedding:', error)
+    return null
+  }
 }
 
 async function saveMessage(
@@ -697,7 +864,7 @@ async function saveMessage(
   conversationId: string,
   type: string,
   content: string,
-  embedding: number[],
+  embedding: number[] | null,
   metadata: any = {}
 ): Promise<string> {
   const { data, error } = await supabase
