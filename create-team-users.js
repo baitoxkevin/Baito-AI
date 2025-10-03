@@ -33,31 +33,31 @@ const users = [
     email: 'jesley@baito.events',
     password: 'jiyu3299',
     name: 'Jesley',
-    role: 'user'
+    role: 'staff' // Valid roles: super_admin, admin, manager, staff, viewer
   },
   {
     email: 'winnie@baito.events',
     password: 'winnie1106',
     name: 'Winnie',
-    role: 'user'
+    role: 'staff'
   },
   {
     email: 'ava@baito.events',
     password: 'yoketing0811',
     name: 'Ava',
-    role: 'user'
+    role: 'staff'
   },
   {
     email: 'jamilatulaili@baito.events',
     password: 'laili1994!',
     name: 'Jamila Tulaili',
-    role: 'user'
+    role: 'staff'
   },
   {
     email: 'crystal@baito.events',
     password: 'Crys-8711',
     name: 'Crystal',
-    role: 'user'
+    role: 'staff'
   }
 ];
 
@@ -85,7 +85,7 @@ async function createUser(userData) {
     const { data: profileData, error: profileError } = await supabase
       .from('users')
       .upsert({
-        id: authData.user.id,
+        auth_id: authData.user.id,
         email: userData.email,
         full_name: userData.name,
         role: userData.role,
