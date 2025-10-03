@@ -206,10 +206,14 @@ const MainAppLayout = memo(({ effectActive }: MainAppLayoutProps) => {
         return;
       }
 
-      // Explicitly ignore INITIAL_SESSION - it's handled by checkAuth()
-      // This prevents race conditions where INITIAL_SESSION fires before session is ready
+      // Handle INITIAL_SESSION carefully - only trust it if it has a valid session
       if (event === 'INITIAL_SESSION') {
-        logger.info('📋 INITIAL_SESSION event ignored - checkAuth() handles this');
+        if (session) {
+          logger.info('📋 INITIAL_SESSION with valid session - setting authenticated');
+          setIsAuthenticated(true);
+        } else {
+          logger.info('📋 INITIAL_SESSION with null session - letting checkAuth() handle it');
+        }
         return;
       }
     });
