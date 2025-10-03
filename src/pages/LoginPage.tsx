@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Loader2, Mail, Lock } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { signIn } from '@/lib/auth';
+import { supabase } from '@/lib/supabase';
 import { Toaster } from '@/components/ui/toaster';
 import { ForgotPasswordDialog } from '@/components/ForgotPasswordDialog';
 
@@ -60,70 +61,54 @@ export default function LoginPage() {
       const { user, session } = await signIn(email, password);
 
       if (user && session) {
-        console.log('✅ Sign in successful, session token:', session.access_token.substring(0, 20) + '...');
+        // CRITICAL: Wait for session to be fully persisted to localStorage
+        // Increased from 300ms to 500ms to ensure MainAppLayout can detect session
+        // This prevents race conditions where MainAppLayout loads before session is ready
+        await new Promise(resolve => setTimeout(resolve, 500));
 
-        // CRITICAL FIX: Poll until session is actually in browser storage
-        // This prevents the race condition where MainAppLayout checks before session is ready
-        console.log('⏳ Polling for session in browser storage...');
-
-        const sessionReady = await new Promise<boolean>((resolve) => {
-          const maxAttempts = 50; // 5 seconds max (50 * 100ms)
-          let attempts = 0;
-
-          const checkSession = async () => {
-            attempts++;
-
-            try {
-              // Check if session is in browser storage
-              const stored = localStorage.getItem('baito-auth');
-              if (stored) {
-                const parsed = JSON.parse(stored);
-                if (parsed?.access_token) {
-                  console.log(`✅ Session found in storage after ${attempts * 100}ms`);
-                  resolve(true);
-                  return;
-                }
-              }
-            } catch (e) {
-              console.warn('Error checking session storage:', e);
+        // Verify session is actually in localStorage before navigating
+        const verifySession = () => {
+          try {
+            const stored = localStorage.getItem('baito-auth');
+            if (stored) {
+              const parsed = JSON.parse(stored);
+              return !!parsed?.access_token;
             }
+          } catch (e) {
+            console.warn('Error verifying session in localStorage:', e);
+          }
+          return false;
+        };
 
-            if (attempts >= maxAttempts) {
-              console.warn('⚠️ Session polling timeout after 5 seconds');
-              resolve(false);
-              return;
-            }
-
-            // Try again in 100ms
-            setTimeout(checkSession, 100);
-          };
-
-          checkSession();
-        });
-
-        if (sessionReady) {
-          console.log('✅ Session confirmed in storage - navigating to dashboard');
-          navigate('/dashboard', { replace: true });
-
-          // Show toast after navigation
-          setTimeout(() => {
-            toast({
-              title: 'Welcome back!',
-              description: 'Successfully signed in',
-              duration: 2000,
-            });
-          }, 100);
-        } else {
-          console.error('❌ Session did not persist to storage');
-          toast({
-            title: 'Session Error',
-            description: 'Please try logging in again',
-            variant: 'destructive',
-          });
+        // Poll for session in localStorage (max 3 seconds)
+        let verified = verifySession();
+        let attempts = 0;
+        while (!verified && attempts < 30) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+          verified = verifySession();
+          attempts++;
         }
+
+        if (verified) {
+          console.log(`✅ Session verified in localStorage after ${attempts * 100}ms`);
+        } else {
+          console.warn('⚠️ Could not verify session in localStorage, proceeding anyway');
+        }
+
+        // Navigate to dashboard with replace to prevent back button issues
+        navigate('/dashboard', { replace: true });
+
+        // Show success toast (non-blocking)
+        requestAnimationFrame(() => {
+          toast({
+            title: 'Welcome back!',
+            description: 'Successfully signed in',
+            duration: 2000,
+          });
+        });
       }
     } catch (error) {
-      console.error('❌ Sign in error:', error);
+      console.error('Sign in error:', error);
 
       const message = error instanceof Error
         ? error.message

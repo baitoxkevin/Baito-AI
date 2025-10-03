@@ -1,6 +1,6 @@
 import './App.css';
 import { useState, useEffect, useRef } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { AppStateProvider } from './contexts/AppStateContext';
 import LoginPage from './pages/LoginPage';
 import MainAppLayout from './components/MainAppLayout';
@@ -15,11 +15,20 @@ import LocationFeatureDemo from './pages/LocationFeatureDemo';
 import DatePickerTestPage from './pages/DatePickerTestPage';
 import AmountInputTestPage from './pages/AmountInputTestPage';
 import StaffDashboardPage from './pages/StaffDashboardPage';
+import ReportSickLeavePage from './pages/ReportSickLeavePage';
+import SickLeaveApprovalPage from './pages/SickLeaveApprovalPage';
 import { renderCanvas } from './components/ui/canvas';
 import { SpotlightCommand } from './components/SpotlightCommand';
 import { GlobalErrorBoundary } from './components/GlobalErrorBoundary';
 import { ChatWidget } from './components/ai-assistant/ChatWidget';
+import { NotificationBell } from './components/NotificationBell';
 import { useAppState } from './contexts/AppStateContext';
+
+// Redirect component for dynamic project ID
+function ProjectRedirect() {
+  const { projectId } = useParams();
+  return <Navigate to={`/projects/${projectId}`} replace />;
+}
 
 function AppContent() {
   const { currentUser } = useAppState();
@@ -92,6 +101,8 @@ function AppContent() {
       <Route path="/receipt-scanner" element={<ReceiptScannerPage />} />
       <Route path="/job-discovery" element={<JobDiscoveryPage />} /> {/* Added Route */}
       <Route path="/staff-dashboard" element={<StaffDashboardPage />} />
+      <Route path="/report-sick-leave" element={<ReportSickLeavePage />} />
+      <Route path="/sick-leave/pending" element={<SickLeaveApprovalPage />} />
       <Route path="/location-feature-demo" element={<LocationFeatureDemo />} />
       {/* Candidate update routes with secure token */}
       <Route path="/candidate-update-mobile/:candidateId" element={<MobileCandidateUpdatePage />} />
@@ -103,6 +114,9 @@ function AppContent() {
         element={<MainAppLayout effectActive={effectActive} />}
       />
       {/* Routes that work both in localhost and production */}
+      {/* Redirect from singular /project to plural /projects */}
+      <Route path="/project" element={<Navigate to="/projects" replace />} />
+      <Route path="/project/:projectId" element={<ProjectRedirect />} />
       <Route
         path="/projects"
         element={<MainAppLayout effectActive={effectActive} />}
@@ -176,11 +190,19 @@ function AppContent() {
         element={<MainAppLayout effectActive={effectActive} />}
       />
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
+      {/* Catch-all route for 404s - redirect to dashboard */}
+      <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
       <SpotlightCommand />
       <EnhancedToaster />
       {/* AI Chat Widget - only show when user is logged in */}
       {currentUser && <ChatWidget userId={currentUser.id} />}
+      {/* Notification Bell - only show when user is logged in */}
+      {currentUser && (
+        <div className="fixed top-4 right-20 z-50">
+          <NotificationBell userId={currentUser.id} />
+        </div>
+      )}
     </BrowserRouter>
   );
 }
