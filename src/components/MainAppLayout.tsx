@@ -56,41 +56,140 @@ const MainAppLayout = memo(({ effectActive }: MainAppLayoutProps) => {
 
 
   useEffect(() => {
+    let isMounted = true;
+    let authCheckTimeout: NodeJS.Timeout;
+
     const checkAuth = async () => {
       try {
-        // First check for an existing session
-        const session = await getSession();
-        if (session) {
+        logger.info('🔍 Starting auth check in MainAppLayout');
+
+        // CRITICAL: Check localStorage directly first (same as LoginPage)
+        // This is more reliable than getSession() which depends on Supabase's internal state
+        const checkLocalStorage = () => {
+          try {
+            const stored = localStorage.getItem('baito-auth');
+            if (stored) {
+              const parsed = JSON.parse(stored);
+              return !!parsed?.access_token;
+            }
+          } catch (e) {
+            logger.warn('Error reading localStorage:', e);
+          }
+          return false;
+        };
+
+        // First quick check
+        if (checkLocalStorage()) {
+          logger.info('✅ Session found in localStorage immediately');
           setIsAuthenticated(true);
           return;
         }
-        
-        // If no session, wait a bit and check again (handles race conditions)
-        await new Promise(resolve => setTimeout(resolve, 200));
-        const retrySession = await getSession();
-        setIsAuthenticated(!!retrySession);
+
+        // Also try getSession() API
+        const session = await getSession();
+        if (!isMounted) return;
+
+        if (session) {
+          logger.info('✅ Session found via getSession()');
+          setIsAuthenticated(true);
+          return;
+        }
+
+        // If neither found session, implement patient retry strategy
+        // LoginPage can take up to 5s to write to storage
+        // Poll every 100ms for up to 6 seconds
+        logger.info('⏳ No session found, starting polling...');
+        const maxAttempts = 60; // 60 * 100ms = 6 seconds
+        let attempts = 0;
+
+        while (attempts < maxAttempts && isMounted) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+          attempts++;
+
+          // Check localStorage first (faster)
+          if (checkLocalStorage()) {
+            logger.info(`✅ Session found in localStorage after ${attempts * 100}ms`);
+            setIsAuthenticated(true);
+            return;
+          }
+
+          // Fallback to API check every 500ms
+          if (attempts % 5 === 0) {
+            const retrySession = await getSession();
+            if (retrySession) {
+              logger.info(`✅ Session found via API after ${attempts * 100}ms`);
+              setIsAuthenticated(true);
+              return;
+            }
+          }
+        }
+
+        // After all retries, mark as not authenticated
+        if (isMounted) {
+          logger.warn('❌ No session found after polling - redirecting to login');
+          setIsAuthenticated(false);
+        }
       } catch (error) {
         logger.error('Auth check failed:', error);
-        setIsAuthenticated(false);
+        if (isMounted) {
+          setIsAuthenticated(false);
+        }
       }
     };
 
+    // Set a maximum timeout for auth check (10 seconds)
+    // Prevents infinite loading state
+    // Needs to be longer than the 6s polling period
+    authCheckTimeout = setTimeout(() => {
+      if (isMounted && isAuthenticated === null) {
+        logger.warn('⚠️ Auth check timeout after 10s - redirecting to login');
+        setIsAuthenticated(false);
+      }
+    }, 10000);
+
     checkAuth();
 
-    // Listen for auth state changes
-    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_OUT') {
-        setIsAuthenticated(false);
-      } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+    // Auth state listener with defensive logic to prevent false logouts
+    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+      logger.info('🔔 Auth state change:', event, 'Session exists:', !!session);
+
+      if (!isMounted) return;
+
+      // Handle explicit sign-in events
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        logger.info('✅ User authenticated via event:', event);
         setIsAuthenticated(true);
-      } else if (event === 'INITIAL_SESSION') {
-        // Handle initial session on page load
-        setIsAuthenticated(!!session);
+        return;
+      }
+
+      // CRITICAL: Be very defensive about SIGNED_OUT events
+      // Only log out if we can confirm there's truly no session
+      if (event === 'SIGNED_OUT') {
+        logger.warn('⚠️ SIGNED_OUT event received - verifying...');
+
+        // Double-check by querying session directly
+        const { data: { session: currentSession } } = await supabase.auth.getSession();
+
+        if (!currentSession) {
+          logger.warn('🚪 Confirmed no session - logging out');
+          setIsAuthenticated(false);
+        } else {
+          logger.info('✅ Session still exists - ignoring SIGNED_OUT event');
+        }
+        return;
+      }
+
+      // Explicitly ignore INITIAL_SESSION - handled by checkAuth()
+      if (event === 'INITIAL_SESSION') {
+        logger.info('📋 INITIAL_SESSION ignored - using checkAuth() instead');
+        return;
       }
     });
 
-    // Cleanup listener on unmount
+    // Cleanup on unmount
     return () => {
+      isMounted = false;
+      clearTimeout(authCheckTimeout);
       authListener?.subscription.unsubscribe();
     };
   }, []);

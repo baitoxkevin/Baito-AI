@@ -53,35 +53,82 @@ export default function LoginPage() {
   const handleLogin = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isFormValid) return;
-    
+
     setIsLoading(true);
 
     try {
       const { user, session } = await signIn(email, password);
-      
+
       if (user && session) {
-        // Small delay to ensure session is propagated before navigation
-        await new Promise(resolve => setTimeout(resolve, 100));
-        
-        // Navigate after session is confirmed
-        navigate('/dashboard');
-        
-        // Show toast after navigation (non-blocking)
-        requestAnimationFrame(() => {
-          toast({
-            title: 'Welcome back!',
-            description: 'Successfully signed in',
-            duration: 2000,
-          });
+        console.log('✅ Sign in successful, session token:', session.access_token.substring(0, 20) + '...');
+
+        // CRITICAL FIX: Poll until session is actually in browser storage
+        // This prevents the race condition where MainAppLayout checks before session is ready
+        console.log('⏳ Polling for session in browser storage...');
+
+        const sessionReady = await new Promise<boolean>((resolve) => {
+          const maxAttempts = 50; // 5 seconds max (50 * 100ms)
+          let attempts = 0;
+
+          const checkSession = async () => {
+            attempts++;
+
+            try {
+              // Check if session is in browser storage
+              const stored = localStorage.getItem('baito-auth');
+              if (stored) {
+                const parsed = JSON.parse(stored);
+                if (parsed?.access_token) {
+                  console.log(`✅ Session found in storage after ${attempts * 100}ms`);
+                  resolve(true);
+                  return;
+                }
+              }
+            } catch (e) {
+              console.warn('Error checking session storage:', e);
+            }
+
+            if (attempts >= maxAttempts) {
+              console.warn('⚠️ Session polling timeout after 5 seconds');
+              resolve(false);
+              return;
+            }
+
+            // Try again in 100ms
+            setTimeout(checkSession, 100);
+          };
+
+          checkSession();
         });
+
+        if (sessionReady) {
+          console.log('✅ Session confirmed in storage - navigating to dashboard');
+          navigate('/dashboard', { replace: true });
+
+          // Show toast after navigation
+          setTimeout(() => {
+            toast({
+              title: 'Welcome back!',
+              description: 'Successfully signed in',
+              duration: 2000,
+            });
+          }, 100);
+        } else {
+          console.error('❌ Session did not persist to storage');
+          toast({
+            title: 'Session Error',
+            description: 'Please try logging in again',
+            variant: 'destructive',
+          });
+        }
       }
     } catch (error) {
-      console.error('Sign in error:', error);
-      
-      const message = error instanceof Error 
-        ? error.message 
+      console.error('❌ Sign in error:', error);
+
+      const message = error instanceof Error
+        ? error.message
         : 'An unexpected error occurred';
-      
+
       toast({
         title: 'Unable to sign in',
         description: message,
