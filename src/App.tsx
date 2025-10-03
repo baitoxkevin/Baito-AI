@@ -1,6 +1,6 @@
 import './App.css';
 import { useState, useEffect, useRef } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useParams, useLocation } from 'react-router-dom';
 import { AppStateProvider } from './contexts/AppStateContext';
 import LoginPage from './pages/LoginPage';
 import MainAppLayout from './components/MainAppLayout';
@@ -34,6 +34,13 @@ function AppContent() {
   const { currentUser } = useAppState();
   const [effectActive, setEffectActive] = useState(false);
   const spacebarCount = useRef(0);
+  const location = useLocation();
+
+  // Check if current route is login or public route
+  const isPublicRoute = location.pathname === '/login' ||
+                        location.pathname === '/set-password' ||
+                        location.pathname.includes('/candidate-update') ||
+                        location.pathname.includes('/candidate/');
   
   useEffect(() => {
     // Function to handle keydown events for the spacebar trigger
@@ -195,10 +202,10 @@ function AppContent() {
       </Routes>
       <SpotlightCommand />
       <EnhancedToaster />
-      {/* AI Chat Widget - only show when user is logged in */}
-      {currentUser && <ChatWidget userId={currentUser.id} />}
-      {/* Notification Bell - only show when user is logged in */}
-      {currentUser && (
+      {/* AI Chat Widget - only show when user is logged in AND not on public routes */}
+      {!isPublicRoute && currentUser && <ChatWidget userId={currentUser.id} />}
+      {/* Notification Bell - only show when user is logged in AND not on public routes */}
+      {!isPublicRoute && currentUser && (
         <div className="fixed top-4 right-20 z-50">
           <NotificationBell userId={currentUser.id} />
         </div>

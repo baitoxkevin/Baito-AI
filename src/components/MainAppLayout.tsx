@@ -63,6 +63,10 @@ const MainAppLayout = memo(({ effectActive }: MainAppLayoutProps) => {
       try {
         logger.info('🔍 Starting auth check in MainAppLayout');
 
+        // CRITICAL: Small delay to allow LoginPage to complete navigation
+        // This prevents race condition where MainAppLayout mounts before session is ready
+        await new Promise(resolve => setTimeout(resolve, 50));
+
         // CRITICAL: Check localStorage directly first (same as LoginPage)
         // This is more reliable than getSession() which depends on Supabase's internal state
         const checkLocalStorage = () => {
