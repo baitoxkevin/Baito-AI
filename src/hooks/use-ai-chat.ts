@@ -99,12 +99,11 @@ export function useAIChat(userId: string): UseAIChatReturn {
     setMessages((prev) => [...prev, userMessage])
 
     try {
-      // Call Supabase Edge Function
+      // Call Supabase Edge Function (JWT auth token sent automatically)
       const { data, error: functionError } = await supabase.functions.invoke('ai-chat', {
         body: {
           message: messageContent,
-          conversationId: conversationId,
-          userId: userId
+          conversationId: conversationId
         }
       })
 

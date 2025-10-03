@@ -11,7 +11,6 @@ import { corsHeaders } from '../_shared/cors.ts'
 interface ChatRequest {
   message: string
   conversationId?: string
-  userId: string
 }
 
 interface ChatResponse {
@@ -216,14 +215,37 @@ serve(async (req) => {
   }
 
   try {
-    const { message, conversationId, userId }: ChatRequest = await req.json()
-
-    if (!message || !userId) {
-      throw new Error('Missing required fields: message and userId')
+    // Extract user from JWT Authorization header
+    const authHeader = req.headers.get('Authorization')
+    if (!authHeader) {
+      throw new Error('Missing Authorization header')
     }
 
-    // Initialize Supabase client
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+    const token = authHeader.replace('Bearer ', '')
+
+    // Create Supabase client with user's JWT
+    const supabase = createClient(
+      SUPABASE_URL,
+      SUPABASE_ANON_KEY,
+      {
+        global: { headers: { Authorization: authHeader } }
+      }
+    )
+
+    // Get authenticated user from JWT
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
+    if (authError || !user) {
+      throw new Error('Invalid authentication token')
+    }
+
+    const userId = user.id
+
+    // Parse request body
+    const { message, conversationId }: ChatRequest = await req.json()
+
+    if (!message) {
+      throw new Error('Missing required field: message')
+    }
 
     // Get or create conversation
     const finalConversationId = conversationId || await createConversation(supabase, userId)
