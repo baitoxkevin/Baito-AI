@@ -30,17 +30,134 @@ function ProjectRedirect() {
   return <Navigate to={`/projects/${projectId}`} replace />;
 }
 
-function AppContent() {
-  const { currentUser } = useAppState();
-  const [effectActive, setEffectActive] = useState(false);
-  const spacebarCount = useRef(0);
+// Component that needs to be inside Router to use useLocation
+function RouterContent() {
   const location = useLocation();
+  const { currentUser } = useAppState();
 
   // Check if current route is login or public route
   const isPublicRoute = location.pathname === '/login' ||
                         location.pathname === '/set-password' ||
                         location.pathname.includes('/candidate-update') ||
                         location.pathname.includes('/candidate/');
+
+  return (
+    <>
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/set-password" element={<SetPasswordPage />} />
+        <Route path="/receipt-scanner" element={<ReceiptScannerPage />} />
+        <Route path="/job-discovery" element={<JobDiscoveryPage />} /> {/* Added Route */}
+        <Route path="/staff-dashboard" element={<StaffDashboardPage />} />
+        <Route path="/report-sick-leave" element={<ReportSickLeavePage />} />
+        <Route path="/sick-leave/pending" element={<SickLeaveApprovalPage />} />
+        <Route path="/location-feature-demo" element={<LocationFeatureDemo />} />
+        {/* Candidate update routes with secure token */}
+        <Route path="/candidate-update-mobile/:candidateId" element={<MobileCandidateUpdatePage />} />
+        <Route path="/candidate/dashboard/:candidateId" element={<CandidateDashboardPage />} />
+        <Route path="/candidate-form/:token" element={<Navigate to="/login" replace />} />
+        <Route path="/candidate/:token" element={<Navigate to="/login" replace />} />
+        <Route
+          path="/dashboard"
+          element={<MainAppLayout effectActive={false} />}
+        />
+        {/* Routes that work both in localhost and production */}
+        {/* Redirect from singular /project to plural /projects */}
+        <Route path="/project" element={<Navigate to="/projects" replace />} />
+        <Route path="/project/:projectId" element={<ProjectRedirect />} />
+        <Route
+          path="/projects"
+          element={<MainAppLayout effectActive={false} />}
+        />
+        <Route
+          path="/projects/:projectId"
+          element={<MainAppLayout effectActive={false} />}
+        />
+        <Route
+          path="/calendar"
+          element={<MainAppLayout effectActive={false} />}
+        />
+        <Route
+          path="/calendar/list"
+          element={<MainAppLayout effectActive={false} />}
+        />
+        <Route
+          path="/calendar/view"
+          element={<MainAppLayout effectActive={false} />}
+        />
+        <Route
+          path="/calendar/dashboard"
+          element={<MainAppLayout effectActive={false} />}
+        />
+        <Route
+          path="/tools"
+          element={<MainAppLayout effectActive={false} />}
+        />
+        <Route
+          path="/invites"
+          element={<MainAppLayout effectActive={false} />}
+        />
+        <Route
+          path="/candidates"
+          element={<MainAppLayout effectActive={false} />}
+        />
+        <Route
+          path="/candidates/ui-comparison"
+          element={<MainAppLayout effectActive={false} />}
+        />
+        <Route
+          path="/team"
+          element={<MainAppLayout effectActive={false} />}
+        />
+        <Route
+          path="/settings"
+          element={<MainAppLayout effectActive={false} />}
+        />
+        <Route
+          path="/date-picker-test"
+          element={<DatePickerTestPage />}
+        />
+        <Route
+          path="/amount-input-test"
+          element={<AmountInputTestPage />}
+        />
+        <Route
+          path="/payments"
+          element={<MainAppLayout effectActive={false} />}
+        />
+        <Route
+          path="/goals"
+          element={<MainAppLayout effectActive={false} />}
+        />
+        <Route
+          path="/expenses"
+          element={<MainAppLayout effectActive={false} />}
+        />
+        <Route
+          path="/warehouse"
+          element={<MainAppLayout effectActive={false} />}
+        />
+        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        {/* Catch-all route for 404s - redirect to dashboard */}
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      </Routes>
+      <SpotlightCommand />
+      <EnhancedToaster />
+      {/* AI Chat Widget - only show when user is logged in AND not on public routes */}
+      {!isPublicRoute && currentUser && <ChatWidget userId={currentUser.id} />}
+      {/* Notification Bell - only show when user is logged in AND not on public routes */}
+      {!isPublicRoute && currentUser && (
+        <div className="fixed top-4 right-20 z-50">
+          <NotificationBell userId={currentUser.id} />
+        </div>
+      )}
+    </>
+  );
+}
+
+function AppContent() {
+  const [effectActive, setEffectActive] = useState(false);
+  const spacebarCount = useRef(0);
   
   useEffect(() => {
     // Function to handle keydown events for the spacebar trigger
@@ -102,114 +219,7 @@ function AppContent() {
 
   return (
     <BrowserRouter>
-      <Routes>
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/set-password" element={<SetPasswordPage />} />
-      <Route path="/receipt-scanner" element={<ReceiptScannerPage />} />
-      <Route path="/job-discovery" element={<JobDiscoveryPage />} /> {/* Added Route */}
-      <Route path="/staff-dashboard" element={<StaffDashboardPage />} />
-      <Route path="/report-sick-leave" element={<ReportSickLeavePage />} />
-      <Route path="/sick-leave/pending" element={<SickLeaveApprovalPage />} />
-      <Route path="/location-feature-demo" element={<LocationFeatureDemo />} />
-      {/* Candidate update routes with secure token */}
-      <Route path="/candidate-update-mobile/:candidateId" element={<MobileCandidateUpdatePage />} />
-      <Route path="/candidate/dashboard/:candidateId" element={<CandidateDashboardPage />} />
-      <Route path="/candidate-form/:token" element={<Navigate to="/login" replace />} />
-      <Route path="/candidate/:token" element={<Navigate to="/login" replace />} />
-      <Route
-        path="/dashboard"
-        element={<MainAppLayout effectActive={effectActive} />}
-      />
-      {/* Routes that work both in localhost and production */}
-      {/* Redirect from singular /project to plural /projects */}
-      <Route path="/project" element={<Navigate to="/projects" replace />} />
-      <Route path="/project/:projectId" element={<ProjectRedirect />} />
-      <Route
-        path="/projects"
-        element={<MainAppLayout effectActive={effectActive} />}
-      />
-      <Route
-        path="/projects/:projectId"
-        element={<MainAppLayout effectActive={effectActive} />}
-      />
-      <Route
-        path="/calendar"
-        element={<MainAppLayout effectActive={effectActive} />}
-      />
-      <Route
-        path="/calendar/list"
-        element={<MainAppLayout effectActive={effectActive} />}
-      />
-      <Route
-        path="/calendar/view"
-        element={<MainAppLayout effectActive={effectActive} />}
-      />
-      <Route
-        path="/calendar/dashboard"
-        element={<MainAppLayout effectActive={effectActive} />}
-      />
-      <Route
-        path="/tools"
-        element={<MainAppLayout effectActive={effectActive} />}
-      />
-      <Route
-        path="/invites"
-        element={<MainAppLayout effectActive={effectActive} />}
-      />
-      <Route
-        path="/candidates"
-        element={<MainAppLayout effectActive={effectActive} />}
-      />
-      <Route
-        path="/candidates/ui-comparison"
-        element={<MainAppLayout effectActive={effectActive} />}
-      />
-      <Route
-        path="/team"
-        element={<MainAppLayout effectActive={effectActive} />}
-      />
-      <Route
-        path="/settings"
-        element={<MainAppLayout effectActive={effectActive} />}
-      />
-      <Route
-        path="/date-picker-test"
-        element={<DatePickerTestPage />}
-      />
-      <Route
-        path="/amount-input-test"
-        element={<AmountInputTestPage />}
-      />
-      <Route
-        path="/payments"
-        element={<MainAppLayout effectActive={effectActive} />}
-      />
-      <Route
-        path="/goals"
-        element={<MainAppLayout effectActive={effectActive} />}
-      />
-      <Route
-        path="/expenses"
-        element={<MainAppLayout effectActive={effectActive} />}
-      />
-      <Route
-        path="/warehouse"
-        element={<MainAppLayout effectActive={effectActive} />}
-      />
-      <Route path="/" element={<Navigate to="/dashboard" replace />} />
-      {/* Catch-all route for 404s - redirect to dashboard */}
-      <Route path="*" element={<Navigate to="/dashboard" replace />} />
-      </Routes>
-      <SpotlightCommand />
-      <EnhancedToaster />
-      {/* AI Chat Widget - only show when user is logged in AND not on public routes */}
-      {!isPublicRoute && currentUser && <ChatWidget userId={currentUser.id} />}
-      {/* Notification Bell - only show when user is logged in AND not on public routes */}
-      {!isPublicRoute && currentUser && (
-        <div className="fixed top-4 right-20 z-50">
-          <NotificationBell userId={currentUser.id} />
-        </div>
-      )}
+      <RouterContent />
     </BrowserRouter>
   );
 }
