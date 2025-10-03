@@ -5,7 +5,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { MessageCircle, X, Send, Minimize2, Maximize2 } from 'lucide-react'
+import { MessageCircle, X, Send, Minimize2, Maximize2, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -31,7 +31,8 @@ export function ChatWidget({ userId, className }: ChatWidgetProps) {
     isLoading,
     sendMessage,
     conversationId,
-    error
+    error,
+    clearConversation
   } = useAIChat(userId)
 
   // Keyboard shortcut: Cmd/Ctrl + K to toggle chat
@@ -131,6 +132,20 @@ export function ChatWidget({ userId, className }: ChatWidgetProps) {
               </div>
 
               <div className="flex items-center space-x-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={async () => {
+                    await clearConversation()
+                    window.location.reload()
+                  }}
+                  className="h-8 w-8 p-0 hover:bg-blue-500/20 text-white"
+                  aria-label="Clear conversation"
+                  title="Start new conversation"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+
                 <Button
                   variant="ghost"
                   size="sm"

@@ -18,8 +18,11 @@ import StaffDashboardPage from './pages/StaffDashboardPage';
 import { renderCanvas } from './components/ui/canvas';
 import { SpotlightCommand } from './components/SpotlightCommand';
 import { GlobalErrorBoundary } from './components/GlobalErrorBoundary';
+import { ChatWidget } from './components/ai-assistant/ChatWidget';
+import { useAppState } from './contexts/AppStateContext';
 
-function App() {
+function AppContent() {
+  const { currentUser } = useAppState();
   const [effectActive, setEffectActive] = useState(false);
   const spacebarCount = useRef(0);
   
@@ -82,105 +85,113 @@ function App() {
   }, [effectActive]);
 
   return (
+    <BrowserRouter>
+      <Routes>
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/set-password" element={<SetPasswordPage />} />
+      <Route path="/receipt-scanner" element={<ReceiptScannerPage />} />
+      <Route path="/job-discovery" element={<JobDiscoveryPage />} /> {/* Added Route */}
+      <Route path="/staff-dashboard" element={<StaffDashboardPage />} />
+      <Route path="/location-feature-demo" element={<LocationFeatureDemo />} />
+      {/* Candidate update routes with secure token */}
+      <Route path="/candidate-update-mobile/:candidateId" element={<MobileCandidateUpdatePage />} />
+      <Route path="/candidate/dashboard/:candidateId" element={<CandidateDashboardPage />} />
+      <Route path="/candidate-form/:token" element={<Navigate to="/login" replace />} />
+      <Route path="/candidate/:token" element={<Navigate to="/login" replace />} />
+      <Route
+        path="/dashboard"
+        element={<MainAppLayout effectActive={effectActive} />}
+      />
+      {/* Routes that work both in localhost and production */}
+      <Route
+        path="/projects"
+        element={<MainAppLayout effectActive={effectActive} />}
+      />
+      <Route
+        path="/projects/:projectId"
+        element={<MainAppLayout effectActive={effectActive} />}
+      />
+      <Route
+        path="/calendar"
+        element={<MainAppLayout effectActive={effectActive} />}
+      />
+      <Route
+        path="/calendar/list"
+        element={<MainAppLayout effectActive={effectActive} />}
+      />
+      <Route
+        path="/calendar/view"
+        element={<MainAppLayout effectActive={effectActive} />}
+      />
+      <Route
+        path="/calendar/dashboard"
+        element={<MainAppLayout effectActive={effectActive} />}
+      />
+      <Route
+        path="/tools"
+        element={<MainAppLayout effectActive={effectActive} />}
+      />
+      <Route
+        path="/invites"
+        element={<MainAppLayout effectActive={effectActive} />}
+      />
+      <Route
+        path="/candidates"
+        element={<MainAppLayout effectActive={effectActive} />}
+      />
+      <Route
+        path="/candidates/ui-comparison"
+        element={<MainAppLayout effectActive={effectActive} />}
+      />
+      <Route
+        path="/team"
+        element={<MainAppLayout effectActive={effectActive} />}
+      />
+      <Route
+        path="/settings"
+        element={<MainAppLayout effectActive={effectActive} />}
+      />
+      <Route
+        path="/date-picker-test"
+        element={<DatePickerTestPage />}
+      />
+      <Route
+        path="/amount-input-test"
+        element={<AmountInputTestPage />}
+      />
+      <Route
+        path="/payments"
+        element={<MainAppLayout effectActive={effectActive} />}
+      />
+      <Route
+        path="/goals"
+        element={<MainAppLayout effectActive={effectActive} />}
+      />
+      <Route
+        path="/expenses"
+        element={<MainAppLayout effectActive={effectActive} />}
+      />
+      <Route
+        path="/warehouse"
+        element={<MainAppLayout effectActive={effectActive} />}
+      />
+      <Route path="/" element={<Navigate to="/dashboard" replace />} />
+      </Routes>
+      <SpotlightCommand />
+      <EnhancedToaster />
+      {/* AI Chat Widget - only show when user is logged in */}
+      {currentUser && <ChatWidget userId={currentUser.id} />}
+    </BrowserRouter>
+  );
+}
+
+function App() {
+  return (
     <GlobalErrorBoundary>
       <AppStateProvider>
-        <BrowserRouter>
-          <Routes>
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/set-password" element={<SetPasswordPage />} />
-          <Route path="/receipt-scanner" element={<ReceiptScannerPage />} />
-          <Route path="/job-discovery" element={<JobDiscoveryPage />} /> {/* Added Route */}
-          <Route path="/staff-dashboard" element={<StaffDashboardPage />} />
-          <Route path="/location-feature-demo" element={<LocationFeatureDemo />} />
-          {/* Candidate update routes with secure token */}
-          <Route path="/candidate-update-mobile/:candidateId" element={<MobileCandidateUpdatePage />} />
-          <Route path="/candidate/dashboard/:candidateId" element={<CandidateDashboardPage />} />
-          <Route path="/candidate-form/:token" element={<Navigate to="/login" replace />} />
-          <Route path="/candidate/:token" element={<Navigate to="/login" replace />} />
-          <Route 
-            path="/dashboard" 
-            element={<MainAppLayout effectActive={effectActive} />} 
-          />
-          {/* Routes that work both in localhost and production */}
-          <Route 
-            path="/projects" 
-            element={<MainAppLayout effectActive={effectActive} />} 
-          />
-          <Route 
-            path="/projects/:projectId" 
-            element={<MainAppLayout effectActive={effectActive} />} 
-          />
-          <Route
-            path="/calendar"
-            element={<MainAppLayout effectActive={effectActive} />}
-          />
-          <Route
-            path="/calendar/list"
-            element={<MainAppLayout effectActive={effectActive} />}
-          />
-          <Route
-            path="/calendar/view"
-            element={<MainAppLayout effectActive={effectActive} />}
-          />
-          <Route
-            path="/calendar/dashboard"
-            element={<MainAppLayout effectActive={effectActive} />}
-          />
-          <Route 
-            path="/tools" 
-            element={<MainAppLayout effectActive={effectActive} />} 
-          />
-          <Route 
-            path="/invites" 
-            element={<MainAppLayout effectActive={effectActive} />} 
-          />
-          <Route 
-            path="/candidates" 
-            element={<MainAppLayout effectActive={effectActive} />} 
-          />
-          <Route 
-            path="/candidates/ui-comparison" 
-            element={<MainAppLayout effectActive={effectActive} />} 
-          />
-          <Route 
-            path="/team" 
-            element={<MainAppLayout effectActive={effectActive} />} 
-          />
-          <Route 
-            path="/settings" 
-            element={<MainAppLayout effectActive={effectActive} />} 
-          />
-          <Route 
-            path="/date-picker-test" 
-            element={<DatePickerTestPage />} 
-          />
-          <Route 
-            path="/amount-input-test" 
-            element={<AmountInputTestPage />} 
-          />
-          <Route 
-            path="/payments" 
-            element={<MainAppLayout effectActive={effectActive} />} 
-          />
-          <Route 
-            path="/goals" 
-            element={<MainAppLayout effectActive={effectActive} />} 
-          />
-          <Route 
-            path="/expenses" 
-            element={<MainAppLayout effectActive={effectActive} />} 
-          />
-          <Route 
-            path="/warehouse" 
-            element={<MainAppLayout effectActive={effectActive} />} 
-          />
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          </Routes>
-          <SpotlightCommand />
-          <EnhancedToaster />
-        </BrowserRouter>
+        <AppContent />
       </AppStateProvider>
-  </GlobalErrorBoundary>
+    </GlobalErrorBoundary>
   );
 }
 

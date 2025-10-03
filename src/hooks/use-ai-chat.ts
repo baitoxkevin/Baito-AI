@@ -153,13 +153,12 @@ export function useAIChat(userId: string): UseAIChatReturn {
 
   const clearConversation = useCallback(async () => {
     try {
-      // End current conversation
-      if (conversationId) {
-        await supabase
-          .from('ai_conversations')
-          .update({ ended_at: new Date().toISOString() })
-          .eq('id', conversationId)
-      }
+      // End ALL active conversations for this user (not just current one)
+      await supabase
+        .from('ai_conversations')
+        .update({ ended_at: new Date().toISOString() })
+        .eq('user_id', userId)
+        .is('ended_at', null)
 
       // Reset state
       setMessages([])
@@ -169,7 +168,7 @@ export function useAIChat(userId: string): UseAIChatReturn {
     } catch (err) {
       console.error('Failed to clear conversation:', err)
     }
-  }, [conversationId])
+  }, [userId])
 
   return {
     messages,
