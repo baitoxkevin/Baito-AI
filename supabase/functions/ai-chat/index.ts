@@ -223,17 +223,20 @@ serve(async (req) => {
 
     const token = authHeader.replace('Bearer ', '')
 
-    // Create Supabase client with user's JWT
-    const supabase = createClient(
+    // Create admin Supabase client (service role for DB operations)
+    const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+
+    // Create user-scoped client for auth verification
+    const supabaseAuth = createClient(
       SUPABASE_URL,
-      SUPABASE_ANON_KEY,
+      SUPABASE_SERVICE_ROLE_KEY,
       {
         global: { headers: { Authorization: authHeader } }
       }
     )
 
     // Get authenticated user from JWT
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser(token)
     if (authError || !user) {
       throw new Error('Invalid authentication token')
     }
@@ -246,6 +249,9 @@ serve(async (req) => {
     if (!message) {
       throw new Error('Missing required field: message')
     }
+
+    // Use admin client for all DB operations (bypasses RLS)
+    const supabase = supabaseAdmin
 
     // Get or create conversation
     const finalConversationId = conversationId || await createConversation(supabase, userId)
