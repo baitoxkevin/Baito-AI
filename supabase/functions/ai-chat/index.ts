@@ -215,43 +215,31 @@ serve(async (req) => {
   }
 
   try {
-    // Extract user from JWT Authorization header
-    const authHeader = req.headers.get('Authorization')
-    if (!authHeader) {
-      throw new Error('Missing Authorization header')
-    }
-
-    const token = authHeader.replace('Bearer ', '')
-
-    // Create admin Supabase client (service role for DB operations)
-    const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
-
-    // Create user-scoped client for auth verification
-    const supabaseAuth = createClient(
-      SUPABASE_URL,
-      SUPABASE_SERVICE_ROLE_KEY,
-      {
-        global: { headers: { Authorization: authHeader } }
-      }
-    )
-
-    // Get authenticated user from JWT
-    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser(token)
-    if (authError || !user) {
-      throw new Error('Invalid authentication token')
-    }
-
-    const userId = user.id
-
-    // Parse request body
+    // Parse request body first
     const { message, conversationId }: ChatRequest = await req.json()
 
     if (!message) {
       throw new Error('Missing required field: message')
     }
 
-    // Use admin client for all DB operations (bypasses RLS)
-    const supabase = supabaseAdmin
+    // Extract user from JWT Authorization header
+    const authHeader = req.headers.get('Authorization')
+    if (!authHeader) {
+      throw new Error('Missing Authorization header')
+    }
+
+    // Create admin Supabase client (service role for DB operations)
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+
+    // Verify the JWT and get user info
+    const token = authHeader.replace('Bearer ', '')
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
+
+    if (authError || !user) {
+      throw new Error('Invalid authentication token')
+    }
+
+    const userId = user.id
 
     // Get or create conversation
     const finalConversationId = conversationId || await createConversation(supabase, userId)
