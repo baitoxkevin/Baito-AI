@@ -2,6 +2,7 @@ import { supabase } from './supabase';
 import { getAvatarUrl } from './avatar-service';
 import type { UserProfile } from './types';
 import { setSentryUser, clearSentryUser, captureException } from './sentry';
+import { logActivity } from './activity-logger';
 
 // Connection health check
 let isConnectionHealthy = true;
@@ -57,7 +58,18 @@ export async function signIn(email: string, password: string) {
 
     if (error) {
       console.error('Auth error details:', error);
-      
+
+      // Log failed login attempt
+      logActivity({
+        action: 'login_failed',
+        activity_type: 'action',
+        details: {
+          email,
+          error: error.message,
+          timestamp: new Date().toISOString()
+        }
+      });
+
       if (error.message?.includes('Email not confirmed')) {
         throw new Error('Please verify your email before signing in');
       } else if (error.message?.includes('Invalid login credentials')) {
@@ -81,6 +93,17 @@ export async function signIn(email: string, password: string) {
       setSentryUser({
         id: data.user.id,
         email: data.user.email,
+      });
+
+      // Log successful login
+      logActivity({
+        action: 'login_success',
+        activity_type: 'action',
+        details: {
+          user_id: data.user.id,
+          email: data.user.email,
+          timestamp: new Date().toISOString()
+        }
       });
     }
 
@@ -214,8 +237,24 @@ export async function signUp(email: string, password: string, fullName?: string)
  */
 export async function signOut() {
   try {
+    // Get current user before signing out for logging
+    const { data: { user } } = await supabase.auth.getUser();
+
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
+
+    // Log logout
+    if (user) {
+      logActivity({
+        action: 'logout',
+        activity_type: 'action',
+        details: {
+          user_id: user.id,
+          email: user.email,
+          timestamp: new Date().toISOString()
+        }
+      });
+    }
 
     // Clear Sentry user context on sign out
     clearSentryUser();

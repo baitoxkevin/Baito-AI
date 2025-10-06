@@ -17,6 +17,7 @@ import AmountInputTestPage from './pages/AmountInputTestPage';
 import StaffDashboardPage from './pages/StaffDashboardPage';
 import ReportSickLeavePage from './pages/ReportSickLeavePage';
 import SickLeaveApprovalPage from './pages/SickLeaveApprovalPage';
+import CandidateShowcaseDemo from './pages/CandidateShowcaseDemo';
 import { renderCanvas } from './components/ui/canvas';
 import { SpotlightCommand } from './components/SpotlightCommand';
 import { GlobalErrorBoundary } from './components/GlobalErrorBoundary';
@@ -52,6 +53,7 @@ function RouterContent() {
         <Route path="/report-sick-leave" element={<ReportSickLeavePage />} />
         <Route path="/sick-leave/pending" element={<SickLeaveApprovalPage />} />
         <Route path="/location-feature-demo" element={<LocationFeatureDemo />} />
+        <Route path="/candidate-showcase-demo" element={<CandidateShowcaseDemo />} />
         {/* Candidate update routes with secure token */}
         <Route path="/candidate-update-mobile/:candidateId" element={<MobileCandidateUpdatePage />} />
         <Route path="/candidate/dashboard/:candidateId" element={<CandidateDashboardPage />} />
