@@ -14,6 +14,11 @@ export interface StaffMember {
   designation: string;
   workingDates?: Date[];
   applyType: 'full' | 'specific';
+  isReplacement?: boolean;
+  replacingCrewId?: string;
+  replacingCrewName?: string;
+  replacementReason?: 'sick' | 'emergency' | 'no-show' | 'other';
+  replacementConfirmedAt?: Date;
 }
 
 interface StaffCalendarProps {
@@ -133,20 +138,56 @@ export function StaffCalendar({ projectStartDate, projectEndDate, staff, onDateC
                     <TooltipProvider key={member.id}>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <Avatar className="h-7 w-7 border-2 border-background">
-                            {member.photo ? (
-                              <AvatarImage src={member.photo} alt={member.name} />
-                            ) : (
-                              <AvatarFallback className="text-[10px]">
-                                {member.name.split(' ').map(part => part[0]).join('')}
-                              </AvatarFallback>
+                          <div className="relative">
+                            <Avatar className={cn(
+                              "h-7 w-7 border-2",
+                              member.isReplacement
+                                ? "border-orange-500 ring-1 ring-orange-300"
+                                : "border-background"
+                            )}>
+                              {member.photo ? (
+                                <AvatarImage src={member.photo} alt={member.name} />
+                              ) : (
+                                <AvatarFallback className="text-[10px]">
+                                  {member.name.split(' ').map(part => part[0]).join('')}
+                                </AvatarFallback>
+                              )}
+                            </Avatar>
+                            {member.isReplacement && (
+                              <div className="absolute -top-1 -right-1 h-3 w-3 bg-orange-500 text-white rounded-full flex items-center justify-center text-[8px] font-bold shadow-sm">
+                                R
+                              </div>
                             )}
-                          </Avatar>
+                          </div>
                         </TooltipTrigger>
                         <TooltipContent side="bottom">
                           <div className="space-y-1">
                             <p className="font-medium">{member.name}</p>
                             <p className="text-xs text-muted-foreground">{member.designation}</p>
+                            {member.isReplacement && (
+                              <>
+                                <div className="border-t pt-1 mt-1">
+                                  <p className="text-xs font-semibold text-orange-600 dark:text-orange-400">
+                                    🔄 Replacement Crew
+                                  </p>
+                                  {member.replacingCrewName && (
+                                    <p className="text-xs">
+                                      Replacing: <span className="font-medium">{member.replacingCrewName}</span>
+                                    </p>
+                                  )}
+                                  {member.replacementReason && (
+                                    <p className="text-xs">
+                                      Reason: <span className="capitalize">{member.replacementReason}</span>
+                                    </p>
+                                  )}
+                                  {member.replacementConfirmedAt && (
+                                    <p className="text-xs text-muted-foreground">
+                                      Confirmed: {format(member.replacementConfirmedAt, 'MMM d, yyyy')}
+                                    </p>
+                                  )}
+                                </div>
+                              </>
+                            )}
                           </div>
                         </TooltipContent>
                       </Tooltip>

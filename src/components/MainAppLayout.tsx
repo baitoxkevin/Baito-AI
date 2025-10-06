@@ -56,172 +56,41 @@ const MainAppLayout = memo(({ effectActive }: MainAppLayoutProps) => {
 
 
   useEffect(() => {
-    let isMounted = true;
-    let authCheckTimeout: NodeJS.Timeout;
-
     const checkAuth = async () => {
       try {
-        logger.info('🔍 Starting auth check in MainAppLayout');
-
-        // CRITICAL: Small delay to allow LoginPage to complete navigation
-        // This prevents race condition where MainAppLayout mounts before session is ready
-        await new Promise(resolve => setTimeout(resolve, 50));
-
-        // CRITICAL: Check localStorage directly first (same as LoginPage)
-        // This is more reliable than getSession() which depends on Supabase's internal state
-        const checkLocalStorage = () => {
-          try {
-            const stored = localStorage.getItem('baito-auth');
-            if (stored) {
-              const parsed = JSON.parse(stored);
-              // Check both access_token and session validity
-              if (parsed?.access_token) {
-                logger.info('✅ Valid session found in localStorage');
-                return true;
-              }
-            }
-          } catch (e) {
-            logger.warn('⚠️ Error reading localStorage:', e);
-          }
-          return false;
-        };
-
-        // First quick check - localStorage is fastest
-        if (checkLocalStorage()) {
-          logger.info('✅ Session found in localStorage immediately');
-          if (isMounted) {
-            setIsAuthenticated(true);
-          }
-          return;
-        }
-
-        // Also try getSession() API as fallback
+        // First check for an existing session
         const session = await getSession();
-        if (!isMounted) return;
-
         if (session) {
-          logger.info('✅ Session found via getSession() API');
           setIsAuthenticated(true);
           return;
         }
 
-        // If neither found session, implement patient retry strategy
-        // LoginPage can take up to 500ms to write to storage in production
-        // Poll every 100ms for up to 8 seconds (increased for slower connections)
-        logger.info('⏳ No session found, starting polling strategy...');
-        const maxAttempts = 80; // 80 * 100ms = 8 seconds
-        let attempts = 0;
-
-        while (attempts < maxAttempts && isMounted) {
-          await new Promise(resolve => setTimeout(resolve, 100));
-          attempts++;
-
-          // Check localStorage first (faster and more reliable)
-          if (checkLocalStorage()) {
-            logger.info(`✅ Session found in localStorage after ${attempts * 100}ms`);
-            if (isMounted) {
-              setIsAuthenticated(true);
-            }
-            return;
-          }
-
-          // Fallback to API check every 500ms (5 attempts)
-          if (attempts % 5 === 0) {
-            const retrySession = await getSession();
-            if (!isMounted) return;
-
-            if (retrySession) {
-              logger.info(`✅ Session found via API after ${attempts * 100}ms`);
-              setIsAuthenticated(true);
-              return;
-            }
-          }
-        }
-
-        // After all retries exhausted, mark as not authenticated
-        if (isMounted) {
-          logger.warn('❌ No session found after polling - redirecting to login');
-          setIsAuthenticated(false);
-        }
+        // If no session, wait a bit and check again (handles race conditions)
+        await new Promise(resolve => setTimeout(resolve, 200));
+        const retrySession = await getSession();
+        setIsAuthenticated(!!retrySession);
       } catch (error) {
-        logger.error('❌ Auth check failed with error:', error);
-        if (isMounted) {
-          setIsAuthenticated(false);
-        }
+        logger.error('Auth check failed:', error);
+        setIsAuthenticated(false);
       }
     };
 
-    // Set a maximum timeout for auth check (12 seconds)
-    // Must be longer than the 8s polling period to prevent premature redirect
-    authCheckTimeout = setTimeout(() => {
-      if (isMounted && isAuthenticated === null) {
-        logger.warn('⚠️ Auth check timeout after 12s - redirecting to login');
-        setIsAuthenticated(false);
-      }
-    }, 12000);
-
     checkAuth();
 
-    // Auth state listener with defensive logic to prevent false logouts
-    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
-      logger.info('🔔 Auth state change event:', event, 'Session exists:', !!session);
-
-      if (!isMounted) return;
-
-      // Handle explicit sign-in events
-      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-        logger.info('✅ User authenticated via event:', event);
-        setIsAuthenticated(true);
-        return;
-      }
-
-      // CRITICAL: Be very defensive about SIGNED_OUT events
-      // Only log out if we can confirm there's truly no session
+    // Listen for auth state changes
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_OUT') {
-        logger.warn('⚠️ SIGNED_OUT event received - verifying...');
-
-        // Double-check localStorage before logging out
-        try {
-          const stored = localStorage.getItem('baito-auth');
-          if (stored) {
-            const parsed = JSON.parse(stored);
-            if (parsed?.access_token) {
-              logger.info('✅ Session still exists in localStorage - ignoring SIGNED_OUT');
-              return;
-            }
-          }
-        } catch (e) {
-          logger.warn('Error checking localStorage during SIGNED_OUT');
-        }
-
-        // Triple-check by querying session directly
-        const { data: { session: currentSession } } = await supabase.auth.getSession();
-
-        if (!currentSession) {
-          logger.warn('🚪 Confirmed no session - logging out');
-          setIsAuthenticated(false);
-        } else {
-          logger.info('✅ Session still exists via API - ignoring SIGNED_OUT event');
-        }
-        return;
-      }
-
-      // Handle INITIAL_SESSION carefully - only trust it if it has a valid session
-      if (event === 'INITIAL_SESSION') {
-        if (session) {
-          logger.info('📋 INITIAL_SESSION with valid session - setting authenticated');
-          setIsAuthenticated(true);
-        } else {
-          logger.info('📋 INITIAL_SESSION with null session - letting checkAuth() handle it');
-        }
-        return;
+        setIsAuthenticated(false);
+      } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        setIsAuthenticated(true);
+      } else if (event === 'INITIAL_SESSION') {
+        // Handle initial session on page load
+        setIsAuthenticated(!!session);
       }
     });
 
-    // Cleanup on unmount
+    // Cleanup listener on unmount
     return () => {
-      isMounted = false;
-      clearTimeout(authCheckTimeout);
       authListener?.subscription.unsubscribe();
     };
   }, []);

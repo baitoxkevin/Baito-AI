@@ -6,12 +6,21 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 
+export interface ActionButton {
+  label: string
+  path?: string
+  url?: string
+  variant?: 'default' | 'outline' | 'secondary'
+  icon?: string
+}
+
 export interface Message {
   id: string
   type: 'user' | 'assistant' | 'system' | 'error'
   content: string
   createdAt: Date
   metadata?: Record<string, any>
+  buttons?: ActionButton[]
 }
 
 interface UseAIChatReturn {
@@ -74,7 +83,8 @@ export function useAIChat(userId: string): UseAIChatReturn {
           type: msg.type as any,
           content: msg.content,
           createdAt: new Date(msg.created_at),
-          metadata: msg.metadata
+          metadata: msg.metadata,
+          buttons: msg.metadata?.buttons || undefined
         }))
       )
     } catch (err) {
@@ -126,7 +136,8 @@ export function useAIChat(userId: string): UseAIChatReturn {
         type: 'assistant',
         content: data.reply,
         createdAt: new Date(),
-        metadata: data.toolsUsed ? { tools_used: data.toolsUsed } : undefined
+        metadata: data.toolsUsed ? { tools_used: data.toolsUsed } : undefined,
+        buttons: data.buttons || undefined
       }
 
       setMessages((prev) => [...prev, assistantMessage])

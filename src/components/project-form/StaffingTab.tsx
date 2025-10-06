@@ -74,6 +74,12 @@ interface StaffMember {
   applyType?: 'full' | 'specific';
   workingDates?: Date[];
   workingDatesWithSalary?: WorkingDateWithSalary[];
+  // Replacement fields
+  isReplacement?: boolean;
+  replacingCrewId?: string;
+  replacingCrewName?: string;
+  replacementReason?: 'sick' | 'emergency' | 'no-show' | 'other';
+  replacementConfirmedAt?: Date;
 }
 
 interface StaffingTabProps {
@@ -202,11 +208,38 @@ const SortableStaffRow: React.FC<SortableStaffRowProps> = ({
         </Select>
       </TableCell>
       <TableCell className="text-center">
-        <div className="flex items-center justify-center gap-2">
+        <div className="flex items-center justify-center gap-2 flex-wrap">
           <Badge className="bg-gradient-to-r from-emerald-500 to-teal-500 text-white px-3 py-1 font-medium shadow-sm">
             <CheckCircle className="w-3 h-3 mr-1" />
             Confirmed
           </Badge>
+          {staff.isReplacement && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Badge variant="outline" className="border-orange-500 text-orange-700 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/20 px-2 py-1 font-medium">
+                    🔄 Replacement
+                  </Badge>
+                </TooltipTrigger>
+                <TooltipContent className="max-w-xs">
+                  <div className="space-y-1">
+                    <p className="font-semibold text-orange-600 dark:text-orange-400">Replacement Crew</p>
+                    {staff.replacingCrewName && (
+                      <p className="text-sm">Replacing: <span className="font-medium">{staff.replacingCrewName}</span></p>
+                    )}
+                    {staff.replacementReason && (
+                      <p className="text-sm">Reason: <span className="capitalize">{staff.replacementReason}</span></p>
+                    )}
+                    {staff.replacementConfirmedAt && (
+                      <p className="text-xs text-gray-500">
+                        Confirmed: {format(new Date(staff.replacementConfirmedAt), 'PPp')}
+                      </p>
+                    )}
+                  </div>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
           {conflicts && conflicts.length > 0 && (
             <TooltipProvider>
               <Tooltip>

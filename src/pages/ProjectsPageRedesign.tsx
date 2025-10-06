@@ -101,7 +101,7 @@ export default function ProjectsPageRedesign() {
   const [viewMode, setViewMode] = usePersistentState('projects-view-mode', 'grid');
   
   // Reference for featured project section (no longer needed but kept for compatibility)
-  // const featuredSectionRef = React.useRef<HTMLDivElement>(null);
+  const featuredSectionRef = React.useRef<HTMLDivElement>(null);
   
   // Hooks for project data
   const { getProjectsByMonth, isLoading, prefetchAdjacentMonths, invalidateCache } = useProjectsByMonth();
@@ -155,26 +155,11 @@ export default function ProjectsPageRedesign() {
         variant: 'destructive',
       });
       
-      // Use dummy data as fallback
+      // Mark that we're using fallback mode but don't set empty data
       setUseDummyData(true);
-      
-      // Filter dummy projects by month
-      const year = new Date().getFullYear();
-      const startOfMonth = new Date(year, monthIndex, 1);
-      const endOfMonth = new Date(year, monthIndex + 1, 0);
-      
-      const filteredProjects = [].filter(project => {
-        const projectStartDate = new Date(project.start_date);
-        const projectEndDate = project.end_date ? new Date(project.end_date) : projectStartDate;
-        
-        return (
-          (projectStartDate >= startOfMonth && projectStartDate <= endOfMonth) ||
-          (projectEndDate >= startOfMonth && projectEndDate <= endOfMonth) ||
-          (projectStartDate <= startOfMonth && projectEndDate >= endOfMonth)
-        );
-      });
-      
-      setProjects(prev => ({ ...prev, [monthIndex]: filteredProjects }));
+
+      // Set empty array for this month to show empty state
+      setProjects(prev => ({ ...prev, [monthIndex]: [] }));
     }
   }, [projects, getProjectsByMonth, prefetchAdjacentMonths, toast, setUseDummyData, setError]);
   
@@ -702,9 +687,11 @@ export default function ProjectsPageRedesign() {
                 {/* View Toggle */}
                 <div className="flex items-center h-10 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 p-1">
                   <button
+                    aria-label="Switch to grid view"
+                    title="Grid view"
                     className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
-                      viewMode === 'grid' 
-                        ? 'bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300' 
+                      viewMode === 'grid'
+                        ? 'bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300'
                         : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
                     }`}
                     onClick={() => setViewMode('grid')}
@@ -712,9 +699,11 @@ export default function ProjectsPageRedesign() {
                     <Grid3X3 className="h-4 w-4" />
                   </button>
                   <button
+                    aria-label="Switch to list view"
+                    title="List view"
                     className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
-                      viewMode === 'list' 
-                        ? 'bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300' 
+                      viewMode === 'list'
+                        ? 'bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300'
                         : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
                     }`}
                     onClick={() => setViewMode('list')}
@@ -738,17 +727,8 @@ export default function ProjectsPageRedesign() {
                   <DropdownMenuContent align="end" className="w-56">
                     <DropdownMenuLabel>Filter Options</DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem>
-                      <Calendar className="mr-2 h-4 w-4" />
-                      <span>By Date Range</span>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem>
-                      <Users className="mr-2 h-4 w-4" />
-                      <span>By Team</span>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem>
-                      <Star className="mr-2 h-4 w-4" />
-                      <span>By Priority</span>
+                    <DropdownMenuItem disabled className="text-muted-foreground">
+                      <span>More filters coming soon</span>
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>

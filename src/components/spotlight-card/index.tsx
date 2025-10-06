@@ -1,5 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
@@ -221,6 +222,7 @@ export const SpotlightCard = React.memo(function SpotlightCard({
     return stored !== 'true';
   });
   
+  const navigate = useNavigate();
   const [mousePosition, setMousePosition] = React.useState({ x: 0, y: 0 });
   const { toast } = useToast();
   const [showExpenseClaimForm, setShowExpenseClaimForm] = React.useState(false);
@@ -553,7 +555,8 @@ export const SpotlightCard = React.memo(function SpotlightCard({
   };
 
   const handleViewDetails = () => {
-    onViewDetails?.(localProject);
+    // Navigate to project detail page instead of calling callback
+    navigate(`/projects/${localProject.id}`);
   };
   
   // Handle project updates from child components

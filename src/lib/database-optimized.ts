@@ -41,12 +41,13 @@ class OptimizedSupabaseClient {
 
     this.maxConnections = this.poolConfig.max;
 
-    // Create optimized Supabase client
+    // Create optimized Supabase client with unique storage key to avoid multiple instance warnings
     this.client = createClient<Database>(supabaseUrl, supabaseAnonKey, {
       auth: {
         persistSession: true,
         autoRefreshToken: true,
-        detectSessionInUrl: true
+        detectSessionInUrl: true,
+        storageKey: 'baito-db-optimized'  // Unique key to avoid conflicts with main auth client
       },
       global: {
         headers: {
@@ -166,7 +167,9 @@ class OptimizedSupabaseClient {
    * Initialize connection monitoring
    */
   private initializeMonitoring(): void {
-    // Log connection pool stats every minute in development
+    // Monitoring disabled to reduce console noise
+    // Uncomment if needed for debugging connection pool issues
+    /*
     if (import.meta.env.DEV) {
       setInterval(() => {
         console.log('[DB Pool] Stats:', {
@@ -176,6 +179,7 @@ class OptimizedSupabaseClient {
         });
       }, 60000);
     }
+    */
   }
 
   /**

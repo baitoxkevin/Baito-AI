@@ -1,11 +1,12 @@
 import React, { memo, useMemo, useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { 
-  Calendar, 
-  Clock, 
-  MapPin, 
+import { useNavigate } from 'react-router-dom';
+import {
+  Calendar,
+  Clock,
+  MapPin,
   ChartBar,
-  Users, 
+  Users,
   FileText
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -22,12 +23,13 @@ interface SpotlightCardMinimizedProps {
   expenseClaims?: unknown[];
 }
 
-export const SpotlightCardMinimized = memo(function SpotlightCardMinimized({ 
-  project, 
+export const SpotlightCardMinimized = memo(function SpotlightCardMinimized({
+  project,
   onClick,
   tasks = [],
   expenseClaims = []
 }: SpotlightCardMinimizedProps) {
+  const navigate = useNavigate();
   const [clientData, setClientData] = useState<any>(project.client);
   
   // Memoize getInitials function
@@ -112,9 +114,9 @@ export const SpotlightCardMinimized = memo(function SpotlightCardMinimized({
       whileHover={{ y: -2 }}
       transition={{ duration: 0.15, ease: 'easeOut' }}
     >
-      <div 
+      <div
         className="relative border shadow-sm hover:shadow-lg transition-all duration-300 bg-white dark:bg-slate-900 overflow-hidden cursor-pointer rounded-lg"
-        onClick={onClick}
+        onClick={() => navigate(`/projects/${project.id}`)}
       >
         {/* Top accent bar */}
         <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500" />

@@ -10,7 +10,9 @@ import { supabase } from '@/lib/supabase';
 import { Toaster } from '@/components/ui/toaster';
 import { ForgotPasswordDialog } from '@/components/ForgotPasswordDialog';
 
-// Performance monitoring (only in development)
+// Performance monitoring disabled to reduce console noise
+// Uncomment if needed for performance testing
+/*
 if (process.env.NODE_ENV === 'development') {
   import('../utils/performance-test').then(module => {
     if (window.location.pathname === '/login') {
@@ -18,6 +20,7 @@ if (process.env.NODE_ENV === 'development') {
     }
   }).catch(console.error);
 }
+*/
 
 const LOGO_URL = "/favicon.png";
 
@@ -61,44 +64,13 @@ export default function LoginPage() {
       const { user, session } = await signIn(email, password);
 
       if (user && session) {
-        // CRITICAL: Wait for session to be fully persisted to localStorage
-        // Increased from 300ms to 500ms to ensure MainAppLayout can detect session
-        // This prevents race conditions where MainAppLayout loads before session is ready
-        await new Promise(resolve => setTimeout(resolve, 500));
+        // Small delay to ensure session is propagated before navigation
+        await new Promise(resolve => setTimeout(resolve, 100));
 
-        // Verify session is actually in localStorage before navigating
-        const verifySession = () => {
-          try {
-            const stored = localStorage.getItem('baito-auth');
-            if (stored) {
-              const parsed = JSON.parse(stored);
-              return !!parsed?.access_token;
-            }
-          } catch (e) {
-            console.warn('Error verifying session in localStorage:', e);
-          }
-          return false;
-        };
-
-        // Poll for session in localStorage (max 3 seconds)
-        let verified = verifySession();
-        let attempts = 0;
-        while (!verified && attempts < 30) {
-          await new Promise(resolve => setTimeout(resolve, 100));
-          verified = verifySession();
-          attempts++;
-        }
-
-        if (verified) {
-          console.log(`✅ Session verified in localStorage after ${attempts * 100}ms`);
-        } else {
-          console.warn('⚠️ Could not verify session in localStorage, proceeding anyway');
-        }
-
-        // Navigate to dashboard with replace to prevent back button issues
+        // Navigate to dashboard
         navigate('/dashboard', { replace: true });
 
-        // Show success toast (non-blocking)
+        // Show toast after navigation (non-blocking)
         requestAnimationFrame(() => {
           toast({
             title: 'Welcome back!',
@@ -170,7 +142,6 @@ export default function LoginPage() {
               alt="BaitoAI Labs"
               loading="eager"
               decoding="async"
-              fetchPriority="high"
             />
           </div>
           

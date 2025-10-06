@@ -43,6 +43,66 @@ const MAX_ITERATIONS = 5
 // System Prompt
 // ==========================================
 
+function getCurrentDateTime(): { date: string; time: string; timezone: string; isoString: string } {
+  const now = new Date()
+
+  // Malaysia Time (UTC+8)
+  const malaysiaTime = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Kuala_Lumpur' }))
+
+  // Format: YYYY-MM-DD
+  const date = malaysiaTime.toISOString().split('T')[0]
+
+  // Format: HH:MM AM/PM MYT
+  const time = malaysiaTime.toLocaleTimeString('en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+    timeZone: 'Asia/Kuala_Lumpur'
+  })
+
+  return {
+    date,
+    time,
+    timezone: 'MYT (Malaysia Time, UTC+8)',
+    isoString: malaysiaTime.toISOString()
+  }
+}
+
+// Levenshtein distance for typo tolerance
+function levenshteinDistance(a: string, b: string): number {
+  const an = a.length
+  const bn = b.length
+  const matrix: number[][] = []
+
+  if (an === 0) return bn
+  if (bn === 0) return an
+
+  // Initialize matrix
+  for (let i = 0; i <= bn; i++) {
+    matrix[i] = [i]
+  }
+  for (let j = 0; j <= an; j++) {
+    matrix[0][j] = j
+  }
+
+  // Calculate distances
+  for (let i = 1; i <= bn; i++) {
+    for (let j = 1; j <= an; j++) {
+      if (b.charAt(i - 1) === a.charAt(j - 1)) {
+        matrix[i][j] = matrix[i - 1][j - 1]
+      } else {
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j - 1] + 1, // substitution
+          matrix[i][j - 1] + 1,     // insertion
+          matrix[i - 1][j] + 1      // deletion
+        )
+      }
+    }
+  }
+
+  return matrix[bn][an]
+}
+
 const SYSTEM_PROMPT = `You are an AI assistant for Baito-AI, a staffing and project management system.
 
 Your role is to help users manage:
@@ -57,7 +117,15 @@ IMPORTANT RULES:
 2. For write operations (create/update/delete), always confirm with user first
 3. Respect user permissions - do not attempt unauthorized actions
 4. Provide clear, concise responses
-5. If unsure, ask clarifying questions
+5. When users ask about relative dates like "today", "tomorrow", "this week", "next Monday", use the current date/time provided to calculate the exact dates
+6. **MAINTAIN CONTEXT**: When users say "all", "them", "it", "those", refer back to the conversation history to understand what they're referring to
+7. **BE PROACTIVE**: When users ask for company/brand searches (e.g., "show all events for Hatch"), immediately use the company_name parameter to search - don't ask for confirmation
+8. **TYPO SUGGESTIONS**: When a search returns 0 results with suggestions, inform the user about the typo and offer to search using the suggested correction (e.g., "I couldn't find 'MTDIY'. Did you mean 'Mr.DIY'? I found 2 projects for Mr.DIY.")
+9. **CONTEXT EXAMPLES**:
+   - User: "Show Mr. DIY projects" → AI: Shows Mr. DIY projects
+   - User: "Show me all" → AI: Understands "all" means "all Mr. DIY projects" from previous query
+   - User: "Events for Hatch" → AI: Immediately searches company_name containing "hatch"
+   - User: "Show MTDIY projects" → AI: "I couldn't find 'MTDIY'. Did you mean 'Mr.DIY'?" (if suggestions exist)
 
 Current user context will be provided in each request.`
 
@@ -79,19 +147,33 @@ const AVAILABLE_TOOLS = [
             enum: ['active', 'completed', 'cancelled', 'pending'],
             description: 'Filter by project status'
           },
+          priority: {
+            type: 'string',
+            enum: ['low', 'medium', 'high', 'urgent'],
+            description: 'Filter by project priority'
+          },
+          active_on_date: {
+            type: 'string',
+            format: 'date',
+            description: 'Find projects that are active/ongoing on this specific date (date falls between start_date and end_date). Use this for queries like "today\'s projects", "projects on October 3".'
+          },
           date_from: {
             type: 'string',
             format: 'date',
-            description: 'Start date for date range filter (YYYY-MM-DD)'
+            description: 'Start date for date range filter - finds projects with START DATE on or after this date (YYYY-MM-DD). NOTE: Use this for "projects starting in October", NOT for "what\'s happening in October" (use active_on_date instead)'
           },
           date_to: {
             type: 'string',
             format: 'date',
-            description: 'End date for date range filter (YYYY-MM-DD)'
+            description: 'End date for date range filter - finds projects with START DATE on or before this date (YYYY-MM-DD). NOTE: Use this for "projects starting in October", NOT for "what\'s happening in October" (use active_on_date instead)'
           },
           company_name: {
             type: 'string',
             description: 'Filter by company name (partial match)'
+          },
+          understaffed: {
+            type: 'boolean',
+            description: 'Filter projects that need more staff (filled_positions < crew_count). Use this for queries like "which projects need more staff?" or "understaffed projects"'
           },
           limit: {
             type: 'number',
@@ -106,10 +188,14 @@ const AVAILABLE_TOOLS = [
     type: 'function',
     function: {
       name: 'query_candidates',
-      description: 'Search for candidates based on availability, skills, and other criteria.',
+      description: 'Search for candidates based on name, availability, skills, and other criteria.',
       parameters: {
         type: 'object',
         properties: {
+          name: {
+            type: 'string',
+            description: 'Search candidates by name (partial match on full_name)'
+          },
           available_date: {
             type: 'string',
             format: 'date',
@@ -124,6 +210,10 @@ const AVAILABLE_TOOLS = [
             type: 'string',
             enum: ['active', 'inactive'],
             description: 'Filter by candidate status'
+          },
+          has_vehicle: {
+            type: 'boolean',
+            description: 'Filter candidates who have their own vehicle/car'
           },
           limit: {
             type: 'number',
@@ -155,14 +245,14 @@ const AVAILABLE_TOOLS = [
     type: 'function',
     function: {
       name: 'calculate_revenue',
-      description: 'Calculate revenue for a given time period.',
+      description: 'Calculate revenue for a given time period or all completed projects.',
       parameters: {
         type: 'object',
         properties: {
           period: {
             type: 'string',
-            enum: ['this_week', 'last_week', 'this_month', 'last_month', 'custom'],
-            description: 'Time period for revenue calculation'
+            enum: ['all_time', 'this_week', 'last_week', 'this_month', 'last_month', 'custom'],
+            description: 'Time period for revenue calculation. Use "all_time" for total revenue from all completed projects.'
           },
           start_date: {
             type: 'string',
@@ -176,6 +266,18 @@ const AVAILABLE_TOOLS = [
           }
         },
         required: ['period']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_current_datetime',
+      description: 'Get the current date and time in Malaysia timezone. Use this when user asks about "today", "now", "current time", or any relative date references.',
+      parameters: {
+        type: 'object',
+        properties: {},
+        required: []
       }
     }
   },
@@ -320,8 +422,38 @@ async function reActLoop(
 ): Promise<{ reply: string; toolsUsed: string[] }> {
 
   const toolsUsed: string[] = []
+
+  // Get current date/time for temporal awareness
+  const currentDT = getCurrentDateTime()
+  const dateTimeMessage = `CURRENT DATE & TIME:
+Today's Date: ${currentDT.date}
+Current Time: ${currentDT.time}
+Timezone: ${currentDT.timezone}
+
+When users refer to "today", "tomorrow", "this week", "next Monday", or any relative date, calculate the exact date based on today's date (${currentDT.date}).
+
+Examples:
+- "today" = ${currentDT.date}
+- "this week" = ${currentDT.date} to end of current week
+- "next Monday" = calculate from ${currentDT.date}
+- "last month" = previous month from ${currentDT.date}
+
+IMPORTANT: When users ask for "today's projects", "projects happening today", or "ongoing projects":
+- Use the 'active_on_date' parameter with today's date (${currentDT.date})
+- This finds projects where today falls BETWEEN start_date and end_date
+- Example: A project from Sept 30 to Oct 4 is "active today" on Oct 3
+
+IMPORTANT: When users ask "What's happening this month?" or "events this month":
+- They usually want to know about TODAY's activity or current activity
+- Use 'active_on_date' with today's date (${currentDT.date}) to show what's currently active
+- If they specifically ask for "all month", use 'date_from' and 'date_to' but explain it shows projects STARTING in that range
+- Example responses:
+  - "What's happening this month?" → Show active_on_date for TODAY + mention "These are today's active projects"
+  - "What's starting this month?" → Use date_from/date_to for the month range`
+
   const messages = [
     { role: 'system', content: SYSTEM_PROMPT },
+    { role: 'system', content: dateTimeMessage },
     { role: 'system', content: contextMessage },
     ...history,
     { role: 'user', content: userMessage }
@@ -448,6 +580,9 @@ async function executeTool(
     case 'check_scheduling_conflicts':
       return await checkSchedulingConflicts(supabase, args, context)
 
+    case 'get_current_datetime':
+      return getCurrentDateTime()
+
     default:
       throw new Error(`Unknown tool: ${toolName}`)
   }
@@ -467,6 +602,31 @@ async function queryProjects(supabase: any, args: any, context: Context) {
     query = query.eq('status', args.status)
   }
 
+  if (args.priority) {
+    query = query.eq('priority', args.priority)
+  }
+
+  // Handle company/brand name search (fuzzy match - ignores special chars)
+  if (args.company_name) {
+    // Normalize to letters only (remove dots, spaces, hyphens, underscores)
+    const lettersOnly = args.company_name.replace(/[.\s\-_]/g, '')
+
+    // Create fuzzy pattern: each letter can have optional special chars between
+    // e.g., "mrdiy" becomes "%m%r%d%i%y%" which matches "MrDIY", "Mr.DIY", "Mr DIY", etc.
+    const fuzzyPattern = '%' + lettersOnly.split('').join('%') + '%'
+
+    // Use ILIKE for case-insensitive fuzzy match
+    query = query.ilike('brand_name', fuzzyPattern)
+  }
+
+  // Handle "active on specific date" - project is ongoing on this date
+  if (args.active_on_date) {
+    // Project is active if: start_date <= active_on_date AND end_date >= active_on_date
+    query = query.lte('start_date', args.active_on_date)
+    query = query.gte('end_date', args.active_on_date)
+  }
+
+  // Handle date range for projects STARTING within a range
   if (args.date_from) {
     query = query.gte('start_date', args.date_from)
   }
@@ -475,16 +635,63 @@ async function queryProjects(supabase: any, args: any, context: Context) {
     query = query.lte('start_date', args.date_to)
   }
 
-  query = query.limit(args.limit || 10)
+  query = query.limit(args.limit || 100) // Get more initially for post-filtering
 
   const { data, error } = await query
 
   if (error) throw error
 
+  // Apply post-query filters
+  let filteredData = data
+
+  // Filter understaffed projects if requested
+  if (args.understaffed === true) {
+    filteredData = filteredData.filter((p: any) => p.filled_positions < p.crew_count)
+  }
+
+  // Apply limit after post-filtering
+  filteredData = filteredData.slice(0, args.limit || 10)
+
+  // Typo tolerance: if no results and company_name was provided, suggest similar names
+  if (filteredData.length === 0 && args.company_name) {
+    // Get all unique brand names from database
+    const { data: allProjects, error: brandError } = await supabase
+      .from('projects')
+      .select('brand_name')
+      .not('brand_name', 'is', null)
+
+    if (!brandError && allProjects) {
+      // Get unique brand names
+      const uniqueBrands = [...new Set(allProjects.map((p: any) => p.brand_name))]
+
+      // Calculate similarity for each brand
+      const searchTerm = args.company_name.toLowerCase().replace(/[.\s\-_]/g, '')
+      const suggestions = uniqueBrands
+        .map((brand: string) => {
+          const brandNormalized = brand.toLowerCase().replace(/[.\s\-_]/g, '')
+          const distance = levenshteinDistance(searchTerm, brandNormalized)
+          return { brand, distance }
+        })
+        .filter(s => s.distance <= 2) // Only suggest if 2 or fewer character differences
+        .sort((a, b) => a.distance - b.distance)
+        .slice(0, 3) // Top 3 suggestions
+        .map(s => s.brand)
+
+      if (suggestions.length > 0) {
+        return {
+          projects: [],
+          count: 0,
+          message: `No projects found for "${args.company_name}". Did you mean: ${suggestions.join(', ')}?`,
+          suggestions
+        }
+      }
+    }
+  }
+
   return {
-    projects: data,
-    count: data.length,
-    message: `Found ${data.length} project(s)`
+    projects: filteredData,
+    count: filteredData.length,
+    message: `Found ${filteredData.length} project(s)`
   }
 }
 
@@ -493,8 +700,13 @@ async function queryCandidates(supabase: any, args: any, context: Context) {
 
   let query = supabase
     .from('candidates')
-    .select('id, full_name, ic_number, phone_number, email, status, has_vehicle, vehicle_type, address, skills')
+    .select('id, full_name, ic_number, phone_number, email, status, has_vehicle, vehicle_type, home_address, business_address, skills, custom_fields')
     .order('full_name', { ascending: true })
+
+  if (args.name) {
+    console.log('[queryCandidates] Filtering by name:', args.name)
+    query = query.ilike('full_name', `%${args.name}%`)
+  }
 
   if (args.status) {
     console.log('[queryCandidates] Filtering by status:', args.status)
@@ -504,6 +716,13 @@ async function queryCandidates(supabase: any, args: any, context: Context) {
   if (args.has_vehicle !== undefined) {
     console.log('[queryCandidates] Filtering by has_vehicle:', args.has_vehicle)
     query = query.eq('has_vehicle', args.has_vehicle)
+  }
+
+  // Filter by skills if provided (uses PostgreSQL array operators)
+  if (args.skills && args.skills.length > 0) {
+    console.log('[queryCandidates] Filtering by skills:', args.skills)
+    // Use 'overlaps' to check if candidate's skills array has ANY of the requested skills
+    query = query.overlaps('skills', args.skills)
   }
 
   // Filter by availability date if provided
@@ -567,8 +786,10 @@ async function calculateRevenue(supabase: any, args: any, context: Context) {
     .select('id, budget, status, start_date')
     .eq('status', 'completed')
 
-  // Add date filtering based on period
-  if (args.period === 'this_month' || args.month) {
+  // Add date filtering based on period (skip for all_time)
+  if (args.period === 'all_time') {
+    // No date filtering - get all completed projects
+  } else if (args.period === 'this_month' || args.month) {
     const now = new Date()
     const firstDay = new Date(now.getFullYear(), now.getMonth(), 1)
     const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0)
@@ -588,35 +809,23 @@ async function calculateRevenue(supabase: any, args: any, context: Context) {
 
   const total = data.reduce((sum: number, p: any) => sum + (p.budget || 0), 0)
 
+  const periodLabel = args.period === 'all_time' ? 'all-time' : (args.period || 'custom range')
+
   return {
-    period: args.period || 'custom range',
+    period: periodLabel,
     total_revenue: total,
     project_count: data.length,
-    message: `Total revenue from ${data.length} completed projects: RM ${total.toLocaleString()}`
+    message: `Total ${periodLabel} revenue from ${data.length} completed projects: RM ${total.toLocaleString()}`
   }
 }
 
 async function checkSchedulingConflicts(supabase: any, args: any, context: Context) {
   const { date_from, date_to } = args
 
-  // Get all projects in date range with staff assignments
+  // Get all projects in date range (simplified - no project_staff join due to schema inconsistency)
   const { data: projects, error: projError } = await supabase
     .from('projects')
-    .select(`
-      id,
-      title,
-      start_date,
-      end_date,
-      crew_count,
-      filled_positions,
-      status,
-      project_staff(
-        candidate_id,
-        role,
-        status,
-        candidates(id, full_name, phone_number)
-      )
-    `)
+    .select('id, title, start_date, end_date, crew_count, filled_positions, status')
     .gte('start_date', date_from)
     .lte('start_date', date_to)
     .neq('status', 'cancelled')
@@ -642,48 +851,7 @@ async function checkSchedulingConflicts(supabase: any, args: any, context: Conte
     })
   })
 
-  // 2. Check for double-booked candidates
-  const candidateSchedules: Record<string, any[]> = {}
-
-  projects.forEach((project: any) => {
-    if (project.project_staff) {
-      project.project_staff.forEach((staff: any) => {
-        if (!candidateSchedules[staff.candidate_id]) {
-          candidateSchedules[staff.candidate_id] = []
-        }
-        candidateSchedules[staff.candidate_id].push({
-          project_id: project.id,
-          project_title: project.title,
-          project_date: project.start_date,
-          candidate_name: staff.candidates?.full_name || 'Unknown',
-          role: staff.role
-        })
-      })
-    }
-  })
-
-  // Find candidates with multiple assignments
-  Object.entries(candidateSchedules).forEach(([candidateId, assignments]) => {
-    if (assignments.length > 1) {
-      // Check if assignments overlap by date
-      const dates = assignments.map(a => a.project_date)
-      const uniqueDates = new Set(dates)
-
-      if (dates.length !== uniqueDates.size) {
-        // Double booking detected - same date
-        conflicts.push({
-          type: 'double_booking',
-          severity: 'critical',
-          candidate_id: candidateId,
-          candidate_name: assignments[0].candidate_name,
-          projects: assignments,
-          message: `${assignments[0].candidate_name} is assigned to ${assignments.length} projects on the same date`
-        })
-      }
-    }
-  })
-
-  // 3. Check for overstaffed projects (nice to have)
+  // 2. Check for overstaffed projects
   const overstaffed = projects.filter((p: any) =>
     p.filled_positions > p.crew_count
   )
@@ -703,12 +871,11 @@ async function checkSchedulingConflicts(supabase: any, args: any, context: Conte
   return {
     conflicts,
     understaffed_count: understaffed.length,
-    double_booked_count: Object.values(candidateSchedules).filter(a => a.length > 1).length,
     overstaffed_count: overstaffed.length,
     total_conflicts: conflicts.length,
     message: conflicts.length === 0
       ? 'No scheduling conflicts detected'
-      : `Found ${conflicts.length} scheduling conflicts: ${understaffed.length} understaffed, ${Object.values(candidateSchedules).filter(a => a.length > 1).length} double-booked, ${overstaffed.length} overstaffed`
+      : `Found ${conflicts.length} scheduling conflicts: ${understaffed.length} understaffed, ${overstaffed.length} overstaffed`
   }
 }
 
@@ -774,6 +941,10 @@ function hasPermission(context: Context, toolName: string): boolean {
   // Super users have all permissions
   if (context.permissions.includes('*')) return true
 
+  // Utility tools that don't require permissions
+  const utilityTools = ['get_current_datetime']
+  if (utilityTools.includes(toolName)) return true
+
   // Map tools to required permissions
   const toolPermissions: Record<string, string> = {
     'query_projects': 'read:projects',
@@ -797,7 +968,7 @@ async function loadConversationHistory(supabase: any, conversationId: string): P
     .select('type, content')
     .eq('conversation_id', conversationId)
     .order('created_at', { ascending: true })
-    .limit(10) // Layer 1: Working memory
+    .limit(20) // Layer 1: Working memory (increased for better context)
 
   if (error) throw error
 

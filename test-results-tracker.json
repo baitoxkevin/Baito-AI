@@ -1,0 +1,56 @@
+{
+  "testRun": {
+    "date": "2025-10-03",
+    "totalTests": 100,
+    "completed": 3,
+    "passed": 3,
+    "failed": 0,
+    "skipped": 0
+  },
+  "results": [
+    {
+      "id": "1.1",
+      "category": "Basic Data Retrieval",
+      "query": "How many projects do we have?",
+      "status": "PASS",
+      "expectedTool": "query_projects",
+      "actualTool": "query_projects",
+      "response": "212 projects",
+      "notes": "Correct count returned"
+    },
+    {
+      "id": "1.2",
+      "category": "Basic Data Retrieval",
+      "query": "Show me all active projects",
+      "status": "PASS",
+      "expectedTool": "query_projects",
+      "actualTool": "query_projects",
+      "response": "0 active projects (correct filter applied)",
+      "notes": "Correctly filtered by status='active'"
+    },
+    {
+      "id": "4.2",
+      "category": "Context Awareness",
+      "query": ["Who is available next Monday?", "Can they work Tuesday too?"],
+      "status": "PASS",
+      "expectedBehavior": "Resolve 'they' to previous candidate list",
+      "actualBehavior": "Successfully resolved 'they' to 39 candidates from Monday query",
+      "response": "All 39 candidates available Monday also available Tuesday",
+      "notes": "Excellent pronoun resolution and context tracking"
+    }
+  ],
+  "scoring": {
+    "toolSelectionAccuracy": 10,
+    "queryUnderstanding": 10,
+    "dataRetrievalAccuracy": 10,
+    "responseQuality": 9,
+    "errorHandling": 0,
+    "contextAwareness": 10,
+    "multiStepReasoning": 0,
+    "proactiveIntelligence": 0,
+    "learningAdaptation": 0,
+    "businessValue": 9
+  },
+  "totalScore": 58,
+  "maxScore": 100
+}

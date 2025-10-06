@@ -43,6 +43,7 @@ const formSchema = z.object({
   // contact_email: z.string().email().optional().or(z.literal('')), // Not in DB
   crew_count: z.number().min(0).default(0),
   supervisors_required: z.number().min(0).max(9).optional(),
+  special_skills_required: z.string().optional(),
   working_hours_start: z.string().optional(),
   working_hours_end: z.string().optional(),
   // break_duration: z.string().optional(), // Not in DB
@@ -113,6 +114,7 @@ export function EditProjectDialogStepped({ project, open, onOpenChange, onProjec
       // contact_email: project?.contact_email || '', // Not in DB
       crew_count: project?.crew_count || 0,
       supervisors_required: project?.supervisors_required || 0,
+      special_skills_required: project?.special_skills_required || '',
       working_hours_start: project?.working_hours_start || '09:00',
       working_hours_end: project?.working_hours_end || '18:00',
       // break_duration: project?.break_duration || '60', // This field doesn't exist in DB
@@ -185,6 +187,7 @@ export function EditProjectDialogStepped({ project, open, onOpenChange, onProjec
         // contact_email: project.contact_email || '', // Not in DB
         crew_count: project.crew_count || 0,
         supervisors_required: project.supervisors_required || 0,
+        special_skills_required: project.special_skills_required || '',
         working_hours_start: project.working_hours_start || '09:00',
         working_hours_end: project.working_hours_end || '18:00',
         // break_duration: project.break_duration || '60', // Not in DB
@@ -944,6 +947,26 @@ export function EditProjectDialogStepped({ project, open, onOpenChange, onProjec
                 </FormItem>
               )}
             />
+            <FormField
+              control={form.control}
+              name="special_skills_required"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Special Skills / Requirements</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      placeholder="e.g., Bilingual (English + Mandarin), Forklift certified, First Aid trained, Event experience, etc."
+                      className="min-h-[100px]"
+                      {...field}
+                    />
+                  </FormControl>
+                  <p className="text-sm text-muted-foreground">
+                    Specify any special skills, certifications, or requirements needed for this project
+                  </p>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
             {/* Commented out - these fields don't exist in the database
             <FormField
               control={form.control}
@@ -1146,6 +1169,14 @@ export function EditProjectDialogStepped({ project, open, onOpenChange, onProjec
                   <span className="text-muted-foreground">Crew Required:</span>
                   <span className="font-medium">{formValues.crew_count}</span>
                 </div>
+                {formValues.special_skills_required && (
+                  <div className="flex flex-col gap-1">
+                    <span className="text-muted-foreground">Special Skills:</span>
+                    <span className="text-sm bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-700 rounded p-2">
+                      {formValues.special_skills_required}
+                    </span>
+                  </div>
+                )}
                 {formValues.budget && (
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Budget:</span>
