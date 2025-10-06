@@ -28,6 +28,8 @@ cp .env.example .env
 # Edit .env with your Supabase credentials
 ```
 
+> ⚠️ **SECURITY WARNING**: Never commit `.env` files to Git! API keys and secrets should never be pushed to public repositories. Always use `.env.example` as a template and add actual credentials locally only.
+
 4. Start development server
 ```bash
 npm run dev
