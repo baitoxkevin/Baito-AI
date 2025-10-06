@@ -13,6 +13,8 @@ import { MessageList } from './MessageList'
 import { TypingIndicator } from './TypingIndicator'
 import { QuickActions } from './QuickActions'
 import { cn } from '@/lib/utils'
+// Direct path to optimized image in public folder
+const baigerAvatar = '/baiger-optimized.png'
 
 interface ChatWidgetProps {
   userId: string
@@ -127,10 +129,14 @@ export function ChatWidget({ userId, className }: ChatWidgetProps) {
             <Button
               onClick={() => setIsOpen(true)}
               size="lg"
-              className="h-14 w-14 rounded-full shadow-lg hover:shadow-xl transition-shadow bg-blue-600 hover:bg-blue-700"
+              className="h-16 w-16 rounded-full shadow-lg hover:shadow-xl transition-all hover:scale-105 bg-white border-2 border-blue-200 p-0 overflow-hidden"
               aria-label="Open AI Assistant"
             >
-              <MessageCircle className="h-6 w-6" />
+              <img
+                src={baigerAvatar}
+                alt="Baiger AI"
+                className="w-full h-full object-cover"
+              />
             </Button>
           </motion.div>
         )}
@@ -156,12 +162,19 @@ export function ChatWidget({ userId, className }: ChatWidgetProps) {
           >
             {/* Header */}
             <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-800 bg-gradient-to-r from-blue-600 to-blue-700 text-white">
-              <div className="flex items-center space-x-2">
-                <div className="h-2 w-2 rounded-full bg-green-400 animate-pulse" />
-                <h3 className="font-semibold text-sm">AI Assistant</h3>
-                {conversationId && (
-                  <span className="text-xs opacity-75">Active</span>
-                )}
+              <div className="flex items-center space-x-3">
+                <img
+                  src={baigerAvatar}
+                  alt="Baiger"
+                  className="h-8 w-8 rounded-full border-2 border-white shadow-sm"
+                />
+                <div className="flex items-center space-x-2">
+                  <div className="h-2 w-2 rounded-full bg-green-400 animate-pulse" />
+                  <h3 className="font-semibold text-sm">Baiger AI Assistant</h3>
+                  {conversationId && (
+                    <span className="text-xs opacity-75">Active</span>
+                  )}
+                </div>
               </div>
 
               <div className="flex items-center space-x-1">
@@ -220,9 +233,11 @@ export function ChatWidget({ userId, className }: ChatWidgetProps) {
                   >
                     {messages.length === 0 ? (
                       <div className="flex flex-col items-center justify-center h-full text-center space-y-4 min-h-[400px]">
-                        <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/20 rounded-full flex items-center justify-center">
-                          <MessageCircle className="h-8 w-8 text-blue-600 dark:text-blue-400" />
-                        </div>
+                        <img
+                          src={baigerAvatar}
+                          alt="Baiger AI Assistant"
+                          className="w-24 h-24 rounded-full shadow-lg"
+                        />
                         <div>
                           <h4 className="font-semibold text-gray-900 dark:text-gray-100 mb-1">
                             How can I help you today?
