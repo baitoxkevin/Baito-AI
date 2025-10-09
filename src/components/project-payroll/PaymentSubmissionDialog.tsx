@@ -73,6 +73,7 @@ export interface StaffPaymentSummary {
   bankAccountNumber?: string;
   email?: string;
   phone?: string;
+  icNumber?: string;
   amount: number;
   totalDays?: number;
   workingDates?: string[];
@@ -787,6 +788,7 @@ export function PaymentSubmissionDialog({
             accountNumber: summary.bankAccountNumber,
             email: summary.email,
             phone: summary.phone,
+            icNumber: summary.icNumber,
             workingDatesWithSalary: []
           }))}
           paymentDate={effectivePaymentDate}

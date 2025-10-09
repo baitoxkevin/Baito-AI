@@ -89,6 +89,7 @@ interface StaffMember {
   bank_account_number?: string;
   email?: string;
   phone_number?: string;
+  ic_number?: string;
   // Alternative field names that might be used
   bankCode?: string;
   bankAccountNumber?: string;
@@ -98,6 +99,7 @@ interface StaffMember {
     bank_account_number?: string;
     email?: string;
     phone_number?: string;
+    ic_number?: string;
   };
 }
 
@@ -2108,7 +2110,7 @@ export default function ProjectPayroll({
               totalDays: summary.totalDays,
               bankCode: bankName,
               bankAccountNumber: accountNumber,
-              workingDates: staff?.workingDatesWithSalary?.map(wdws => 
+              workingDates: staff?.workingDatesWithSalary?.map(wdws =>
                 typeof wdws.date === 'string' ? wdws.date : wdws.date.toISOString()
               ),
               payrollDetails: {
@@ -2117,7 +2119,8 @@ export default function ProjectPayroll({
                 commission: summary.totalCommission
               },
               email: staff?.email || staff?.candidate?.email || '',
-              phone: staff?.phone || staff?.phone_number || staff?.candidate?.phone_number || ''
+              phone: staff?.phone || staff?.phone_number || staff?.candidate?.phone_number || '',
+              icNumber: staff?.ic_number || staff?.candidate?.ic_number || ''
             };
           })
         }

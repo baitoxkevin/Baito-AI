@@ -129,6 +129,7 @@ interface StaffPaymentEntry {
   bankCode?: string;
   email?: string;
   phone?: string;
+  icNumber?: string;
   workingDatesWithSalary: any[];
 }
 
@@ -192,34 +193,37 @@ export function DuitNowPaymentExport({
           let accountNumber = entry.accountNumber;
           let email = entry.email;
           let phone = entry.phone;
-          
-          if (!bankCode || !accountNumber) {
+          let icNumber = entry.icNumber;
+
+          if (!bankCode || !accountNumber || !icNumber) {
             try {
               // Try to fetch from staff profiles or candidates table
               const { data: staffData } = await supabase
                 .from('staff_profiles')
-                .select('bank_code, account_number, email, phone')
+                .select('bank_code, account_number, email, phone, ic_number')
                 .eq('id', entry.staffId)
                 .single();
-                
+
               if (staffData) {
                 bankCode = staffData.bank_code || bankCode;
                 accountNumber = staffData.account_number || accountNumber;
                 email = staffData.email || email;
                 phone = staffData.phone || phone;
+                icNumber = staffData.ic_number || icNumber;
               } else {
                 // Try candidates table as fallback
                 const { data: candidateData } = await supabase
                   .from('candidates')
-                  .select('bank_code, account_number, email, phone')
+                  .select('bank_code, account_number, email, phone, ic_number')
                   .eq('id', entry.staffId)
                   .single();
-                  
+
                 if (candidateData) {
                   bankCode = candidateData.bank_code || bankCode;
                   accountNumber = candidateData.account_number || accountNumber;
                   email = candidateData.email || email;
                   phone = candidateData.phone || phone;
+                  icNumber = candidateData.ic_number || icNumber;
                 }
               }
             } catch (error) {
@@ -227,13 +231,14 @@ export function DuitNowPaymentExport({
               // We'll continue with missing details
             }
           }
-          
+
           return {
             ...entry,
             bankCode,
             accountNumber,
             email,
             phone,
+            icNumber,
             selected: true // Default all to selected
           };
         }));
@@ -256,10 +261,10 @@ export function DuitNowPaymentExport({
     }
   }, [open, memoizedStaffEntries, toast]);
   
-  // Calculate staff with missing bank details
+  // Calculate staff with missing bank details or IC numbers
   const staffWithMissingDetails = useMemo(() => {
-    return staffPaymentDetails.filter(staff => 
-      !staff.bankCode || !staff.accountNumber || staff.accountNumber.trim() === '');
+    return staffPaymentDetails.filter(staff =>
+      !staff.bankCode || !staff.accountNumber || staff.accountNumber.trim() === '' || !staff.icNumber || staff.icNumber.trim() === '');
   }, [staffPaymentDetails]);
   
   // Calculate total payment amount
@@ -314,7 +319,7 @@ export function DuitNowPaymentExport({
   
   // Handle updating account number for a specific staff
   const updateStaffAccountNumber = (staffId: string, accountNumber: string) => {
-    setStaffPaymentDetails(prev => 
+    setStaffPaymentDetails(prev =>
       prev.map(staff => {
         if (staff.staffId === staffId) {
           return { ...staff, accountNumber };
@@ -323,7 +328,19 @@ export function DuitNowPaymentExport({
       })
     );
   };
-  
+
+  // Handle updating IC number for a specific staff
+  const updateStaffIcNumber = (staffId: string, icNumber: string) => {
+    setStaffPaymentDetails(prev =>
+      prev.map(staff => {
+        if (staff.staffId === staffId) {
+          return { ...staff, icNumber };
+        }
+        return staff;
+      })
+    );
+  };
+
   // Toggle including all staff regardless of bank details
   const toggleIncludeAllStaff = () => {
     setIncludeAllStaff(!includeAllStaff);
@@ -331,15 +348,24 @@ export function DuitNowPaymentExport({
   
   // Generate CSV data for DuitNow payment format
   const generateCsvData = () => {
-    // Check for any staff with missing bank details
-    const staffWithErrors = staffPaymentDetails.filter(staff => 
-      staff.selected && (!staff.bankCode || !staff.accountNumber || staff.accountNumber.trim() === '')
+    // Check for any staff with missing bank details or IC numbers
+    const staffWithErrors = staffPaymentDetails.filter(staff =>
+      staff.selected && (!staff.bankCode || !staff.accountNumber || staff.accountNumber.trim() === '' || !staff.icNumber || staff.icNumber.trim() === '')
     );
-    
+
+    // Count staff missing IC specifically
+    const staffMissingIC = staffPaymentDetails.filter(staff =>
+      staff.selected && (!staff.icNumber || staff.icNumber.trim() === '')
+    );
+
     if (staffWithErrors.length > 0 && !includeAllStaff) {
+      const errorMessage = staffMissingIC.length > 0
+        ? `${staffMissingIC.length} payment(s) are missing ID numbers. Recipient ID (IC/Passport) is mandatory for all DuitNow transactions.`
+        : `${staffWithErrors.length} staff members are missing bank details. Please complete the information.`;
+
       toast({
-        title: "Missing Bank Details",
-        description: `${staffWithErrors.length} staff members are missing bank details. Please complete the information or enable "Include staff without bank details".`,
+        title: "Missing Required Information",
+        description: errorMessage,
         variant: "destructive"
       });
       return null;
@@ -660,13 +686,14 @@ export function DuitNowPaymentExport({
                       <TableHead>Staff</TableHead>
                       <TableHead>Bank</TableHead>
                       <TableHead>Account Number</TableHead>
+                      <TableHead>IC Number</TableHead>
                       <TableHead className="text-right">Amount</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     <AnimatePresence>
                       {staffPaymentDetails.map((staff, index) => {
-                        const hasMissingDetails = !staff.bankCode || !staff.accountNumber;
+                        const hasMissingDetails = !staff.bankCode || !staff.accountNumber || !staff.icNumber;
                         
                         return (
                           <motion.tr
@@ -733,8 +760,20 @@ export function DuitNowPaymentExport({
                                 onChange={(e) => updateStaffAccountNumber(staff.staffId, e.target.value)}
                                 placeholder="Enter account number"
                                 className={`h-9 ${
-                                  !staff.accountNumber 
-                                    ? "border-orange-300 dark:border-orange-800 text-orange-700 dark:text-orange-400" 
+                                  !staff.accountNumber
+                                    ? "border-orange-300 dark:border-orange-800 text-orange-700 dark:text-orange-400"
+                                    : ""
+                                }`}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Input
+                                value={staff.icNumber || ""}
+                                onChange={(e) => updateStaffIcNumber(staff.staffId, e.target.value)}
+                                placeholder="Enter IC number"
+                                className={`h-9 ${
+                                  !staff.icNumber
+                                    ? "border-orange-300 dark:border-orange-800 text-orange-700 dark:text-orange-400"
                                     : ""
                                 }`}
                               />
