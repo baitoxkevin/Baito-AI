@@ -139,7 +139,7 @@ export async function extractWithAI(
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${effectiveApiKey}`,
-        'HTTP-Referer': typeof window !== 'undefined' ? window.location.origin : 'https://baito.vimigoapp.com',
+        'HTTP-Referer': typeof window !== 'undefined' ? window.location.origin : 'https://baitoai.netlify.app',
         'X-Title': 'Baito AI Candidate Extractor'
       },
       body: JSON.stringify({
