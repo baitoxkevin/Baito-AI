@@ -301,10 +301,26 @@ export function EditProjectDialog({
         }
       });
 
+      // Only include fields that exist in the projects table
       const updateData = {
-        ...values,
+        title: values.title,
+        client_id: values.client_id,
+        manager_id: values.manager_id,
+        status: values.status,
+        priority: values.priority,
+        event_type: values.event_type,
+        description: values.description,
+        venue_address: values.venue_address,
+        venue_details: values.venue_details,
         start_date: format(values.start_date, 'yyyy-MM-dd'),
         end_date: values.end_date ? format(values.end_date, 'yyyy-MM-dd') : null,
+        working_hours_start: values.working_hours_start,
+        working_hours_end: values.working_hours_end,
+        crew_count: values.crew_count,
+        supervisors_required: values.supervisors_required,
+        budget: values.budget,
+        project_type: values.project_type,
+        schedule_type: values.schedule_type,
         cc_client_ids: values.cc_client_ids || [],
         cc_user_ids: values.cc_user_ids || [],
         updated_at: new Date().toISOString(),
