@@ -139,7 +139,7 @@ export async function extractWithAI(
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${effectiveApiKey}`,
-        'HTTP-Referer': window.location.origin,
+        'HTTP-Referer': typeof window !== 'undefined' ? window.location.origin : 'https://baito.vimigoapp.com',
         'X-Title': 'Baito AI Candidate Extractor'
       },
       body: JSON.stringify({
@@ -162,6 +162,13 @@ export async function extractWithAI(
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
 
+      // Log full error details for debugging
+      console.error('OpenRouter API Error:', {
+        status: response.status,
+        statusText: response.statusText,
+        errorData
+      });
+
       // Handle specific error cases with helpful messages
       if (response.status === 401) {
         throw new Error(
@@ -175,8 +182,20 @@ export async function extractWithAI(
         );
       }
 
+      if (response.status === 402) {
+        throw new Error(
+          'Insufficient credits. Please add credits to your OpenRouter account at https://openrouter.ai/credits or check your API key.'
+        );
+      }
+
+      if (response.status === 429) {
+        throw new Error(
+          'Rate limit exceeded. Please wait a moment and try again.'
+        );
+      }
+
       throw new Error(
-        `API request failed: ${response.status} ${response.statusText}. ${JSON.stringify(errorData)}`
+        `API request failed: ${response.status} ${response.statusText}. Details: ${JSON.stringify(errorData)}`
       );
     }
 

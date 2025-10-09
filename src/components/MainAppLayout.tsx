@@ -22,6 +22,7 @@ import PaymentsPage from '@/pages/PaymentsPage';
 import GoalsPage from '@/pages/GoalsPage';
 import ExpenseClaimsPage from '@/pages/ExpenseClaimsPage';
 import WarehousePage from '@/pages/WarehousePage';
+import AdminDashboardPage from '@/pages/AdminDashboardPage';
 
 interface MainAppLayoutProps {
   effectActive: boolean;
@@ -47,6 +48,7 @@ const MainAppLayout = memo(({ effectActive }: MainAppLayoutProps) => {
     if (pathname.startsWith('/settings')) return 'settings';
     if (pathname.startsWith('/team')) return 'team';
     if (pathname.startsWith('/invites')) return 'invites';
+    if (pathname.startsWith('/admin')) return 'admin';
     if (pathname.startsWith('/payments')) return 'payments';
     if (pathname.startsWith('/goals')) return 'goals';
     if (pathname.startsWith('/expenses')) return 'expenses';
@@ -177,6 +179,11 @@ const MainAppLayout = memo(({ effectActive }: MainAppLayoutProps) => {
           {activeView === 'team' && (
             <div style={{ height: '100%' }}>
               <TeamManagementPage />
+            </div>
+          )}
+          {activeView === 'admin' && (
+            <div style={{ height: '100%' }}>
+              <AdminDashboardPage />
             </div>
           )}
           {activeView === 'payments' && (

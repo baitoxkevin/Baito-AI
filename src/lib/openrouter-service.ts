@@ -82,7 +82,7 @@ export class OpenRouterService {
         headers: {
           'Authorization': `Bearer ${this.apiKey}`,
           'Content-Type': 'application/json',
-          'HTTP-Referer': window.location.origin,
+          'HTTP-Referer': typeof window !== 'undefined' ? window.location.origin : 'https://baito.vimigoapp.com',
           'X-Title': 'Baito-AI'
         },
         body: JSON.stringify({
@@ -117,7 +117,7 @@ export class OpenRouterService {
         headers: {
           'Authorization': `Bearer ${this.apiKey}`,
           'Content-Type': 'application/json',
-          'HTTP-Referer': window.location.origin,
+          'HTTP-Referer': typeof window !== 'undefined' ? window.location.origin : 'https://baito.vimigoapp.com',
           'X-Title': 'Baito-AI'
         },
         body: JSON.stringify({

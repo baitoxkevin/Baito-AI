@@ -124,6 +124,10 @@ function RouterContent() {
           element={<AmountInputTestPage />}
         />
         <Route
+          path="/admin"
+          element={<MainAppLayout effectActive={false} />}
+        />
+        <Route
           path="/payments"
           element={<MainAppLayout effectActive={false} />}
         />

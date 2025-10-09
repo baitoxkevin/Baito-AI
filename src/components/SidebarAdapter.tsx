@@ -15,7 +15,8 @@ import {
   CreditCard,
   Target,
   Receipt,
-  Package
+  Package,
+  Shield
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { supabase } from '@/lib/supabase';
@@ -352,33 +353,19 @@ export function SidebarAdapter({ children }: SidebarAdapterProps) {
       "aria-current": location.pathname === "/tools" ? "page" : undefined,
     },
     ...(canAccessPayments ? [{
-      label: "Payments",
-      href: "/payments",
-      icon: <CreditCard className="sidebar-link-icon" />,
+      label: "Admin Dashboard",
+      href: "/admin",
+      icon: <Shield className="sidebar-link-icon" />,
       onClick: (e) => {
         e.preventDefault();
-        handleNavigation("/payments");
+        handleNavigation("/admin");
       },
       className: cn(
         "sidebar-link",
-        location.pathname === "/payments" && "bg-muted"
+        location.pathname === "/admin" && "bg-muted"
       ),
-      "aria-current": location.pathname === "/payments" ? "page" : undefined,
+      "aria-current": location.pathname === "/admin" ? "page" : undefined,
     }] : []),
-    {
-      label: "Expenses",
-      href: "/expenses",
-      icon: <Receipt className="sidebar-link-icon" />,
-      onClick: (e) => {
-        e.preventDefault();
-        handleNavigation("/expenses");
-      },
-      className: cn(
-        "sidebar-link",
-        location.pathname === "/expenses" && "bg-muted"
-      ),
-      "aria-current": location.pathname === "/expenses" ? "page" : undefined,
-    },
     {
       label: "Goals",
       href: "/goals",
