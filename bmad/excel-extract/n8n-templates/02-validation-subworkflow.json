@@ -1,0 +1,73 @@
+{
+  "name": "Validation Sub-Workflow",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "execute-workflow-trigger",
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Comprehensive Validation Rules\n// Based on Validation Specialist agent specifications\n\nconst records = $input.all();\nconst validationReport = {\n  total_records: records.length,\n  passed: 0,\n  flagged: 0,\n  issues_by_type: {},\n  issues_by_severity: { HIGH: 0, MEDIUM: 0, LOW: 0 }\n};\n\nconst validated = [];\n\nfor (const item of records) {\n  const record = item.json;\n  const issues = [];\n  let confidence = record.confidence || 0.9;\n\n  // RULE 1: Calculation Verification\n  // Formula: wages + ot + claims + allowance + commission = total_payment\n  // Tolerance: ±RM 0.50\n  const calculated = \n    (parseFloat(record.wages) || 0) +\n    (parseFloat(record.ot) || 0) +\n    (parseFloat(record.claims) || 0) +\n    (parseFloat(record.allowance) || 0) +\n    (parseFloat(record.commission) || 0);\n  \n  const stated = parseFloat(record.total_payment) || 0;\n  const diff = Math.abs(calculated - stated);\n  \n  if (diff > 0.5) {\n    const issue = {\n      type: 'calculation_mismatch',\n      severity: 'MEDIUM',\n      expected: calculated.toFixed(2),\n      found: stated.toFixed(2),\n      difference: diff.toFixed(2),\n      description: `Payment calculation mismatch: Expected RM${calculated.toFixed(2)}, Found RM${stated.toFixed(2)}`\n    };\n    issues.push(issue);\n    confidence -= 0.15;\n    validationReport.issues_by_type['calculation_mismatch'] = \n      (validationReport.issues_by_type['calculation_mismatch'] || 0) + 1;\n    validationReport.issues_by_severity['MEDIUM']++;\n  }\n\n  // RULE 2: IC Format Validation\n  // Format: YYMMDD-PB-###G (12 digits with dashes)\n  // Example: 900101-01-1234\n  const icPattern = /^\\d{6}-\\d{2}-\\d{4}$/;\n  if (record.ic) {\n    if (!icPattern.test(record.ic)) {\n      const issue = {\n        type: 'invalid_ic_format',\n        severity: 'HIGH',\n        value: record.ic,\n        expected: 'YYMMDD-PB-###G',\n        description: `Invalid IC format: ${record.ic} (Expected: YYMMDD-PB-###G)`\n      };\n      issues.push(issue);\n      confidence -= 0.25;\n      validationReport.issues_by_type['invalid_ic_format'] = \n        (validationReport.issues_by_type['invalid_ic_format'] || 0) + 1;\n      validationReport.issues_by_severity['HIGH']++;\n    }\n  }\n\n  // RULE 3: Bank Number Validation\n  // Requirements: Numeric only, 10-20 digits\n  if (record.bank_no) {\n    const bankNo = record.bank_no.toString().replace(/[\\s-]/g, '');\n    if (!/^\\d{10,20}$/.test(bankNo)) {\n      const issue = {\n        type: 'invalid_bank_number',\n        severity: 'MEDIUM',\n        value: record.bank_no,\n        description: `Invalid bank number format: ${record.bank_no} (Expected: 10-20 digits)`\n      };\n      issues.push(issue);\n      confidence -= 0.1;\n      validationReport.issues_by_type['invalid_bank_number'] = \n        (validationReport.issues_by_type['invalid_bank_number'] || 0) + 1;\n      validationReport.issues_by_severity['MEDIUM']++;\n    }\n  }\n\n  // RULE 4: Required Fields Check\n  const required = ['fullname', 'ic', 'project_name', 'total_payment'];\n  for (const field of required) {\n    if (!record[field] || record[field] === '' || record[field] === null) {\n      const issue = {\n        type: 'missing_required_field',\n        severity: 'HIGH',\n        field: field,\n        description: `Missing required field: ${field}`\n      };\n      issues.push(issue);\n      confidence -= 0.3;\n      validationReport.issues_by_type['missing_required_field'] = \n        (validationReport.issues_by_type['missing_required_field'] || 0) + 1;\n      validationReport.issues_by_severity['HIGH']++;\n    }\n  }\n\n  // RULE 5: Date Format Validation\n  // Accepted: DD/MM/YYYY, YYYY-MM-DD, DD-MM-YYYY\n  const dateFields = ['project_date', 'payment_date'];\n  const datePattern = /^(\\d{2}\\/\\d{2}\\/\\d{4}|\\d{4}-\\d{2}-\\d{2}|\\d{2}-\\d{2}-\\d{4})$/;\n  for (const field of dateFields) {\n    if (record[field] && !datePattern.test(record[field])) {\n      const issue = {\n        type: 'invalid_date_format',\n        severity: 'LOW',\n        field: field,\n        value: record[field],\n        description: `Invalid date format in ${field}: ${record[field]}`\n      };\n      issues.push(issue);\n      confidence -= 0.05;\n      validationReport.issues_by_type['invalid_date_format'] = \n        (validationReport.issues_by_type['invalid_date_format'] || 0) + 1;\n      validationReport.issues_by_severity['LOW']++;\n    }\n  }\n\n  // RULE 6: Currency Validation\n  // Requirements: Positive numbers, max 2 decimal places\n  const currencyFields = ['wages', 'hour_wages', 'ot', 'claims', 'allowance', 'commission', 'total_payment'];\n  for (const field of currencyFields) {\n    if (record[field] !== undefined && record[field] !== null && record[field] !== '') {\n      const value = parseFloat(record[field]);\n      if (isNaN(value) || value < 0) {\n        const issue = {\n          type: 'invalid_currency',\n          severity: 'MEDIUM',\n          field: field,\n          value: record[field],\n          description: `Invalid currency value in ${field}: ${record[field]}`\n        };\n        issues.push(issue);\n        confidence -= 0.1;\n        validationReport.issues_by_type['invalid_currency'] = \n          (validationReport.issues_by_type['invalid_currency'] || 0) + 1;\n        validationReport.issues_by_severity['MEDIUM']++;\n      }\n    }\n  }\n\n  // RULE 7: Completeness Score\n  // Check what percentage of optional fields are filled\n  const optionalFields = ['bank', 'bank_no', 'project_date', 'project_time', 'working_time', 'project_pic', 'project_venue'];\n  const filledOptional = optionalFields.filter(f => record[f] && record[f] !== '').length;\n  const completeness = filledOptional / optionalFields.length;\n  \n  if (completeness < 0.5) {\n    const issue = {\n      type: 'low_completeness',\n      severity: 'LOW',\n      completeness: (completeness * 100).toFixed(0) + '%',\n      description: `Low data completeness: ${(completeness * 100).toFixed(0)}% of optional fields filled`\n    };\n    issues.push(issue);\n    confidence -= 0.05;\n  }\n\n  // Determine final validation status\n  const highSeverityCount = issues.filter(i => i.severity === 'HIGH').length;\n  const mediumSeverityCount = issues.filter(i => i.severity === 'MEDIUM').length;\n  \n  let validation_status;\n  if (highSeverityCount > 0) {\n    validation_status = 'flagged';\n  } else if (mediumSeverityCount > 2) {\n    validation_status = 'flagged';\n  } else if (issues.length > 0) {\n    validation_status = 'warning';\n  } else {\n    validation_status = 'passed';\n  }\n\n  // Update report counters\n  if (validation_status === 'passed' || validation_status === 'warning') {\n    validationReport.passed++;\n  } else {\n    validationReport.flagged++;\n  }\n\n  validated.push({\n    json: {\n      ...record,\n      validation_status,\n      confidence: Math.max(0, Math.min(1, confidence)),\n      validation_issues: issues,\n      issue_count: issues.length,\n      high_severity_issues: highSeverityCount,\n      medium_severity_issues: mediumSeverityCount,\n      validation_timestamp: new Date().toISOString()\n    }\n  });\n}\n\n// Add summary as first item\nvalidated.unshift({\n  json: {\n    _summary: true,\n    ...validationReport\n  }\n});\n\nreturn validated;"
+      },
+      "id": "apply-validation-rules",
+      "name": "Apply Validation Rules",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Generate Validation Report\nconst items = $input.all();\nconst summary = items[0].json;  // First item is summary\nconst records = items.slice(1);  // Rest are validated records\n\n// Group issues by type\nconst issuesByType = {};\nfor (const item of records) {\n  for (const issue of item.json.validation_issues || []) {\n    if (!issuesByType[issue.type]) {\n      issuesByType[issue.type] = [];\n    }\n    issuesByType[issue.type].push({\n      row: item.json.source_row,\n      fullname: item.json.fullname,\n      ...issue\n    });\n  }\n}\n\n// Build markdown report\nlet markdown = `# Data Validation Report\\n\\n`;\nmarkdown += `**Generated:** ${new Date().toISOString()}\\n`;\nmarkdown += `**Total Records:** ${summary.total_records}\\n\\n`;\nmarkdown += `---\\n\\n`;\n\nmarkdown += `## Executive Summary\\n\\n`;\nmarkdown += `### Overall Quality Score: ${((summary.passed / summary.total_records) * 100).toFixed(1)}%\\n\\n`;\nmarkdown += `- **Passed:** ${summary.passed} records (${((summary.passed / summary.total_records) * 100).toFixed(1)}%)\\n`;\nmarkdown += `- **Flagged:** ${summary.flagged} records (${((summary.flagged / summary.total_records) * 100).toFixed(1)}%)\\n\\n`;\n\nmarkdown += `### Issues by Severity\\n`;\nmarkdown += `- 🔴 **HIGH:** ${summary.issues_by_severity.HIGH} issues\\n`;\nmarkdown += `- 🟡 **MEDIUM:** ${summary.issues_by_severity.MEDIUM} issues\\n`;\nmarkdown += `- 🟢 **LOW:** ${summary.issues_by_severity.LOW} issues\\n\\n`;\n\nmarkdown += `---\\n\\n`;\n\nmarkdown += `## Issues Found\\n\\n`;\nfor (const [type, issues] of Object.entries(issuesByType)) {\n  markdown += `### ${type.replace(/_/g, ' ').toUpperCase()} (${issues.length} records)\\n\\n`;\n  markdown += `| Row | Name | Details |\\n`;\n  markdown += `|-----|------|---------|\\n`;\n  for (const issue of issues.slice(0, 10)) {  // Show first 10\n    markdown += `| ${issue.row} | ${issue.fullname || 'N/A'} | ${issue.description} |\\n`;\n  }\n  if (issues.length > 10) {\n    markdown += `\\n*...and ${issues.length - 10} more*\\n`;\n  }\n  markdown += `\\n`;\n}\n\nmarkdown += `---\\n\\n`;\nmarkdown += `## Recommendations\\n\\n`;\n\nif (summary.issues_by_severity.HIGH > 0) {\n  markdown += `⚠️ **${summary.issues_by_severity.HIGH} HIGH severity issues** must be resolved before import.\\n\\n`;\n}\n\nif (summary.issues_by_severity.MEDIUM > 5) {\n  markdown += `🔍 Review ${summary.issues_by_severity.MEDIUM} MEDIUM severity issues for data quality.\\n\\n`;\n}\n\nif (summary.flagged === 0) {\n  markdown += `✅ All records passed validation! Ready for import.\\n`;\n} else {\n  markdown += `📋 **Next Steps:**\\n`;\n  markdown += `1. Review flagged records in detail\\n`;\n  markdown += `2. Fix HIGH severity issues\\n`;\n  markdown += `3. Consider re-analyzing low confidence rows\\n`;\n  markdown += `4. Proceed with dry-run import\\n`;\n}\n\nreturn [{\n  json: {\n    summary: summary,\n    markdown_report: markdown,\n    issues_by_type: issuesByType,\n    timestamp: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "generate-report",
+      "name": "Generate Validation Report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Apply Validation Rules",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apply Validation Rules": {
+      "main": [
+        [
+          {
+            "node": "Generate Validation Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "createdAt": "2025-10-08T22:30:00.000Z",
+      "updatedAt": "2025-10-08T22:30:00.000Z",
+      "id": "validation",
+      "name": "Validation"
+    }
+  ],
+  "triggerCount": 0,
+  "updatedAt": "2025-10-08T22:30:00.000Z",
+  "versionId": "1"
+}

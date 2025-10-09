@@ -11,7 +11,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Calendar, Clock, Users, MapPin, Trash2, Check } from 'lucide-react';
+import { Calendar, Clock, Users, MapPin, Trash2, Check, List } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
@@ -279,6 +279,8 @@ interface ListViewProps {
   monthsToShow?: number;
   syncToDate?: boolean; // Force ListView to sync with parent's date
   onMonthChange?: (newDate: Date) => void; // Notify parent when month changes
+  onViewChange?: (view: 'calendar' | 'list') => void;
+  currentView?: 'calendar' | 'list';
 }
 
 export default function ListView({
@@ -293,6 +295,8 @@ export default function ListView({
   monthsToShow = 3, // Default to showing 3 months (current + 1 past + 1 future)
   syncToDate = false,
   onMonthChange,
+  onViewChange,
+  currentView = 'list',
 }: ListViewProps) {
   // Safety check for required props
   if (!date) {
@@ -696,12 +700,21 @@ export default function ListView({
   // Persist zoom level in localStorage to prevent reset during re-renders
   const [zoomLevel, setZoomLevel] = useState(() => {
     try {
-      // Default to 50% zoom (0.5) as specified
-      localStorage.setItem('calendar_list_zoom_level', '0.5');
-      return 0.5;
+      // Try to read from localStorage first
+      const stored = localStorage.getItem('calendar_list_zoom_level');
+      if (stored) {
+        const parsed = parseFloat(stored);
+        // Validate the stored value is within valid range
+        if (!isNaN(parsed) && parsed >= 0.5 && parsed <= 1) {
+          return parsed;
+        }
+      }
+      // Default to 100% zoom (1.0) for better readability
+      localStorage.setItem('calendar_list_zoom_level', '1.0');
+      return 1.0;
     } catch (e) {
-      // Default to 0.5 (50%) if anything goes wrong
-      return 0.5;
+      // Default to 1.0 (100%) if anything goes wrong
+      return 1.0;
     }
   });
   const [initialPinchDistance, setInitialPinchDistance] = useState<number | null>(null);
@@ -1698,9 +1711,38 @@ export default function ListView({
           </div>
           
           <div className="flex items-center gap-2">
-            {/* Empty div to maintain spacing */}
-            <div className="hidden sm:block"></div>
-            
+            {/* View toggle - Calendar/List */}
+            {onViewChange && (
+              <div className="flex items-center gap-1 bg-white/50 rounded p-0.5">
+                <button
+                  onClick={() => onViewChange('calendar')}
+                  className={cn(
+                    "p-1.5 rounded transition-colors",
+                    currentView === 'calendar'
+                      ? "bg-primary text-primary-foreground"
+                      : "text-primary hover:bg-primary/10"
+                  )}
+                  title="Calendar view"
+                  aria-label="Switch to calendar view"
+                >
+                  <Calendar className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  onClick={() => onViewChange('list')}
+                  className={cn(
+                    "p-1.5 rounded transition-colors",
+                    currentView === 'list'
+                      ? "bg-primary text-primary-foreground"
+                      : "text-primary hover:bg-primary/10"
+                  )}
+                  title="List view"
+                  aria-label="Switch to list view"
+                >
+                  <List className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            )}
+
             {/* Month selector dropdown */}
             <div className="relative">
               <button

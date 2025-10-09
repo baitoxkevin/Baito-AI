@@ -144,7 +144,7 @@ export function EditProjectDialogStepped({ project, open, onOpenChange, onProjec
     try {
       const [companiesResult, managersResult] = await Promise.all([
         supabase.from('companies').select('*').order('name'),
-        supabase.from('users').select('id, full_name, role').in('role', ['admin', 'super_admin', 'manager']).order('full_name')
+        supabase.from('users').select('id, full_name, role').in('role', ['admin', 'super_admin', 'manager', 'staff']).order('full_name')
       ]);
 
       if (companiesResult.error) throw companiesResult.error;

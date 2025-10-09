@@ -1,0 +1,421 @@
+{
+  "name": "Excel Vision Extraction Pipeline",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "excel-extract",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [240, 300],
+      "webhookId": "excel-extract-pipeline"
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "binaryPropertyName": "data",
+        "options": {
+          "sheetName": "={{ $json.sheet_name }}",
+          "headerRow": 1,
+          "readAsString": false
+        }
+      },
+      "id": "read-excel",
+      "name": "Read Excel File",
+      "type": "n8n-nodes-base.spreadsheetFile",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract sheet names and prepare for loop\nconst sheets = $input.first().json.sheets || ['Sheet1'];\n\nreturn sheets.map((sheet, index) => ({\n  json: {\n    sheet_name: sheet,\n    sheet_index: index,\n    file_name: $input.first().json.file_name,\n    file_path: $input.first().json.file_path,\n    total_sheets: sheets.length\n  }\n}));"
+      },
+      "id": "prepare-sheets",
+      "name": "Prepare Sheet List",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "contents",
+              "value": "={{ [{\"parts\": [{\"text\": $json.vision_prompt}, {\"inline_data\": {\"mime_type\": \"image/png\", \"data\": $binary.screenshot.data}}]}] }}"
+            },
+            {
+              "name": "generationConfig",
+              "value": "={{ {\"temperature\": 0.2, \"topK\": 1, \"topP\": 1, \"maxOutputTokens\": 8192, \"responseMimeType\": \"application/json\"} }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 180000,
+          "response": {
+            "response": {
+              "neverError": false,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "call-gemini",
+      "name": "Call Gemini Vision API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [900, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "gemini-api-key",
+          "name": "Gemini API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "amount": 15,
+        "unit": "seconds"
+      },
+      "id": "rate-limit",
+      "name": "Rate Limit (15s)",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse Gemini Vision API Response\n// Extract candidate records from 4-phase analysis\n\nconst response = $input.first().json;\nconst candidates = response.candidates?.[0]?.content?.parts?.[0]?.text;\n\nif (!candidates) {\n  throw new Error('No data extracted from Gemini Vision API');\n}\n\nconst parsed = JSON.parse(candidates);\nconst records = parsed.records || [];\n\n// Add source metadata\nreturn records.map(record => ({\n  json: {\n    ...record.data,\n    source_file: $input.first().json.file_name,\n    source_sheet: $input.first().json.sheet_name,\n    source_row: record.row_number,\n    extraction_date: new Date().toISOString(),\n    confidence: record.confidence || 0.9,\n    receipt_present: record.receipt_present || false,\n    continuation_rows: record.continuation_rows || [record.row_number]\n  }\n}));"
+      },
+      "id": "parse-response",
+      "name": "Parse Gemini Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1340, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Apply 7 Validation Rules\n// Based on Validation Specialist agent specifications\n\nconst records = $input.all();\nconst validated = [];\n\nfor (const item of records) {\n  const record = item.json;\n  const issues = [];\n  let confidence = record.confidence || 0.9;\n\n  // Rule 1: Calculation Verification\n  const calculated = \n    (parseFloat(record.wages) || 0) +\n    (parseFloat(record.ot) || 0) +\n    (parseFloat(record.claims) || 0) +\n    (parseFloat(record.allowance) || 0) +\n    (parseFloat(record.commission) || 0);\n  \n  const stated = parseFloat(record.total_payment) || 0;\n  const diff = Math.abs(calculated - stated);\n  \n  if (diff > 0.5) {\n    issues.push({\n      type: 'calculation_mismatch',\n      severity: 'MEDIUM',\n      expected: calculated,\n      found: stated,\n      difference: diff\n    });\n    confidence -= 0.1;\n  }\n\n  // Rule 2: IC Format Validation (YYMMDD-PB-###G)\n  const icPattern = /^\\d{6}-\\d{2}-\\d{4}$/;\n  if (record.ic && !icPattern.test(record.ic)) {\n    issues.push({\n      type: 'invalid_ic_format',\n      severity: 'HIGH',\n      value: record.ic,\n      expected: 'YYMMDD-PB-###G'\n    });\n    confidence -= 0.2;\n  }\n\n  // Rule 3: Bank Number Validation\n  if (record.bank_no) {\n    const bankNo = record.bank_no.toString().replace(/\\s/g, '');\n    if (!/^\\d{10,20}$/.test(bankNo)) {\n      issues.push({\n        type: 'invalid_bank_number',\n        severity: 'MEDIUM',\n        value: record.bank_no\n      });\n      confidence -= 0.1;\n    }\n  }\n\n  // Rule 4: Required Fields Check\n  const required = ['fullname', 'ic', 'project_name', 'total_payment'];\n  for (const field of required) {\n    if (!record[field] || record[field] === '') {\n      issues.push({\n        type: 'missing_required_field',\n        severity: 'HIGH',\n        field: field\n      });\n      confidence -= 0.3;\n    }\n  }\n\n  // Rule 5: Currency Validation\n  const currencyFields = ['wages', 'ot', 'claims', 'allowance', 'commission', 'total_payment'];\n  for (const field of currencyFields) {\n    if (record[field]) {\n      const value = parseFloat(record[field]);\n      if (isNaN(value) || value < 0) {\n        issues.push({\n          type: 'invalid_currency',\n          severity: 'MEDIUM',\n          field: field,\n          value: record[field]\n        });\n        confidence -= 0.1;\n      }\n    }\n  }\n\n  // Determine validation status\n  const highSeverityIssues = issues.filter(i => i.severity === 'HIGH').length;\n  const validation_status = highSeverityIssues > 0 ? 'flagged' : \n                           issues.length > 0 ? 'warning' : 'passed';\n\n  validated.push({\n    json: {\n      ...record,\n      validation_status,\n      confidence: Math.max(0, Math.min(1, confidence)),\n      validation_issues: issues,\n      issue_count: issues.length\n    }\n  });\n}\n\nreturn validated;"
+      },
+      "id": "validate-data",
+      "name": "Validate Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1560, 300]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "rules": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.validation_status }}",
+                    "rightValue": "passed",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "passed"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.validation_status }}",
+                    "rightValue": "flagged",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "flagged"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "route-by-status",
+      "name": "Route by Status",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [1780, 300]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "tableId": "candidates",
+        "options": {
+          "returning": "representation"
+        },
+        "columnsUi": {
+          "columnValues": [
+            {
+              "column": "fullname",
+              "value": "={{ $json.fullname }}"
+            },
+            {
+              "column": "ic",
+              "value": "={{ $json.ic }}"
+            },
+            {
+              "column": "bank",
+              "value": "={{ $json.bank }}"
+            },
+            {
+              "column": "bank_no",
+              "value": "={{ $json.bank_no }}"
+            },
+            {
+              "column": "project_name",
+              "value": "={{ $json.project_name }}"
+            },
+            {
+              "column": "project_date",
+              "value": "={{ $json.project_date }}"
+            },
+            {
+              "column": "wages",
+              "value": "={{ $json.wages }}"
+            },
+            {
+              "column": "ot",
+              "value": "={{ $json.ot }}"
+            },
+            {
+              "column": "total_payment",
+              "value": "={{ $json.total_payment }}"
+            },
+            {
+              "column": "confidence",
+              "value": "={{ $json.confidence }}"
+            },
+            {
+              "column": "source_file",
+              "value": "={{ $json.source_file }}"
+            },
+            {
+              "column": "source_sheet",
+              "value": "={{ $json.source_sheet }}"
+            }
+          ]
+        }
+      },
+      "id": "insert-supabase",
+      "name": "Insert to Supabase",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [2000, 180],
+      "credentials": {
+        "supabaseApi": {
+          "id": "supabase-credentials",
+          "name": "Supabase Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Flagged Records",
+          "mode": "name"
+        },
+        "options": {
+          "useAppend": true
+        }
+      },
+      "id": "save-flagged",
+      "name": "Save to Review Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.2,
+      "position": [2000, 420],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "google-sheets-creds",
+          "name": "Google Sheets Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ {\n  \"success\": true,\n  \"message\": \"Extraction complete\",\n  \"records_processed\": $json.total_records,\n  \"records_imported\": $json.imported_count,\n  \"records_flagged\": $json.flagged_count,\n  \"timestamp\": $now\n} }}"
+      },
+      "id": "webhook-response",
+      "name": "Webhook Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2220, 300]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Read Excel File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Excel File": {
+      "main": [
+        [
+          {
+            "node": "Prepare Sheet List",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Sheet List": {
+      "main": [
+        [
+          {
+            "node": "Call Gemini Vision API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Gemini Vision API": {
+      "main": [
+        [
+          {
+            "node": "Rate Limit (15s)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rate Limit (15s)": {
+      "main": [
+        [
+          {
+            "node": "Parse Gemini Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Gemini Response": {
+      "main": [
+        [
+          {
+            "node": "Validate Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Data": {
+      "main": [
+        [
+          {
+            "node": "Route by Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route by Status": {
+      "main": [
+        [
+          {
+            "node": "Insert to Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Save to Review Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert to Supabase": {
+      "main": [
+        [
+          {
+            "node": "Webhook Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save to Review Sheet": {
+      "main": [
+        [
+          {
+            "node": "Webhook Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "createdAt": "2025-10-08T22:30:00.000Z",
+      "updatedAt": "2025-10-08T22:30:00.000Z",
+      "id": "excel-extraction",
+      "name": "Excel Extraction"
+    }
+  ],
+  "triggerCount": 0,
+  "updatedAt": "2025-10-08T22:30:00.000Z",
+  "versionId": "1"
+}

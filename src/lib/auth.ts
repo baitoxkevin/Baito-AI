@@ -14,7 +14,7 @@ async function checkConnectionHealth() {
   if (now - lastHealthCheck < 30000) {
     return isConnectionHealthy;
   }
-  
+
   lastHealthCheck = now;
   try {
     const { error } = await supabase.from('users').select('id').limit(1);
@@ -22,8 +22,65 @@ async function checkConnectionHealth() {
   } catch {
     isConnectionHealthy = false;
   }
-  
+
   return isConnectionHealthy;
+}
+
+/**
+ * Check if current session is valid
+ * @returns true if session exists and is not expired
+ */
+export async function isSessionValid(): Promise<boolean> {
+  try {
+    const { data: { session }, error } = await supabase.auth.getSession();
+
+    if (error) {
+      console.warn('[AUTH] Session validation error:', error);
+      return false;
+    }
+
+    if (!session) {
+      console.log('[AUTH] No active session');
+      return false;
+    }
+
+    // Check if token is expired
+    const expiresAt = session.expires_at;
+    if (expiresAt && expiresAt * 1000 < Date.now()) {
+      console.warn('[AUTH] Session token expired');
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error('[AUTH] Error checking session validity:', error);
+    return false;
+  }
+}
+
+/**
+ * Attempt to refresh the current session
+ * @returns true if refresh successful
+ */
+export async function refreshSession(): Promise<boolean> {
+  try {
+    const { data: { session }, error } = await supabase.auth.refreshSession();
+
+    if (error) {
+      console.error('[AUTH] Session refresh failed:', error);
+      return false;
+    }
+
+    if (session) {
+      console.log('[AUTH] Session refreshed successfully');
+      return true;
+    }
+
+    return false;
+  } catch (error) {
+    console.error('[AUTH] Error refreshing session:', error);
+    return false;
+  }
 }
 
 /**
@@ -41,9 +98,9 @@ export async function signIn(email: string, password: string) {
   // Normalize email
   email = email.toLowerCase().trim();
 
-  // Create a timeout promise (reduced to 10 seconds)
+  // Create a timeout promise (30 seconds for slow connections)
   const timeoutPromise = new Promise((_, reject) => {
-    setTimeout(() => reject(new Error('Login timeout. Please check your connection and try again.')), 10000);
+    setTimeout(() => reject(new Error('Login timeout. Please check your connection and try again.')), 30000);
   });
 
   try {
@@ -59,16 +116,21 @@ export async function signIn(email: string, password: string) {
     if (error) {
       console.error('Auth error details:', error);
 
-      // Log failed login attempt
-      logActivity({
-        action: 'login_failed',
-        activity_type: 'action',
-        details: {
-          email,
-          error: error.message,
-          timestamp: new Date().toISOString()
-        }
-      });
+      // Log failed login attempt (fire and forget)
+      try {
+        logActivity({
+          action: 'login_failed',
+          activity_type: 'action',
+          project_id: 'system', // Use system as project ID for auth events
+          details: {
+            email,
+            error: error.message,
+            timestamp: new Date().toISOString()
+          }
+        }).catch(err => console.warn('Failed to log login failure:', err));
+      } catch (err) {
+        console.warn('Failed to log login failure:', err);
+      }
 
       if (error.message?.includes('Email not confirmed')) {
         throw new Error('Please verify your email before signing in');
@@ -95,16 +157,21 @@ export async function signIn(email: string, password: string) {
         email: data.user.email,
       });
 
-      // Log successful login
-      logActivity({
-        action: 'login_success',
-        activity_type: 'action',
-        details: {
-          user_id: data.user.id,
-          email: data.user.email,
-          timestamp: new Date().toISOString()
-        }
-      });
+      // Log successful login (fire and forget - don't await)
+      try {
+        logActivity({
+          action: 'login_success',
+          activity_type: 'action',
+          project_id: 'system', // Use system as project ID for auth events
+          details: {
+            user_id: data.user.id,
+            email: data.user.email,
+            timestamp: new Date().toISOString()
+          }
+        }).catch(err => console.warn('Failed to log login success:', err));
+      } catch (err) {
+        console.warn('Failed to log login success:', err);
+      }
     }
 
     return data;
@@ -243,17 +310,22 @@ export async function signOut() {
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
 
-    // Log logout
+    // Log logout (fire and forget)
     if (user) {
-      logActivity({
-        action: 'logout',
-        activity_type: 'action',
-        details: {
-          user_id: user.id,
-          email: user.email,
-          timestamp: new Date().toISOString()
-        }
-      });
+      try {
+        logActivity({
+          action: 'logout',
+          activity_type: 'action',
+          project_id: 'system', // Use system as project ID for auth events
+          details: {
+            user_id: user.id,
+            email: user.email,
+            timestamp: new Date().toISOString()
+          }
+        }).catch(err => console.warn('Failed to log logout:', err));
+      } catch (err) {
+        console.warn('Failed to log logout:', err);
+      }
     }
 
     // Clear Sentry user context on sign out
@@ -299,6 +371,8 @@ export async function getSession() {
  */
 export async function getUser() {
   try {
+    // Just get the user directly - Supabase handles session validation
+    // Don't pre-validate to avoid blocking
     const { data: { user }, error } = await supabase.auth.getUser();
     if (error) {
       // Handle auth session missing error gracefully

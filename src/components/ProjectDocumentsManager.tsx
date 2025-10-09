@@ -52,19 +52,12 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from '@/lib/supabase';
-import { createClient } from '@supabase/supabase-js';
 import {
   HoverCard,
   HoverCardContent,
   HoverCardTrigger,
   HoverCardPortal,
 } from "@/components/ui/hover-card";
-
-// Create a fresh client to avoid any caching issues
-const freshSupabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL,
-  import.meta.env.VITE_SUPABASE_ANON_KEY
-);
 import { formatDate, cn } from '@/lib/utils';
 import { DocumentTextPreview } from '@/components/DocumentTextPreview';
 import {
@@ -208,7 +201,7 @@ export function ProjectDocumentsManager({ projectId, projectTitle }: ProjectDocu
   const fetchDocuments = async () => {
     setLoading(true);
     try {
-      const { data, error } = await freshSupabase
+      const { data, error } = await supabase
         .from('project_docs_new')
         .select('*')
         .eq('project_id', projectId)
@@ -301,7 +294,7 @@ export function ProjectDocumentsManager({ projectId, projectTitle }: ProjectDocu
         console.log('Uploading file to storage bucket: public-docs');
         console.log('File name:', fileName);
         
-        const { data: uploadData, error: uploadError } = await freshSupabase.storage
+        const { data: uploadData, error: uploadError } = await supabase.storage
           .from('public-docs')
           .upload(fileName, uploadFile!);
 
@@ -316,7 +309,7 @@ export function ProjectDocumentsManager({ projectId, projectTitle }: ProjectDocu
         console.log('File uploaded successfully to storage');
 
         // Get public URL
-        const { data: { publicUrl } } = freshSupabase.storage
+        const { data: { publicUrl } } = supabase.storage
           .from('public-docs')
           .getPublicUrl(fileName);
           
@@ -376,7 +369,7 @@ export function ProjectDocumentsManager({ projectId, projectTitle }: ProjectDocu
       console.log('Document data:', documentData);
       
       try {
-        const { data: insertedDoc, error: insertError } = await freshSupabase
+        const { data: insertedDoc, error: insertError } = await supabase
           .rpc('direct_insert_document', {
             p_project_id: documentData.project_id,
             p_file_name: documentData.file_name,
@@ -452,7 +445,7 @@ export function ProjectDocumentsManager({ projectId, projectTitle }: ProjectDocu
       }
 
       // Delete metadata
-      const { error } = await freshSupabase
+      const { error } = await supabase
         .from('project_docs_new')
         .delete()
         .eq('id', documentToDelete);

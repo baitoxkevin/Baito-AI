@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, differenceInDays } from 'date-fns';
 import { cn, eventColors, getBestTextColor, formatTimeString, projectsOverlap } from '@/lib/utils';
 import { Card, CardContent } from '@/components/ui/card';
+import { AnimatePresence, motion } from 'framer-motion';
 import {
   Tooltip,
   TooltipContent,
@@ -13,7 +14,9 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Clock, Users, MapPin } from 'lucide-react';
+import { Clock, Users, MapPin, ChevronLeft, ChevronRight, Calendar, List } from 'lucide-react';
+import { EventHoverCard } from './EventHoverCard';
+import { useEventHover } from '@/hooks/use-event-hover';
 import type { Project } from '@/lib/types';
 
 // Convert Tailwind color names to hex for gradients
@@ -90,14 +93,22 @@ interface CalendarViewProps {
   onProjectClick: (project: Project) => void;
   onDateRangeSelect: (startDate: Date, endDate: Date) => void;
   onDateClick?: (date: Date, projects: Project[]) => void;
+  onPrevMonth?: () => void;
+  onNextMonth?: () => void;
+  onViewChange?: (view: 'calendar' | 'list') => void;
+  currentView?: 'calendar' | 'list';
 }
 
-const CalendarView = React.forwardRef<HTMLDivElement, CalendarViewProps>(({
+const CalendarView = React.memo(React.forwardRef<HTMLDivElement, CalendarViewProps>(({
   date,
   projects,
   onProjectClick,
   onDateRangeSelect,
   onDateClick,
+  onPrevMonth,
+  onNextMonth,
+  onViewChange,
+  currentView = 'calendar',
 }, ref) => {
   // Safety check for required props
   if (!date) {
@@ -123,6 +134,15 @@ const CalendarView = React.forwardRef<HTMLDivElement, CalendarViewProps>(({
   const [selectedDates, setSelectedDates] = useState<Date[]>([]);
   const [eventTypeFilter, setEventTypeFilter] = useState<string[]>([]);
   const calendarRef = useRef<HTMLDivElement>(null);
+
+  // Enhanced hover card functionality
+  const {
+    hoveredProject,
+    hoverPosition,
+    handleEventHover,
+    handleEventLeave,
+    isHovering,
+  } = useEventHover(300); // 300ms delay before showing
   
   // Add CSS for project segment hover effects and proper z-index hierarchy
   useEffect(() => {
@@ -241,18 +261,21 @@ const CalendarView = React.forwardRef<HTMLDivElement, CalendarViewProps>(({
       const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
       calendarStart.setDate(calendarStart.getDate() - daysToMonday);
       const calendarEnd = new Date(calendarStart);
-      calendarEnd.setDate(calendarStart.getDate() + 41);
+      calendarEnd.setDate(calendarStart.getDate() + 34);
       const daysInMonth = eachDayOfInterval({
         start: calendarStart,
         end: calendarEnd,
       });
-      return { monthStart, monthEnd, calendarStart, calendarEnd, daysInMonth, weeks: 6 };
+      console.warn('CalendarView: Using fallback date calculation');
+      return { monthStart, monthEnd, calendarStart, calendarEnd, daysInMonth, weeks: 5 };
     }
 
-    const monthStart = startOfMonth(date);
-    const monthEnd = endOfMonth(date);
+    // Create a normalized date to ensure consistent month/year
+    const normalizedDate = new Date(date.getFullYear(), date.getMonth(), 1);
+    const monthStart = startOfMonth(normalizedDate);
+    const monthEnd = endOfMonth(normalizedDate);
 
-    // Always create a 6-week calendar for consistency
+    // Always create a 5-week calendar for better height utilization
     // Start on Monday (1) of the week containing the 1st of the month
     const calendarStart = new Date(monthStart);
     // Get day of week (0 = Sunday, 1 = Monday, ..., 6 = Saturday)
@@ -262,25 +285,28 @@ const CalendarView = React.forwardRef<HTMLDivElement, CalendarViewProps>(({
     const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
     calendarStart.setDate(calendarStart.getDate() - daysToMonday);
 
-    // Always show 6 weeks (42 days) regardless of month
+    // Always show 5 weeks (35 days) for optimal cell height
     const calendarEnd = new Date(calendarStart);
-    calendarEnd.setDate(calendarStart.getDate() + 41); // 6 weeks = 42 days - 1
+    calendarEnd.setDate(calendarStart.getDate() + 34); // 5 weeks = 35 days - 1
 
     const daysInMonth = eachDayOfInterval({
       start: calendarStart,
       end: calendarEnd,
     });
 
-    console.log('Calendar calculation:', {
-      date: date.toISOString(),
+    console.log('CalendarView: Calculating calendar for', {
+      inputDate: date.toISOString(),
+      targetMonth: format(normalizedDate, 'MMMM yyyy'),
       monthStart: monthStart.toISOString(),
       calendarStart: calendarStart.toISOString(),
       calendarEnd: calendarEnd.toISOString(),
-      daysCount: daysInMonth.length
+      daysCount: daysInMonth.length,
+      firstDay: daysInMonth[0] ? format(daysInMonth[0], 'MMM d yyyy') : 'none',
+      lastDay: daysInMonth[daysInMonth.length - 1] ? format(daysInMonth[daysInMonth.length - 1], 'MMM d yyyy') : 'none'
     });
 
-    // Should always be 6 weeks
-    const weeks = 6;
+    // Should always be 5 weeks for optimal height
+    const weeks = 5;
 
     return { monthStart, monthEnd, calendarStart, calendarEnd, daysInMonth, weeks };
   }, [date]);
@@ -720,48 +746,11 @@ const CalendarView = React.forwardRef<HTMLDivElement, CalendarViewProps>(({
         ref.current = el;
       }
     }} className={`h-full rounded-xl border bg-card text-card-foreground shadow flex flex-col overflow-hidden calendar-container ${isHoveringProject ? 'hovering-project' : ''}`}>
-      {/* Quick filters */}
-      <div className="p-2 sm:p-3 border-b flex gap-1 sm:gap-1.5 flex-wrap bg-gray-50/50 dark:bg-gray-900/50">
-        <div className="flex items-center mr-1">
-          <span className="text-xs font-medium mr-2 text-gray-500 dark:text-gray-400">Filter by:</span>
-        </div>
-        {eventTypes.map(type => (
-          <button
-            key={type}
-            className={cn(
-              "text-xs px-3 py-1.5 rounded-full border transition-all shadow-sm",
-              eventTypeFilter.includes(type) 
-                ? `${eventColors[type as keyof typeof eventColors]} border-current font-medium scale-105` 
-                : "bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800/80"
-            )}
-            onClick={() => {
-              if (eventTypeFilter.includes(type)) {
-                setEventTypeFilter(eventTypeFilter.filter(t => t !== type));
-              } else {
-                setEventTypeFilter([...eventTypeFilter, type]);
-              }
-            }}
-          >
-            {type}
-          </button>
-        ))}
-        {eventTypeFilter.length > 0 && (
-          <button
-            className="text-xs px-3 py-1.5 rounded-full border border-gray-300 dark:border-gray-700 
-                      text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors ml-auto"
-            onClick={() => setEventTypeFilter([])}
-          >
-            Clear All
-          </button>
-        )}
-      </div>
-      <div ref={containerRef} className="px-1 sm:px-2 pt-0.5 pb-2 flex flex-col flex-grow overflow-auto h-full">
-        <div className="grid grid-cols-7 gap-1 mt-0 pb-8 relative bg-gray-100"
+      <div ref={containerRef} className="px-1 sm:px-2 pt-0.5 pb-2 flex flex-col flex-grow h-full">
+        <div className="grid grid-cols-7 gap-1 mt-0 pb-4 relative bg-gray-100"
              style={{
-               height: '780px',
-               paddingBottom: '60px',
                isolation: 'isolate',
-               gridTemplateRows: 'auto auto repeat(6, 120px)'
+               gridTemplateRows: 'auto auto repeat(5, 1fr)'
              }}>
           {/* Add styles for project bars to ensure they don't overlap date numbers */}
           <style>{`
@@ -773,8 +762,7 @@ const CalendarView = React.forwardRef<HTMLDivElement, CalendarViewProps>(({
               position: relative !important;
               display: flex !important;
               flex-direction: column !important;
-              min-height: 120px !important;
-              height: 120px !important;
+              min-height: 90px !important;
               width: 100% !important;
               opacity: 1 !important;
               visibility: visible !important;
@@ -871,10 +859,61 @@ const CalendarView = React.forwardRef<HTMLDivElement, CalendarViewProps>(({
             }
           `}</style>
           {/* Current Month Display Header - Fixed at top of calendar */}
-          <div className="col-span-7 text-center py-1 bg-primary/10 border-b border-primary/20 rounded-t-lg">
-            <h3 className="text-sm font-semibold text-primary">
-              {format(date, 'MMMM yyyy')}
-            </h3>
+          <div className="col-span-7 flex items-center justify-between px-2 py-1 bg-primary/10 border-b border-primary/20 rounded-t-lg">
+            <div className="flex items-center gap-2">
+              {onPrevMonth && (
+                <button
+                  onClick={onPrevMonth}
+                  className="p-1 hover:bg-primary/20 rounded transition-colors"
+                  aria-label="Previous month"
+                >
+                  <ChevronLeft className="h-4 w-4 text-primary" />
+                </button>
+              )}
+              <h3 className="text-sm font-semibold text-primary min-w-[140px] text-center">
+                {format(date, 'MMMM yyyy')}
+              </h3>
+              {onNextMonth && (
+                <button
+                  onClick={onNextMonth}
+                  className="p-1 hover:bg-primary/20 rounded transition-colors"
+                  aria-label="Next month"
+                >
+                  <ChevronRight className="h-4 w-4 text-primary" />
+                </button>
+              )}
+            </div>
+
+            {onViewChange && (
+              <div className="flex items-center gap-1 bg-white/50 rounded p-0.5">
+                <button
+                  onClick={() => onViewChange('calendar')}
+                  className={cn(
+                    "p-1.5 rounded transition-colors",
+                    currentView === 'calendar'
+                      ? "bg-primary text-primary-foreground"
+                      : "text-primary hover:bg-primary/10"
+                  )}
+                  aria-label="Calendar view"
+                  title="Calendar view"
+                >
+                  <Calendar className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  onClick={() => onViewChange('list')}
+                  className={cn(
+                    "p-1.5 rounded transition-colors",
+                    currentView === 'list'
+                      ? "bg-primary text-primary-foreground"
+                      : "text-primary hover:bg-primary/10"
+                  )}
+                  aria-label="List view"
+                  title="List view"
+                >
+                  <List className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            )}
           </div>
           
           {/* Day headers */}
@@ -890,32 +929,32 @@ const CalendarView = React.forwardRef<HTMLDivElement, CalendarViewProps>(({
             </div>
           ))}
 
-          {/* Debug info */}
-          <div className="col-span-7 text-center py-2 bg-red-100 border border-red-500">
-            <p className="text-red-800 text-xs">
-              DEBUG: Rendering {daysInMonth.length} calendar days for {format(date, 'MMMM yyyy')}
-            </p>
-          </div>
-
-          {/* Test grid cells - if these don't show, grid is broken */}
-          {Array.from({ length: 7 }, (_, i) => (
-            <div key={`test-${i}`} className="bg-yellow-200 border-2 border-yellow-500 h-20 flex items-center justify-center">
-              <span className="text-yellow-800 font-bold">TEST {i + 1}</span>
-            </div>
-          ))}
-
-          {/* Calendar days */}
+          {/* Calendar days with animation */}
+          <AnimatePresence mode="popLayout">
           {daysInMonth.map((day, index) => {
             const isToday = isSameDay(day, today);
             const isCurrentMonth = isSameMonth(day, date);
             const isHighlighted = isDateSelected(day);
-            
+
             return (
-              <div
-                key={day.toISOString()}
-                className="relative cursor-pointer select-none p-0 transition-colors duration-200 flex flex-col rounded-lg overflow-hidden bg-white border-2 border-gray-300 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              <motion.div
+                key={`${format(day, 'yyyy-MM-dd')}`}
+                layout
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                transition={{
+                  duration: 0.2,
+                  delay: index * 0.005, // Stagger animation
+                  ease: "easeInOut"
+                }}
+                className={cn(
+                  "relative cursor-pointer select-none p-0 transition-colors duration-200 flex flex-col rounded-lg overflow-hidden border-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                  isCurrentMonth
+                    ? "bg-white border-gray-300 hover:bg-gray-50"
+                    : "bg-gray-50 border-gray-200 opacity-50"
+                )}
                 style={{
-                  height: '120px',
                   boxSizing: 'border-box',
                   zIndex: 1,
                   position: 'relative'
@@ -1162,18 +1201,18 @@ const CalendarView = React.forwardRef<HTMLDivElement, CalendarViewProps>(({
                             <TooltipProvider key={project.id}>
                               <Tooltip>
                                 <TooltipTrigger asChild>
-                                  <div 
+                                  <div
                                     className={cn(
-                                      `rounded-md border shadow-sm px-2 py-0.5 truncate cursor-pointer day-single-event`,
-                                      "transition-all flex items-center gap-1.5 h-[22px] font-medium",
+                                      `rounded-md border shadow-sm px-2 py-1 cursor-pointer day-single-event`,
+                                      "transition-all flex flex-col gap-0.5 font-medium",
                                       isCurrentMonth ? "opacity-100" : "opacity-90", // Make events slightly transparent in non-current months
                                       !project.color ? (eventColors[project.event_type as keyof typeof eventColors] || "bg-blue-200 text-blue-800") : ""
                                     )}
-                                    style={{ 
+                                    style={{
                                       zIndex: 40, // Consistent z-index for single-day events
                                       position: "absolute", // Fixed absolute positioning
-                                      top: `${groupIndex < 6 ? 42 + (groupIndex % 6) * 25 : 42 + 5 * 25}px`, // First 6 events get unique positions, rest stack at bottom
-                                      height: '22px', // Slightly taller for better visibility
+                                      top: `${groupIndex < 6 ? 42 + (groupIndex % 6) * 33 : 42 + 5 * 33}px`, // Increased spacing for 32px height
+                                      height: '32px', // Increased height for time display
                                       left: "2%",
                                       width: "96%",
                                       ...(project.color && {
@@ -1193,11 +1232,25 @@ const CalendarView = React.forwardRef<HTMLDivElement, CalendarViewProps>(({
                                       e.stopPropagation();
                                       onProjectClick(project);
                                     }}
-                                    onMouseEnter={handleProjectMouseEnter}
-                                    onMouseLeave={handleProjectMouseLeave}
+                                    onMouseEnter={(e) => {
+                                      handleProjectMouseEnter();
+                                      handleEventHover(project, e.currentTarget);
+                                    }}
+                                    onMouseLeave={() => {
+                                      handleProjectMouseLeave();
+                                      handleEventLeave();
+                                    }}
                                   >
-                                    <div className="w-2 h-2 rounded-full bg-current opacity-90 flex-shrink-0" />
-                                    <div className="truncate text-[11px] leading-[14px]">
+                                    {/* Time display */}
+                                    <div className="flex items-center gap-1 text-[9px] opacity-75 font-medium">
+                                      <Clock className="w-2.5 h-2.5 flex-shrink-0" />
+                                      <span>
+                                        {formatTimeString(project.working_hours_start).replace(' AM', '').replace(' PM', '')}
+                                      </span>
+                                    </div>
+
+                                    {/* Title */}
+                                    <div className="truncate text-[11px] leading-[14px] font-medium">
                                       {project.title}
                                     </div>
                                   </div>
@@ -1212,10 +1265,10 @@ const CalendarView = React.forwardRef<HTMLDivElement, CalendarViewProps>(({
                         
                         {/* Display a "+more" indicator if there are additional projects */}
                         {hasMoreProjects && (
-                          <div 
+                          <div
                             className="absolute text-center text-xs text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 px-1 py-0.5 cursor-pointer rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 shadow-sm transition-colors mt-1 opacity-80 hover:opacity-100 day-more-indicator"
-                            style={{ 
-                              top: `${42 + 5 * 25 + 3}px`, // Position after 6 events (last one is at index 5)
+                            style={{
+                              top: `${42 + 5 * 33 + 3}px`, // Position after 6 events with new 32px height + 1px gap
                               left: "2%",
                               width: "96%",
                               zIndex: 60,
@@ -1234,9 +1287,10 @@ const CalendarView = React.forwardRef<HTMLDivElement, CalendarViewProps>(({
                     );
                   })()}
                 </div>
-              </div>
+              </motion.div>
             );
           })}
+          </AnimatePresence>
           
           {/* Multi-day project bars (absolute positioned across grid) */}
           {processedProjects.map((projectItem) => {
@@ -1294,11 +1348,17 @@ const CalendarView = React.forwardRef<HTMLDivElement, CalendarViewProps>(({
               <TooltipProvider key={project.id}>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <div 
-                      className="project-segments-container" 
+                    <div
+                      className="project-segments-container"
                       data-project-id={project.id}
-                      onMouseEnter={handleProjectMouseEnter}
-                      onMouseLeave={handleProjectMouseLeave}
+                      onMouseEnter={(e) => {
+                        handleProjectMouseEnter();
+                        handleEventHover(project, e.currentTarget);
+                      }}
+                      onMouseLeave={() => {
+                        handleProjectMouseLeave();
+                        handleEventLeave();
+                      }}
                     >
                       {spans.map((span, index) => {
                         // FIXED POSITIONING - absolute pixel values for consistency
@@ -1404,9 +1464,35 @@ const CalendarView = React.forwardRef<HTMLDivElement, CalendarViewProps>(({
           })}
         </div>
       </div>
+
+      {/* Hover Card - Rendered as fixed overlay */}
+      {isHovering && hoveredProject && hoverPosition && (
+        <div
+          className="fixed z-[100]"
+          style={{
+            top: `${hoverPosition.top}px`,
+            left: `${hoverPosition.left}px`,
+          }}
+          onMouseEnter={() => {
+            // Keep hover card visible when mouse enters it
+            handleProjectMouseEnter();
+          }}
+          onMouseLeave={() => {
+            // Hide when mouse leaves the card
+            handleProjectMouseLeave();
+            handleEventLeave();
+          }}
+        >
+          <EventHoverCard
+            project={hoveredProject}
+            onViewDetails={onProjectClick}
+            showActions={true}
+          />
+        </div>
+      )}
     </Card>
   );
-});
+}));
 
 CalendarView.displayName = "CalendarView";
 export default CalendarView;

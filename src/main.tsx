@@ -3,6 +3,7 @@ import * as ReactDOM from 'react-dom/client';
 import { ThemeProvider } from 'next-themes';
 import App from './App.tsx';
 import './index.css';
+import './i18n/config'; // Initialize i18n
 
 // Optional imports that may fail
 const ErrorBoundary: any = ({ children }: any) => children;

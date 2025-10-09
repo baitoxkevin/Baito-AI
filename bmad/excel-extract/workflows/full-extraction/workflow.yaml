@@ -1,0 +1,329 @@
+# Full Extraction Workflow Configuration
+# Module: Excel Vision Extractor
+# Version: 1.0.0
+
+workflow:
+  name: "Full Extraction"
+  code: "full-extraction"
+  type: "end-to-end-pipeline"
+  version: "1.0.0"
+  created: "2025-10-08"
+
+description: "Complete end-to-end Excel data extraction pipeline from file discovery through Supabase import"
+
+# Entry points for workflow invocation
+entry_points:
+  - "Extract data from Excel files in {folder_path}"
+  - "Process {filename} with full extraction pipeline"
+  - "Run full extraction on all files in {folder}"
+
+# Workflow phases
+phases:
+  - id: 1
+    name: "Discovery & Preparation"
+    duration_estimate: "30-60 seconds"
+    agent: "data-extraction-orchestrator"
+    type: "director"
+
+  - id: 2
+    name: "Vision Analysis"
+    duration_estimate: "5-30 minutes"
+    agent: "vision-analyzer"
+    type: "expert"
+    per_item: "per sheet"
+
+  - id: 3
+    name: "Validation & Quality Assurance"
+    duration_estimate: "10-30 seconds"
+    agent: "validation-specialist"
+    type: "expert"
+
+  - id: 4
+    name: "Review & Correction"
+    duration_estimate: "user-driven"
+    agent: "data-extraction-orchestrator"
+    type: "director"
+    interactive: true
+
+  - id: 5
+    name: "Mastersheet Generation"
+    duration_estimate: "5-15 seconds"
+    agent: "data-extraction-orchestrator"
+    type: "director"
+
+  - id: 6
+    name: "Supabase Import"
+    duration_estimate: "1-3 minutes"
+    agent: "supabase-import-manager"
+    type: "expert"
+    interactive: true
+
+# Agent collaboration
+agents:
+  director:
+    - name: "data-extraction-orchestrator"
+      role: "Coordinates entire workflow"
+      invoked_in_phases: [1, 4, 5]
+
+  experts:
+    - name: "vision-analyzer"
+      role: "Gemini Vision API integration"
+      invoked_in_phases: [2]
+
+    - name: "validation-specialist"
+      role: "Data quality assurance"
+      invoked_in_phases: [3]
+
+    - name: "supabase-import-manager"
+      role: "Database import operations"
+      invoked_in_phases: [6]
+
+# Prerequisites
+prerequisites:
+  environment_variables:
+    - name: "GEMINI_API_KEY"
+      required: true
+      description: "Google Gemini API key for vision analysis"
+
+    - name: "SUPABASE_URL"
+      required: true
+      description: "Supabase project URL"
+
+    - name: "SUPABASE_ANON_KEY"
+      required: true
+      description: "Supabase anonymous/public key"
+
+    - name: "N8N_WEBHOOK_URL"
+      required: false
+      description: "n8n webhook URL for notifications"
+
+  folders:
+    - path: "excel_imports/"
+      required: true
+      purpose: "Input Excel files"
+
+    - path: "excel_extraction_results/"
+      required: false
+      auto_create: true
+      purpose: "Output folder"
+
+    - path: "excel_screenshots/"
+      required: false
+      auto_create: true
+      purpose: "Sheet screenshots"
+
+  tools:
+    - name: "Chrome DevTools MCP"
+      required: true
+      purpose: "Screenshot capture"
+
+    - name: "Supabase MCP"
+      required: false
+      purpose: "Schema inspection (optional)"
+
+  python_libraries:
+    - "openpyxl"
+    - "requests"
+    - "Pillow"
+
+# Expected outputs
+outputs:
+  primary:
+    - name: "mastersheet_[timestamp].xlsx"
+      description: "Consolidated candidate data in Excel format"
+      location: "excel_extraction_results/[timestamp]/"
+
+    - name: "mastersheet_[timestamp].csv"
+      description: "Consolidated candidate data in CSV format"
+      location: "excel_extraction_results/[timestamp]/"
+
+  reports:
+    - name: "validation_report.md"
+      description: "Data quality assurance report"
+      location: "excel_extraction_results/[timestamp]/"
+
+    - name: "import_report.md"
+      description: "Supabase import summary"
+      location: "excel_extraction_results/[timestamp]/"
+
+    - name: "final_report.md"
+      description: "Comprehensive workflow summary"
+      location: "excel_extraction_results/[timestamp]/"
+
+  logs:
+    - name: "extraction_log.txt"
+      description: "Detailed operation log"
+      location: "excel_extraction_results/[timestamp]/"
+
+    - name: "import_log_[timestamp].json"
+      description: "Import audit trail with record IDs"
+      location: "excel_extraction_results/[timestamp]/"
+
+  intermediate:
+    - name: "intermediate/*.json"
+      description: "Per-sheet extraction results"
+      location: "excel_extraction_results/[timestamp]/intermediate/"
+
+    - name: "passed_records.xlsx"
+      description: "Validated records"
+      location: "excel_extraction_results/[timestamp]/"
+
+    - name: "flagged_records.xlsx"
+      description: "Records needing review"
+      location: "excel_extraction_results/[timestamp]/"
+
+  screenshots:
+    - name: "[filename]_[sheetname].png"
+      description: "Excel sheet screenshots"
+      location: "excel_screenshots/"
+
+# Configuration references
+config_references:
+  extraction:
+    - "extraction.gemini_model"
+    - "extraction.rate_limit_delay"
+    - "extraction.max_retries"
+    - "extraction.timeout"
+
+  validation:
+    - "verification.calculation_check"
+    - "verification.duplicate_check"
+    - "verification.ic_format_validation"
+    - "verification.required_fields"
+
+  import:
+    - "supabase.batch_size"
+    - "supabase.dry_run_default"
+    - "supabase.table_name"
+
+# Performance metrics
+performance:
+  typical_project:
+    sheets: 10
+    rows: 250
+    duration: "12-15 minutes"
+
+  large_project:
+    sheets: 50
+    rows: 1000
+    duration: "45-60 minutes"
+
+  bottlenecks:
+    - "Vision API rate limiting (15s delay per call)"
+    - "Screenshot capture for large sheets"
+    - "Supabase batch import for 1000+ rows"
+
+# Success criteria
+success_criteria:
+  minimum:
+    sheets_analyzed: "≥95%"
+    records_validated: "≥90%"
+    mastersheet_generated: true
+    dry_run_completed: true
+
+  optimal:
+    sheets_analyzed: "100%"
+    records_validated: "≥95%"
+    low_confidence_records: "<5%"
+    import_errors: 0
+    audit_trail_complete: true
+
+# Error handling strategy
+error_handling:
+  api_failures:
+    strategy: "retry_with_backoff"
+    max_retries: 3
+    continue_on_failure: true
+    flag_for_review: true
+
+  validation_failures:
+    strategy: "flag_and_continue"
+    block_import: false
+    generate_report: true
+
+  import_failures:
+    strategy: "rollback_and_report"
+    save_checkpoint: true
+    enable_resume: true
+
+  critical_failures:
+    strategy: "save_and_pause"
+    generate_error_report: true
+    provide_recovery_instructions: true
+
+# Checkpointing
+checkpointing:
+  enabled: true
+  frequency: "after_each_sheet"
+  checkpoint_file: "checkpoint_[timestamp].json"
+  enable_resume: true
+
+# Rollback support
+rollback:
+  enabled: true
+  scope: "import_only"
+  track_record_ids: true
+  backup_before_import: true
+  rollback_command: "Rollback import from [timestamp]"
+
+# Integration points
+integrations:
+  n8n:
+    enabled: false  # Set via config.yaml
+    events:
+      - "extraction_complete"
+      - "validation_errors"
+      - "import_complete"
+
+  chrome_mcp:
+    enabled: true
+    operations:
+      - "screenshot_capture"
+      - "receipt_extraction"
+
+  supabase_mcp:
+    enabled: false  # Optional
+    operations:
+      - "schema_inspection"
+      - "data_import"
+
+# Documentation
+documentation:
+  readme: "README.md"
+  instructions: "instructions.md"
+  checklist: "checklist.md"
+  workflow_config: "workflow.yaml"
+
+# Metadata
+metadata:
+  author: "Kevin"
+  created_date: "2025-10-08"
+  last_updated: "2025-10-08"
+  version: "1.0.0"
+  status: "production_ready"
+  tested: false
+  test_date: null
+
+# Tags
+tags:
+  - "data-extraction"
+  - "excel-processing"
+  - "ai-vision"
+  - "validation"
+  - "supabase-import"
+  - "end-to-end"
+  - "production"
+
+# Related workflows
+related_workflows:
+  - "vision-analysis"
+  - "data-verification"
+  - "mastersheet-generator"
+  - "supabase-import"
+
+# Version history
+version_history:
+  - version: "1.0.0"
+    date: "2025-10-08"
+    changes: "Initial workflow definition"
+    author: "Kevin"

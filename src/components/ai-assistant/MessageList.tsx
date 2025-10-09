@@ -10,6 +10,7 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import type { Message } from '@/hooks/use-ai-chat'
 import { ActionButtons } from './ActionButtons'
+import { RichContentCard, type RichContent } from '@/components/chat/RichContentCard'
 
 interface MessageListProps {
   messages: Message[]
@@ -17,7 +18,12 @@ interface MessageListProps {
 
 export function MessageList({ messages }: MessageListProps) {
   return (
-    <div className="space-y-3">
+    <div
+      className="space-y-3"
+      role="log"
+      aria-live="polite"
+      aria-label="Conversation messages"
+    >
       {messages.map((message, index) => (
         <MessageBubble key={message.id || index} message={message} />
       ))}
@@ -57,6 +63,8 @@ function MessageBubble({ message }: MessageBubbleProps) {
         'flex gap-2.5',
         isUser ? 'flex-row-reverse' : 'flex-row'
       )}
+      role="article"
+      aria-label={isUser ? 'Your message' : isError ? 'Error message' : 'AI response'}
     >
       {/* Avatar */}
       <div className="flex-shrink-0 mt-0.5">
@@ -69,11 +77,13 @@ function MessageBubble({ message }: MessageBubbleProps) {
               ? 'bg-red-100 dark:bg-red-900/20 text-red-600 dark:text-red-400'
               : 'bg-gradient-to-br from-blue-500 to-purple-600 text-white'
           )}
+          role="img"
+          aria-label={isUser ? 'User avatar' : 'AI assistant avatar'}
         >
           {isUser ? (
-            <User className="h-4 w-4" />
+            <User className="h-4 w-4" aria-hidden="true" />
           ) : (
-            <Bot className="h-4 w-4" />
+            <Bot className="h-4 w-4" aria-hidden="true" />
           )}
         </div>
       </div>
@@ -245,6 +255,13 @@ function MessageBubble({ message }: MessageBubbleProps) {
             </div>
           )}
         </div>
+
+        {/* Rich Content - Show outside bubble for assistant messages */}
+        {!isUser && message.metadata?.rich_content && (
+          <div className="w-full">
+            <RichContentCard content={message.metadata.rich_content as RichContent} />
+          </div>
+        )}
 
         {/* Action Buttons - Show outside bubble for assistant messages */}
         {!isUser && message.buttons && message.buttons.length > 0 && (

@@ -1,0 +1,118 @@
+{
+  "filename": "combined_2025_master.xlsx",
+  "processedAt": "2025-10-08T20:06:20.055803",
+  "model": "google/gemini-2.0-flash-exp:free",
+  "extractedRecords": 7,
+  "data": [
+    {
+      "candidateName": "Sum Yuen Lim",
+      "icNumber": "060501110009",
+      "extractedData": {
+        "name": "Lim Yuen Sum",
+        "ic": "060501110009",
+        "bankName": "Maybank",
+        "accountNumber": "163170011732",
+        "totalDays": 1,
+        "wages": 90,
+        "totalPayment": 90,
+        "projectName": "ASEAN Summit"
+      },
+      "confidence": "high"
+    },
+    {
+      "candidateName": "Ahnaf Hafiz Bin Ahmad",
+      "icNumber": "050331040833",
+      "extractedData": {
+        "name": "Ahnaf Hafiz Bin Ahmad",
+        "ic": "050331040833",
+        "bankName": "Maybank",
+        "accountNumber": "162640030336",
+        "totalDays": 1,
+        "wages": 110,
+        "totalPayment": 110,
+        "projectName": "Aliana Innstore Aug"
+      },
+      "confidence": "high"
+    },
+    {
+      "candidateName": "Luqman Hakim Bin Abdul Azhar",
+      "icNumber": "040703100150",
+      "extractedData": {
+        "name": "Luqman Hakim Bin Abdul Azhar",
+        "ic": "040703100150",
+        "bankName": "Bank Islam",
+        "accountNumber": "12115003402669",
+        "totalDays": 1,
+        "wages": 110,
+        "totalPayment": 110,
+        "paymentDate": "2023-08-22",
+        "projectName": "Aliana Innstore Aug"
+      },
+      "confidence": "high"
+    },
+    {
+      "candidateName": "Sum Yuen Lim",
+      "icNumber": "060501110009",
+      "extractedData": {
+        "name": "Lim Yuen Sum",
+        "ic": "060501110009",
+        "bankName": "Maybank",
+        "accountNumber": "163170011732",
+        "totalDays": 6,
+        "wages": 200,
+        "totalPayment": 960,
+        "projectName": "Adidas Aug",
+        "paymentDate": "2023-08-12"
+      },
+      "confidence": "high"
+    },
+    {
+      "candidateName": "Jalelah Marsyah",
+      "icNumber": "040617010038",
+      "extractedData": {
+        "name": "Jalelah Marsyah",
+        "ic": "040617010038",
+        "bankName": "CIMB",
+        "accountNumber": "76437484170",
+        "totalDays": 2,
+        "wages": 100,
+        "totalPayment": 200,
+        "paymentDate": "2023-08-23",
+        "projectName": "Lee Aug"
+      },
+      "confidence": "high"
+    },
+    {
+      "candidateName": "Nurul Izzah Binti Kamisan",
+      "icNumber": "040211100405",
+      "extractedData": {
+        "name": "Nurul Izzah Binti Kamisan",
+        "ic": "040211100405",
+        "bankName": "Bank Islam",
+        "accountNumber": "15403038502570",
+        "totalDays": 2,
+        "wages": 90,
+        "totalPayment": 180,
+        "paymentDate": "2023-08-23",
+        "projectName": "Lee Aug"
+      },
+      "confidence": "high"
+    },
+    {
+      "candidateName": "Puteri Humaira Binti",
+      "icNumber": "050431140473",
+      "extractedData": {
+        "name": "Puteri Humaira Binti",
+        "ic": "050431140473",
+        "bankName": "Maybank",
+        "accountNumber": "1630826623960",
+        "totalDays": 4,
+        "wages": 190,
+        "totalPayment": 380,
+        "paymentDate": "2023-08-23",
+        "projectName": "Lee Aug"
+      },
+      "confidence": "high"
+    }
+  ]
+}

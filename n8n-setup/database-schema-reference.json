@@ -1,0 +1,227 @@
+{
+  "tables": {
+    "candidates": {
+      "description": "Stores candidate personal information and contact details",
+      "columns": {
+        "id": {
+          "type": "uuid",
+          "description": "Primary key, auto-generated",
+          "required": true,
+          "auto": true
+        },
+        "full_name": {
+          "type": "text",
+          "description": "Candidate's full legal name",
+          "required": true,
+          "validation": "Non-empty string"
+        },
+        "email": {
+          "type": "text",
+          "description": "Email address",
+          "required": false,
+          "validation": "Valid email format"
+        },
+        "phone_number": {
+          "type": "text",
+          "description": "Phone number with country code",
+          "required": false,
+          "validation": "E.164 format preferred"
+        },
+        "gender": {
+          "type": "text",
+          "description": "Gender (Male/Female/Other)",
+          "required": false,
+          "values": ["Male", "Female", "Other"]
+        },
+        "address": {
+          "type": "text",
+          "description": "Full residential address",
+          "required": false
+        },
+        "date_of_birth": {
+          "type": "date",
+          "description": "Date of birth",
+          "required": false,
+          "format": "YYYY-MM-DD"
+        },
+        "nationality": {
+          "type": "text",
+          "description": "Nationality/citizenship",
+          "required": false
+        },
+        "passport_number": {
+          "type": "text",
+          "description": "Passport or ID number",
+          "required": false
+        },
+        "work_permit_expiry": {
+          "type": "date",
+          "description": "Work permit expiration date",
+          "required": false,
+          "format": "YYYY-MM-DD"
+        },
+        "bank_name": {
+          "type": "text",
+          "description": "Name of bank for payments",
+          "required": false
+        },
+        "bank_account_number": {
+          "type": "text",
+          "description": "Bank account number",
+          "required": false
+        },
+        "emergency_contact_name": {
+          "type": "text",
+          "description": "Emergency contact person name",
+          "required": false
+        },
+        "emergency_contact_phone": {
+          "type": "text",
+          "description": "Emergency contact phone number",
+          "required": false
+        },
+        "created_at": {
+          "type": "timestamp",
+          "description": "Record creation timestamp",
+          "required": true,
+          "auto": true
+        },
+        "updated_at": {
+          "type": "timestamp",
+          "description": "Last update timestamp",
+          "required": true,
+          "auto": true
+        }
+      },
+      "excelPatterns": [
+        "Contains columns: Name, Email, Phone, Gender",
+        "Personal information focus",
+        "May have passport/ID numbers",
+        "Bank account details present"
+      ]
+    },
+    "candidate_projects": {
+      "description": "Links candidates to projects with role and payment info",
+      "columns": {
+        "id": {
+          "type": "uuid",
+          "description": "Primary key, auto-generated",
+          "required": true,
+          "auto": true
+        },
+        "candidate_id": {
+          "type": "uuid",
+          "description": "Foreign key to candidates table",
+          "required": true,
+          "relationship": "candidates.id"
+        },
+        "project_id": {
+          "type": "uuid",
+          "description": "Foreign key to projects table",
+          "required": true,
+          "relationship": "projects.id"
+        },
+        "role": {
+          "type": "text",
+          "description": "Role/position in project (e.g., Staff, Coordinator, Manager)",
+          "required": false
+        },
+        "payment_amount": {
+          "type": "numeric",
+          "description": "Payment amount in local currency",
+          "required": false,
+          "validation": "Positive number or zero"
+        },
+        "payment_status": {
+          "type": "text",
+          "description": "Payment status",
+          "required": false,
+          "values": ["pending", "paid", "cancelled"],
+          "default": "pending"
+        },
+        "work_date": {
+          "type": "date",
+          "description": "Date of work/event",
+          "required": false,
+          "format": "YYYY-MM-DD"
+        },
+        "notes": {
+          "type": "text",
+          "description": "Additional notes or comments",
+          "required": false
+        },
+        "created_at": {
+          "type": "timestamp",
+          "description": "Record creation timestamp",
+          "required": true,
+          "auto": true
+        },
+        "updated_at": {
+          "type": "timestamp",
+          "description": "Last update timestamp",
+          "required": true,
+          "auto": true
+        }
+      },
+      "excelPatterns": [
+        "Contains project name or ID",
+        "Has payment amounts and dates",
+        "Includes role/position information",
+        "May have multiple rows per candidate (one per project)",
+        "Status fields like 'Paid', 'Pending', 'Cancelled'"
+      ]
+    }
+  },
+  "commonTransformations": {
+    "dates": {
+      "excelFormats": ["DD/MM/YYYY", "MM/DD/YYYY", "YYYY-MM-DD", "DD-MMM-YYYY"],
+      "targetFormat": "YYYY-MM-DD",
+      "example": "31/12/2024 → 2024-12-31"
+    },
+    "phoneNumbers": {
+      "excelFormats": ["Various international formats"],
+      "targetFormat": "E.164 (+65XXXXXXXX)",
+      "example": "91234567 → +6591234567"
+    },
+    "paymentAmounts": {
+      "excelFormats": ["$150", "150.00", "SGD 150"],
+      "targetFormat": "Numeric only (150.00)",
+      "example": "$150.00 → 150.00"
+    },
+    "names": {
+      "excelFormats": ["UPPERCASE", "lowercase", "Title Case"],
+      "targetFormat": "Title Case",
+      "example": "JOHN DOE → John Doe"
+    }
+  },
+  "identificationRules": {
+    "candidates": {
+      "mustHave": ["Name or Full Name column"],
+      "strongIndicators": ["Email", "Phone", "Gender", "Passport"],
+      "excludeIf": ["Payment Amount", "Project ID", "Work Date without name"]
+    },
+    "candidate_projects": {
+      "mustHave": ["Project identifier", "Payment or Role information"],
+      "strongIndicators": ["Payment Status", "Work Date", "Project Name"],
+      "excludeIf": ["Only personal info (no project context)"]
+    }
+  },
+  "validationRules": {
+    "email": {
+      "pattern": "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$",
+      "errorMessage": "Invalid email format"
+    },
+    "phone": {
+      "pattern": "^\\+?[1-9]\\d{1,14}$",
+      "errorMessage": "Invalid phone number format"
+    },
+    "date": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+      "errorMessage": "Date must be in YYYY-MM-DD format"
+    },
+    "paymentStatus": {
+      "allowedValues": ["pending", "paid", "cancelled"],
+      "errorMessage": "Payment status must be: pending, paid, or cancelled"
+    }
+  }
+}

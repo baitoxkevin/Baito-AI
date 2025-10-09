@@ -1,0 +1,87 @@
+Excel Vision Processor
+==================================================
+
+Checking n8n webhook...
+✓ Webhook accessible (status: 404)
+
+
+=== Processing: master_candidate_data.xlsx ===
+Converting master_candidate_data.xlsx to image...
+✓ Image created: master_candidate_data.png
+Sending master_candidate_data.xlsx to n8n workflow...
+✗ Error processing master_candidate_data.xlsx: 404 Client Error: Not Found for url: http://localhost:5678/webhook-test/vision-to-excel
+
+=== Processing: master_candidate_data_v2.xlsx ===
+Converting master_candidate_data_v2.xlsx to image...
+✓ Image created: master_candidate_data_v2.png
+Sending master_candidate_data_v2.xlsx to n8n workflow...
+✗ Error processing master_candidate_data_v2.xlsx: 404 Client Error: Not Found for url: http://localhost:5678/webhook-test/vision-to-excel
+
+=== Processing: baito_2025_full_year_master.xlsx ===
+Converting baito_2025_full_year_master.xlsx to image...
+✓ Image created: baito_2025_full_year_master.png
+Sending baito_2025_full_year_master.xlsx to n8n workflow...
+✗ Error processing baito_2025_full_year_master.xlsx: 404 Client Error: Not Found for url: http://localhost:5678/webhook-test/vision-to-excel
+
+=== Processing: zenevento_2025_master.xlsx ===
+Converting zenevento_2025_master.xlsx to image...
+✓ Image created: zenevento_2025_master.png
+Sending zenevento_2025_master.xlsx to n8n workflow...
+✗ Error processing zenevento_2025_master.xlsx: 404 Client Error: Not Found for url: http://localhost:5678/webhook-test/vision-to-excel
+
+=== Processing: combined_2025_master.xlsx ===
+Converting combined_2025_master.xlsx to image...
+✓ Image created: combined_2025_master.png
+Sending combined_2025_master.xlsx to n8n workflow...
+✗ Error processing combined_2025_master.xlsx: 404 Client Error: Not Found for url: http://localhost:5678/webhook-test/vision-to-excel
+
+=== Processing: baito_2025_full_year_master_CORRECTED.xlsx ===
+Converting baito_2025_full_year_master_CORRECTED.xlsx to image...
+✓ Image created: baito_2025_full_year_master_CORRECTED.png
+Sending baito_2025_full_year_master_CORRECTED.xlsx to n8n workflow...
+✗ Error processing baito_2025_full_year_master_CORRECTED.xlsx: 404 Client Error: Not Found for url: http://localhost:5678/webhook-test/vision-to-excel
+
+=== Processing: baito_2025_VALIDATED_v3.xlsx ===
+Converting baito_2025_VALIDATED_v3.xlsx to image...
+✓ Image created: baito_2025_VALIDATED_v3.png
+Sending baito_2025_VALIDATED_v3.xlsx to n8n workflow...
+✗ Error processing baito_2025_VALIDATED_v3.xlsx: 404 Client Error: Not Found for url: http://localhost:5678/webhook-test/vision-to-excel
+
+=== Processing: baito_2025_VALIDATED_v3_FIXED.xlsx ===
+Converting baito_2025_VALIDATED_v3_FIXED.xlsx to image...
+✓ Image created: baito_2025_VALIDATED_v3_FIXED.png
+Sending baito_2025_VALIDATED_v3_FIXED.xlsx to n8n workflow...
+✗ Error processing baito_2025_VALIDATED_v3_FIXED.xlsx: 404 Client Error: Not Found for url: http://localhost:5678/webhook-test/vision-to-excel
+
+=== Processing: baito_2025_FIXED_v3.2.xlsx ===
+Converting baito_2025_FIXED_v3.2.xlsx to image...
+✓ Image created: baito_2025_FIXED_v3.2.png
+Sending baito_2025_FIXED_v3.2.xlsx to n8n workflow...
+✗ Error processing baito_2025_FIXED_v3.2.xlsx: 404 Client Error: Not Found for url: http://localhost:5678/webhook-test/vision-to-excel
+
+=== Processing: baito_2025_COMPLETE_v3.xlsx ===
+Converting baito_2025_COMPLETE_v3.xlsx to image...
+✓ Image created: baito_2025_COMPLETE_v3.png
+Sending baito_2025_COMPLETE_v3.xlsx to n8n workflow...
+✗ Error processing baito_2025_COMPLETE_v3.xlsx: 404 Client Error: Not Found for url: http://localhost:5678/webhook-test/vision-to-excel
+
+==================================================
+=== Summary ===
+Total files: 10
+Successful: 0
+Failed: 10
+
+Failed files:
+  - master_candidate_data.xlsx: 404 Client Error: Not Found for url: http://localhost:5678/webhook-test/vision-to-excel
+  - master_candidate_data_v2.xlsx: 404 Client Error: Not Found for url: http://localhost:5678/webhook-test/vision-to-excel
+  - baito_2025_full_year_master.xlsx: 404 Client Error: Not Found for url: http://localhost:5678/webhook-test/vision-to-excel
+  - zenevento_2025_master.xlsx: 404 Client Error: Not Found for url: http://localhost:5678/webhook-test/vision-to-excel
+  - combined_2025_master.xlsx: 404 Client Error: Not Found for url: http://localhost:5678/webhook-test/vision-to-excel
+  - baito_2025_full_year_master_CORRECTED.xlsx: 404 Client Error: Not Found for url: http://localhost:5678/webhook-test/vision-to-excel
+  - baito_2025_VALIDATED_v3.xlsx: 404 Client Error: Not Found for url: http://localhost:5678/webhook-test/vision-to-excel
+  - baito_2025_VALIDATED_v3_FIXED.xlsx: 404 Client Error: Not Found for url: http://localhost:5678/webhook-test/vision-to-excel
+  - baito_2025_FIXED_v3.2.xlsx: 404 Client Error: Not Found for url: http://localhost:5678/webhook-test/vision-to-excel
+  - baito_2025_COMPLETE_v3.xlsx: 404 Client Error: Not Found for url: http://localhost:5678/webhook-test/vision-to-excel
+
+Results saved in: /Users/baito.kevin/Downloads/dev/BMAD-METHOD/Baito/Baito-AI/excel_extraction_results
+Screenshots saved in: /Users/baito.kevin/Downloads/dev/BMAD-METHOD/Baito/Baito-AI/excel_screenshots

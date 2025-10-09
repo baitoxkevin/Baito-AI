@@ -1,0 +1,90 @@
+[
+  {
+    "fullname": "Loh Chee Seng",
+    "ic": "650916146825",
+    "bank": "CIMB",
+    "bank_no": "7014728513",
+    "wages": 130.0,
+    "total_payment": 780.0
+  },
+  {
+    "fullname": "Agnes Terry",
+    "ic": "911106145020",
+    "bank": "Maybank",
+    "bank_no": "163570083606",
+    "wages": 120.0,
+    "total_payment": 480.0
+  },
+  {
+    "fullname": "Nuruljannah Bt Jusoh",
+    "ic": "020102111110",
+    "bank": "CIMB",
+    "bank_no": "7631454489",
+    "wages": 120.0,
+    "total_payment": 480.0
+  },
+  {
+    "fullname": "Muhammad Luqman",
+    "ic": "040811014278",
+    "bank": "Public Bank",
+    "bank_no": "14247400096744",
+    "wages": 120.0,
+    "total_payment": 480.0
+  },
+  {
+    "fullname": "Nur Khalinnisa",
+    "ic": "950410356772",
+    "bank": "Maybank",
+    "bank_no": "162173082130",
+    "wages": 100.0,
+    "total_payment": 300.0
+  },
+  {
+    "fullname": "Samatha Liew Xin Rui",
+    "ic": "101107101994",
+    "bank": "ambank",
+    "bank_no": "888101782921",
+    "wages": 100.0,
+    "total_payment": 100.0
+  },
+  {
+    "fullname": "Afliana Natasha Binti",
+    "ic": "021216101636",
+    "bank": "BSN",
+    "bank_no": "1401129901530",
+    "wages": 100.0,
+    "total_payment": 100.0
+  },
+  {
+    "fullname": "Foo Wern Kai",
+    "ic": "061128110723",
+    "bank": "Hong Leong Bank",
+    "bank_no": "23750075010",
+    "wages": 110.0,
+    "total_payment": 110.0
+  },
+  {
+    "fullname": "Lee Jia Yi(cheah)",
+    "ic": "041018140216",
+    "bank": "hongleong bank",
+    "bank_no": "1061643015760",
+    "wages": 100.0,
+    "total_payment": 100.0
+  },
+  {
+    "fullname": "Muhammad Arief Hakim",
+    "ic": "070209011367",
+    "bank": "CIMB BANK",
+    "bank_no": "76549993260",
+    "wages": 110.0,
+    "total_payment": 110.0
+  },
+  {
+    "fullname": "Muhammad Haziq Bin",
+    "ic": "030919090879",
+    "bank": "CIMB",
+    "bank_no": "76408621629",
+    "wages": 110.0,
+    "total_payment": 110.0
+  }
+]

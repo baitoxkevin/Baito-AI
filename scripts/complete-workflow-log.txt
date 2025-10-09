@@ -1,0 +1,59 @@
+============================================================
+COMPLETE EXCEL EXTRACTION WORKFLOW
+Using: Gemini 2.0 Flash via OpenRouter
+============================================================
+
+============================================================
+Processing: master_candidate_data.xlsx
+============================================================
+  Checking for embedded images in master_candidate_data.xlsx...
+    No embedded images found
+  Phase 1: Structure Analysis...
+  ✗ Error: 429 Client Error: Too Many Requests for url: https://openrouter.ai/api/v1/chat/completions
+
+============================================================
+Processing: master_candidate_data_v2.xlsx
+============================================================
+  Checking for embedded images in master_candidate_data_v2.xlsx...
+    No embedded images found
+  Phase 1: Structure Analysis...
+  ✗ Error: 429 Client Error: Too Many Requests for url: https://openrouter.ai/api/v1/chat/completions
+
+============================================================
+Processing: baito_2025_full_year_master.xlsx
+============================================================
+  Checking for embedded images in baito_2025_full_year_master.xlsx...
+    No embedded images found
+  Phase 1: Structure Analysis...
+  ✗ Error: 429 Client Error: Too Many Requests for url: https://openrouter.ai/api/v1/chat/completions
+
+============================================================
+Processing: zenevento_2025_master.xlsx
+============================================================
+  Checking for embedded images in zenevento_2025_master.xlsx...
+    No embedded images found
+  Phase 1: Structure Analysis...
+  ✗ Error: 429 Client Error: Too Many Requests for url: https://openrouter.ai/api/v1/chat/completions
+
+============================================================
+Processing: combined_2025_master.xlsx
+============================================================
+  Checking for embedded images in combined_2025_master.xlsx...
+    No embedded images found
+  Phase 1: Structure Analysis...
+  ✗ Error: 429 Client Error: Too Many Requests for url: https://openrouter.ai/api/v1/chat/completions
+
+============================================================
+Generating Masterlist Excel...
+============================================================
+✓ Masterlist saved: /Users/baito.kevin/Downloads/dev/BMAD-METHOD/Baito/Baito-AI/excel_extraction_results/MASTERLIST_20251008_204939.xlsx
+
+============================================================
+SUMMARY
+============================================================
+Total files: 5
+Successful: 0
+Failed: 5
+
+Masterlist: /Users/baito.kevin/Downloads/dev/BMAD-METHOD/Baito/Baito-AI/excel_extraction_results/MASTERLIST_20251008_204939.xlsx
+Receipts: /Users/baito.kevin/Downloads/dev/BMAD-METHOD/Baito/Baito-AI/excel_receipts

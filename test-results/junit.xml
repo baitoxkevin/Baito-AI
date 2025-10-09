@@ -1,0 +1,10 @@
+<testsuites id="" name="" tests="3" failures="0" skipped="0" errors="0" time="8.861158">
+<testsuite name="mobile/responsive.spec.ts" timestamp="2025-10-06T18:32:36.466Z" hostname="chromium" tests="3" failures="0" skipped="0" time="8.339" errors="0">
+<testcase name="Mobile Responsive Tests @mobile › MOBILE-001: Dashboard renders correctly on mobile (375x667)" classname="mobile/responsive.spec.ts" time="3.452">
+</testcase>
+<testcase name="Mobile Responsive Tests @mobile › MOBILE-002: Navigation menu works on mobile" classname="mobile/responsive.spec.ts" time="2.397">
+</testcase>
+<testcase name="Mobile Responsive Tests @mobile › MOBILE-005: Text is readable without zooming" classname="mobile/responsive.spec.ts" time="2.49">
+</testcase>
+</testsuite>
+</testsuites>

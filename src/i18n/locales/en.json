@@ -1,0 +1,77 @@
+{
+  "chat": {
+    "header": "AI Assistant",
+    "placeholder": "Type your message...",
+    "send": "Send",
+    "voiceInput": "Voice Input",
+    "minimize": "Minimize",
+    "maximize": "Maximize",
+    "close": "Close",
+    "clearConversation": "Clear Conversation",
+    "settings": "Settings",
+    "typing": "is typing",
+    "online": "Online",
+    "offline": "Offline",
+    "connected": "Connected",
+    "disconnected": "Disconnected",
+    "retry": "Retry",
+    "edit": "Edit",
+    "delete": "Delete",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "quickActions": "Quick Actions"
+  },
+  "quickActions": {
+    "todayProjects": "Today's Projects",
+    "addStaff": "Add Staff",
+    "updateAttendance": "Update Attendance",
+    "viewReports": "View Reports",
+    "projectsOverview": "Projects Overview",
+    "staffScheduling": "Staff Scheduling",
+    "approveExpenses": "Approve Expenses",
+    "financialReports": "Financial Reports",
+    "mySchedule": "My Schedule",
+    "checkIn": "Check-in",
+    "submitExpense": "Submit Expense",
+    "contactAdmin": "Contact Admin"
+  },
+  "messages": {
+    "welcome": "Hello! I'm your AI assistant. How can I help you today?",
+    "welcomeDescription": "Ask me about projects, candidates, schedules, or anything else.",
+    "noMessages": "No messages yet",
+    "sendingFailed": "Failed to send",
+    "messageSent": "Message sent",
+    "messageRetrying": "Retrying...",
+    "errorOccurred": "An error occurred",
+    "tryAgain": "Please try again"
+  },
+  "voice": {
+    "start": "Start Voice Input",
+    "stop": "Stop Voice Input",
+    "listening": "Listening...",
+    "processing": "Processing...",
+    "error": "Voice input failed",
+    "permissionDenied": "Microphone permission required",
+    "notSupported": "Voice input not supported in your browser"
+  },
+  "errors": {
+    "networkError": "Network connection failed. Please check your connection and try again.",
+    "serverError": "Server error. Please try again later.",
+    "unknownError": "An unknown error occurred. Please try again.",
+    "messageEmpty": "Message cannot be empty",
+    "messageTooLong": "Message is too long, please shorten it"
+  },
+  "accessibility": {
+    "openChat": "Open AI Assistant",
+    "closeChat": "Close AI Assistant",
+    "sendMessage": "Send Message",
+    "messageSent": "Message sent",
+    "messageInput": "Message input field",
+    "quickAction": "Quick Action",
+    "userMessage": "Your message",
+    "assistantMessage": "AI response",
+    "systemMessage": "System notification",
+    "switchLanguage": "Switch language",
+    "scrollToBottom": "Scroll to bottom"
+  }
+}

@@ -453,6 +453,7 @@ export function SidebarAdapter({ children }: SidebarAdapterProps) {
           <div className="mt-auto pt-6 border-t border-neutral-200 dark:border-neutral-700 flex flex-col items-center w-full">
             {/* Logout button */}
             <button
+              data-testid="user-menu"
               onClick={handleLogout}
               className={cn(
                 "flex items-center w-full px-3 py-2 mb-4 text-sm rounded-md text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors",
@@ -460,7 +461,7 @@ export function SidebarAdapter({ children }: SidebarAdapterProps) {
               )}
             >
               <LogOut className="h-5 w-5 flex-shrink-0" />
-              {open && <span className="ml-3">Log Out</span>}
+              {open && <span className="ml-3">Logout</span>}
             </button>
 
             {/* User avatar */}

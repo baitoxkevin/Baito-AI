@@ -7,6 +7,7 @@ import { getSession } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 
 import { logger } from '../lib/logger';
+import { AuthDebugger } from '@/lib/auth-debug';
 // Import pages
 import DashboardPage from '@/pages/DashboardPage';
 import CalendarPage from '@/pages/CalendarPage';
@@ -56,41 +57,39 @@ const MainAppLayout = memo(({ effectActive }: MainAppLayoutProps) => {
 
 
   useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        // First check for an existing session
-        const session = await getSession();
-        if (session) {
-          setIsAuthenticated(true);
-          return;
-        }
+    AuthDebugger.log('MAINAPP', 'Setting up auth listener');
+    console.log('[MAINAPP] Setting up auth listener...');
 
-        // If no session, wait a bit and check again (handles race conditions)
-        await new Promise(resolve => setTimeout(resolve, 200));
-        const retrySession = await getSession();
-        setIsAuthenticated(!!retrySession);
-      } catch (error) {
-        logger.error('Auth check failed:', error);
-        setIsAuthenticated(false);
-      }
-    };
-
-    checkAuth();
-
-    // Listen for auth state changes
+    // Listen for auth state changes - wait for INITIAL_SESSION
     const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_OUT') {
-        setIsAuthenticated(false);
-      } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-        setIsAuthenticated(true);
-      } else if (event === 'INITIAL_SESSION') {
-        // Handle initial session on page load
+      AuthDebugger.log('MAINAPP', `Auth event: ${event}`, { hasSession: !!session, hasUser: !!session?.user });
+      console.log('[MAINAPP] Auth event:', event, 'Session exists:', !!session);
+
+      // INITIAL_SESSION fires when Supabase restores session from localStorage
+      if (event === 'INITIAL_SESSION') {
+        console.log('[MAINAPP] Initial session event, authenticated:', !!session);
         setIsAuthenticated(!!session);
+      }
+      // SIGNED_IN fires when user logs in
+      else if (event === 'SIGNED_IN') {
+        console.log('[MAINAPP] User signed in');
+        setIsAuthenticated(true);
+      }
+      // TOKEN_REFRESHED fires when token is refreshed
+      else if (event === 'TOKEN_REFRESHED') {
+        console.log('[MAINAPP] Token refreshed');
+        setIsAuthenticated(true);
+      }
+      // SIGNED_OUT fires when user logs out
+      else if (event === 'SIGNED_OUT') {
+        console.log('[MAINAPP] User signed out');
+        setIsAuthenticated(false);
       }
     });
 
     // Cleanup listener on unmount
     return () => {
+      console.log('[MAINAPP] Cleaning up auth listener');
       authListener?.subscription.unsubscribe();
     };
   }, []);

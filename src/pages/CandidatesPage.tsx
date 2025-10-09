@@ -330,12 +330,6 @@ export default function CandidatesPage() {
     );
   }
 
-  // Calculate stats for the cards
-  const availableCandidates = candidates.filter(c => (c.current_projects_count || 0) === 0).length;
-  const topPerformers = candidates.filter(c => c.performance_metrics?.avg_rating && c.performance_metrics.avg_rating >= 4.5).length;
-  const activeProjects = candidates.reduce((sum, c) => sum + (c.current_projects_count || 0), 0);
-  const withVehicles = candidates.filter(c => c.has_vehicle).length;
-
   return (
     <div className="flex flex-col flex-1 p-2 sm:p-6 rounded-none md:rounded-tl-2xl bg-gradient-to-br from-slate-50 via-white to-blue-50/30 dark:from-neutral-900 dark:via-neutral-900 dark:to-blue-950/20 min-h-screen">
       {/* Glass Morphism Header */}
@@ -384,65 +378,6 @@ export default function CandidatesPage() {
           </motion.div>
         </div>
       </motion.div>
-      
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.1 }}
-          className="p-6 rounded-2xl bg-gradient-to-br from-blue-500/10 to-cyan-500/10 border border-blue-200/50 dark:border-blue-800/50 backdrop-blur-sm"
-        >
-          <div className="flex items-center justify-between mb-2">
-            <UserPlus className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-            <TrendingUp className="h-4 w-4 text-green-500" />
-          </div>
-          <p className="text-2xl font-bold text-slate-900 dark:text-white">{availableCandidates}</p>
-          <p className="text-sm text-slate-600 dark:text-slate-400">Available Now</p>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.2 }}
-          className="p-6 rounded-2xl bg-gradient-to-br from-purple-500/10 to-pink-500/10 border border-purple-200/50 dark:border-purple-800/50 backdrop-blur-sm"
-        >
-          <div className="flex items-center justify-between mb-2">
-            <Star className="h-5 w-5 text-purple-600 dark:text-purple-400" />
-            <Badge className="text-xs bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300">4.5+</Badge>
-          </div>
-          <p className="text-2xl font-bold text-slate-900 dark:text-white">{topPerformers}</p>
-          <p className="text-sm text-slate-600 dark:text-slate-400">Top Performers</p>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.3 }}
-          className="p-6 rounded-2xl bg-gradient-to-br from-green-500/10 to-emerald-500/10 border border-green-200/50 dark:border-green-800/50 backdrop-blur-sm"
-        >
-          <div className="flex items-center justify-between mb-2">
-            <Activity className="h-5 w-5 text-green-600 dark:text-green-400" />
-            <span className="text-xs font-medium text-green-600 dark:text-green-400">Active</span>
-          </div>
-          <p className="text-2xl font-bold text-slate-900 dark:text-white">{activeProjects}</p>
-          <p className="text-sm text-slate-600 dark:text-slate-400">Active Projects</p>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.4 }}
-          className="p-6 rounded-2xl bg-gradient-to-br from-amber-500/10 to-orange-500/10 border border-amber-200/50 dark:border-amber-800/50 backdrop-blur-sm"
-        >
-          <div className="flex items-center justify-between mb-2">
-            <Car className="h-5 w-5 text-amber-600 dark:text-amber-400" />
-            <Award className="h-4 w-4 text-amber-500" />
-          </div>
-          <p className="text-2xl font-bold text-slate-900 dark:text-white">{withVehicles}</p>
-          <p className="text-sm text-slate-600 dark:text-slate-400">With Vehicles</p>
-        </motion.div>
-      </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsContent value="candidates" className="mt-0 space-y-4">
@@ -1154,7 +1089,14 @@ export default function CandidatesPage() {
             setNewCandidateData(null);
           }
         }}
-        onCandidateSaved={loadCandidates}
+        onCandidateAdded={(success, candidateId) => {
+          if (success) {
+            console.log('Candidate added successfully, reloading candidates...', candidateId);
+            loadCandidates();
+          } else {
+            console.log('Candidate add failed, not reloading');
+          }
+        }}
         initialData={newCandidateData}
       />
       <CandidateDetailsDialog
