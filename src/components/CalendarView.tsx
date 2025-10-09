@@ -1196,61 +1196,70 @@ const CalendarView = React.memo(React.forwardRef<HTMLDivElement, CalendarViewPro
                     
                     return (
                       <>
-                        {visibleGroups.map((group, groupIndex) =>
+                        {visibleGroups.map((group, groupIndex) => 
                           group.map(project => (
-                            <div
-                              key={project.id}
-                              className={cn(
-                                `rounded-md border shadow-sm px-1.5 py-0.5 cursor-pointer day-single-event`,
-                                "transition-all flex flex-col gap-0 font-medium overflow-hidden",
-                                isCurrentMonth ? "opacity-100" : "opacity-90", // Make events slightly transparent in non-current months
-                                !project.color ? (eventColors[project.event_type as keyof typeof eventColors] || "bg-blue-200 text-blue-800") : ""
-                              )}
-                              style={{
-                                zIndex: 40, // Consistent z-index for single-day events
-                                position: "absolute", // Fixed absolute positioning
-                                top: `${groupIndex < 6 ? 42 + (groupIndex % 6) * 33 : 42 + 5 * 33}px`, // Increased spacing for 32px height
-                                height: '30px', // Slightly reduced for better fit
-                                left: "2%",
-                                width: "96%",
-                                ...(project.color && {
-                                  backgroundColor: project.color,
-                                  borderColor: project.color,
-                                  color: getBestTextColor(project.color)
-                                }),
-                                // Show a small indicator for stacked events beyond 6
-                                ...(groupIndex >= 6 ? {
-                                  right: "2%",
-                                  width: "auto",
-                                  maxWidth: "96%",
-                                  paddingRight: "15px"
-                                } : {})
-                              }}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onProjectClick(project);
-                              }}
-                              onMouseEnter={(e) => {
-                                handleProjectMouseEnter();
-                                handleEventHover(project, e.currentTarget);
-                              }}
-                              onMouseLeave={() => {
-                                handleProjectMouseLeave();
-                                handleEventLeave();
-                              }}
-                            >
-                              {/* Compact time and title layout */}
-                              <div className="flex items-center gap-1 min-w-0 w-full">
-                                <Clock className="w-2.5 h-2.5 flex-shrink-0 opacity-60" />
-                                <span className="text-[8px] font-medium opacity-75 whitespace-nowrap">
-                                  {formatTimeString(project.working_hours_start).replace(' AM', '').replace(' PM', '')}
-                                </span>
-                              </div>
-                              {/* Title */}
-                              <div className="truncate text-[10px] leading-[16px] font-semibold -mt-0.5">
-                                {project.title}
-                              </div>
-                            </div>
+                            <TooltipProvider key={project.id}>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <div
+                                    className={cn(
+                                      `rounded-md border shadow-sm px-2 py-1 cursor-pointer day-single-event`,
+                                      "transition-all flex flex-col gap-0.5 font-medium",
+                                      isCurrentMonth ? "opacity-100" : "opacity-90", // Make events slightly transparent in non-current months
+                                      !project.color ? (eventColors[project.event_type as keyof typeof eventColors] || "bg-blue-200 text-blue-800") : ""
+                                    )}
+                                    style={{
+                                      zIndex: 40, // Consistent z-index for single-day events
+                                      position: "absolute", // Fixed absolute positioning
+                                      top: `${groupIndex < 6 ? 42 + (groupIndex % 6) * 33 : 42 + 5 * 33}px`, // Increased spacing for 32px height
+                                      height: '32px', // Increased height for time display
+                                      left: "2%",
+                                      width: "96%",
+                                      ...(project.color && {
+                                        backgroundColor: project.color,
+                                        borderColor: project.color,
+                                        color: getBestTextColor(project.color)
+                                      }),
+                                      // Show a small indicator for stacked events beyond 6
+                                      ...(groupIndex >= 6 ? {
+                                        right: "2%",
+                                        width: "auto",
+                                        maxWidth: "96%",
+                                        paddingRight: "15px"
+                                      } : {})
+                                    }}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      onProjectClick(project);
+                                    }}
+                                    onMouseEnter={(e) => {
+                                      handleProjectMouseEnter();
+                                      handleEventHover(project, e.currentTarget);
+                                    }}
+                                    onMouseLeave={() => {
+                                      handleProjectMouseLeave();
+                                      handleEventLeave();
+                                    }}
+                                  >
+                                    {/* Time display */}
+                                    <div className="flex items-center gap-1 text-[9px] opacity-75 font-medium">
+                                      <Clock className="w-2.5 h-2.5 flex-shrink-0" />
+                                      <span>
+                                        {formatTimeString(project.working_hours_start).replace(' AM', '').replace(' PM', '')}
+                                      </span>
+                                    </div>
+
+                                    {/* Title */}
+                                    <div className="truncate text-[11px] leading-[14px] font-medium">
+                                      {project.title}
+                                    </div>
+                                  </div>
+                                </TooltipTrigger>
+                                <TooltipContent side="bottom" align="start">
+                                  <ProjectTooltip project={project} />
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
                           ))
                         )}
                         

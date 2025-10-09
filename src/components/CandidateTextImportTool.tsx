@@ -123,15 +123,45 @@ export function CandidateTextImportTool({ onOpenNewCandidateDialog }: CandidateT
           title: "Candidate Created",
           description: `${extractedData.name} has been added to your candidates.`,
         });
-        
+
         // Clear the form
         clearForm();
       } else {
-        throw new Error('Failed to create candidate');
+        // Handle specific error cases
+        const error = result.error as any;
+        let errorMessage = "Failed to create candidate. Please try again.";
+        let errorTitle = "Error";
+
+        if (error?.code === '23505') {
+          // Duplicate constraint violation
+          errorTitle = "Duplicate Candidate";
+          if (error.message?.includes('ic_number')) {
+            errorMessage = "A candidate with this IC number already exists in the system.";
+          } else if (error.message?.includes('email')) {
+            errorMessage = "A candidate with this email address already exists.";
+          } else if (error.message?.includes('unique_id')) {
+            errorMessage = "A candidate with this unique ID already exists.";
+          } else {
+            errorMessage = "This candidate already exists in the system.";
+          }
+        } else if (error?.code === '23502') {
+          // Not null constraint violation
+          const fieldName = error.message?.match(/column "(.+?)"/)?.[1] || 'unknown field';
+          errorTitle = "Missing Required Information";
+          errorMessage = `Required field is missing: ${fieldName.replace(/_/g, ' ')}`;
+        } else if (error?.message) {
+          errorMessage = error.message;
+        }
+
+        toast({
+          title: errorTitle,
+          description: errorMessage,
+          variant: "destructive",
+        });
       }
     } catch (err) {
       console.error('Error creating candidate:', err);
-      
+
       toast({
         title: "Error",
         description: "Failed to create candidate. Please try again.",
