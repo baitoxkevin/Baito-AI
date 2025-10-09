@@ -28,6 +28,10 @@ interface StaffMember {
   position?: string;
   photo?: string;
   status: 'confirmed' | 'pending' | 'rejected' | 'hold';
+  bank_name?: string;
+  bank_account_number?: string;
+  bankName?: string;
+  bankAccountNumber?: string;
   workingDates: Date[];
   workingDatesWithSalary: WorkingDateWithSalary[];
 }
@@ -77,7 +81,10 @@ export function IntegratedStaffingPayroll({
               full_name,
               profile_photo,
               email,
-              phone_number
+              phone_number,
+              bank_name,
+              bank_account_number,
+              bank_account_name
             )
           `)
           .eq('project_id', projectId);
@@ -94,6 +101,10 @@ export function IntegratedStaffingPayroll({
           position: staff.position,
           photo: staff.candidate?.profile_photo,
           status: (staff.status as any) || 'confirmed',
+          bank_name: staff.candidate?.bank_name,
+          bank_account_number: staff.candidate?.bank_account_number,
+          bankName: staff.candidate?.bank_name,
+          bankAccountNumber: staff.candidate?.bank_account_number,
           workingDates: (staff.working_dates || []).map(d => new Date(d)),
           workingDatesWithSalary: (staff.working_dates_with_salary || []).map(item => ({
             date: new Date(item.date),
