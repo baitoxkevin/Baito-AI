@@ -10,7 +10,7 @@ export interface CandidateInfo {
   experience: string[];
   education: string[];
   raw_resume: string;
-  
+
   // Additional fields for the numbered format
   unique_id?: string;
   ic_number?: string;
@@ -22,14 +22,17 @@ export interface CandidateInfo {
   spoken_languages?: string;
   height?: string;
   typhoid?: string;
-  
+
   // Emergency contact information
   emergency_contact_name?: string;
   emergency_contact_number?: string;
-  
+
   // Photos
   profile_photo?: string;
   full_body_photo?: string;
+
+  // Experience tags for filtering (e.g., "Promoter", "Mystery Shopper", "Supervisor")
+  experience_tags?: string[];
 }
 
 /**
@@ -91,24 +94,38 @@ export async function createCandidate(candidateInfo: CandidateInfo) {
 
     // Create the candidate data object with fields that match the database schema
     // Generate a unique ID if one isn't provided
-    const uniqueId = candidateInfo.unique_id || `C${Math.floor(Math.random() * 100000).toString().padStart(5, '0')}`;
-    
+    const uniqueId = candidateInfo.unique_id || `c${Math.floor(Math.random() * 100000).toString().padStart(5, '0')}`;
+
+    // Generate unique IC number placeholder if missing (to avoid unique constraint violations)
+    const icNumber = candidateInfo.ic_number || `TEMP-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+
+    // Generate unique phone placeholder if missing
+    const phoneNumber = candidateInfo.phone || `60${Math.floor(Math.random() * 100000000).toString().padStart(8, '0')}`;
+
     // Use only fields that exist in the database
     const candidateData: any = {
       full_name: candidateInfo.name,
-      ic_number: candidateInfo.ic_number || '000000-00-0000', // Placeholder if missing
+      ic_number: icNumber, // Unique placeholder if missing
       date_of_birth: dateOfBirth,
-      phone_number: candidateInfo.phone || '0000000000', // Placeholder if missing
+      phone_number: phoneNumber, // Unique placeholder if missing
       gender: 'other',
-      email: candidateInfo.email || 'unknown@example.com', // Placeholder if missing
+      email: candidateInfo.email && candidateInfo.email.includes('@') ? candidateInfo.email : null, // NULL if missing or invalid
       nationality: 'Malaysian', // Default value
       unique_id: uniqueId, // Add the unique ID
-      
+
+      // Emergency contact fields (required by database schema)
+      emergency_contact_name: candidateInfo.emergency_contact_name || 'Not provided',
+      emergency_contact_number: candidateInfo.emergency_contact_number || 'Not provided',
+
       // Work related fields
       has_vehicle: hasVehicle,
       vehicle_type: vehicleType,
       highest_education: candidateInfo.education.length > 0 ? candidateInfo.education[0] : null,
-      
+
+      // Array fields for skills and experience tags
+      skills: candidateInfo.skills || [],
+      experience_tags: candidateInfo.experience_tags || [],
+
       // Address data - serialize as JSON
       address_business: {
         street: candidateInfo.location || '',
@@ -117,7 +134,7 @@ export async function createCandidate(candidateInfo: CandidateInfo) {
         postcode: '',
         country_code: 'MY',
       },
-      
+
       // Store metadata
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),

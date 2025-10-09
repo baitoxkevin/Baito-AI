@@ -1,0 +1,99 @@
+{
+  "name": "Excel Vision Extractor - Complete Pipeline",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "vision-extract",
+        "responseMode": "responseNode"
+      },
+      "name": "Webhook - Receive Excel Image",
+      "type": "n8n-nodes-base.webhook",
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4-vision-preview",
+        "prompt": "=Analyze this Excel spreadsheet image and identify:\n1. What type of data is shown (candidates, payments, schedules, etc.)\n2. The structure (columns, rows, merged cells)\n3. Any issues or anomalies\n\nProvide a JSON response with:\n- dataType: string\n- columns: array of column names\n- rowCount: number\n- issues: array of identified problems",
+        "image": "={{ $json.image }}"
+      },
+      "name": "Vision - Identify Structure",
+      "type": "n8n-nodes-base.openAi",
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4-vision-preview",
+        "prompt": "=Extract ALL data from this Excel image into structured JSON.\n\nBased on the identified structure:\nData Type: {{ $('Vision - Identify Structure').item.json.dataType }}\nColumns: {{ $('Vision - Identify Structure').item.json.columns.join(', ') }}\n\nExtract each row as a separate object with the column names as keys.\nHandle merged cells by repeating the value for all spanned rows.\n\nReturn format:\n{\n  \"rows\": [\n    { \"column1\": \"value1\", \"column2\": \"value2\" },\n    ...\n  ]\n}",
+        "image": "={{ $json.image }}"
+      },
+      "name": "Extract - Parse Data",
+      "type": "n8n-nodes-base.openAi",
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4",
+        "prompt": "=Given this extracted data:\n{{ JSON.stringify($json.rows) }}\n\nAnd our database schema:\n\nTABLE: candidates\nCOLUMNS:\n- full_name (text)\n- email (text)\n- phone_number (text)\n- gender (text)\n- address (text)\n- date_of_birth (date)\n- nationality (text)\n- passport_number (text)\n- work_permit_expiry (date)\n- bank_name (text)\n- bank_account_number (text)\n- emergency_contact_name (text)\n- emergency_contact_phone (text)\n\nTABLE: candidate_projects\nCOLUMNS:\n- candidate_id (uuid)\n- project_id (uuid)\n- role (text)\n- payment_amount (numeric)\n- payment_status (text: pending/paid/cancelled)\n- work_date (date)\n- notes (text)\n\nFor each row, determine:\n1. Which table it belongs to (candidates or candidate_projects)\n2. Map each field to the correct column\n3. Identify any data transformations needed (dates, numbers, etc.)\n4. Flag any validation issues\n\nReturn JSON:\n{\n  \"mappings\": [\n    {\n      \"rowIndex\": 0,\n      \"table\": \"candidates\",\n      \"data\": { \"full_name\": \"...\", \"email\": \"...\" },\n      \"transformations\": [],\n      \"validationIssues\": []\n    }\n  ]\n}"
+      },
+      "name": "Reasoning - Map to Schema",
+      "type": "n8n-nodes-base.openAi",
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "authentication": "generic",
+        "genericAuthType": "httpHeaderAuth",
+        "httpHeaderAuth": "supabaseAuth",
+        "requestMethod": "POST",
+        "url": "={{ $env.VITE_SUPABASE_URL }}/rest/v1/{{ $json.table }}",
+        "jsonParameters": true,
+        "bodyParametersJson": "={{ JSON.stringify($json.data) }}"
+      },
+      "name": "Export - Insert to Supabase",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4",
+        "prompt": "=Review the following data export results:\n\nInserted Records:\n{{ JSON.stringify($('Export - Insert to Supabase').all()) }}\n\nOriginal Extraction:\n{{ JSON.stringify($('Extract - Parse Data').item.json.rows) }}\n\nValidate:\n1. All rows were successfully inserted\n2. No data was lost or corrupted\n3. All transformations were applied correctly\n4. Any issues that need manual review\n\nProvide a comprehensive report:\n{\n  \"totalRows\": number,\n  \"successfulInserts\": number,\n  \"failedInserts\": number,\n  \"dataIntegrity\": \"passed\" | \"failed\",\n  \"issues\": [{ \"severity\": \"high|medium|low\", \"description\": \"...\" }],\n  \"recommendedActions\": [\"...\"]\n}"
+      },
+      "name": "Review - Validation Report",
+      "type": "n8n-nodes-base.openAi",
+      "position": [1250, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}"
+      },
+      "name": "Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [1450, 300]
+    }
+  ],
+  "connections": {
+    "Webhook - Receive Excel Image": {
+      "main": [[{ "node": "Vision - Identify Structure", "type": "main", "index": 0 }]]
+    },
+    "Vision - Identify Structure": {
+      "main": [[{ "node": "Extract - Parse Data", "type": "main", "index": 0 }]]
+    },
+    "Extract - Parse Data": {
+      "main": [[{ "node": "Reasoning - Map to Schema", "type": "main", "index": 0 }]]
+    },
+    "Reasoning - Map to Schema": {
+      "main": [[{ "node": "Export - Insert to Supabase", "type": "main", "index": 0 }]]
+    },
+    "Export - Insert to Supabase": {
+      "main": [[{ "node": "Review - Validation Report", "type": "main", "index": 0 }]]
+    },
+    "Review - Validation Report": {
+      "main": [[{ "node": "Response", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

@@ -185,30 +185,24 @@ export function useProjectsByMonth() {
       while (attempts < MAX_ATTEMPTS) {
         try {
           const data = await getData(month, year);
-          
+
           // Log success information (only detailed on first attempt)
           if (attempts === 0) {
             // logger.debug(`Successfully fetched ${data.length} projects for ${month}/${year || new Date().getFullYear()}`);
           } else {
             // logger.debug(`Retry #${attempts} successful, got ${data.length} projects`);
           }
-          
-          // If we get empty data on first attempt, try once with cache invalidation
-          if (data.length === 0 && attempts === 0) {
-            // logger.debug('No projects returned from cache, { data: invalidating and retrying' });
-            invalidateCache(month, year);
-            attempts++;
-            continue;
-          }
-          
+
+          // Always return data on success, even if empty
+          // Empty data is valid - it just means no projects for that month
           return data;
         } catch (innerError) {
           logger.error(`Attempt #${attempts + 1} failed:`, innerError);
-          
+
           // Invalidate cache and retry
           invalidateCache(month, year);
           attempts++;
-          
+
           // If we've exhausted all attempts, throw to outer handler
           if (attempts >= MAX_ATTEMPTS) {
             throw innerError;

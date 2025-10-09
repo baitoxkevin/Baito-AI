@@ -64,7 +64,7 @@ class ActivityLogger {
     // Don't log project focus events - we only want actual user actions
   }
 
-  public async log(event: LoggableEvent) {
+  public async log(event: LoggableEvent): Promise<void> {
     if (!this.isInitialized) {
       await this.initializeUser();
     }
@@ -73,7 +73,7 @@ class ActivityLogger {
     const projectId = event.project_id || this.projectId;
     if (!projectId) {
       console.warn('ActivityLogger: No project ID available for logging event:', event);
-      return;
+      return Promise.resolve(); // Return a resolved promise instead of undefined
     }
 
     console.log('ActivityLogger: Logging event for project:', projectId, event.action);
@@ -329,8 +329,8 @@ class ActivityLogger {
 export const activityLogger = new ActivityLogger();
 
 // Export convenience function for easy logging
-export function logActivity(event: LoggableEvent) {
-  activityLogger.log(event);
+export function logActivity(event: LoggableEvent): Promise<void> {
+  return activityLogger.log(event);
 }
 
 // Export utility functions (only keeping dataChange and action)

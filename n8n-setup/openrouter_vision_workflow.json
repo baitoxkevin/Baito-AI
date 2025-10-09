@@ -1,0 +1,214 @@
+{
+  "name": "Excel Vision Extractor - OpenRouter API",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "vision-to-excel",
+        "responseMode": "responseNode"
+      },
+      "name": "Webhook - Receive Excel Images",
+      "type": "n8n-nodes-base.webhook",
+      "position": [250, 300],
+      "typeVersion": 1.1
+    },
+    {
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "requestMethod": "POST",
+        "url": "https://openrouter.ai/api/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "HTTP-Referer",
+              "value": "https://baito-ai.app"
+            },
+            {
+              "name": "X-Title",
+              "value": "Baito Excel Extractor"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "anthropic/claude-3.5-sonnet:beta"
+            },
+            {
+              "name": "messages",
+              "value": "={{ [{\"role\": \"user\", \"content\": [{\"type\": \"text\", \"text\": \"You are analyzing an Excel spreadsheet for a staffing/event management company (Baito).\\n\\nAnalyze this Excel image and identify:\\n\\n1. **Table Type**: What kind of data is this?\\n   - Candidate personal info (names, IC, bank details, contact)\\n   - Payment/wages data (candidate names, amounts, dates, projects)\\n   - Mixed (both personal and payment info)\\n   \\n2. **Table Structure**:\\n   - Header row location (which row number?)\\n   - Column headers (list all column names left to right)\\n   - Data starts at row number?\\n   - Total number of data rows\\n   - Any merged cells? Where?\\n   - Any subtotal/summary rows? Which rows?\\n   - Multiple sections in one sheet? Describe boundaries\\n\\n3. **Key Identifiers**:\\n   - Which column contains candidate names?\\n   - Which column contains IC/passport numbers?\\n   - Which columns contain payment amounts?\\n   - Which columns contain dates?\\n   - Which column contains project/event names?\\n\\n4. **Data Quality Issues**:\\n   - Missing headers\\n   - Inconsistent formatting\\n   - Merged cells causing data continuation\\n   - Ambiguous column purposes\\n   - Summary rows mixed with data rows\\n\\nReturn ONLY valid JSON:\\n{\\n  \\\"tableType\\\": \\\"string\\\",\\n  \\\"headerRow\\\": number,\\n  \\\"dataStartRow\\\": number,\\n  \\\"dataEndRow\\\": number,\\n  \\\"columns\\\": [{\\\"index\\\": 0, \\\"name\\\": \\\"Name\\\", \\\"dataType\\\": \\\"text\\\"}],\\n  \\\"mergedCells\\\": [{\\\"range\\\": \\\"A2:A5\\\", \\\"value\\\": \\\"...\\\"}],\\n  \\\"summaryRows\\\": [10, 25, 50],\\n  \\\"sections\\\": [{\\\"startRow\\\": 1, \\\"endRow\\\": 20, \\\"description\\\": \\\"...\\\"}],\\n  \\\"keyColumns\\\": {\\\"name\\\": 0, \\\"ic\\\": 1, \\\"payment\\\": 5},\\n  \\\"issues\\\": [{\\\"row\\\": 15, \\\"description\\\": \\\"...\\\"}]\\n}\"}, {\"type\": \"image_url\", \"image_url\": {\"url\": $json.image}}]}] }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "OpenRouter - Identify Structure",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [450, 300],
+      "typeVersion": 4.2,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "openrouter_api",
+          "name": "OpenRouter API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract the AI response from OpenRouter format\nconst response = $input.item.json;\nconst aiContent = response.choices[0].message.content;\n\n// Parse JSON from AI response\nlet structureData;\ntry {\n  // Try to extract JSON from markdown code blocks if present\n  const jsonMatch = aiContent.match(/```json\\n([\\s\\S]*?)\\n```/) || \n                   aiContent.match(/```\\n([\\s\\S]*?)\\n```/);\n  \n  if (jsonMatch) {\n    structureData = JSON.parse(jsonMatch[1]);\n  } else {\n    structureData = JSON.parse(aiContent);\n  }\n} catch (error) {\n  structureData = { error: 'Failed to parse AI response', raw: aiContent };\n}\n\nreturn { json: structureData };"
+      },
+      "name": "Parse Structure Response",
+      "type": "n8n-nodes-base.code",
+      "position": [650, 300],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "requestMethod": "POST",
+        "url": "https://openrouter.ai/api/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "HTTP-Referer",
+              "value": "https://baito-ai.app"
+            },
+            {
+              "name": "X-Title",
+              "value": "Baito Excel Extractor"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "anthropic/claude-3.5-sonnet:beta"
+            },
+            {
+              "name": "messages",
+              "value": "={{ [{\"role\": \"user\", \"content\": [{\"type\": \"text\", \"text\": \"Using the identified structure:\\n\" + JSON.stringify($('Parse Structure Response').item.json) + \"\\n\\nExtract ALL data from this Excel image with DEEP REASONING:\\n\\n**FOR EACH ROW:**\\n1. Is this a data row, continuation row, or summary row?\\n2. Which candidate does this row belong to?\\n3. Is this adding NEW information or CONTINUING from above (merged cell)?\\n4. What is the semantic meaning of each cell value?\\n\\n**HANDLE MERGED CELLS:**\\n- If cell is empty but row has data → check if it's a continuation of above merged cell\\n- Group continuation rows with their parent row\\n- Sum numerical values across continuation rows if appropriate\\n\\n**HANDLE AMBIGUOUS COLUMNS:**\\n- If column labeled \\\"Payment\\\" but sheet also has \\\"Total\\\" → determine which is per-day wage vs final total\\n- If \\\"Days\\\" column has value > 50 → probably a payment amount, not days worked\\n\\n**EXCLUDE:**\\n- Summary rows (\\\"Total\\\", \\\"Grand Total\\\", \\\"Subtotal\\\")\\n- Header rows that repeat mid-sheet\\n- Non-person entries (\\\"Team\\\", \\\"Pax\\\", project names as names)\\n- Roster sections (has Name but no IC number)\\n\\n**PAYMENT CALCULATION LOGIC:**\\n- If row has: Wages + OT + Allowance + Claims → Total = sum of all\\n- If row has: only \\\"Payment\\\" column → Payment = final amount\\n- If continuation row has only additional days → add days to parent row\\n\\nReturn JSON array of CANDIDATE RECORDS (not individual rows):\\n[\\n  {\\n    \\\"candidateName\\\": \\\"string\\\",\\n    \\\"icNumber\\\": \\\"string\\\",\\n    \\\"reasoning\\\": \\\"Why this is one candidate record, how continuation rows were merged\\\",\\n    \\\"extractedData\\\": {\\n      \\\"name\\\": \\\"string\\\",\\n      \\\"ic\\\": \\\"string\\\",\\n      \\\"phone\\\": \\\"string\\\",\\n      \\\"bankName\\\": \\\"string\\\",\\n      \\\"accountNumber\\\": \\\"string (not float)\\\",\\n      \\\"totalDays\\\": number,\\n      \\\"wages\\\": number,\\n      \\\"overtime\\\": number,\\n      \\\"allowance\\\": number,\\n      \\\"claims\\\": number,\\n      \\\"totalPayment\\\": number,\\n      \\\"paymentDate\\\": \\\"YYYY-MM-DD\\\",\\n      \\\"projectName\\\": \\\"string\\\",\\n      \\\"location\\\": \\\"string\\\",\\n      \\\"notes\\\": \\\"string\\\"\\n    },\\n    \\\"sourceRows\\\": [2, 3, 4],\\n    \\\"confidence\\\": \\\"high|medium|low\\\",\\n    \\\"issues\\\": [\\\"string\\\"]\\n  }\\n]\"}, {\"type\": \"image_url\", \"image_url\": {\"url\": $('Webhook - Receive Excel Images').item.json.image}}]}] }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "OpenRouter - Extract Data",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [850, 300],
+      "typeVersion": 4.2,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "openrouter_api",
+          "name": "OpenRouter API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract the AI response from OpenRouter format\nconst response = $input.item.json;\nconst aiContent = response.choices[0].message.content;\n\n// Parse JSON from AI response\nlet extractedData;\ntry {\n  // Try to extract JSON from markdown code blocks if present\n  const jsonMatch = aiContent.match(/```json\\n([\\s\\S]*?)\\n```/) || \n                   aiContent.match(/```\\n([\\s\\S]*?)\\n```/);\n  \n  if (jsonMatch) {\n    extractedData = JSON.parse(jsonMatch[1]);\n  } else {\n    extractedData = JSON.parse(aiContent);\n  }\n} catch (error) {\n  console.error('Failed to parse extraction response:', error);\n  extractedData = [];\n}\n\nreturn { json: extractedData };"
+      },
+      "name": "Parse Extraction Response",
+      "type": "n8n-nodes-base.code",
+      "position": [1050, 300],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "requestMethod": "POST",
+        "url": "https://openrouter.ai/api/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "HTTP-Referer",
+              "value": "https://baito-ai.app"
+            },
+            {
+              "name": "X-Title",
+              "value": "Baito Excel Extractor"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "anthropic/claude-3.5-sonnet:beta"
+            },
+            {
+              "name": "messages",
+              "value": "={{ [{\"role\": \"user\", \"content\": \"You extracted \" + $('Parse Extraction Response').item.json.length + \" candidate records from this Excel sheet.\\n\\nPerform CRITICAL REVIEW:\\n\\n**Data Validation:**\\n1. Are all IC numbers unique? (duplicates = continuation rows not merged)\\n2. Do payment calculations make sense? (Wages+OT+Allowance ≈ Total?)\\n3. Are account numbers clean? (no .0 suffix?)\\n4. Are dates in valid format?\\n5. Any obviously wrong data? (Names like \\\"Total\\\", Days=500, Payment=0 but has wages)\\n\\n**Extraction Quality:**\\n1. Did we miss any candidate rows?\\n2. Did we include any summary rows by mistake?\\n3. Are continuation rows properly merged?\\n4. Is the payment column correctly identified?\\n\\nReturn JSON:\\n{\\n  \\\"validationPassed\\\": boolean,\\n  \\\"recordsValidated\\\": number,\\n  \\\"recordsRejected\\\": number,\\n  \\\"duplicatesFound\\\": [{\\\"ic\\\": \\\"...\\\", \\\"count\\\": 2}],\\n  \\\"paymentIssues\\\": [{\\\"name\\\": \\\"...\\\", \\\"issue\\\": \\\"...\\\"}],\\n  \\\"dataQualityIssues\\\": [{\\\"type\\\": \\\"...\\\", \\\"description\\\": \\\"...\\\"}],\\n  \\\"extractionStats\\\": {\\n    \\\"totalCandidates\\\": number,\\n    \\\"totalPayment\\\": number,\\n    \\\"totalDays\\\": number\\n  },\\n  \\\"recommendations\\\": [\\\"string\\\"]\\n}\\n\\nExtracted data:\\n\" + JSON.stringify($('Parse Extraction Response').item.json)}] }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "OpenRouter - Validate",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [1250, 300],
+      "typeVersion": 4.2,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "openrouter_api",
+          "name": "OpenRouter API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse validation response\nconst response = $input.item.json;\nconst aiContent = response.choices[0].message.content;\n\nlet validationData;\ntry {\n  const jsonMatch = aiContent.match(/```json\\n([\\s\\S]*?)\\n```/) || \n                   aiContent.match(/```\\n([\\s\\S]*?)\\n```/);\n  \n  if (jsonMatch) {\n    validationData = JSON.parse(jsonMatch[1]);\n  } else {\n    validationData = JSON.parse(aiContent);\n  }\n} catch (error) {\n  validationData = { error: 'Failed to parse validation response', raw: aiContent };\n}\n\nreturn { json: validationData };"
+      },
+      "name": "Parse Validation Response",
+      "type": "n8n-nodes-base.code",
+      "position": [1450, 300],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ {\n  extractedRecords: $('Parse Extraction Response').item.json.length,\n  validationReport: $('Parse Validation Response').item.json,\n  data: $('Parse Extraction Response').item.json,\n  metadata: $('Webhook - Receive Excel Images').item.json.metadata\n} }}"
+      },
+      "name": "Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [1650, 300],
+      "typeVersion": 1
+    }
+  ],
+  "connections": {
+    "Webhook - Receive Excel Images": {
+      "main": [[{ "node": "OpenRouter - Identify Structure", "type": "main", "index": 0 }]]
+    },
+    "OpenRouter - Identify Structure": {
+      "main": [[{ "node": "Parse Structure Response", "type": "main", "index": 0 }]]
+    },
+    "Parse Structure Response": {
+      "main": [[{ "node": "OpenRouter - Extract Data", "type": "main", "index": 0 }]]
+    },
+    "OpenRouter - Extract Data": {
+      "main": [[{ "node": "Parse Extraction Response", "type": "main", "index": 0 }]]
+    },
+    "Parse Extraction Response": {
+      "main": [[{ "node": "OpenRouter - Validate", "type": "main", "index": 0 }]]
+    },
+    "OpenRouter - Validate": {
+      "main": [[{ "node": "Parse Validation Response", "type": "main", "index": 0 }]]
+    },
+    "Parse Validation Response": {
+      "main": [[{ "node": "Response", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

@@ -34,6 +34,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useToast } from '@/hooks/use-toast';
 import { useProjectsByMonth, useProjects } from '@/hooks/use-projects';
 import { CalendarSkeleton } from '@/components/calendar-skeleton';
@@ -45,6 +51,9 @@ import type { Project } from '@/lib/types';
 // Import optimized components
 const CalendarView = lazy(() => import('@/components/CalendarViewOptimized'));
 const ListView = lazy(() => import('@/components/ListViewOptimized'));
+const SpotlightCard = lazy(() => import('@/components/spotlight-card/SpotlightCardOptimized').then(module => ({
+  default: module.SpotlightCardOptimized
+})));
 
 // Lazy load heavy components
 import { lazy, Suspense } from 'react';
@@ -255,6 +264,8 @@ export default function CalendarPageOptimized() {
     dayPreviewProjects: [] as Project[],
     dayPreviewDate: null as Date | null,
     dayPreviewOpen: false,
+    selectedProject: null as Project | null,
+    projectSpotlightOpen: false,
   }));
   
   // Navigation and location hooks
@@ -548,8 +559,12 @@ export default function CalendarPageOptimized() {
                   date={state.date}
                   projects={filteredProjects}
                   onProjectClick={(project) => {
-                    // Handle project click
-                    console.log('Project clicked:', project);
+                    // Open project spotlight dialog
+                    setState(prev => ({
+                      ...prev,
+                      selectedProject: project,
+                      projectSpotlightOpen: true
+                    }));
                   }}
                   onDateRangeSelect={(start, end) => {
                     setState(prev => ({
@@ -572,7 +587,12 @@ export default function CalendarPageOptimized() {
                   date={state.date}
                   projects={filteredProjects}
                   onProjectClick={state.selectionMode ? undefined : (project) => {
-                    console.log('Project clicked:', project);
+                    // Open project spotlight dialog
+                    setState(prev => ({
+                      ...prev,
+                      selectedProject: project,
+                      projectSpotlightOpen: true
+                    }));
                   }}
                   onProjectDelete={state.selectionMode ? undefined : handleProjectDelete}
                   selectionMode={state.selectionMode}
@@ -627,7 +647,42 @@ export default function CalendarPageOptimized() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      
+
+      {/* Project Spotlight Dialog */}
+      <Dialog
+        open={state.projectSpotlightOpen}
+        onOpenChange={(open) => setState(prev => ({ ...prev, projectSpotlightOpen: open }))}
+      >
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-auto p-6">
+          <DialogHeader>
+            <DialogTitle>Project Details</DialogTitle>
+          </DialogHeader>
+          {state.selectedProject && (
+            <Suspense fallback={<div className="flex items-center justify-center p-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}>
+              <SpotlightCard
+                project={state.selectedProject}
+                onProjectUpdated={(updatedProject) => {
+                  // Update the project in the list
+                  setState(prev => ({
+                    ...prev,
+                    selectedProject: updatedProject,
+                    projects: prev.projects.map(p => p.id === updatedProject.id ? updatedProject : p),
+                    extendedProjects: prev.extendedProjects.map(p => p.id === updatedProject.id ? updatedProject : p)
+                  }));
+                  // Invalidate cache to force refresh
+                  monthCacheRef.current.clear();
+                  invalidateCache();
+                }}
+                onViewDetails={(project) => {
+                  // Already viewing details, no action needed
+                  console.log('Viewing details for:', project.title);
+                }}
+              />
+            </Suspense>
+          )}
+        </DialogContent>
+      </Dialog>
+
       {/* Day preview dialog */}
       {state.dayPreviewOpen && state.dayPreviewDate && (
         <div 

@@ -306,7 +306,7 @@ export function NewProjectDialog({
             company_name
           )
         `).order('name'),
-        supabase.from('users').select('id, full_name, role').in('role', ['admin', 'super_admin', 'manager']).order('full_name')
+        supabase.from('users').select('id, full_name, role').in('role', ['admin', 'super_admin', 'manager', 'staff']).order('full_name')
       ]);
 
       // Check if we have permission errors (code 42501)

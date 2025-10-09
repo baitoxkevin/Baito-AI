@@ -1,9 +1,13 @@
 /**
  * Optimized Database Configuration with Connection Pooling
+ *
+ * NOTE: This wrapper uses the MAIN supabase client to avoid creating
+ * multiple GoTrueClient instances which cause auth conflicts.
  */
 
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from './database.types';
+import { supabase } from './supabase'; // Use main client to avoid multiple auth instances
 
 interface PoolConfig {
   min: number;
@@ -22,13 +26,6 @@ class OptimizedSupabaseClient {
   private connectionQueue: Array<() => void> = [];
 
   constructor() {
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-    const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-    if (!supabaseUrl || !supabaseAnonKey) {
-      throw new Error('Missing Supabase environment variables');
-    }
-
     // Optimal connection pool configuration
     this.poolConfig = {
       min: 2,                      // Minimum idle connections
@@ -41,28 +38,11 @@ class OptimizedSupabaseClient {
 
     this.maxConnections = this.poolConfig.max;
 
-    // Create optimized Supabase client with unique storage key to avoid multiple instance warnings
-    this.client = createClient<Database>(supabaseUrl, supabaseAnonKey, {
-      auth: {
-        persistSession: true,
-        autoRefreshToken: true,
-        detectSessionInUrl: true,
-        storageKey: 'baito-db-optimized'  // Unique key to avoid conflicts with main auth client
-      },
-      global: {
-        headers: {
-          'x-application-name': 'baito-ai'
-        }
-      },
-      db: {
-        schema: 'public'
-      },
-      realtime: {
-        params: {
-          eventsPerSecond: 10 // Rate limit realtime events
-        }
-      }
-    });
+    // Use the main supabase client instead of creating a new one
+    // This prevents "Multiple GoTrueClient instances" warning
+    this.client = supabase;
+
+    console.log('[DB-OPTIMIZED] Using main supabase client (no new client created)');
 
     // Initialize connection monitoring
     this.initializeMonitoring();

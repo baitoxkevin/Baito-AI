@@ -1,4 +1,4 @@
-import { supabase } from './supabase';
+import { supabase, ensureAuthReady } from './supabase';
 import type { Project, User, Client } from './types';
 import { getUser } from './auth';
 import { activityLogger } from './activity-logger';
@@ -35,8 +35,16 @@ const eventColors = {
 
 export async function fetchProjects(): Promise<Project[]> {
   try {
+    // Don't call ensureAuthReady() - it's causing getSession() to hang on refresh
+    // Supabase client auth works automatically, RLS handles authentication
+    // ensureAuthReady().catch(err => console.warn('[PROJECTS] Auth init warning:', err));
+
+    // Proceed immediately with data fetch - RLS will handle auth
+    // If user is authenticated, session will be available
+    // If not, RLS policies will return empty/filtered data
+
     // Use simple select without complex joins to avoid schema cache issues
-  const { data, error } = await supabase
+    const { data, error } = await supabase
       .from('projects')
       .select('*')
       .is('deleted_at', null)
@@ -182,6 +190,9 @@ export async function fetchProjects(): Promise<Project[]> {
 
 export async function fetchProjectsByMonth(year: number, month: number): Promise<Project[]> {
   try {
+    // Don't call ensureAuthReady() - it's causing getSession() to hang on refresh
+    // Supabase client auth works automatically, RLS handles authentication
+
     // Input validation - handle cases where inputs are not numbers
     if (isNaN(year) || isNaN(month)) {
       console.warn(`Invalid input to fetchProjectsByMonth: year=${year}, month=${month}`);
@@ -237,17 +248,11 @@ export async function fetchProjectsByMonth(year: number, month: number): Promise
     
     console.log(`Using optimized date range (±1 month) for Supabase query: ${expandedStartStr} to ${expandedEndStr}`);
     
-    // Use simple select without complex joins to avoid schema cache issues
+    // Use simple select - fetch all projects and filter in memory for reliability
     const { data, error } = await supabase
       .from('projects')
       .select('*')
       .is('deleted_at', null)
-      // This OR query finds projects that overlap with the expanded date range
-      // Projects that either:
-      // 1. Start within the expanded range
-      // 2. End within the expanded range  
-      // 3. Span across the entire range (start before and end after)
-      .or(`start_date.gte.${expandedStartStr},start_date.lte.${expandedEndStr},end_date.gte.${expandedStartStr},end_date.lte.${expandedEndStr},and(start_date.lte.${expandedStartStr},end_date.gte.${expandedEndStr})`)
       .order('start_date', { ascending: true });
     
     if (error) {
@@ -258,9 +263,27 @@ export async function fetchProjectsByMonth(year: number, month: number): Promise
     if (!data) {
       return [];
     }
-    
+
+    // Filter projects to only those that overlap with the expanded date range
+    const filteredData = data.filter(project => {
+      const projectStart = new Date(project.start_date);
+      const projectEnd = project.end_date ? new Date(project.end_date) : projectStart;
+
+      // Project overlaps if:
+      // - It starts within the range, OR
+      // - It ends within the range, OR
+      // - It spans across the entire range
+      return (
+        (projectStart >= expandedStartDate && projectStart <= expandedEndDate) ||
+        (projectEnd >= expandedStartDate && projectEnd <= expandedEndDate) ||
+        (projectStart <= expandedStartDate && projectEnd >= expandedEndDate)
+      );
+    });
+
+    console.log(`Filtered ${filteredData.length} projects from ${data.length} total for date range ${expandedStartStr} to ${expandedEndStr}`);
+
     // Transform the data to match the Project interface
-    const projects = data.map(project => {
+    const projects = filteredData.map(project => {
       return {
         ...project,
         color: project.color || eventColors[project.event_type as keyof typeof eventColors] || eventColors.default,

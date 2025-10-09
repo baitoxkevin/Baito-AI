@@ -64,10 +64,7 @@ export default function LoginPage() {
       const { user, session } = await signIn(email, password);
 
       if (user && session) {
-        // Small delay to ensure session is propagated before navigation
-        await new Promise(resolve => setTimeout(resolve, 100));
-
-        // Navigate to dashboard
+        // Navigate to dashboard immediately
         navigate('/dashboard', { replace: true });
 
         // Show toast after navigation (non-blocking)
@@ -168,6 +165,7 @@ export default function LoginPage() {
                 <Mail className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
                 <Input
                   id="email"
+                  name="email"
                   type="email"
                   placeholder="admin@example.com"
                   value={email}
@@ -189,6 +187,7 @@ export default function LoginPage() {
                 <Lock className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
                 <Input
                   id="password"
+                  name="password"
                   type={showPassword ? "text" : "password"}
                   placeholder="••••••••"
                   value={password}

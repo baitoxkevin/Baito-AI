@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef, lazy, Suspense, memo
 import { format, startOfMonth, endOfMonth, addMonths, subMonths } from 'date-fns';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
+import { AnimatePresence, motion } from 'framer-motion';
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -34,14 +35,24 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useToast } from '@/hooks/use-toast';
 import { useProjectsByMonth, useProjects } from '@/hooks/use-projects';
 import { CalendarSkeleton } from '@/components/calendar-skeleton';
+import { CalendarErrorBoundary } from '@/components/calendar/CalendarErrorBoundary';
 // EditProjectDialog removed
 import NewProjectDialog from '@/components/NewProjectDialog';
 // Lazy load components for better performance
 const CalendarView = lazy(() => import('@/components/CalendarView'));
 const ListView = lazy(() => import('@/components/ListView'));
+const SpotlightCard = lazy(() => import('@/components/spotlight-card/SpotlightCardOptimized').then(module => ({
+  default: module.SpotlightCardOptimized
+})));
 import { formatTimeString, eventColors } from '@/lib/utils';
 import { deleteProject } from '@/lib/projects';
 import type { Project } from '@/lib/types';
@@ -73,6 +84,7 @@ export default function CalendarPage() {
   const [extendedProjects, setExtendedProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [viewMonthsCount, setViewMonthsCount] = useState(3); // Default to showing 3 months
+  const [navigationDirection, setNavigationDirection] = useState<'forward' | 'backward' | null>(null);
   const [loadedMonthsRange, setLoadedMonthsRange] = useState<{start: number, end: number}>({
     start: -1, // 1 month before current
     end: 1    // 1 month after current
@@ -84,6 +96,7 @@ export default function CalendarPage() {
   const [dayPreviewProjects, setDayPreviewProjects] = useState<Project[]>([]);
   const [dayPreviewDate, setDayPreviewDate] = useState<Date | null>(null);
   const [dayPreviewOpen, setDayPreviewOpen] = useState(false);
+  const [projectSpotlightOpen, setProjectSpotlightOpen] = useState(false);
   // Get navigation and location hooks
   const navigate = useNavigate();
   const location = useLocation();
@@ -121,7 +134,7 @@ export default function CalendarPage() {
       console.log("[Performance] Already loading, skipping");
       return;
     }
-    
+
     // Rate limiting: max 1 request per 300ms
     const now = Date.now();
     if (now - lastLoadTime.current < 300) {
@@ -129,11 +142,10 @@ export default function CalendarPage() {
       return;
     }
     lastLoadTime.current = now;
-    
-    // Set loading flags - but only show loading state for calendar view
-    // This way ListView will keep showing current content during loading
+
+    // Set loading flags
     loadingRef.current = true;
-    if (showLoadingState && (view === 'calendar' || projects.length === 0)) {
+    if (showLoadingState) {
       setIsLoading(true);
     }
     
@@ -216,7 +228,7 @@ export default function CalendarPage() {
         setIsLoading(false);
       }
     }
-  }, [date, getProjectsByMonth, toast, view, projects.length, extendedProjects.length]);
+  }, [date, getProjectsByMonth, toast, view]);
 
   // Load data on initial mount and when date changes
   const initialLoadRef = useRef(false);
@@ -338,22 +350,17 @@ export default function CalendarPage() {
             setProjects(currentMonthProjects);
             setExtendedProjects(allProjects);
 
-            // Check if we need to auto-scroll to a month with projects
-            if (currentMonthProjects.length === 0 && allProjects.length > 0) {
-              console.log("Current month has no projects, but other months do - will auto-scroll");
+            // Always scroll to today's month - don't jump to other months
+            console.log(`Initial list view load with ${allProjects.length} total projects`);
 
-              // Find the nearest month with projects
-              const targetMonthOffset = earliestMonthWithProjects !== null ? earliestMonthWithProjects : 0;
-
-              window.sessionStorage.setItem('calendarAutoScrollTarget',
-                JSON.stringify({
-                  targetMonth: targetMonthOffset,
-                  hasProjects: allProjects.length > 0,
-                  timestamp: Date.now()
-                })
-              );
-              console.log(`Set auto-scroll target to month offset: ${targetMonthOffset}`);
-            }
+            // Set a flag to scroll to today's section after render
+            window.sessionStorage.setItem('calendarAutoScrollTarget',
+              JSON.stringify({
+                targetMonth: 0, // Always target current month
+                scrollToToday: true,
+                timestamp: Date.now()
+              })
+            );
 
             // Finish loading
             setIsLoading(false);
@@ -372,7 +379,8 @@ export default function CalendarPage() {
     return () => {
       mountedRef.current = false;
     };
-  }, [date, view, getProjectsByMonth, invalidateCache, loadProjects]); // Include dependencies but it only runs once due to initialLoadRef check
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty deps - only run once on mount. initialLoadRef prevents re-runs
   
   // We need to track date changes without creating an infinite loop
   const previousDateRef = useRef(date);
@@ -447,16 +455,30 @@ export default function CalendarPage() {
     if (navigationDebounceRef.current) {
       clearTimeout(navigationDebounceRef.current);
     }
-    
+
     navigationDebounceRef.current = setTimeout(() => {
-      console.log("[Performance] Previous month navigation");
-      
+      console.log("[Performance] Previous month navigation - optimized");
+
+      setNavigationDirection('backward');
       const newDate = subMonths(date, 1);
       setDate(newDate);
-      
+
+      // Only load data for the new month, not 25 months
       // Use cached data when possible
-      loadProjects(true);
-    }, 150); // 150ms debounce
+      const monthKey = `${newDate.getFullYear()}-${newDate.getMonth()}`;
+      if (monthCacheRef.current.has(monthKey)) {
+        const cachedData = monthCacheRef.current.get(monthKey)!;
+        console.log(`[Performance] Using cached data for ${monthKey}`);
+        setProjects(cachedData);
+        setIsLoading(false);
+      } else {
+        // Load only the new month data
+        loadProjects(false); // Don't show loading state for smoother transition
+      }
+
+      // Reset direction after animation
+      setTimeout(() => setNavigationDirection(null), 300);
+    }, 100); // Reduced debounce for faster response
   }, [date, loadProjects]);
   
   // Keep old complex loading for reference but skip it
@@ -560,17 +582,16 @@ export default function CalendarPage() {
           
           // IMPORTANT: Check if current month has no projects but other months do have projects
           if (results[0].length === 0 && allProjects.length > 0) {
-            console.log("Current month has no projects, but other months do - adjusting view");
-            
-            // Determine which month to target (prefer most recent past month with projects)
-            const targetMonthOffset = earliestMonthWithProjects !== null ? earliestMonthWithProjects : 0;
-            
+            console.log("Loaded projects - scrolling to today");
+
+            // Always center on current month
+            const targetMonthOffset = 0;
+
             // Store target month for auto-scrolling after render
-            window.sessionStorage.setItem('calendarAutoScrollTarget', 
+            window.sessionStorage.setItem('calendarAutoScrollTarget',
               JSON.stringify({
                 targetMonth: targetMonthOffset,
-                hasProjects: allProjects.length > 0,
-                // Add a timestamp to prevent stale data
+                scrollToToday: true,
                 timestamp: Date.now()
               })
             );
@@ -592,148 +613,41 @@ export default function CalendarPage() {
   }, [date, loadProjects, view, invalidateCache, getProjectsByMonth]);
   
   const handleNextMonth = useCallback(() => {
-    console.log("Next month navigation with enhanced loading");
-    
-    // Reset loading flags to force a clean load
-    loadingRef.current = false;
-    adjacentMonthsLoaded.current = false;
-    
-    // Force cache invalidation to get fresh data
-    invalidateCache();
-    
-    // Show loading state for user feedback
-    setIsLoading(true);
-    
-    // First update date to trigger view change
-    const newDate = addMonths(date, 1);
-    setDate(newDate);
-    
-    // Track the earliest month with projects for auto-scrolling
-    let earliestMonthWithProjects = null;
-    let latestMonthWithProjects = null;
-    
-    // For list view, set a wider months range to show more context
-    if (view === 'list') {
-      // Current month + 12 past + 12 future (total 25 months view)
-      setLoadedMonthsRange({ start: -12, end: 12 });
-      setViewMonthsCount(25);
-    } else {
-      // Reset months range for calendar view
-      setLoadedMonthsRange({ start: -3, end: 3 }); // Increased to ±3 months
+    // Clear existing debounce
+    if (navigationDebounceRef.current) {
+      clearTimeout(navigationDebounceRef.current);
     }
-    
-    // Delay loading slightly to ensure state updates
-    setTimeout(() => {
-      // For list view, load multiple months in parallel
-      if (view === 'list') {
-        // Use the new date for calculations
-        const newMonth = newDate.getMonth();
-        const newYear = newDate.getFullYear();
-        
-        // Load multiple months in parallel (for list view) with expanded range
-        Promise.all([
-          // Load the new month
-          getProjectsByMonth(newMonth, newYear),
-          // Load previous months (increased to 12 months in the past)
-          getProjectsByMonth(newMonth - 1, newYear),
-          getProjectsByMonth(newMonth - 2, newYear),
-          getProjectsByMonth(newMonth - 3, newYear),
-          getProjectsByMonth(newMonth - 4, newYear),
-          getProjectsByMonth(newMonth - 5, newYear),
-          getProjectsByMonth(newMonth - 6, newYear),
-          getProjectsByMonth(newMonth - 7, newYear),
-          getProjectsByMonth(newMonth - 8, newYear),
-          getProjectsByMonth(newMonth - 9, newYear),
-          getProjectsByMonth(newMonth - 10, newYear),
-          getProjectsByMonth(newMonth - 11, newYear),
-          getProjectsByMonth(newMonth - 12, newYear),
-          // Load future months (expanded to ±12 months)
-          getProjectsByMonth(newMonth + 1, newYear),
-          getProjectsByMonth(newMonth + 2, newYear),
-          getProjectsByMonth(newMonth + 3, newYear),
-          getProjectsByMonth(newMonth + 4, newYear),
-          getProjectsByMonth(newMonth + 5, newYear),
-          getProjectsByMonth(newMonth + 6, newYear),
-          getProjectsByMonth(newMonth + 7, newYear),
-          getProjectsByMonth(newMonth + 8, newYear),
-          getProjectsByMonth(newMonth + 9, newYear),
-          getProjectsByMonth(newMonth + 10, newYear),
-          getProjectsByMonth(newMonth + 11, newYear),
-          getProjectsByMonth(newMonth + 12, newYear)
-        ]).then(results => {
-          // Combine all projects, removing duplicates
-          const allProjects = [];
-          const projectIds = new Set();
-          
-          // Track the earliest and most recent month with projects
-          results.forEach((monthProjects, index) => {
-            if (monthProjects.length > 0) {
-              // Calculate the month index relative to current month
-              const monthOffset = index === 0 ? 0 : 
-                                 index <= 13 ? -(index) : // Previous months indices 1-13
-                                 (index - 13); // Future months indices 14-26
-                                 
-              // Track earliest month with projects (most negative offset)
-              if (earliestMonthWithProjects === null || monthOffset < earliestMonthWithProjects) {
-                earliestMonthWithProjects = monthOffset;
-              }
-              
-              // Track latest month with projects (most positive offset)
-              if (latestMonthWithProjects === null || monthOffset > latestMonthWithProjects) {
-                latestMonthWithProjects = monthOffset;
-              }
-              
-              // Add all projects from this month
-              monthProjects.forEach(project => {
-                if (!projectIds.has(project.id)) {
-                  projectIds.add(project.id);
-                  allProjects.push(project);
-                }
-              });
-            }
-          });
-          
-          console.log(`Next month: Loaded ${allProjects.length} projects from ${results.length} months`);
-          console.log(`Earliest month with projects: ${earliestMonthWithProjects}, Latest: ${latestMonthWithProjects}`);
-          
-          // Update projects with current month only (for calendar view)
-          setProjects(results[0] || []);
-          
-          // Update extended projects with all the results (for list view)
-          setExtendedProjects(allProjects);
-          
-          // IMPORTANT: Check if current month has no projects but other months do have projects
-          if (results[0].length === 0 && allProjects.length > 0) {
-            console.log("Current month has no projects, but other months do - adjusting view");
-            
-            // Determine which month to target (prefer most recent past month with projects)
-            const targetMonthOffset = earliestMonthWithProjects !== null ? earliestMonthWithProjects : 0;
-            
-            // Store target month for auto-scrolling after render
-            window.sessionStorage.setItem('calendarAutoScrollTarget', 
-              JSON.stringify({
-                targetMonth: targetMonthOffset,
-                hasProjects: allProjects.length > 0,
-                // Add a timestamp to prevent stale data
-                timestamp: Date.now()
-              })
-            );
-            console.log(`Set auto-scroll target to month offset: ${targetMonthOffset}`);
-          }
-          
-          // Finish loading
-          setIsLoading(false);
-        }).catch(error => {
-          console.error("Error in next month multi-month load:", error);
-          setIsLoading(false);
-          loadProjects(true); // Fallback to regular loading
-        });
+
+    navigationDebounceRef.current = setTimeout(() => {
+      console.log("[Performance] Next month navigation - optimized");
+
+      setNavigationDirection('forward');
+      const newDate = addMonths(date, 1);
+      setDate(newDate);
+
+      // Only load data for the new month, not 25 months
+      // Use cached data when possible
+      const monthKey = `${newDate.getFullYear()}-${newDate.getMonth()}`;
+      if (monthCacheRef.current.has(monthKey)) {
+        const cachedData = monthCacheRef.current.get(monthKey)!;
+        console.log(`[Performance] Using cached data for ${monthKey}`);
+        setProjects(cachedData);
+        setIsLoading(false);
       } else {
-        // For calendar view, just load the new month
-        loadProjects(true);
+        // Load only the new month data
+        loadProjects(false); // Don't show loading state for smoother transition
+
+        // Prefetch adjacent months in the background
+        const prevMonth = subMonths(newDate, 1);
+        const nextMonth = addMonths(newDate, 1);
+        prefetchAdjacentMonths(prevMonth.getMonth(), prevMonth.getFullYear());
+        prefetchAdjacentMonths(nextMonth.getMonth(), nextMonth.getFullYear());
       }
-    }, 100);
-  }, [date, loadProjects, view, invalidateCache, getProjectsByMonth]);
+
+      // Reset direction after animation
+      setTimeout(() => setNavigationDirection(null), 300);
+    }, 100); // Reduced debounce for faster response
+  }, [date, loadProjects, prefetchAdjacentMonths]);
   
   // Today button with enhanced multi-month loading
   const handleTodayClick = useCallback(() => {
@@ -849,17 +763,16 @@ export default function CalendarPage() {
           
           // IMPORTANT: Check if current month has no projects but other months do have projects
           if (results[0].length === 0 && allProjects.length > 0) {
-            console.log("Current month has no projects, but other months do - adjusting view");
-            
-            // Determine which month to target (prefer most recent past month with projects)
-            const targetMonthOffset = earliestMonthWithProjects !== null ? earliestMonthWithProjects : 0;
-            
+            console.log("Loaded projects - scrolling to today");
+
+            // Always center on current month
+            const targetMonthOffset = 0;
+
             // Store target month for auto-scrolling after render
-            window.sessionStorage.setItem('calendarAutoScrollTarget', 
+            window.sessionStorage.setItem('calendarAutoScrollTarget',
               JSON.stringify({
                 targetMonth: targetMonthOffset,
-                hasProjects: allProjects.length > 0,
-                // Add a timestamp to prevent stale data
+                scrollToToday: true,
                 timestamp: Date.now()
               })
             );
@@ -983,17 +896,16 @@ export default function CalendarPage() {
           
           // IMPORTANT: Check if current month has no projects but other months do have projects
           if (results[0].length === 0 && allProjects.length > 0) {
-            console.log("Current month has no projects, but other months do - adjusting view");
-            
-            // Determine which month to target (prefer most recent past month with projects)
-            const targetMonthOffset = earliestMonthWithProjects !== null ? earliestMonthWithProjects : 0;
-            
+            console.log("Loaded projects - scrolling to today");
+
+            // Always center on current month
+            const targetMonthOffset = 0;
+
             // Store target month for auto-scrolling after render
-            window.sessionStorage.setItem('calendarAutoScrollTarget', 
+            window.sessionStorage.setItem('calendarAutoScrollTarget',
               JSON.stringify({
                 targetMonth: targetMonthOffset,
-                hasProjects: allProjects.length > 0,
-                // Add a timestamp to prevent stale data
+                scrollToToday: true,
                 timestamp: Date.now()
               })
             );
@@ -1260,7 +1172,7 @@ export default function CalendarPage() {
   // Project interactions
   const handleProjectClick = useCallback((project: Project) => {
     setSelectedProject(project);
-    // EditProjectDialog removed - no edit action
+    setProjectSpotlightOpen(true);
   }, []);
   
   const handleDayClick = useCallback((date: Date, projects: Project[]) => {
@@ -1397,222 +1309,74 @@ export default function CalendarPage() {
     selectAllProjects(filteredProjects.map(p => p.id));
   }, [filteredProjects, selectAllProjects]);
 
-  // Full skeleton for first load, overlay only for calendar view on subsequent loads
-  if (isLoading && (projects.length === 0 || view === 'calendar')) {
-    if (projects.length === 0) {
-      // First load - full skeleton
-      return (
-        <div className="p-4 rounded-lg border bg-white">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center">
-              <CalendarIcon className="w-5 h-5 mr-2" />
-              <h2 className="text-xl font-semibold">Loading Calendar</h2>
-            </div>
-          </div>
-          <CalendarSkeleton />
-        </div>
-      );
-    } else if (view === 'calendar') {
-      // Loading overlay only for calendar view on month changes
-      return (
-        <div className="flex flex-1 w-full h-full overflow-hidden relative">
-          {/* Regular UI underneath */}
+  // Memoize calendar view props to prevent unnecessary re-renders
+  const calendarViewProps = useMemo(() => ({
+    date,
+    projects: filteredProjects,
+    onProjectClick: handleProjectClick,
+    onDateRangeSelect: handleDateRangeSelect,
+    onDateClick: handleDayClick,
+    onPrevMonth: handlePrevMonth,
+    onNextMonth: handleNextMonth,
+    currentView: view,
+  }), [date, filteredProjects, handleProjectClick, handleDateRangeSelect, handleDayClick, handlePrevMonth, handleNextMonth, view]);
+
+  // Only show loading skeleton on initial load (when no projects loaded yet)
+  if (isLoading && projects.length === 0) {
+    // First load - show skeleton in same container structure as main UI
+    return (
+      <CalendarErrorBoundary>
+        <div className="flex flex-1 w-full h-full overflow-hidden">
           <div className="p-4 border rounded-lg bg-white flex flex-col gap-4 w-full h-full">
-            <div className="flex flex-col gap-4 h-full flex-grow">
-              {/* Header */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <button className="h-10 w-10 rounded">
-                    <ChevronLeftIcon className="h-5 w-5" />
-                  </button>
-                  
-                  <h2 className="text-xl font-semibold min-w-[150px] text-center">
-                    {format(date, 'MMMM yyyy')}
-                  </h2>
-                  
-                  <button className="h-10 w-10 rounded">
-                    <ChevronRightIcon className="h-5 w-5" />
-                  </button>
-                </div>
-                
-                <div className="flex items-center gap-2">
-                  <Tabs value={view}>
-                    <TabsList>
-                      <TabsTrigger value="calendar">Calendar</TabsTrigger>
-                      <TabsTrigger value="list">List</TabsTrigger>
-                    </TabsList>
-                  </Tabs>
-                </div>
-              </div>
-              
-              {/* Blurred content */}
-              <div className="flex-grow overflow-auto blur-sm">
-                <CalendarSkeleton />
-              </div>
-            </div>
-          </div>
-          
-          {/* Loading overlay */}
-          <div className="absolute inset-0 bg-white/50 flex items-center justify-center z-10">
-            <div className="bg-white p-6 rounded-lg shadow-lg text-center">
-              <CalendarIcon className="w-8 h-8 mx-auto mb-4 text-primary animate-bounce" />
-              <p className="text-lg font-medium">Loading data for {format(date, 'MMMM yyyy')}...</p>
-            </div>
+            <CalendarSkeleton />
           </div>
         </div>
-      );
-    }
+      </CalendarErrorBoundary>
+    );
   }
 
   // Main UI - simplified to avoid the "jumping"
   return (
-    <div className="flex flex-1 w-full h-full overflow-hidden">
+    <CalendarErrorBoundary>
+      <div className="flex flex-1 w-full h-full overflow-hidden">
       <div className="p-4 border rounded-lg bg-white flex flex-col gap-4 w-full h-full">
-        <div className="flex flex-col gap-4 h-full flex-grow">
-          {/* Header */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <button
-                className="h-10 w-10 flex items-center justify-center rounded hover:bg-gray-100"
-                onClick={handlePrevMonth}
-              >
-                <ChevronLeftIcon className="h-5 w-5" />
-              </button>
-              
-              <h2 className="text-xl font-semibold min-w-[180px] text-center">
-                {format(date, 'MMMM yyyy')} 
-                {date.getFullYear() !== new Date().getFullYear() && (
-                  <span className="ml-1 text-xs font-normal text-gray-500">
-                    (Current: {format(new Date(), 'yyyy')})
-                  </span>
-                )}
-              </h2>
-              
-              <button
-                className="h-10 w-10 flex items-center justify-center rounded hover:bg-gray-100"
-                onClick={handleNextMonth}
-              >
-                <ChevronRightIcon className="h-5 w-5" />
-              </button>
-              
-              <Button 
-                variant={date.getFullYear() !== new Date().getFullYear() ? "default" : "outline"}
-                size="sm"
-                onClick={handleTodayClick}
-                className={`ml-2 ${date.getFullYear() !== new Date().getFullYear() ? "bg-primary text-primary-foreground hover:bg-primary/90" : ""}`}
-              >
-                Today {date.getFullYear() !== new Date().getFullYear() && "(Current Year)"}
-              </Button>
-              
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={handleRefresh}
-                className="ml-2"
-              >
-                Refresh
-              </Button>
-            </div>
-            
-            <div className="flex items-center gap-2">
-              <Tabs 
-                value={view} 
-                onValueChange={(v) => {
-                  console.log(`Changing view from ${view} to ${v}`);
-                  // Make sure we reset any accumulated state when switching views
-                  if (v !== view) {
-                    // Reset flags to prevent issues
-                    adjacentMonthsLoaded.current = false;
-                    
-                    // If switching to list, reset months range
-                    if (v === 'list') {
-                      setLoadedMonthsRange({ start: -12, end: 12 });
-                      setViewMonthsCount(25); // Current + 12 past + 12 future
-                    }
-                    
-                    // Update URL based on selected view
-                    const newPath = v === 'list' ? '/calendar/list' : '/calendar/view';
-                    navigate(newPath, { replace: true });
-                    
-                    // Set the new view
-                    setView(v as 'calendar' | 'list');
-                  }
-                }}
-              >
-                <TabsList>
-                  <TabsTrigger value="calendar">Calendar</TabsTrigger>
-                  <TabsTrigger value="list">List</TabsTrigger>
-                </TabsList>
-              </Tabs>
-              
-              {selectionMode ? (
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={toggleSelectAll}
-                  >
-                    <CheckSquare className="h-4 w-4 mr-1" />
-                    {selectedProjects.length > 0 ? 'Deselect All' : 'Select All'}
-                  </Button>
-                  
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="text-red-500"
-                    onClick={handleShowDeleteDialog}
-                    disabled={selectedProjects.length === 0}
-                  >
-                    <Trash2 className="h-4 w-4 mr-1" />
-                    Delete ({selectedProjects.length})
-                  </Button>
-                  
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={toggleSelectionMode}
-                  >
-                    <X className="h-4 w-4 mr-1" />
-                    Cancel
-                  </Button>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={toggleSelectionMode}
-                  >
-                    <CheckSquare className="h-4 w-4 mr-1" />
-                    Select
-                  </Button>
-                  
-                  <Button
-                    variant="default"
-                    size="sm"
-                    onClick={() => setNewProjectDialogOpen(true)}
-                  >
-                    <PlusIcon className="h-4 w-4 mr-1" />
-                    New Project
-                  </Button>
-                </div>
-              )}
-            </div>
-          </div>
-          
+        <div className="flex flex-col h-full flex-grow">
           {/* Content with lazy loading */}
           <div className="flex-grow overflow-auto">
             <Suspense fallback={<CalendarSkeleton />}>
               {view === 'calendar' ? (
-                <div className="h-full">
-                  <CalendarView
-                  date={date}
-                  projects={filteredProjects}
-                  onProjectClick={handleProjectClick}
-                  onDateRangeSelect={handleDateRangeSelect}
-                  onDateClick={handleDayClick}
-                  />
-                </div>
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={format(date, 'yyyy-MM')}
+                    className="h-full"
+                    initial={{
+                      opacity: 0,
+                      x: navigationDirection === 'forward' ? 100 : navigationDirection === 'backward' ? -100 : 0
+                    }}
+                    animate={{
+                      opacity: 1,
+                      x: 0
+                    }}
+                    exit={{
+                      opacity: 0,
+                      x: navigationDirection === 'forward' ? -100 : navigationDirection === 'backward' ? 100 : 0
+                    }}
+                    transition={{
+                      duration: 0.3,
+                      ease: "easeInOut"
+                    }}
+                  >
+                    <CalendarView
+                      key={`calendar-${format(date, 'yyyy-MM')}`}
+                      {...calendarViewProps}
+                      onViewChange={(newView) => {
+                        const newPath = newView === 'list' ? '/calendar/list' : '/calendar/view';
+                        navigate(newPath, { replace: true });
+                        setView(newView);
+                      }}
+                    />
+                  </motion.div>
+                </AnimatePresence>
               ) : (
                 <ListView
                 key="list-view" // Use a stable key to prevent full unmount during re-render
@@ -1629,6 +1393,12 @@ export default function CalendarPage() {
                 onMonthChange={(newDate) => {
                   console.log('ListView month changed to:', format(newDate, 'MMMM yyyy'));
                   setDate(newDate);
+                }}
+                currentView={view}
+                onViewChange={(newView) => {
+                  const newPath = newView === 'list' ? '/calendar/list' : '/calendar/view';
+                  navigate(newPath, { replace: true });
+                  setView(newView);
                 }}
                 />
               )}
@@ -1732,6 +1502,40 @@ export default function CalendarPage() {
           </div>
         </div>
       )}
-    </div>
+
+      {/* Project Spotlight Dialog */}
+      <Dialog
+        open={projectSpotlightOpen}
+        onOpenChange={setProjectSpotlightOpen}
+      >
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-auto p-6">
+          <DialogHeader>
+            <DialogTitle>Project Details</DialogTitle>
+          </DialogHeader>
+          {selectedProject && (
+            <Suspense fallback={<div className="flex items-center justify-center p-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}>
+              <SpotlightCard
+                project={selectedProject}
+                onProjectUpdated={(updatedProject) => {
+                  // Update the project in the list
+                  setSelectedProject(updatedProject);
+                  setProjects(prev => prev.map(p => p.id === updatedProject.id ? updatedProject : p));
+                  setExtendedProjects(prev => prev.map(p => p.id === updatedProject.id ? updatedProject : p));
+
+                  // Invalidate cache to force refresh
+                  monthCacheRef.current.clear();
+                  invalidateCache();
+                }}
+                onViewDetails={(project) => {
+                  // Already viewing details, no action needed
+                  console.log('Viewing details for:', project.title);
+                }}
+              />
+            </Suspense>
+          )}
+        </DialogContent>
+      </Dialog>
+      </div>
+    </CalendarErrorBoundary>
   );
 }

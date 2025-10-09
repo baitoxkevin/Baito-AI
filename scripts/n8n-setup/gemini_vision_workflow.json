@@ -1,0 +1,78 @@
+{
+  "name": "Gemini Vision Excel Extraction",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "vision-to-excel",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-1",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [250, 300],
+      "webhookId": "vision-excel-webhook"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=AIzaSyAUzT3o4vg-Htn-l_rd_JiujplI48Mjf4Q",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": []
+        },
+        "options": {},
+        "bodyParametersJson": "={{ JSON.stringify({\n  \"contents\": [{\n    \"parts\": [\n      {\"text\": \"Extract ALL candidates from this payroll sheet as JSON array. Fields: fullname, ic, bank, bank_no, wages, total_payment. Remove .0 from bank numbers. Return ONLY JSON.\"},\n      {\"inline_data\": {\"mime_type\": \"image/png\", \"data\": $json.image_base64}}\n    ]\n  }]\n}) }}"
+      },
+      "id": "http-1",
+      "name": "Call Gemini API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.item.json;\nconst text = response.candidates[0].content.parts[0].text;\n\n// Extract JSON from markdown code blocks\nlet candidates;\nconst jsonMatch = text.match(/```json\\n([\\s\\S]*?)\\n```/);\nif (jsonMatch) {\n  candidates = JSON.parse(jsonMatch[1]);\n} else {\n  candidates = JSON.parse(text);\n}\n\nreturn {\n  json: {\n    success: true,\n    count: candidates.length,\n    candidates: candidates\n  }\n};"
+      },
+      "id": "code-1",
+      "name": "Parse Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}"
+      },
+      "id": "response-1",
+      "name": "Return Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [850, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [[{"node": "Call Gemini API", "type": "main", "index": 0}]]
+    },
+    "Call Gemini API": {
+      "main": [[{"node": "Parse Response", "type": "main", "index": 0}]]
+    },
+    "Parse Response": {
+      "main": [[{"node": "Return Response", "type": "main", "index": 0}]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1",
+  "id": "gemini-vision-workflow",
+  "meta": {
+    "instanceId": "n8n-local"
+  },
+  "tags": []
+}

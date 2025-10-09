@@ -1,0 +1,102 @@
+{
+  "name": "Excel Vision Extractor - To Excel Output",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "vision-to-excel",
+        "responseMode": "responseNode"
+      },
+      "name": "Webhook - Receive Excel Images",
+      "type": "n8n-nodes-base.webhook",
+      "position": [250, 300],
+      "notes": "Accepts array of Excel screenshot images with metadata"
+    },
+    {
+      "parameters": {
+        "model": "gpt-4-vision-preview",
+        "prompt": "You are analyzing an Excel spreadsheet for a staffing/event management company (Baito).\n\nAnalyze this Excel image and identify:\n\n1. **Table Type**: What kind of data is this?\n   - Candidate personal info (names, IC, bank details, contact)\n   - Payment/wages data (candidate names, amounts, dates, projects)\n   - Mixed (both personal and payment info)\n   \n2. **Table Structure**:\n   - Header row location (which row number?)\n   - Column headers (list all column names left to right)\n   - Data starts at row number?\n   - Total number of data rows\n   - Any merged cells? Where?\n   - Any subtotal/summary rows? Which rows?\n   - Multiple sections in one sheet? Describe boundaries\n\n3. **Key Identifiers**:\n   - Which column contains candidate names?\n   - Which column contains IC/passport numbers?\n   - Which columns contain payment amounts?\n   - Which columns contain dates?\n   - Which column contains project/event names?\n\n4. **Data Quality Issues**:\n   - Missing headers\n   - Inconsistent formatting\n   - Merged cells causing data continuation\n   - Ambiguous column purposes\n   - Summary rows mixed with data rows\n\nReturn ONLY valid JSON:\n{\n  \"tableType\": \"string\",\n  \"headerRow\": number,\n  \"dataStartRow\": number,\n  \"dataEndRow\": number,\n  \"columns\": [{\"index\": 0, \"name\": \"Name\", \"dataType\": \"text\"}],\n  \"mergedCells\": [{\"range\": \"A2:A5\", \"value\": \"...\"}],\n  \"summaryRows\": [10, 25, 50],\n  \"sections\": [{\"startRow\": 1, \"endRow\": 20, \"description\": \"...\"}],\n  \"keyColumns\": {\"name\": 0, \"ic\": 1, \"payment\": 5},\n  \"issues\": [{\"row\": 15, \"description\": \"...\"}]\n}",
+        "image": "={{ $json.image }}"
+      },
+      "name": "Vision 1 - Identify Structure",
+      "type": "n8n-nodes-base.openAi",
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4-vision-preview",
+        "prompt": "=Using the identified structure:\n{{ JSON.stringify($('Vision 1 - Identify Structure').item.json) }}\n\nExtract ALL data from this Excel image with DEEP REASONING:\n\n**FOR EACH ROW:**\n1. Is this a data row, continuation row, or summary row?\n2. Which candidate does this row belong to?\n3. Is this adding NEW information or CONTINUING from above (merged cell)?\n4. What is the semantic meaning of each cell value?\n\n**HANDLE MERGED CELLS:**\n- If cell is empty but row has data → check if it's a continuation of above merged cell\n- Group continuation rows with their parent row\n- Sum numerical values across continuation rows if appropriate\n\n**HANDLE AMBIGUOUS COLUMNS:**\n- If column labeled \"Payment\" but sheet also has \"Total\" → determine which is per-day wage vs final total\n- If \"Days\" column has value > 50 → probably a payment amount, not days worked\n\n**EXCLUDE:**\n- Summary rows (\"Total\", \"Grand Total\", \"Subtotal\")\n- Header rows that repeat mid-sheet\n- Non-person entries (\"Team\", \"Pax\", project names as names)\n- Roster sections (has Name but no IC number)\n\n**PAYMENT CALCULATION LOGIC:**\n- If row has: Wages + OT + Allowance + Claims → Total = sum of all\n- If row has: only \"Payment\" column → Payment = final amount\n- If continuation row has only additional days → add days to parent row\n\nReturn JSON array of CANDIDATE RECORDS (not individual rows):\n[\n  {\n    \"candidateName\": \"string\",\n    \"icNumber\": \"string\",\n    \"reasoning\": \"Why this is one candidate record, how continuation rows were merged\",\n    \"extractedData\": {\n      \"name\": \"string\",\n      \"ic\": \"string\",\n      \"phone\": \"string\",\n      \"bankName\": \"string\",\n      \"accountNumber\": \"string (not float)\",\n      \"totalDays\": number,\n      \"wages\": number,\n      \"overtime\": number,\n      \"allowance\": number,\n      \"claims\": number,\n      \"totalPayment\": number,\n      \"paymentDate\": \"YYYY-MM-DD\",\n      \"projectName\": \"string\",\n      \"location\": \"string\",\n      \"notes\": \"string\"\n    },\n    \"sourceRows\": [2, 3, 4],\n    \"confidence\": \"high|medium|low\",\n    \"issues\": [\"string\"]\n  }\n]",
+        "image": "={{ $json.image }}"
+      },
+      "name": "Vision 2 - Extract with Reasoning",
+      "type": "n8n-nodes-base.openAi",
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4",
+        "prompt": "=You extracted {{ $json.length }} candidate records from this Excel sheet.\n\nPerform CRITICAL REVIEW:\n\n**Data Validation:**\n1. Are all IC numbers unique? (duplicates = continuation rows not merged)\n2. Do payment calculations make sense? (Wages+OT+Allowance ≈ Total?)\n3. Are account numbers clean? (no .0 suffix?)\n4. Are dates in valid format?\n5. Any obviously wrong data? (Names like \"Total\", Days=500, Payment=0 but has wages)\n\n**Extraction Quality:**\n1. Did we miss any candidate rows?\n2. Did we include any summary rows by mistake?\n3. Are continuation rows properly merged?\n4. Is the payment column correctly identified?\n\n**Cross-Check Against Original:**\nCompare your extracted totals:\n- Total candidates extracted\n- Total payment sum\n- Total days sum\n\nAgainst what you can see in the Excel image (summary rows, totals at bottom).\n\nReturn JSON:\n{\n  \"validationPassed\": boolean,\n  \"recordsValidated\": number,\n  \"recordsRejected\": number,\n  \"duplicatesFound\": [{\"ic\": \"...\", \"count\": 2}],\n  \"paymentIssues\": [{\"name\": \"...\", \"issue\": \"...\"}],\n  \"dataQualityIssues\": [{\"type\": \"...\", \"description\": \"...\"}],\n  \"extractionStats\": {\n    \"totalCandidates\": number,\n    \"totalPayment\": number,\n    \"totalDays\": number,\n    \"expectedTotal\": number,\n    \"variance\": number\n  },\n  \"recommendations\": [\"string\"]\n}",
+        "context": "={{ JSON.stringify($('Vision 2 - Extract with Reasoning').item.json) }}"
+      },
+      "name": "Reasoning - Validate & Review",
+      "type": "n8n-nodes-base.openAi",
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "operation": "toJson",
+        "jsonData": "={{ $('Vision 2 - Extract with Reasoning').item.json }}",
+        "options": {
+          "fileName": "={{ $('Webhook - Receive Excel Images').item.json.metadata.sheetName }}_extracted.json"
+        }
+      },
+      "name": "Save JSON Output",
+      "type": "n8n-nodes-base.spreadsheetFile",
+      "position": [1050, 200]
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "fileFormat": "xlsx",
+        "options": {
+          "fileName": "={{ 'baito_extracted_' + $now.format('YYYY-MM-DD_HHmmss') + '.xlsx' }}",
+          "sheetName": "Extracted Data"
+        },
+        "data": "={{ $('Vision 2 - Extract with Reasoning').item.json.map(record => ({\n  'Name': record.extractedData.name,\n  'IC Number': String(record.extractedData.ic),\n  'Phone': record.extractedData.phone,\n  'Bank Name': record.extractedData.bankName,\n  'Account Number': String(record.extractedData.accountNumber),\n  'Total Days': record.extractedData.totalDays,\n  'Wages': record.extractedData.wages,\n  'Overtime': record.extractedData.overtime,\n  'Allowance': record.extractedData.allowance,\n  'Claims': record.extractedData.claims,\n  'Total Payment': record.extractedData.totalPayment,\n  'Payment Date': record.extractedData.paymentDate,\n  'Project Name': record.extractedData.projectName,\n  'Location': record.extractedData.location,\n  'Notes': record.extractedData.notes,\n  'Source Rows': record.sourceRows.join('+'),\n  'Confidence': record.confidence,\n  'Reasoning': record.reasoning,\n  'Issues': record.issues.join('; ')\n})) }}"
+      },
+      "name": "Export to Excel",
+      "type": "n8n-nodes-base.spreadsheetFile",
+      "position": [1050, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ {\n  extractedRecords: $('Vision 2 - Extract with Reasoning').item.json.length,\n  validationReport: $('Reasoning - Validate & Review').item.json,\n  outputFiles: {\n    excel: $('Export to Excel').item.json.fileName,\n    json: $('Save JSON Output').item.json.fileName\n  },\n  downloadUrl: 'http://localhost:5678/files/' + $('Export to Excel').item.json.fileName\n} }}"
+      },
+      "name": "Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [1250, 300]
+    }
+  ],
+  "connections": {
+    "Webhook - Receive Excel Images": {
+      "main": [[{ "node": "Vision 1 - Identify Structure", "type": "main", "index": 0 }]]
+    },
+    "Vision 1 - Identify Structure": {
+      "main": [[{ "node": "Vision 2 - Extract with Reasoning", "type": "main", "index": 0 }]]
+    },
+    "Vision 2 - Extract with Reasoning": {
+      "main": [[
+        { "node": "Reasoning - Validate & Review", "type": "main", "index": 0 },
+        { "node": "Save JSON Output", "type": "main", "index": 0 },
+        { "node": "Export to Excel", "type": "main", "index": 0 }
+      ]]
+    },
+    "Reasoning - Validate & Review": {
+      "main": [[{ "node": "Response", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

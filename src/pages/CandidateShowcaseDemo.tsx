@@ -265,7 +265,7 @@ const CandidateShowcaseDemo = () => {
     const statusBadge = getStatusBadge(currentCandidate.id);
 
     return (
-      <div className="relative min-h-[700px] bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex items-center justify-center p-8">
+      <div className="relative min-h-[700px] bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex items-center justify-center p-4 sm:p-8 rounded-lg my-4">
         {/* Background Effects */}
         <div className="absolute inset-0 opacity-30 pointer-events-none">
           <div className="absolute inset-0" style={{
@@ -663,7 +663,8 @@ const CandidateShowcaseDemo = () => {
 
   // 8. Comparison Table
   const ComparisonTableView = () => (
-    <div className="py-6 overflow-x-auto">
+    <div className="w-full py-6">
+      <div className="overflow-x-auto">
       <Card className="border-none shadow-lg">
         <CardContent className="p-0">
           <table className="w-full text-sm">
@@ -788,6 +789,7 @@ const CandidateShowcaseDemo = () => {
           </table>
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 
@@ -798,7 +800,7 @@ const CandidateShowcaseDemo = () => {
     const statusBadge = getStatusBadge(candidate.id);
 
     return (
-      <div className="flex items-center justify-center min-h-[700px] bg-gradient-to-br from-gray-900 via-purple-900 to-blue-900 p-4">
+      <div className="flex items-center justify-center min-h-[700px] bg-gradient-to-br from-gray-900 via-purple-900 to-blue-900 p-4 rounded-lg my-4">
         <div className="relative max-w-md w-full">
           {/* Progress bars */}
           <div className="absolute top-4 left-4 right-4 flex gap-1 z-10">
@@ -1090,7 +1092,8 @@ const CandidateShowcaseDemo = () => {
 
   // 11. Compact Table
   const CompactTableView = () => (
-    <div className="py-6">
+    <div className="w-full py-6">
+      <div className="overflow-x-auto">
       <Card className="border-none shadow-lg">
         <CardContent className="p-0">
           <table className="w-full text-xs">
@@ -1193,6 +1196,7 @@ const CandidateShowcaseDemo = () => {
           </table>
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 
@@ -1465,10 +1469,10 @@ const CandidateShowcaseDemo = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+    <div className="w-full min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       {/* Header */}
-      <div className="bg-white border-b shadow-sm sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto p-6">
+      <div className="bg-white border-b shadow-sm sticky top-0 z-40 w-full">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
               <Sparkles className="w-8 h-8 text-purple-600" />
@@ -1519,8 +1523,8 @@ const CandidateShowcaseDemo = () => {
       </div>
 
       {/* Content */}
-      <div className="w-full px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto">
+      <div className="w-full pb-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <CurrentView />
         </div>
       </div>

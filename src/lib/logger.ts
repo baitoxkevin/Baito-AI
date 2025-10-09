@@ -121,44 +121,78 @@ class SecureLogger {
   private sendToLoggingService(entry: LogEntry): void {
     // Implement integration with your logging service
     // Example: Sentry, LogRocket, CloudWatch, etc.
-    
+
     // For now, we'll store in a buffer and batch send
     if (typeof window !== 'undefined') {
-      const buffer = JSON.parse(localStorage.getItem('log_buffer') || '[]');
-      buffer.push(entry);
-      
-      // Limit buffer size
-      if (buffer.length > 100) {
-        buffer.shift();
-      }
-      
-      localStorage.setItem('log_buffer', JSON.stringify(buffer));
-      
-      // Batch send every 10 logs or on critical errors
-      if (buffer.length >= 10 || entry.level === 'critical') {
-        this.flushLogs();
+      try {
+        const bufferStr = localStorage.getItem('log_buffer') || '[]';
+        let buffer: any[] = [];
+
+        try {
+          buffer = JSON.parse(bufferStr);
+          if (!Array.isArray(buffer)) {
+            buffer = [];
+          }
+        } catch (parseError) {
+          console.warn('Failed to parse log buffer, resetting:', parseError);
+          buffer = [];
+        }
+
+        buffer.push(entry);
+
+        // Limit buffer size
+        if (buffer.length > 100) {
+          buffer.shift();
+        }
+
+        localStorage.setItem('log_buffer', JSON.stringify(buffer));
+
+        // Batch send every 10 logs or on critical errors
+        if (buffer.length >= 10 || entry.level === 'critical') {
+          this.flushLogs();
+        }
+      } catch (error) {
+        // Silent fail to avoid recursive logging issues
+        console.warn('Error in log buffering:', error);
       }
     }
   }
 
   private async flushLogs(): Promise<void> {
     if (typeof window === 'undefined') return;
-    
-    const buffer = JSON.parse(localStorage.getItem('log_buffer') || '[]');
-    if (buffer.length === 0) return;
-    
+
     try {
-      // Send to your logging endpoint
-      // await fetch('/api/logs', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ logs: buffer })
-      // });
-      
-      // Clear buffer on success
-      localStorage.setItem('log_buffer', '[]');
+      const bufferStr = localStorage.getItem('log_buffer') || '[]';
+      let buffer: any[] = [];
+
+      try {
+        buffer = JSON.parse(bufferStr);
+        if (!Array.isArray(buffer)) {
+          buffer = [];
+        }
+      } catch (parseError) {
+        console.warn('Failed to parse log buffer during flush, clearing:', parseError);
+        localStorage.setItem('log_buffer', '[]');
+        return;
+      }
+
+      if (buffer.length === 0) return;
+
+      try {
+        // Send to your logging endpoint
+        // await fetch('/api/logs', {
+        //   method: 'POST',
+        //   headers: { 'Content-Type': 'application/json' },
+        //   body: JSON.stringify({ logs: buffer })
+        // });
+
+        // Clear buffer on success
+        localStorage.setItem('log_buffer', '[]');
+      } catch (error) {
+        // Silent fail to avoid recursive logging
+      }
     } catch (error) {
-      // Silent fail to avoid recursive logging
+      console.warn('Error in flushLogs:', error);
     }
   }
 

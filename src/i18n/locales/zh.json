@@ -1,0 +1,77 @@
+{
+  "chat": {
+    "header": "AI 助手",
+    "placeholder": "输入您的消息...",
+    "send": "发送",
+    "voiceInput": "语音输入",
+    "minimize": "最小化",
+    "maximize": "最大化",
+    "close": "关闭",
+    "clearConversation": "清空对话",
+    "settings": "设置",
+    "typing": "正在输入",
+    "online": "在线",
+    "offline": "离线",
+    "connected": "已连接",
+    "disconnected": "已断开",
+    "retry": "重试",
+    "edit": "编辑",
+    "delete": "删除",
+    "cancel": "取消",
+    "confirm": "确认",
+    "quickActions": "快捷操作"
+  },
+  "quickActions": {
+    "todayProjects": "今天的项目",
+    "addStaff": "添加员工",
+    "updateAttendance": "更新考勤",
+    "viewReports": "查看报表",
+    "projectsOverview": "项目总览",
+    "staffScheduling": "员工排班",
+    "approveExpenses": "审批费用",
+    "financialReports": "财务报表",
+    "mySchedule": "我的排班",
+    "checkIn": "打卡签到",
+    "submitExpense": "提交费用",
+    "contactAdmin": "联系管理员"
+  },
+  "messages": {
+    "welcome": "你好！我是你的AI助手。有什么可以帮你的吗？",
+    "welcomeDescription": "问我关于项目、候选人、排班或其他任何事情。",
+    "noMessages": "还没有消息",
+    "sendingFailed": "发送失败",
+    "messageSent": "消息已发送",
+    "messageRetrying": "正在重试...",
+    "errorOccurred": "发生错误",
+    "tryAgain": "请重试"
+  },
+  "voice": {
+    "start": "开始语音输入",
+    "stop": "停止语音输入",
+    "listening": "正在聆听...",
+    "processing": "正在处理...",
+    "error": "语音输入失败",
+    "permissionDenied": "需要麦克风权限",
+    "notSupported": "您的浏览器不支持语音输入"
+  },
+  "errors": {
+    "networkError": "网络连接失败。请检查网络后重试。",
+    "serverError": "服务器错误。请稍后重试。",
+    "unknownError": "发生未知错误。请重试。",
+    "messageEmpty": "消息不能为空",
+    "messageTooLong": "消息太长，请缩短后重试"
+  },
+  "accessibility": {
+    "openChat": "打开AI助手",
+    "closeChat": "关闭AI助手",
+    "sendMessage": "发送消息",
+    "messageSent": "消息已发送",
+    "messageInput": "消息输入框",
+    "quickAction": "快捷操作",
+    "userMessage": "您的消息",
+    "assistantMessage": "AI回复",
+    "systemMessage": "系统通知",
+    "switchLanguage": "切换语言",
+    "scrollToBottom": "滚动到底部"
+  }
+}

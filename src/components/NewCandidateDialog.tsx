@@ -30,14 +30,14 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabase';
-import { CheckCircle, Building, FileText, Home, CreditCard, User, UserCheck, Car, Languages, Camera, Upload, X } from 'lucide-react';
+import { CheckCircle, Building, FileText, Home, CreditCard, User, UserCheck, Car, Languages, Camera, Upload, X, Trash2 } from 'lucide-react';
 import { ProfileUpload } from '@/components/ui/profile-upload';
 import { parseICNumber, calculateAge } from '@/lib/ic-parser';
 
 interface NewCandidateDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onCandidateAdded: () => void;
+  onCandidateAdded: (success: boolean, candidateId?: string) => void;
   initialData?: any; // Data from the import tool
 }
 
@@ -188,18 +188,81 @@ export default function NewCandidateDialog({
   
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Validate required fields first
-    if (!formData.legal_name || !formData.phone_number) {
+
+    // Comprehensive validation for required database fields
+    const requiredFields = {
+      legal_name: 'Full Name',
+      registration_id: 'IC/Registration Number',
+      phone_number: 'Phone Number',
+      gender: 'Gender'
+    };
+
+    const missingFields: string[] = [];
+
+    // Check each required field
+    if (!formData.legal_name || formData.legal_name.trim() === '') {
+      missingFields.push(requiredFields.legal_name);
+    }
+    if (!formData.registration_id || formData.registration_id.trim() === '') {
+      missingFields.push(requiredFields.registration_id);
+    }
+    if (!formData.phone_number || formData.phone_number.trim() === '') {
+      missingFields.push(requiredFields.phone_number);
+    }
+    if (!formData.gender || formData.gender.trim() === '') {
+      missingFields.push(requiredFields.gender);
+    }
+
+    // If any required fields are missing, show error and switch to appropriate tab
+    if (missingFields.length > 0) {
       toast({
-        title: 'Validation Error',
-        description: 'Please fill in all required fields (Name and Phone Number).',
+        title: 'Missing Required Fields',
+        description: `Please fill in the following required fields: ${missingFields.join(', ')}.`,
+        variant: 'destructive',
+      });
+      setActiveTab('basic'); // Switch to basic tab where all these fields are
+      return;
+    }
+
+    // Additional validations
+    // Validate phone number format (basic check)
+    const phoneDigits = formData.phone_number.replace(/\D/g, '');
+    if (phoneDigits.length < 10 || phoneDigits.length > 15) {
+      toast({
+        title: 'Invalid Phone Number',
+        description: 'Phone number must be between 10 and 15 digits.',
         variant: 'destructive',
       });
       setActiveTab('basic');
       return;
     }
-    
+
+    // Validate email format if provided (email is optional)
+    if (formData.email && formData.email.trim() !== '') {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(formData.email)) {
+        toast({
+          title: 'Invalid Email',
+          description: 'Please enter a valid email address or leave it empty.',
+          variant: 'destructive',
+        });
+        setActiveTab('basic');
+        return;
+      }
+    }
+
+    // Validate IC number format (basic check for Malaysian IC: 12 digits)
+    const icDigits = formData.registration_id.replace(/\D/g, '');
+    if (icDigits.length < 7) {
+      toast({
+        title: 'Invalid IC/Registration Number',
+        description: 'IC/Registration number must be at least 7 characters.',
+        variant: 'destructive',
+      });
+      setActiveTab('basic');
+      return;
+    }
+
     setIsLoading(true);
     
     // Skip photo validation - photos are optional
@@ -525,52 +588,80 @@ export default function NewCandidateDialog({
 
       if (error) {
         console.error('Error inserting candidate:', error);
-        
-        // If there was an error despite our duplicate checking
+
+        // Handle specific database error codes
         if (error.code === '23505') { // Unique constraint violation
           console.error('Duplicate key error despite our checks:', error);
-          
+
           // More specific error message for duplicates
           let duplicateField = 'record';
           if (error.message?.includes('ic_number')) {
             duplicateField = 'IC number';
           } else if (error.message?.includes('email')) {
             duplicateField = 'email address';
+          } else if (error.message?.includes('unique_id')) {
+            duplicateField = 'unique ID';
           }
-          
+
           toast({
             title: 'Duplicate Entry',
             description: `A candidate with this ${duplicateField} already exists.`,
             variant: 'destructive',
           });
-          setIsLoading(false);
-          return;
+        } else if (error.code === '23502') { // Not null constraint violation
+          const fieldName = error.message?.match(/column "(.+?)"/)?.[1] || 'unknown field';
+          const friendlyFieldName = fieldName
+            .replace(/_/g, ' ')
+            .replace(/\b\w/g, (l) => l.toUpperCase());
+
+          toast({
+            title: 'Missing Required Information',
+            description: `Please provide: ${friendlyFieldName}`,
+            variant: 'destructive',
+          });
+        } else if (error.code === '42703') { // Undefined column
+          console.error('CRITICAL: Database schema mismatch detected', error);
+          toast({
+            title: 'System Error',
+            description: 'Database configuration issue. Please contact support.',
+            variant: 'destructive',
+          });
+        } else if (error.code === '22P02') { // Invalid input syntax
+          toast({
+            title: 'Invalid Data Format',
+            description: 'One or more fields contain invalid data. Please check your input.',
+            variant: 'destructive',
+          });
+        } else {
+          // Generic error with code display for debugging
+          let errorMessage = 'Failed to add candidate. Please try again.';
+          if (error.message) {
+            errorMessage = error.message;
+          }
+
+          toast({
+            title: 'Error',
+            description: `${errorMessage}${error.code ? ` (Error code: ${error.code})` : ''}`,
+            variant: 'destructive',
+          });
         }
-        
-        // Handle other errors
-        let errorMessage = 'Failed to add candidate. Please try again.';
-        if (error.message) {
-          errorMessage = error.message;
-        }
-        
-        toast({
-          title: 'Error',
-          description: errorMessage,
-          variant: 'destructive',
-        });
+
         setIsLoading(false);
+        onCandidateAdded(false); // Notify parent of failure
         return;
-      } else {
-        console.log('Candidate added successfully:', data);
-        
-        toast({
-          title: 'Candidate added',
-          description: 'The candidate has been successfully added.',
-        });
       }
 
-      console.log('Calling onCandidateAdded callback');
-      onCandidateAdded();
+      // Success case
+      console.log('Candidate added successfully:', data);
+      const candidateId = data && data.length > 0 ? data[0].id : undefined;
+
+      toast({
+        title: 'Candidate added',
+        description: 'The candidate has been successfully added.',
+      });
+
+      console.log('Calling onCandidateAdded callback with success');
+      onCandidateAdded(true, candidateId); // Notify parent of success
       onOpenChange(false);
     } catch (error: any) {
       console.error('Error adding candidate:', error);
@@ -579,6 +670,7 @@ export default function NewCandidateDialog({
         description: error?.message || 'Failed to add candidate. Please try again.',
         variant: 'destructive',
       });
+      onCandidateAdded(false); // Notify parent of failure
     } finally {
       setIsLoading(false);
     }

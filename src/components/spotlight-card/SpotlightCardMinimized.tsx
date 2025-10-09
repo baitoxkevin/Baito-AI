@@ -1,6 +1,5 @@
 import React, { memo, useMemo, useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
 import {
   Calendar,
   Clock,
@@ -29,7 +28,6 @@ export const SpotlightCardMinimized = memo(function SpotlightCardMinimized({
   tasks = [],
   expenseClaims = []
 }: SpotlightCardMinimizedProps) {
-  const navigate = useNavigate();
   const [clientData, setClientData] = useState<any>(project.client);
   
   // Memoize getInitials function
@@ -116,7 +114,7 @@ export const SpotlightCardMinimized = memo(function SpotlightCardMinimized({
     >
       <div
         className="relative border shadow-sm hover:shadow-lg transition-all duration-300 bg-white dark:bg-slate-900 overflow-hidden cursor-pointer rounded-lg"
-        onClick={() => navigate(`/projects/${project.id}`)}
+        onClick={onClick}
       >
         {/* Top accent bar */}
         <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500" />

@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Auth State Debugger</title>
+  <style>
+    body { font-family: monospace; padding: 20px; background: #1a1a1a; color: #0f0; }
+    .good { color: #0f0; }
+    .bad { color: #f00; }
+    .warn { color: #ff0; }
+    pre { background: #000; padding: 10px; border-radius: 4px; }
+    button { padding: 10px; margin: 5px; background: #333; color: #0f0; border: 1px solid #0f0; cursor: pointer; }
+    button:hover { background: #0f0; color: #000; }
+  </style>
+</head>
+<body>
+  <h1>🔍 Auth State Debugger</h1>
+  <button onclick="checkAuthState()">Check Auth State</button>
+  <button onclick="checkLocalStorage()">Check localStorage</button>
+  <button onclick="checkCache()">Check Cache</button>
+  <button onclick="clearEverything()">Clear Everything & Refresh</button>
+
+  <div id="output"></div>
+
+  <script type="module">
+    import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+    const supabaseUrl = 'https://aoiwrdzlichescqgnohi.supabase.co';
+    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFvaXdyZHpsaWNoZXNjcWdub2hpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDAyNTM2NDgsImV4cCI6MjA1NTgyOTY0OH0.F505FnCo_hg6_LpEZ-yvNWd5Zw5OnCnGxIogP4txeCY';
+
+    window.supabase = createClient(supabaseUrl, supabaseKey, {
+      auth: {
+        storage: window.localStorage,
+        storageKey: 'baito-auth',
+        autoRefreshToken: true,
+        persistSession: true,
+        detectSessionInUrl: false
+      }
+    });
+
+    function log(msg, className = '') {
+      const output = document.getElementById('output');
+      output.innerHTML += `<div class="${className}">${msg}</div>`;
+    }
+
+    window.checkAuthState = async function() {
+      document.getElementById('output').innerHTML = '<h2>🔐 Auth State Check</h2>';
+
+      try {
+        const { data: { session }, error } = await window.supabase.auth.getSession();
+
+        if (error) {
+          log(`❌ Error: ${error.message}`, 'bad');
+          return;
+        }
+
+        if (!session) {
+          log('⚠️  No active session', 'warn');
+          return;
+        }
+
+        log('✅ Session found!', 'good');
+        log(`<pre>${JSON.stringify({
+          user_id: session.user?.id,
+          email: session.user?.email,
+          expires_at: new Date(session.expires_at * 1000).toISOString(),
+          access_token: session.access_token.substring(0, 20) + '...',
+          refresh_token: session.refresh_token?.substring(0, 20) + '...'
+        }, null, 2)}</pre>`);
+
+        // Check if expired
+        const now = Date.now();
+        const expiresAt = session.expires_at * 1000;
+        const timeLeft = Math.floor((expiresAt - now) / 1000 / 60);
+
+        if (expiresAt < now) {
+          log('❌ Token EXPIRED!', 'bad');
+        } else {
+          log(`✅ Token valid for ${timeLeft} minutes`, 'good');
+        }
+
+      } catch (err) {
+        log(`❌ Exception: ${err.message}`, 'bad');
+      }
+    };
+
+    window.checkLocalStorage = function() {
+      document.getElementById('output').innerHTML = '<h2>💾 LocalStorage Check</h2>';
+
+      const keys = ['baito-auth', 'cache_version', 'last_session_id'];
+
+      keys.forEach(key => {
+        const value = localStorage.getItem(key);
+        if (value) {
+          log(`✅ ${key}: Found`, 'good');
+          if (key === 'baito-auth') {
+            try {
+              const parsed = JSON.parse(value);
+              log(`<pre>${JSON.stringify(parsed, null, 2).substring(0, 500)}...</pre>`);
+            } catch (e) {
+              log(`⚠️  Could not parse ${key}`, 'warn');
+            }
+          } else {
+            log(`   Value: ${value}`, '');
+          }
+        } else {
+          log(`❌ ${key}: Not found`, 'bad');
+        }
+      });
+
+      // Check all cache keys
+      const allKeys = Object.keys(localStorage);
+      const cacheKeys = allKeys.filter(k => k.startsWith('cache_'));
+      log(`\n📦 Cache keys found: ${cacheKeys.length}`, cacheKeys.length > 0 ? 'good' : 'warn');
+      cacheKeys.forEach(k => log(`   - ${k}`, ''));
+    };
+
+    window.checkCache = function() {
+      document.getElementById('output').innerHTML = '<h2>📦 Cache Check</h2>';
+
+      const version = localStorage.getItem('cache_version');
+      log(`Cache Version: ${version || 'Not set'}`, version === '2.0.0' ? 'good' : 'bad');
+
+      const lastSessionId = localStorage.getItem('last_session_id');
+      log(`Last Session ID: ${lastSessionId ? '✅ Set' : '❌ Not set'}`, lastSessionId ? 'good' : 'bad');
+    };
+
+    window.clearEverything = function() {
+      if (confirm('Clear ALL localStorage and refresh?')) {
+        localStorage.clear();
+        log('✅ Cleared localStorage', 'good');
+        setTimeout(() => location.reload(), 1000);
+      }
+    };
+
+    // Auto-run on load
+    window.onload = () => {
+      log('<h2>🚀 Debugger Ready</h2>', '');
+      log('Click buttons above to diagnose auth issues', '');
+    };
+  </script>
+</body>
+</html>

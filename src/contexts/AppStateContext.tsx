@@ -3,6 +3,7 @@ import { fetchProjects, fetchProjectsByMonth, createProject, updateProject, dele
 import type { Project } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { getUser, getSession } from '@/lib/auth';
+import { supabase } from '@/lib/supabase';
 
 // Define the context shape
 interface AppStateContextType {
@@ -54,7 +55,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
   const [currentUser, setCurrentUser] = useState<any>(null);
-  const [isLoadingUser, setIsLoadingUser] = useState(true);
+  const [isLoadingUser, setIsLoadingUser] = useState(false); // Start as false - don't block UI
   
   const { toast } = useToast();
 
@@ -91,18 +92,20 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
 
   // Load user data on initialization - but skip for public routes
   useEffect(() => {
-    // Skip user authentication for specific public routes 
-    const isPublicRoute = window.location.pathname.includes('/candidate-update/');
-    
+    // Skip user authentication for specific public routes
+    const isPublicRoute = window.location.pathname.includes('/candidate-update/') ||
+                          window.location.pathname === '/login' ||
+                          window.location.pathname.includes('/set-password');
+
     if (isPublicRoute) {
       console.log('Public route detected - skipping authentication');
       setIsLoadingUser(false);
       return;
     }
-    
+
     const loadUser = async () => {
       try {
-        setIsLoadingUser(true);
+        // Don't set loading true - load in background without blocking UI
         const user = await getUser();
         setCurrentUser(user);
       } catch (error) {
@@ -123,43 +126,35 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
             variant: 'destructive',
           });
         }
-      } finally {
-        setIsLoadingUser(false);
       }
     };
 
     loadUser();
-  }, [toast]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  // Load projects when the component mounts - but skip for public routes
+  // NUCLEAR OPTION: Load projects on mount, let MainAppLayout handle auth
   useEffect(() => {
-    // Skip projects loading for public routes
     const isPublicRoute = window.location.pathname.includes('/candidate-update/');
-    
+
     if (isPublicRoute) {
-      console.log('Public route detected - skipping projects loading');
+      console.log('[APPSTATE] Public route - skipping projects load');
       return;
     }
-    
-    const loadProjects = async () => {
-      try {
-        const data = await getProjects();
-        setProjects(data);
-      } catch (error) {
-        console.error('Error loading projects:', error);
-        // Only show toast for real errors, not for normal initialization issues
-        if (error instanceof Error && !error.message.includes('no data available')) {
-          toast({
-            title: 'Data Load Error',
-            description: 'Failed to load projects. Please try refreshing.',
-            variant: 'destructive',
-          });
-        }
-      }
-    };
 
-    loadProjects();
-  }, [getProjects, toast]);
+    console.log('[APPSTATE] Loading projects directly - MainAppLayout handles auth');
+
+    // Just load projects - if not authed, RLS will return empty/401
+    getProjects()
+      .then(data => {
+        console.log('[APPSTATE] Projects loaded:', data.length);
+        setProjects(data);
+      })
+      .catch(error => {
+        console.log('[APPSTATE] Projects load failed (expected if not authed):', error.message);
+        // Don't show error - MainAppLayout will redirect to login if needed
+      });
+  }, [getProjects]);
 
   // Function to create a new project
   const addProject = useCallback(async (project: Omit<Project, 'id' | 'created_at' | 'updated_at'>) => {
