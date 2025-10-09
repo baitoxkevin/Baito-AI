@@ -247,13 +247,20 @@ export default function EditCandidateDialog({
         .select('*')
         .eq('candidate_id', candidateId)
         .single();
-      
-      if (error && error.code !== 'PGRST116') {
+
+      if (error) {
+        // 42P01 is "table does not exist" error
+        if (error.code === '42P01') {
+          console.warn('Public links table not available yet');
+          return;
+        }
         // PGRST116 is "not found" error, which is expected if no link exists
-        console.error('Error checking for existing public link:', error);
-        return;
+        if (error.code !== 'PGRST116') {
+          console.error('Error checking for existing public link:', error);
+          return;
+        }
       }
-      
+
       if (data) {
         setIsPublicLinkActive(true);
         setPublicLink(`${window.location.origin}/candidate-form/${data.token}`);
@@ -283,7 +290,7 @@ export default function EditCandidateDialog({
     try {
       // Generate a unique token
       const token = crypto.randomUUID();
-      
+
       // Save the token in the database
       const { error } = await supabase
         .from('candidate_public_links')
@@ -294,34 +301,43 @@ export default function EditCandidateDialog({
           expires_at: new Date(Date.now() + (30 * 24 * 60 * 60 * 1000)).toISOString(), // 30 days expiry
           active: true
         });
-      
+
       if (error) {
+        // Handle table not existing error
+        if (error.code === '42P01') {
+          toast({
+            title: 'Feature Not Available',
+            description: 'Public link feature is not yet configured in the database. Please contact support.',
+            variant: 'destructive'
+          });
+          return;
+        }
         throw error;
       }
-      
+
       // Generate the public URL
       // In a real implementation, this would be a proper URL to the public form
       const publicUrl = `${window.location.origin}/candidate-form/${token}`;
-      
+
       setIsPublicLinkActive(true);
       setPublicLink(publicUrl);
-      
+
       // Copy to clipboard
       navigator.clipboard.writeText(publicUrl);
       setLinkCopied(true);
-      
+
       toast({
         title: 'Link Generated',
         description: 'Public link has been copied to your clipboard.',
       });
-      
+
       setTimeout(() => setLinkCopied(false), 3000);
-      
-    } catch (error) {
+
+    } catch (error: any) {
       console.error('Error generating public link:', error);
       toast({
         title: 'Error',
-        description: 'Failed to generate public link. Please try again.',
+        description: error?.message || 'Failed to generate public link. Please try again.',
         variant: 'destructive'
       });
     }
@@ -330,30 +346,39 @@ export default function EditCandidateDialog({
   // Function to deactivate the public link
   const deactivatePublicLink = async () => {
     if (!candidate) return;
-    
+
     try {
       const { error } = await supabase
         .from('candidate_public_links')
         .update({ active: false })
         .eq('candidate_id', candidate.id);
-      
+
       if (error) {
+        // Handle table not existing error
+        if (error.code === '42P01') {
+          toast({
+            title: 'Feature Not Available',
+            description: 'Public link feature is not yet configured in the database.',
+            variant: 'destructive'
+          });
+          return;
+        }
         throw error;
       }
-      
+
       setIsPublicLinkActive(false);
       setPublicLink('');
-      
+
       toast({
         title: 'Link Deactivated',
         description: 'Public link has been deactivated.',
       });
-      
-    } catch (error) {
+
+    } catch (error: any) {
       console.error('Error deactivating public link:', error);
       toast({
         title: 'Error',
-        description: 'Failed to deactivate public link. Please try again.',
+        description: error?.message || 'Failed to deactivate public link. Please try again.',
         variant: 'destructive'
       });
     }

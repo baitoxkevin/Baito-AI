@@ -99,12 +99,12 @@ export const useEventHover = (delay: number = 300): UseEventHoverReturn => {
       hoverTimeoutRef.current = null;
     }
 
-    // Add a small delay before hiding to allow moving to the card
+    // Add a longer delay before hiding to allow moving to the card (increased from 200ms to 500ms)
     leaveTimeoutRef.current = setTimeout(() => {
       setIsHovering(false);
       setHoveredProject(null);
       setHoverPosition(null);
-    }, 200);
+    }, 500);
   }, []);
 
   return {
