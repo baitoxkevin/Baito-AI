@@ -329,8 +329,8 @@ class ActivityLogger {
 export const activityLogger = new ActivityLogger();
 
 // Export convenience function for easy logging
-export function logActivity(event: LoggableEvent) {
-  activityLogger.log(event);
+export function logActivity(event: LoggableEvent): Promise<void> {
+  return activityLogger.log(event);
 }
 
 // Export utility functions (only keeping dataChange and action)
