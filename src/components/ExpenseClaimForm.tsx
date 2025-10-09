@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { logger } from '../lib/logger';
 import {
-  Card, CardContent, CardDescription, CardHeader, CardTitle
+  Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle
 } from '@/components/ui/card';
 import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage
