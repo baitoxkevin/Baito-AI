@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { logger } from '../lib/logger';
+import { supabase } from '@/lib/supabase';
 import { 
   Card, CardContent, CardDescription, CardHeader, CardTitle 
 } from '@/components/ui/card';
@@ -72,12 +73,21 @@ export default function ExpenseClaimsPage() {
   // Handle creating a new expense claim
   const handleCreateClaim = async (formData: Partial<ExpenseClaim>) => {
     try {
-      // In a real app, you would collect the user ID from auth state
-      const userId = 'current-user-id';
-      
+      // Get the current user ID from Supabase auth
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+      if (authError || !user) {
+        toast({
+          title: 'Authentication Error',
+          description: 'You must be logged in to create an expense claim',
+          variant: 'destructive',
+        });
+        return;
+      }
+
       await createClaim({
         ...formData,
-        user_id: userId,
+        user_id: user.id,
       });
       
       setIsFormDialogOpen(false);
