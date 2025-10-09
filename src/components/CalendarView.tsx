@@ -917,9 +917,9 @@ const CalendarView = React.memo(React.forwardRef<HTMLDivElement, CalendarViewPro
           </div>
           
           {/* Day headers */}
-          {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day) => (
-            <div 
-              key={day} 
+          {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, index) => (
+            <div
+              key={`day-header-${index}`}
               className="h-5 sm:h-6 flex items-center justify-center bg-card z-10 first:rounded-tl-none last:rounded-tr-none text-center"
               role="columnheader"
             >

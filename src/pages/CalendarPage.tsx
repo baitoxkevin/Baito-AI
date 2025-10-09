@@ -35,6 +35,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useToast } from '@/hooks/use-toast';
 import { useProjectsByMonth, useProjects } from '@/hooks/use-projects';
 import { CalendarSkeleton } from '@/components/calendar-skeleton';
@@ -44,6 +50,9 @@ import NewProjectDialog from '@/components/NewProjectDialog';
 // Lazy load components for better performance
 const CalendarView = lazy(() => import('@/components/CalendarView'));
 const ListView = lazy(() => import('@/components/ListView'));
+const SpotlightCard = lazy(() => import('@/components/spotlight-card/SpotlightCardOptimized').then(module => ({
+  default: module.SpotlightCardOptimized
+})));
 import { formatTimeString, eventColors } from '@/lib/utils';
 import { deleteProject } from '@/lib/projects';
 import type { Project } from '@/lib/types';
@@ -87,6 +96,7 @@ export default function CalendarPage() {
   const [dayPreviewProjects, setDayPreviewProjects] = useState<Project[]>([]);
   const [dayPreviewDate, setDayPreviewDate] = useState<Date | null>(null);
   const [dayPreviewOpen, setDayPreviewOpen] = useState(false);
+  const [projectSpotlightOpen, setProjectSpotlightOpen] = useState(false);
   // Get navigation and location hooks
   const navigate = useNavigate();
   const location = useLocation();
@@ -1162,7 +1172,7 @@ export default function CalendarPage() {
   // Project interactions
   const handleProjectClick = useCallback((project: Project) => {
     setSelectedProject(project);
-    // EditProjectDialog removed - no edit action
+    setProjectSpotlightOpen(true);
   }, []);
   
   const handleDayClick = useCallback((date: Date, projects: Project[]) => {
@@ -1492,6 +1502,39 @@ export default function CalendarPage() {
           </div>
         </div>
       )}
+
+      {/* Project Spotlight Dialog */}
+      <Dialog
+        open={projectSpotlightOpen}
+        onOpenChange={setProjectSpotlightOpen}
+      >
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-auto p-6">
+          <DialogHeader>
+            <DialogTitle>Project Details</DialogTitle>
+          </DialogHeader>
+          {selectedProject && (
+            <Suspense fallback={<div className="flex items-center justify-center p-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}>
+              <SpotlightCard
+                project={selectedProject}
+                onProjectUpdated={(updatedProject) => {
+                  // Update the project in the list
+                  setSelectedProject(updatedProject);
+                  setProjects(prev => prev.map(p => p.id === updatedProject.id ? updatedProject : p));
+                  setExtendedProjects(prev => prev.map(p => p.id === updatedProject.id ? updatedProject : p));
+
+                  // Invalidate cache to force refresh
+                  monthCacheRef.current.clear();
+                  invalidateCache();
+                }}
+                onViewDetails={(project) => {
+                  // Already viewing details, no action needed
+                  console.log('Viewing details for:', project.title);
+                }}
+              />
+            </Suspense>
+          )}
+        </DialogContent>
+      </Dialog>
       </div>
     </CalendarErrorBoundary>
   );
