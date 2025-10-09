@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Table,
@@ -83,6 +84,7 @@ const formatEmail = (email: string | null | undefined): string => {
 };
 
 export default function CandidatesPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [newDialogOpen, setNewDialogOpen] = useState(false);
@@ -190,6 +192,29 @@ export default function CandidatesPage() {
   useEffect(() => {
     loadCandidates();
   }, []);
+
+  // Handle highlight query parameter to auto-open edit dialog for specific candidate
+  useEffect(() => {
+    const highlightId = searchParams.get('highlight');
+
+    if (highlightId && candidates.length > 0 && !editDialogOpen) {
+      const candidateToEdit = candidates.find(c => c.id === highlightId);
+
+      if (candidateToEdit) {
+        setEditCandidate(candidateToEdit);
+        setEditDialogOpen(true);
+
+        // Remove the highlight parameter from URL after opening dialog
+        searchParams.delete('highlight');
+        setSearchParams(searchParams, { replace: true });
+
+        toast({
+          title: "Opening Bank Details",
+          description: `Editing ${candidateToEdit.full_name}'s information`,
+        });
+      }
+    }
+  }, [candidates, searchParams, editDialogOpen]);
 
   // Filter candidates based on search query with safe null checks
   const filteredCandidates = candidates.filter(candidate => {

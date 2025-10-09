@@ -493,7 +493,7 @@ export function PaymentSubmissionDialog({
                                 {staffWithMissingBankDetails.map(staff => (
                                   <a
                                     key={staff.staffId}
-                                    href={`/candidates/${staff.staffId}/edit`}
+                                    href={`/candidates?highlight=${staff.staffId}`}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="text-sm text-amber-800 dark:text-amber-200 hover:text-amber-900 dark:hover:text-amber-100 underline font-medium inline-flex items-center gap-1"
