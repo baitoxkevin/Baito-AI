@@ -314,7 +314,7 @@ export function EditProjectDialog({
         .from('projects')
         .update(updateData)
         .eq('id', project.id)
-        .select()
+        .select('*')
         .single();
 
       if (error) throw error;
