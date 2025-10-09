@@ -56,6 +56,9 @@ debug.*
 # MCP config with secrets
 .mcp/config.json
 
+# Local test apps and examples
+apps/
+
 # Package manager lock files (using npm only)
 pnpm-lock.yaml
 yarn.lock
