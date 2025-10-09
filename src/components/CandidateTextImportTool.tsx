@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
@@ -7,10 +7,13 @@ import { Label } from '@/components/ui/label'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { useToast } from '@/hooks/use-toast'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { User, Briefcase, FileText, AlertCircle, UserPlus, Edit, Mail, Phone, Sparkles } from 'lucide-react'
+import { User, Briefcase, FileText, AlertCircle, UserPlus, Edit, Mail, Phone, Sparkles, Settings, Brain, Zap } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { ProfileUpload } from '@/components/ui/profile-upload'
 import { extractCandidateInfo, createCandidate, CandidateInfo } from '@/lib/candidate-import-service'
+import { extractWithAI, aiResultToCandidateInfo, AIExtractionResult, getConfidenceColor, getConfidenceBadge } from '@/lib/ai-candidate-extractor'
+import { AIExtractionSettings } from '@/components/AIExtractionSettings'
+import { Switch } from '@/components/ui/switch'
 
 interface CandidateTextImportToolProps {
   onOpenNewCandidateDialog?: (candidateData: any) => void;
@@ -26,6 +29,25 @@ export function CandidateTextImportTool({ onOpenNewCandidateDialog }: CandidateT
   const [fullBodyPhoto, setFullBodyPhoto] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { toast } = useToast();
+
+  // AI extraction state - enabled by default if API key is available
+  const hasApiKey = Boolean(import.meta.env.VITE_OPENROUTER_API_KEY);
+  const [useAI, setUseAI] = useState(hasApiKey); // Enable by default
+  const [aiModel, setAiModel] = useState('google/gemini-2.5-flash-preview-09-2025'); // Gemini - same as chatbot
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [aiResult, setAiResult] = useState<AIExtractionResult | null>(null);
+
+  // Show info if API key is missing
+  useEffect(() => {
+    if (!hasApiKey && useAI) {
+      toast({
+        title: 'API Key Required',
+        description: 'Add VITE_OPENROUTER_API_KEY to your .env file to use AI extraction',
+        variant: 'destructive'
+      });
+      setUseAI(false);
+    }
+  }, [hasApiKey, useAI, toast]);
   
   // Function to handle profile photo change
   const handleProfilePhotoChange = (photo: string, type: string) => {
@@ -60,7 +82,7 @@ export function CandidateTextImportTool({ onOpenNewCandidateDialog }: CandidateT
   };
 
   // Function to extract candidate information from the text
-  const analyzeText = () => {
+  const analyzeText = async () => {
     if (!inputText.trim()) {
       setError('Please paste some text to analyze');
       return;
@@ -68,22 +90,40 @@ export function CandidateTextImportTool({ onOpenNewCandidateDialog }: CandidateT
 
     setAnalyzing(true);
     setError(null);
-    
+    setAiResult(null);
+
     try {
-      // Use the service to extract candidate information
-      const candidateInfo = extractCandidateInfo(inputText);
-      
-      setExtractedData(candidateInfo);
+      if (useAI && hasApiKey) {
+        // Use AI extraction with free DeepSeek model
+        const result = await extractWithAI(
+          inputText,
+          undefined, // Will use env variable
+          aiModel // Free DeepSeek model
+        );
+
+        setAiResult(result);
+        const candidateInfo = aiResultToCandidateInfo(result, inputText);
+        setExtractedData(candidateInfo);
+
+        toast({
+          title: "AI Extraction Complete",
+          description: `Extracted with ${result.overallConfidence}% confidence using ${aiModel}`,
+        });
+      } else {
+        // Use regex extraction
+        const candidateInfo = extractCandidateInfo(inputText);
+        setExtractedData(candidateInfo);
+      }
+
       setActiveTab('preview');
-      
-      // Removed unnecessary toast notification - the UI change to preview tab is enough feedback
+
     } catch (err) {
       console.error('Error analyzing text:', err);
-      setError('Failed to analyze text. Please check the format and try again.');
-      
+      setError(`Failed to analyze text: ${err instanceof Error ? err.message : 'Unknown error'}`);
+
       toast({
         title: "Analysis Failed",
-        description: "Could not extract candidate information",
+        description: err instanceof Error ? err.message : "Could not extract candidate information",
         variant: "destructive",
       });
     } finally {
@@ -220,17 +260,78 @@ export function CandidateTextImportTool({ onOpenNewCandidateDialog }: CandidateT
     <Card className="w-full">
       <CardHeader className="pb-4 border-b border-slate-100 dark:border-slate-800">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-          <div>
+          <div className="flex-1">
             <CardTitle className="text-2xl font-bold flex items-center gap-2 text-slate-900 dark:text-slate-50">
-              <Sparkles className="h-5 w-5 text-blue-500" />
-              AI Candidate Profile Generator
+              {useAI ? (
+                <Brain className="h-5 w-5 text-purple-500" />
+              ) : (
+                <Sparkles className="h-5 w-5 text-blue-500" />
+              )}
+              {useAI ? 'AI-Powered' : 'Smart'} Candidate Profile Generator
             </CardTitle>
             <CardDescription className="mt-1.5 text-slate-500 dark:text-slate-400">
-              Paste resume text to automatically extract candidate information and create profiles
+              {useAI
+                ? 'Using AI reasoning to intelligently extract and map candidate information'
+                : 'Paste resume text to automatically extract candidate information'}
             </CardDescription>
+          </div>
+          <div className="flex items-center gap-3">
+            {/* AI Toggle */}
+            <div className="flex items-center gap-2">
+              <Label htmlFor="ai-mode" className="text-sm cursor-pointer flex items-center gap-1.5">
+                {useAI ? (
+                  <>
+                    <Zap className="h-4 w-4 text-purple-500" />
+                    <span className="font-medium text-purple-600">AI Mode</span>
+                  </>
+                ) : (
+                  <span className="text-muted-foreground">Enable AI</span>
+                )}
+              </Label>
+              <Switch
+                id="ai-mode"
+                checked={useAI}
+                onCheckedChange={(checked) => {
+                  if (checked && !hasApiKey) {
+                    toast({
+                      title: 'API Key Required',
+                      description: 'Add VITE_OPENROUTER_API_KEY to your .env file to use AI extraction',
+                      variant: 'destructive'
+                    });
+                  } else {
+                    setUseAI(checked);
+                  }
+                }}
+              />
+            </div>
+            {/* Settings Button */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setSettingsOpen(true)}
+              className="flex items-center gap-1.5"
+            >
+              <Settings className="h-4 w-4" />
+              Settings
+            </Button>
           </div>
         </div>
       </CardHeader>
+
+      {/* AI Settings Dialog */}
+      <AIExtractionSettings
+        open={settingsOpen}
+        onOpenChange={setSettingsOpen}
+        onSave={(model) => {
+          setAiModel(model);
+          localStorage.setItem('ai_extraction_model', model);
+          toast({
+            title: 'Model Updated',
+            description: `Now using ${model} for AI extraction`
+          });
+        }}
+        currentModel={aiModel}
+      />
       
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="mx-6 my-4 bg-slate-100 dark:bg-slate-800/50 p-1 rounded-full">
