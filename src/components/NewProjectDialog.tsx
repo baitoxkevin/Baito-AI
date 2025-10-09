@@ -1551,8 +1551,8 @@ export function NewProjectDialog({
                           Crew Count <span className="text-red-500">*</span>
                         </FormLabel>
                         <FormControl>
-                          <Input 
-                            {...field} 
+                          <Input
+                            {...field}
                             type="number"
                             min="1"
                             className="h-11 transition-all hover:border-gray-400 focus:border-gray-600"
@@ -1560,6 +1560,7 @@ export function NewProjectDialog({
                               const value = parseInt(e.target.value);
                               field.onChange(isNaN(value) ? 1 : Math.max(1, value));
                             }}
+                            onFocus={(e) => e.target.select()}
                           />
                         </FormControl>
                         <FormDescription className="text-xs">Total number of crew members needed</FormDescription>
@@ -1578,8 +1579,8 @@ export function NewProjectDialog({
                           Supervisors
                         </FormLabel>
                         <FormControl>
-                          <Input 
-                            {...field} 
+                          <Input
+                            {...field}
                             type="number"
                             min="0"
                             max="9"
@@ -1588,6 +1589,7 @@ export function NewProjectDialog({
                               const value = parseInt(e.target.value);
                               field.onChange(isNaN(value) ? 0 : Math.max(0, Math.min(9, value)));
                             }}
+                            onFocus={(e) => e.target.select()}
                           />
                         </FormControl>
                         <FormDescription className="text-xs">Number of supervisors (if any)</FormDescription>
