@@ -111,7 +111,7 @@ export function AddCandidateRedesigned({
           id,
           full_name,
           phone_number,
-          photos (profile_photo_url),
+          profile_photo,
           performance_metrics (avg_rating)
         `)
         .eq('is_banned', false)
@@ -127,7 +127,7 @@ export function AddCandidateRedesigned({
         name: candidate.full_name || 'Unknown',
         designation: 'Crew',
         phone: candidate.phone_number || '',
-        photo: candidate.photos?.[0]?.profile_photo_url || undefined,
+        photo: candidate.profile_photo || undefined,
         rating: candidate.performance_metrics?.[0]?.avg_rating || 0,
         availability: 'Available'
       }));
