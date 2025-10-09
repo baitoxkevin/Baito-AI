@@ -58,8 +58,24 @@ export function ECPExportDialog({
       try {
         setIsFetchingICNumbers(true);
 
-        // Extract unique staff IDs that need IC numbers
-        const staffIds = [...new Set(paymentsNeedingIC.map(p => p.staff_id))];
+        // Extract unique staff IDs that need IC numbers, filtering out invalid values
+        const staffIds = [...new Set(
+          paymentsNeedingIC
+            .map(p => p.staff_id)
+            .filter(id => {
+              // Filter out undefined, null, empty strings, and the string "undefined"
+              if (!id || id === 'undefined' || id.trim() === '') return false;
+              // Basic UUID format validation (8-4-4-4-12 hex digits)
+              return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+            })
+        )];
+
+        // If no valid staff IDs, just use the original batch
+        if (staffIds.length === 0) {
+          console.warn('No valid staff IDs found in payments needing IC numbers');
+          setEnrichedBatch(batch);
+          return;
+        }
 
         // Fetch IC numbers from candidates table
         const { data: candidates, error } = await supabase
@@ -95,8 +111,20 @@ export function ECPExportDialog({
           !batch.payments.find(orig => orig.id === p.id)?.ic_number && p.ic_number
         ).length;
 
+        const invalidStaffIds = paymentsNeedingIC.filter(p =>
+          !p.staff_id ||
+          p.staff_id === 'undefined' ||
+          !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(p.staff_id)
+        );
+
         if (fetchedCount > 0) {
-          console.log(`Enriched ${fetchedCount} payment(s) with IC numbers from candidates table`);
+          console.log(`✓ Enriched ${fetchedCount} payment(s) with IC numbers from candidates table`);
+        }
+
+        if (invalidStaffIds.length > 0) {
+          console.warn(`⚠ ${invalidStaffIds.length} payment(s) have invalid staff IDs and cannot fetch IC numbers:`,
+            invalidStaffIds.map(p => ({ staff_name: p.staff_name, staff_id: p.staff_id }))
+          );
         }
 
       } catch (error) {
