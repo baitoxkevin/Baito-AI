@@ -482,13 +482,27 @@ export function PaymentSubmissionDialog({
                         <div className="p-4 bg-amber-50 dark:bg-amber-950/10 border-t border-amber-200 dark:border-amber-800">
                           <div className="flex items-start gap-3">
                             <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
-                            <div>
+                            <div className="flex-1">
                               <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
                                 Missing Bank Details
                               </p>
                               <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
-                                {staffWithMissingBankDetails.length} staff members are missing bank details. You can still submit the payment, but you'll need to update their details before exporting.
+                                {staffWithMissingBankDetails.length} staff member{staffWithMissingBankDetails.length > 1 ? 's are' : ' is'} missing bank details. You can still submit the payment, but you'll need to update their details before exporting.
                               </p>
+                              <div className="mt-3 space-y-1">
+                                {staffWithMissingBankDetails.map(staff => (
+                                  <a
+                                    key={staff.staffId}
+                                    href={`/candidates/${staff.staffId}/edit`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-sm text-amber-800 dark:text-amber-200 hover:text-amber-900 dark:hover:text-amber-100 underline font-medium inline-flex items-center gap-1"
+                                  >
+                                    Update {staff.staffName}'s bank details
+                                    <ArrowRight className="h-3 w-3" />
+                                  </a>
+                                ))}
+                              </div>
                             </div>
                           </div>
                         </div>
