@@ -64,11 +64,12 @@ export class OpenRouterService {
   private baseUrl: string
 
   constructor(apiKey?: string) {
-    this.apiKey = apiKey || OPENROUTER_API_KEY
+    this.apiKey = apiKey || OPENROUTER_API_KEY || ''
     this.baseUrl = OPENROUTER_API_URL
 
+    // Don't throw error here - let individual methods handle missing key
     if (!this.apiKey) {
-      throw new Error('OpenRouter API key is required')
+      console.warn('⚠️ OpenRouter API key not provided - API calls will fail')
     }
   }
 
@@ -76,6 +77,10 @@ export class OpenRouterService {
    * Send a chat completion request to OpenRouter
    */
   async chat(request: OpenRouterRequest): Promise<OpenRouterResponse> {
+    if (!this.apiKey) {
+      throw new Error('OpenRouter API key is not configured. Please set VITE_OPENROUTER_API_KEY in environment variables.')
+    }
+
     try {
       const response = await fetch(this.baseUrl, {
         method: 'POST',
@@ -111,6 +116,10 @@ export class OpenRouterService {
    * Send a streaming chat completion request
    */
   async *chatStream(request: OpenRouterRequest): AsyncGenerator<string, void, unknown> {
+    if (!this.apiKey) {
+      throw new Error('OpenRouter API key is not configured. Please set VITE_OPENROUTER_API_KEY in environment variables.')
+    }
+
     try {
       const response = await fetch(this.baseUrl, {
         method: 'POST',
@@ -173,6 +182,11 @@ export class OpenRouterService {
    * Get available models from OpenRouter
    */
   async getModels(): Promise<any[]> {
+    if (!this.apiKey) {
+      console.warn('OpenRouter API key not configured - returning empty models list')
+      return []
+    }
+
     try {
       const response = await fetch('https://openrouter.ai/api/v1/models', {
         headers: {
