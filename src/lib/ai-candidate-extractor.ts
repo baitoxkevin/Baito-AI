@@ -45,8 +45,33 @@ You must extract the following fields from the text:
 - emergency_contact_name: Emergency contact person name
 - emergency_contact_number: Emergency contact phone number
 - skills: Array of skills or languages
-- experience: Array of work experience entries
+- experience: Array of work experience entries (IMPORTANT: see experience rules below)
 - education: Array of education entries
+- experience_tags: Array of job role tags extracted from experience (for filtering candidates)
+
+EXPERIENCE EXTRACTION RULES:
+1. **Split multi-company experiences**: If one job role lists multiple companies (e.g., "Mystery Shopper at Celcom, Nando, Petrol Station"), create SEPARATE experience entries for each company:
+   - "Mystery Shopper at Celcom"
+   - "Mystery Shopper at Nando"
+   - "Mystery Shopper at Petrol Station"
+
+2. **Extract job role tags**: For each experience, identify the job role/category and add to experience_tags. Common tags include:
+   - "Promoter" (for promotional work)
+   - "Mystery Shopper" (for mystery shopping)
+   - "Supervisor" or "Team Leader" (for supervisory roles)
+   - "Runner" (for runner/assistant roles)
+   - "Setup" or "Event Setup" (for setup work)
+   - "Emcee" or "MC" (for hosting events)
+   - "Sales" (for sales roles)
+   - "Customer Service" (for service roles)
+
+3. **Deduplicate tags**: Only include each tag once in the experience_tags array, even if the candidate has multiple experiences with that role.
+
+EXAMPLE:
+Input: "Related Mystery Shopper- Celcom, Nando, Petrol Station"
+Output:
+  experience: ["Mystery Shopper at Celcom", "Mystery Shopper at Nando", "Mystery Shopper at Petrol Station"]
+  experience_tags: ["Mystery Shopper"]
 
 For each field you extract:
 1. Provide the extracted value
@@ -61,6 +86,17 @@ IMPORTANT RULES:
 - Always format dates as YYYY-MM-DD
 - For age, if not explicitly stated, calculate from IC number or date of birth
 - Be conservative with confidence ratings - only use "high" when you're very certain
+
+CAPITALIZATION RULES:
+- Use proper title case for names (e.g., "Yap Jia Jian", not "yap jia jian")
+- Capitalize first letter of race/ethnicity (e.g., "Chinese", not "chinese" or "Chi")
+- Capitalize location names (e.g., "Old Klang Road", not "old klang road")
+- Capitalize transportation method (e.g., "Car", "Motorcycle", "Public Transport")
+- Use proper capitalization for languages (e.g., "Chinese, English, Malay, Cantonese")
+- T-shirt sizes should be uppercase (e.g., "L", "XL", "XXL")
+- Yes/No answers should be capitalized (e.g., "Yes", "No")
+- Job titles and company names should use proper title case
+- Emergency contact names should use proper title case
 
 Return your response as a valid JSON object with this structure:
 {
@@ -210,21 +246,53 @@ export function aiResultToCandidateInfo(
     skills: parseArrayField(fields.skills?.value),
     experience: parseArrayField(fields.experience?.value),
     education: parseArrayField(fields.education?.value),
+    experience_tags: parseArrayField(fields.experience_tags?.value),
     raw_resume: rawText
   };
 }
 
 /**
  * Helper to parse array fields from AI response
+ * Handles both strings and objects (e.g., work experience/education entries)
  */
 function parseArrayField(value: any): string[] {
   if (!value) return [];
 
-  // If already an array, just filter and return
+  // If already an array, process each item
   if (Array.isArray(value)) {
     return value
-      .filter(item => typeof item === 'string' && item.trim().length > 0)
-      .map(item => String(item).trim());
+      .map(item => {
+        // Handle string items
+        if (typeof item === 'string' && item.trim().length > 0) {
+          return item.trim();
+        }
+
+        // Handle object items (e.g., {title, company, duration, description})
+        if (typeof item === 'object' && item !== null) {
+          // For work experience objects
+          if (item.title) {
+            const parts = [item.title];
+            if (item.company) parts.push(`at ${item.company}`);
+            if (item.duration) parts.push(`(${item.duration})`);
+            return parts.join(' ');
+          }
+
+          // For education objects
+          if (item.degree || item.institution) {
+            const parts = [];
+            if (item.degree) parts.push(item.degree);
+            if (item.institution) parts.push(`at ${item.institution}`);
+            if (item.year) parts.push(`(${item.year})`);
+            return parts.join(' ');
+          }
+
+          // Fallback: convert object to JSON string
+          return JSON.stringify(item);
+        }
+
+        return null;
+      })
+      .filter(item => item !== null && item.length > 0) as string[];
   }
 
   // If it's a string, try to parse it
@@ -233,7 +301,8 @@ function parseArrayField(value: any): string[] {
     try {
       const parsed = JSON.parse(value);
       if (Array.isArray(parsed)) {
-        return parsed.filter(item => typeof item === 'string' && item.trim().length > 0);
+        // Recursively call parseArrayField to handle the parsed array
+        return parseArrayField(parsed);
       }
     } catch {
       // If not valid JSON, split by common delimiters

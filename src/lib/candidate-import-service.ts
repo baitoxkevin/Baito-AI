@@ -10,7 +10,7 @@ export interface CandidateInfo {
   experience: string[];
   education: string[];
   raw_resume: string;
-  
+
   // Additional fields for the numbered format
   unique_id?: string;
   ic_number?: string;
@@ -22,14 +22,17 @@ export interface CandidateInfo {
   spoken_languages?: string;
   height?: string;
   typhoid?: string;
-  
+
   // Emergency contact information
   emergency_contact_name?: string;
   emergency_contact_number?: string;
-  
+
   // Photos
   profile_photo?: string;
   full_body_photo?: string;
+
+  // Experience tags for filtering (e.g., "Promoter", "Mystery Shopper", "Supervisor")
+  experience_tags?: string[];
 }
 
 /**
@@ -118,6 +121,10 @@ export async function createCandidate(candidateInfo: CandidateInfo) {
       has_vehicle: hasVehicle,
       vehicle_type: vehicleType,
       highest_education: candidateInfo.education.length > 0 ? candidateInfo.education[0] : null,
+
+      // Array fields for skills and experience tags
+      skills: candidateInfo.skills || [],
+      experience_tags: candidateInfo.experience_tags || [],
 
       // Address data - serialize as JSON
       address_business: {
