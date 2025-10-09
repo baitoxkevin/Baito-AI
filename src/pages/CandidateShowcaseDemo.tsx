@@ -259,228 +259,143 @@ const CandidateShowcaseDemo = () => {
     </div>
   );
 
-  // 4. Cinematic Carousel View - Redesigned 2024
+  // 4. Cinematic Carousel View
   const CinematicCarouselView = () => {
     const currentCandidate = sampleCandidates[currentCarouselIndex];
     const statusBadge = getStatusBadge(currentCandidate.id);
 
     return (
-      <div className="relative min-h-[800px] bg-gradient-to-br from-indigo-950 via-purple-900 to-pink-900 flex items-center justify-center p-4 overflow-hidden">
-        {/* Animated Background Orbs */}
-        <div className="absolute inset-0 pointer-events-none overflow-hidden">
-          <motion.div
-            animate={{
-              scale: [1, 1.2, 1],
-              opacity: [0.3, 0.5, 0.3],
-            }}
-            transition={{
-              duration: 8,
-              repeat: Infinity,
-              ease: "easeInOut"
-            }}
-            className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-500/30 rounded-full blur-3xl"
-          />
-          <motion.div
-            animate={{
-              scale: [1.2, 1, 1.2],
-              opacity: [0.5, 0.3, 0.5],
-            }}
-            transition={{
-              duration: 10,
-              repeat: Infinity,
-              ease: "easeInOut"
-            }}
-            className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-500/30 rounded-full blur-3xl"
-          />
-          <motion.div
-            animate={{
-              scale: [1, 1.3, 1],
-              opacity: [0.4, 0.6, 0.4],
-            }}
-            transition={{
-              duration: 12,
-              repeat: Infinity,
-              ease: "easeInOut"
-            }}
-            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-pink-500/20 rounded-full blur-3xl"
-          />
+      <div className="relative min-h-[700px] bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex items-center justify-center p-8">
+        {/* Background Effects */}
+        <div className="absolute inset-0 opacity-30 pointer-events-none">
+          <div className="absolute inset-0" style={{
+            backgroundImage: 'radial-gradient(circle at 30% 50%, rgba(59, 130, 246, 0.3) 0%, transparent 50%), radial-gradient(circle at 70% 50%, rgba(139, 92, 246, 0.3) 0%, transparent 50%)',
+          }} />
         </div>
 
-        {/* Left Navigation - Glassmorphic */}
+        {/* Left Navigation Button */}
         <Button
           variant="ghost"
           size="icon"
           disabled={currentCarouselIndex === 0}
-          className="absolute left-8 top-1/2 -translate-y-1/2 text-white hover:bg-white/30 active:scale-95 z-50 w-20 h-20 rounded-2xl backdrop-blur-xl bg-white/10 border border-white/20 shadow-2xl transition-all hover:border-white/40 disabled:opacity-20 disabled:cursor-not-allowed group"
+          className="absolute left-6 top-1/2 -translate-y-1/2 text-white hover:bg-white/20 active:bg-white/30 z-50 w-16 h-16 rounded-full backdrop-blur-md border-2 border-white/40 shadow-2xl transition-all hover:scale-110 disabled:opacity-30 disabled:cursor-not-allowed"
           onClick={(e) => {
             e.stopPropagation();
             setCurrentCarouselIndex((prev) => Math.max(0, prev - 1));
           }}
         >
-          <ChevronLeft className="w-10 h-10 stroke-[2.5] group-hover:scale-110 transition-transform" />
+          <ChevronLeft className="w-8 h-8 stroke-[3]" />
         </Button>
 
         <AnimatePresence mode="wait">
           <motion.div
             key={currentCarouselIndex}
-            initial={{ opacity: 0, scale: 0.92, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.92, y: -20 }}
-            transition={{ duration: 0.5, type: "spring", bounce: 0.3 }}
-            className="max-w-6xl w-full relative z-10"
+            initial={{ opacity: 0, scale: 0.9, rotateY: -10 }}
+            animate={{ opacity: 1, scale: 1, rotateY: 0 }}
+            exit={{ opacity: 0, scale: 0.9, rotateY: 10 }}
+            transition={{ duration: 0.4, type: "spring" }}
+            className="max-w-5xl w-full relative z-10"
           >
-            {/* Glassmorphic Card */}
-            <div className="relative rounded-3xl overflow-hidden backdrop-blur-2xl bg-white/10 border border-white/20 shadow-[0_8px_32px_0_rgba(0,0,0,0.37)]">
-              {/* Gradient Overlay */}
-              <div className="absolute inset-0 bg-gradient-to-br from-white/5 via-transparent to-white/5 pointer-events-none" />
-
-              <div className="relative p-8 md:p-12">
-                <div className="flex flex-col lg:flex-row gap-8 items-start">
-                  {/* Left: Enhanced Photo Section */}
-                  <div className="flex-shrink-0 lg:w-2/5">
-                    <motion.div
-                      initial={{ scale: 0.9, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      transition={{ delay: 0.2, duration: 0.5 }}
-                      className="relative group"
-                    >
-                      {/* Animated Glow Effect */}
-                      <motion.div
-                        animate={{
-                          scale: [1, 1.05, 1],
-                          opacity: [0.5, 0.8, 0.5],
-                        }}
-                        transition={{
-                          duration: 3,
-                          repeat: Infinity,
-                          ease: "easeInOut"
-                        }}
-                        className="absolute -inset-4 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 rounded-3xl blur-2xl opacity-60"
+            <Card className="bg-white/95 backdrop-blur-xl border-none shadow-2xl overflow-hidden">
+              <CardContent className="p-8">
+                <div className="flex flex-col md:flex-row gap-8 items-start">
+                  {/* Large Photo with Status */}
+                  <div className="flex-shrink-0">
+                    <div className="relative group">
+                      <div className="absolute inset-0 bg-gradient-to-br from-blue-400 to-purple-600 rounded-2xl blur-2xl opacity-50 group-hover:opacity-75 transition-opacity" />
+                      <img
+                        src={currentCandidate.photo}
+                        alt={currentCandidate.name}
+                        className="relative w-72 h-72 rounded-2xl object-cover border-4 border-white shadow-2xl"
                       />
-
-                      {/* Photo Frame with Neumorphic Effect */}
-                      <div className="relative rounded-3xl bg-white/10 backdrop-blur-xl p-4 border border-white/30 shadow-[inset_0_2px_22px_rgba(255,255,255,0.2)]">
-                        <img
-                          src={currentCandidate.photo}
-                          alt={currentCandidate.name}
-                          className="relative w-full aspect-square rounded-2xl object-cover"
-                        />
-
-                        {/* Status Badge - Glassmorphic */}
-                        <div className={`absolute -bottom-2 -right-2 w-16 h-16 rounded-2xl backdrop-blur-xl border-2 border-white/40 shadow-2xl flex items-center justify-center ${
-                          statusBadge.label === 'Approved' ? 'bg-green-500/80' :
-                          statusBadge.label === 'KIV' ? 'bg-yellow-500/80' :
-                          statusBadge.label === 'Rejected' ? 'bg-red-500/80' :
-                          'bg-gray-500/80'
-                        }`}>
-                          {statusBadge.label === 'Approved' && <Check className="w-8 h-8 text-white" />}
-                          {statusBadge.label === 'KIV' && <Pause className="w-8 h-8 text-white" />}
-                          {statusBadge.label === 'Rejected' && <X className="w-8 h-8 text-white" />}
-                        </div>
+                      <div className={`absolute -bottom-3 -right-3 w-12 h-12 rounded-full border-4 border-white shadow-lg flex items-center justify-center ${
+                        statusBadge.label === 'Approved' ? 'bg-green-500' :
+                        statusBadge.label === 'KIV' ? 'bg-yellow-500' :
+                        statusBadge.label === 'Rejected' ? 'bg-red-500' :
+                        'bg-gray-400'
+                      }`}>
+                        {statusBadge.label === 'Approved' && <Check className="w-6 h-6 text-white" />}
+                        {statusBadge.label === 'KIV' && <Pause className="w-6 h-6 text-white" />}
+                        {statusBadge.label === 'Rejected' && <X className="w-6 h-6 text-white" />}
                       </div>
-                    </motion.div>
+                    </div>
                   </div>
 
-                  {/* Right: Details Section */}
-                  <div className="flex-1 space-y-6 text-white lg:w-3/5">
-                    {/* Header */}
-                    <motion.div
-                      initial={{ opacity: 0, x: 20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.3 }}
-                    >
-                      <div className="flex items-center gap-3 mb-3">
-                        <h2 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-white via-blue-100 to-purple-100 bg-clip-text text-transparent leading-tight">
+                  {/* Details */}
+                  <div className="flex-1 space-y-6">
+                    <div>
+                      <div className="flex items-center gap-3 mb-2">
+                        <h2 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                           {currentCandidate.name}
                         </h2>
+                        <Badge className={`${statusBadge.className} border`}>{statusBadge.label}</Badge>
                       </div>
-                      <p className="text-xl text-white/80 font-medium">{currentCandidate.role} • {currentCandidate.age} years old</p>
-                      <Badge className={`${statusBadge.className} border mt-2`}>{statusBadge.label}</Badge>
-                    </motion.div>
+                      <p className="text-xl text-gray-600">{currentCandidate.role} • {currentCandidate.age} years old</p>
+                    </div>
 
-                    {/* Rating - Glassmorphic */}
-                    <motion.div
-                      initial={{ opacity: 0, scale: 0.9 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ delay: 0.4 }}
-                      className="flex items-center gap-3 px-6 py-4 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 w-fit"
-                    >
+                    <div className="flex items-center gap-2">
                       {[...Array(5)].map((_, i) => (
-                        <Star key={i} className="w-7 h-7 fill-yellow-300 text-yellow-300 drop-shadow-lg" />
+                        <Star key={i} className="w-7 h-7 fill-yellow-400 text-yellow-400" />
                       ))}
-                      <span className="text-4xl font-bold ml-2">{currentCandidate.rating}</span>
-                    </motion.div>
+                      <span className="text-3xl font-bold ml-2 text-gray-900">{currentCandidate.rating}</span>
+                    </div>
 
-                    {/* Info Cards - Glassmorphic Grid */}
-                    <motion.div
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.5 }}
-                      className="grid grid-cols-2 gap-3"
-                    >
-                      {[
-                        { icon: MapPin, label: 'Location', value: currentCandidate.location, color: 'from-blue-400 to-cyan-400' },
-                        { icon: GraduationCap, label: 'Education', value: currentCandidate.education, color: 'from-purple-400 to-pink-400' },
-                        { icon: Car, label: 'Vehicle', value: currentCandidate.vehicle, color: 'from-green-400 to-emerald-400' },
-                        { icon: Award, label: 'Experience', value: `${currentCandidate.projects} Projects`, color: 'from-orange-400 to-amber-400' },
-                      ].map((item, idx) => (
-                        <motion.div
-                          key={item.label}
-                          initial={{ opacity: 0, scale: 0.9 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          transition={{ delay: 0.5 + idx * 0.05 }}
-                          className="relative group"
-                        >
-                          <div className="absolute inset-0 bg-gradient-to-r ${item.color} opacity-20 rounded-xl blur-md group-hover:opacity-30 transition-opacity" />
-                          <div className="relative flex items-center gap-3 bg-white/10 backdrop-blur-lg border border-white/20 rounded-xl p-4 hover:bg-white/15 transition-all">
-                            <item.icon className="w-6 h-6 text-white" />
-                            <div>
-                              <div className="text-xs text-white/60 font-medium">{item.label}</div>
-                              <div className="font-bold text-white">{item.value}</div>
-                            </div>
-                          </div>
-                        </motion.div>
-                      ))}
-                    </motion.div>
-
-                    {/* Skills & Languages */}
-                    <motion.div
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ delay: 0.7 }}
-                      className="space-y-4"
-                    >
-                      <div>
-                        <h4 className="font-semibold mb-3 text-white/90 text-sm uppercase tracking-wider">Skills</h4>
-                        <div className="flex flex-wrap gap-2">
-                          {currentCandidate.skills.map(skill => (
-                            <Badge key={skill} className="bg-gradient-to-r from-blue-500/80 to-purple-500/80 backdrop-blur-md border border-white/30 text-white px-4 py-1.5">{skill}</Badge>
-                          ))}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="flex items-center gap-3 bg-blue-50 rounded-lg p-3">
+                        <MapPin className="w-5 h-5 text-blue-600" />
+                        <div>
+                          <div className="text-xs text-gray-500">Location</div>
+                          <div className="font-semibold">{currentCandidate.location}</div>
                         </div>
                       </div>
-
-                      <div>
-                        <h4 className="font-semibold mb-3 text-white/90 text-sm uppercase tracking-wider">Languages</h4>
-                        <div className="flex flex-wrap gap-2">
-                          {currentCandidate.languages.map(lang => (
-                            <Badge key={lang} className="bg-white/10 backdrop-blur-md border-2 border-white/40 text-white px-4 py-1.5">{lang}</Badge>
-                          ))}
+                      <div className="flex items-center gap-3 bg-purple-50 rounded-lg p-3">
+                        <GraduationCap className="w-5 h-5 text-purple-600" />
+                        <div>
+                          <div className="text-xs text-gray-500">Education</div>
+                          <div className="font-semibold">{currentCandidate.education}</div>
                         </div>
                       </div>
-                    </motion.div>
+                      <div className="flex items-center gap-3 bg-green-50 rounded-lg p-3">
+                        <Car className="w-5 h-5 text-green-600" />
+                        <div>
+                          <div className="text-xs text-gray-500">Vehicle</div>
+                          <div className="font-semibold">{currentCandidate.vehicle}</div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3 bg-orange-50 rounded-lg p-3">
+                        <Award className="w-5 h-5 text-orange-600" />
+                        <div>
+                          <div className="text-xs text-gray-500">Experience</div>
+                          <div className="font-semibold">{currentCandidate.projects} Projects</div>
+                        </div>
+                      </div>
+                    </div>
 
-                    {/* Action Buttons - Glassmorphic */}
-                    <motion.div
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.8 }}
-                      className="flex gap-3 pt-6"
-                    >
+                    <div>
+                      <h4 className="font-semibold mb-3 text-gray-700">Skills</h4>
+                      <div className="flex flex-wrap gap-2">
+                        {currentCandidate.skills.map(skill => (
+                          <Badge key={skill} className="bg-gradient-to-r from-blue-500 to-purple-500 text-white">{skill}</Badge>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <h4 className="font-semibold mb-3 text-gray-700">Languages</h4>
+                      <div className="flex flex-wrap gap-2">
+                        {currentCandidate.languages.map(lang => (
+                          <Badge key={lang} variant="outline" className="border-2">{lang}</Badge>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="flex gap-3 pt-4 border-t">
                       <Button
                         size="lg"
                         className={candidateStatuses[currentCandidate.id] === 'approved'
-                          ? 'flex-1 bg-green-500/90 hover:bg-green-600/90 backdrop-blur-md border-2 border-white/40 shadow-lg hover:shadow-xl transition-all'
-                          : 'flex-1 bg-white/10 hover:bg-white/20 text-white backdrop-blur-md border-2 border-white/30 hover:border-green-400/50 transition-all'}
+                          ? 'flex-1 bg-green-600 hover:bg-green-700'
+                          : 'flex-1 bg-green-50 hover:bg-green-100 text-green-700 border-2 border-green-300'}
                         onClick={(e) => {
                           e.stopPropagation();
                           updateCandidateStatus(currentCandidate.id, 'approved');
@@ -492,8 +407,8 @@ const CandidateShowcaseDemo = () => {
                       <Button
                         size="lg"
                         className={candidateStatuses[currentCandidate.id] === 'kiv'
-                          ? 'flex-1 bg-yellow-500/90 hover:bg-yellow-600/90 backdrop-blur-md border-2 border-white/40 shadow-lg hover:shadow-xl transition-all'
-                          : 'flex-1 bg-white/10 hover:bg-white/20 text-white backdrop-blur-md border-2 border-white/30 hover:border-yellow-400/50 transition-all'}
+                          ? 'flex-1 bg-yellow-600 hover:bg-yellow-700'
+                          : 'flex-1 bg-yellow-50 hover:bg-yellow-100 text-yellow-700 border-2 border-yellow-300'}
                         onClick={(e) => {
                           e.stopPropagation();
                           updateCandidateStatus(currentCandidate.id, 'kiv');
@@ -505,8 +420,8 @@ const CandidateShowcaseDemo = () => {
                       <Button
                         size="lg"
                         className={candidateStatuses[currentCandidate.id] === 'rejected'
-                          ? 'flex-1 bg-red-500/90 hover:bg-red-600/90 backdrop-blur-md border-2 border-white/40 shadow-lg hover:shadow-xl transition-all'
-                          : 'flex-1 bg-white/10 hover:bg-white/20 text-white backdrop-blur-md border-2 border-white/30 hover:border-red-400/50 transition-all'}
+                          ? 'flex-1 bg-red-600 hover:bg-red-700'
+                          : 'flex-1 bg-red-50 hover:bg-red-100 text-red-700 border-2 border-red-300'}
                         onClick={(e) => {
                           e.stopPropagation();
                           updateCandidateStatus(currentCandidate.id, 'rejected');
@@ -515,83 +430,69 @@ const CandidateShowcaseDemo = () => {
                         <X className="w-5 h-5 mr-2" />
                         Reject
                       </Button>
-                    </motion.div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </div>
+              </CardContent>
+            </Card>
           </motion.div>
         </AnimatePresence>
 
-        {/* Right Navigation - Glassmorphic */}
+        {/* Right Navigation Button */}
         <Button
           variant="ghost"
           size="icon"
           disabled={currentCarouselIndex === sampleCandidates.length - 1}
-          className="absolute right-8 top-1/2 -translate-y-1/2 text-white hover:bg-white/30 active:scale-95 z-50 w-20 h-20 rounded-2xl backdrop-blur-xl bg-white/10 border border-white/20 shadow-2xl transition-all hover:border-white/40 disabled:opacity-20 disabled:cursor-not-allowed group"
+          className="absolute right-6 top-1/2 -translate-y-1/2 text-white hover:bg-white/20 active:bg-white/30 z-50 w-16 h-16 rounded-full backdrop-blur-md border-2 border-white/40 shadow-2xl transition-all hover:scale-110 disabled:opacity-30 disabled:cursor-not-allowed"
           onClick={(e) => {
             e.stopPropagation();
             setCurrentCarouselIndex((prev) => Math.min(sampleCandidates.length - 1, prev + 1));
           }}
         >
-          <ChevronRight className="w-10 h-10 stroke-[2.5] group-hover:scale-110 transition-transform" />
+          <ChevronRight className="w-8 h-8 stroke-[3]" />
         </Button>
 
-        {/* Enhanced Progress Indicator - Glassmorphic */}
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-50">
-          <div className="flex items-center gap-4 px-8 py-4 rounded-3xl bg-white/10 backdrop-blur-2xl border border-white/30 shadow-2xl">
+        {/* Modern Progress Indicator */}
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-50">
+          <div className="flex items-center gap-3 px-6 py-3 rounded-full bg-black/40 backdrop-blur-md border border-white/20 shadow-xl">
             <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setCurrentCarouselIndex((prev) => Math.max(0, prev - 1));
-              }}
+              onClick={() => setCurrentCarouselIndex((prev) => Math.max(0, prev - 1))}
               disabled={currentCarouselIndex === 0}
-              className="text-white hover:text-blue-300 transition-all disabled:opacity-20 hover:scale-110 active:scale-95"
+              className="text-white hover:text-blue-300 transition-colors disabled:opacity-30"
             >
-              <ChevronLeft className="w-6 h-6" />
+              <ChevronLeft className="w-5 h-5" />
             </button>
 
-            <div className="flex gap-2.5 items-center px-2">
+            <div className="flex gap-2 items-center">
               {sampleCandidates.slice(0, Math.min(10, sampleCandidates.length)).map((_, idx) => (
                 <button
                   key={idx}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setCurrentCarouselIndex(idx);
-                  }}
+                  onClick={() => setCurrentCarouselIndex(idx)}
                   className="group relative"
-                  title={`View ${sampleCandidates[idx].name}`}
+                  title={`Go to candidate ${idx + 1}`}
                 >
-                  <motion.div
-                    initial={false}
-                    animate={{
-                      width: idx === currentCarouselIndex ? 32 : 8,
-                      backgroundColor: idx === currentCarouselIndex ? 'rgba(255,255,255,1)' : 'rgba(255,255,255,0.4)'
-                    }}
-                    transition={{ duration: 0.3, ease: "easeOut" }}
-                    className="h-2 rounded-full hover:bg-white/70 transition-colors"
-                  />
+                  <div className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                    idx === currentCarouselIndex
+                      ? 'bg-white w-8'
+                      : 'bg-white/40 hover:bg-white/60 group-hover:w-3'
+                  }`} />
                 </button>
               ))}
             </div>
 
             <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setCurrentCarouselIndex((prev) => Math.min(sampleCandidates.length - 1, prev + 1));
-              }}
+              onClick={() => setCurrentCarouselIndex((prev) => Math.min(sampleCandidates.length - 1, prev + 1))}
               disabled={currentCarouselIndex === sampleCandidates.length - 1}
-              className="text-white hover:text-blue-300 transition-all disabled:opacity-20 hover:scale-110 active:scale-95"
+              className="text-white hover:text-blue-300 transition-colors disabled:opacity-30"
             >
-              <ChevronRight className="w-6 h-6" />
+              <ChevronRight className="w-5 h-5" />
             </button>
           </div>
         </div>
 
-        {/* Counter Badge - Glassmorphic */}
-        <div className="absolute top-8 right-8 z-50 px-6 py-3 rounded-2xl bg-white/10 backdrop-blur-2xl border border-white/30 text-white font-bold shadow-2xl">
-          <span className="text-2xl">{currentCarouselIndex + 1}</span>
-          <span className="text-white/60 text-sm"> / {sampleCandidates.length}</span>
+        {/* Counter Badge */}
+        <div className="absolute top-6 right-6 z-50 px-4 py-2 rounded-full bg-black/40 backdrop-blur-md border border-white/20 text-white text-sm font-semibold shadow-xl">
+          {currentCarouselIndex + 1} / {sampleCandidates.length}
         </div>
       </div>
     );
