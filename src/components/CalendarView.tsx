@@ -952,7 +952,7 @@ const CalendarView = React.memo(React.forwardRef<HTMLDivElement, CalendarViewPro
                   "relative cursor-pointer select-none p-0 transition-colors duration-200 flex flex-col rounded-lg overflow-hidden border-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
                   isCurrentMonth
                     ? "bg-white border-gray-300 hover:bg-gray-50"
-                    : "bg-gray-50 border-gray-200 opacity-50"
+                    : "bg-gray-100 border-gray-200 opacity-40 text-gray-400"
                 )}
                 style={{
                   boxSizing: 'border-box',
@@ -1362,28 +1362,31 @@ const CalendarView = React.memo(React.forwardRef<HTMLDivElement, CalendarViewPro
                     >
                       {spans.map((span, index) => {
                         // FIXED POSITIONING - absolute pixel values for consistency
-                        // Header height (day headers)
-                        const headerHeight = 32; 
-                        
-                        // For each week, use the exact same positions
-                        // Calculate which week this is
-                        const weekPosition = span.row * 120; // Fixed 120px per week
-                        
-                        // Fixed positions for each project row - same for all weeks
+                        // Header height includes: month header (~40px) + day labels (~24px)
+                        const monthHeaderHeight = 40; // Month navigation header
+                        const dayLabelsHeight = 24;   // M T W T F S S row
+                        const headerHeight = monthHeaderHeight + dayLabelsHeight; // Total: ~64px
+
+                        // Calculate height per week row based on container
+                        // Using a more accurate estimate for week row height
+                        const weekRowHeight = 140; // Increased from 120px for better spacing
+
+                        // Fixed positions for each project row within a week
+                        // These values match the single-day event positioning for visual consistency
                         const rowPositions = [
-                          42, // First row
-                          67, // Second row 
-                          92  // Third row
+                          42,  // First row (matches single-day events)
+                          75,  // Second row (42 + 33px spacing)
+                          108  // Third row (42 + 66px spacing)
                         ];
-                        
+
                         // Always use a valid row position - ensure no row is undefined
                         // If row is somehow invalid, default to first row
                         const rowPosition = projectItem.row >= 0 && projectItem.row < rowPositions.length
                             ? rowPositions[projectItem.row]
                             : rowPositions[0];
 
-                        // Fixed positioning using exact formula specified
-                        const topOffset = headerHeight + (span.row * 120) + rowPosition;
+                        // Fixed positioning using exact formula
+                        const topOffset = headerHeight + (span.row * weekRowHeight) + rowPosition;
                         
                         // This ensures events stay at the exact same vertical position across weeks
                         

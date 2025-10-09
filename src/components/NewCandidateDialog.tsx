@@ -30,7 +30,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabase';
-import { CheckCircle, Building, FileText, Home, CreditCard, User, UserCheck, Car, Languages, Camera, Upload, X } from 'lucide-react';
+import { CheckCircle, Building, FileText, Home, CreditCard, User, UserCheck, Car, Languages, Camera, Upload, X, Trash2 } from 'lucide-react';
 import { ProfileUpload } from '@/components/ui/profile-upload';
 import { parseICNumber, calculateAge } from '@/lib/ic-parser';
 
