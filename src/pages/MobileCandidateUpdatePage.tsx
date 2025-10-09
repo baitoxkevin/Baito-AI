@@ -940,7 +940,7 @@ export default function MobileCandidateUpdatePage() {
       const updateData = {
         full_name: formData.full_name,
         phone_number: formData.phone_number,
-        email: formData.email,
+        email: formData.email?.trim() || null, // Convert empty string to null to avoid unique constraint violation
         nationality: formData.nationality,
         ic_number: formData.ic_number || null,
         passport_number: formData.passport_number || null,
