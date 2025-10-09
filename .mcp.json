@@ -14,6 +14,13 @@
         "N8N_API_URL": "http://localhost:5678",
         "N8N_API_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJmODUwZTAyOS00NDgxLTRkNTQtOTkzYS0yMjAxMzY2NDZkZmEiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwiaWF0IjoxNzU5OTIyOTkzfQ.dCuybsTx487Wn0ptiSRc7CE6frY6jhBWSxACXL13FEU"
       }
+    },
+    "supabase": {
+      "command": "npx",
+      "args": ["-y", "@supabase/mcp-server-supabase@latest", "--project-ref=aoiwrdzlichescqgnohi"],
+      "env": {
+        "SUPABASE_ACCESS_TOKEN": "sbp_16987deaa8ff445fde3f7da3a661d89153147e43"
+      }
     }
   }
 }

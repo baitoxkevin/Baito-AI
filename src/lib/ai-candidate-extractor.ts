@@ -227,6 +227,21 @@ export function aiResultToCandidateInfo(
 ): CandidateInfo {
   const fields = result.fields;
 
+  // Parse array fields
+  const skills = parseArrayField(fields.skills?.value);
+  const experience = parseArrayField(fields.experience?.value);
+  const education = parseArrayField(fields.education?.value);
+  const experience_tags = parseArrayField(fields.experience_tags?.value);
+
+  // Debug logging
+  console.log('🔍 AI Extraction Parsing:');
+  console.log('  Skills raw:', fields.skills?.value);
+  console.log('  Skills parsed:', skills);
+  console.log('  Experience raw:', fields.experience?.value);
+  console.log('  Experience parsed:', experience);
+  console.log('  Experience Tags raw:', fields.experience_tags?.value);
+  console.log('  Experience Tags parsed:', experience_tags);
+
   return {
     name: fields.name?.value || '',
     email: fields.email?.value || '',
@@ -243,10 +258,10 @@ export function aiResultToCandidateInfo(
     typhoid: fields.typhoid?.value || '',
     emergency_contact_name: fields.emergency_contact_name?.value || '',
     emergency_contact_number: fields.emergency_contact_number?.value || '',
-    skills: parseArrayField(fields.skills?.value),
-    experience: parseArrayField(fields.experience?.value),
-    education: parseArrayField(fields.education?.value),
-    experience_tags: parseArrayField(fields.experience_tags?.value),
+    skills,
+    experience,
+    education,
+    experience_tags,
     raw_resume: rawText
   };
 }
