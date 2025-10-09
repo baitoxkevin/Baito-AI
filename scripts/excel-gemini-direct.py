@@ -10,11 +10,12 @@ import base64
 import json
 import requests
 import time
+import os
 from pathlib import Path
 from datetime import datetime
 
 # Configuration
-OPENROUTER_API_KEY = "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"
+OPENROUTER_API_KEY = os.environ.get('OPENROUTER_API_KEY', '')  # Get from environment variable
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 MODEL = "google/gemini-2.0-flash-exp:free"
 
