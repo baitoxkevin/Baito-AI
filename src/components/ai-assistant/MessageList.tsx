@@ -14,9 +14,10 @@ import { RichContentCard, type RichContent } from '@/components/chat/RichContent
 
 interface MessageListProps {
   messages: Message[]
+  onAction?: (action: string) => void
 }
 
-export function MessageList({ messages }: MessageListProps) {
+export function MessageList({ messages, onAction }: MessageListProps) {
   return (
     <div
       className="space-y-3"
@@ -25,7 +26,7 @@ export function MessageList({ messages }: MessageListProps) {
       aria-label="Conversation messages"
     >
       {messages.map((message, index) => (
-        <MessageBubble key={message.id || index} message={message} />
+        <MessageBubble key={message.id || index} message={message} onAction={onAction} />
       ))}
     </div>
   )
@@ -33,9 +34,10 @@ export function MessageList({ messages }: MessageListProps) {
 
 interface MessageBubbleProps {
   message: Message
+  onAction?: (action: string) => void
 }
 
-function MessageBubble({ message }: MessageBubbleProps) {
+function MessageBubble({ message, onAction }: MessageBubbleProps) {
   const isUser = message.type === 'user'
   const isError = message.type === 'error'
   const isSystem = message.type === 'system'
@@ -265,7 +267,7 @@ function MessageBubble({ message }: MessageBubbleProps) {
 
         {/* Action Buttons - Show outside bubble for assistant messages */}
         {!isUser && message.buttons && message.buttons.length > 0 && (
-          <ActionButtons buttons={message.buttons} />
+          <ActionButtons buttons={message.buttons} onAction={onAction} />
         )}
 
         {/* Timestamp - Outside bubble */}

@@ -242,7 +242,7 @@ export function ChatWidget({ userId, userRole = 'manager', className }: ChatWidg
                     style={{ backgroundColor: colors.status.online }}
                     title={t('chat.online', 'Online')}
                   />
-                  <h3 className="font-semibold text-sm">{t('chat.header', 'AI Assistant')}</h3>
+                  <h3 className="font-semibold text-sm">{t('chat.header', 'Baiger')}</h3>
                   {conversationId && (
                     <span className="text-xs opacity-75">{t('chat.connected', 'Active')}</span>
                   )}
@@ -341,7 +341,10 @@ export function ChatWidget({ userId, userRole = 'manager', className }: ChatWidg
                       </div>
                     ) : (
                       <>
-                        <MessageList messages={messages} />
+                        <MessageList messages={messages} onAction={async (action) => {
+                          // Send the action directly as a message
+                          await sendMessage(action)
+                        }} />
                         {isLoading && <TypingIndicator />}
                       </>
                     )}

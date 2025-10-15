@@ -27,6 +27,7 @@ export interface ActionButton {
   label: string
   path?: string
   url?: string
+  action?: string  // Message to send to chatbot
   variant?: 'default' | 'outline' | 'secondary'
   icon?: string
 }
@@ -34,6 +35,7 @@ export interface ActionButton {
 interface ActionButtonsProps {
   buttons: ActionButton[]
   className?: string
+  onAction?: (action: string) => void  // Callback for message actions
 }
 
 const iconMap: Record<string, any> = {
@@ -52,11 +54,14 @@ const iconMap: Record<string, any> = {
   external: ExternalLink
 }
 
-export function ActionButtons({ buttons, className }: ActionButtonsProps) {
+export function ActionButtons({ buttons, className, onAction }: ActionButtonsProps) {
   const navigate = useNavigate()
 
   const handleClick = (button: ActionButton) => {
-    if (button.path) {
+    if (button.action && onAction) {
+      // Send message to chatbot
+      onAction(button.action)
+    } else if (button.path) {
       navigate(button.path)
     } else if (button.url) {
       window.open(button.url, '_blank', 'noopener,noreferrer')
