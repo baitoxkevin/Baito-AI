@@ -5,9 +5,9 @@ import * as z from 'zod';
 import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 import { logger } from '../lib/logger';
-import { 
-  CalendarIcon, 
-  Loader2, 
+import {
+  CalendarIcon,
+  Loader2,
   X,
   FileText,
   Palette,
@@ -28,12 +28,15 @@ import {
   UserCheck,
   Link,
   Search,
-  ChevronDown
+  ChevronDown,
+  Zap
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import {
   Form,
@@ -89,6 +92,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
+import { SpeedAddProjectDialog } from '@/components/SpeedAddProjectDialog';
 
 // Define step types
 type Step = 
@@ -189,6 +193,7 @@ export function NewProjectDialog({
   const [brandLogoError, setBrandLogoError] = useState(false);
   const [showCCResetConfirm, setShowCCResetConfirm] = useState(false);
   const [pendingClientId, setPendingClientId] = useState<string | null>(null);
+  const [speedAddOpen, setSpeedAddOpen] = useState(false);
   const { toast } = useToast();
 
   const form = useForm<ProjectFormValues>({
@@ -405,6 +410,26 @@ export function NewProjectDialog({
     }
   };
 
+  const handleSpeedAddData = (extractedData: any) => {
+    // Pre-fill form fields with extracted data
+    if (extractedData.title) form.setValue('title', extractedData.title);
+    if (extractedData.event_type) form.setValue('event_type', extractedData.event_type);
+    if (extractedData.description) form.setValue('description', extractedData.description);
+    if (extractedData.venue_address) form.setValue('venue_address', extractedData.venue_address);
+    if (extractedData.venue_details) form.setValue('venue_details', extractedData.venue_details);
+    if (extractedData.start_date) form.setValue('start_date', extractedData.start_date);
+    if (extractedData.end_date) form.setValue('end_date', extractedData.end_date);
+    if (extractedData.working_hours_start) form.setValue('working_hours_start', extractedData.working_hours_start);
+    if (extractedData.working_hours_end) form.setValue('working_hours_end', extractedData.working_hours_end);
+    if (extractedData.crew_count) form.setValue('crew_count', extractedData.crew_count);
+    if (extractedData.hourly_rate) form.setValue('budget', extractedData.hourly_rate * extractedData.crew_count * 8); // Estimate daily budget
+
+    toast({
+      title: "Data Loaded",
+      description: "Project information has been pre-filled. Please review and complete any missing fields.",
+    });
+  };
+
   const currentStepIndex = steps.findIndex(s => s.id === currentStep);
   const progress = ((currentStepIndex + 1) / steps.length) * 100;
 
@@ -470,19 +495,23 @@ export function NewProjectDialog({
       });
       return;
     }
-    
+
     setIsLoading(true);
+
+    // Define processedData outside try-catch so it's accessible in catch block
+    let processedData: any = null;
+
     try {
       // Log the data being submitted
       console.log('[NewProjectDialog] Submitting project data:', values);
-      
+
       // Get current user for notification
       const currentUser = await getUser();
       const userName = currentUser?.full_name || currentUser?.email || 'Someone';
 
       // Convert empty strings to null for optional fields
       const { brand_link, ...otherValues } = values;
-      const processedData = {
+      processedData = {
         ...otherValues,
         project_type: values.project_type || null,
         description: values.description || null,
@@ -500,9 +529,9 @@ export function NewProjectDialog({
         filled_positions: 0,
         color: '#' + Math.floor(Math.random()*16777215).toString(16),
       };
-      
+
       const result = await createProject(processedData);
-      
+
       if (!result) {
         throw new Error("Failed to create project");
       }
@@ -530,7 +559,7 @@ export function NewProjectDialog({
 
       onProjectAdded();
       onOpenChange(false);
-      
+
       // Reset form and step
       form.reset();
       setCurrentStep('project-info');
@@ -1940,6 +1969,10 @@ export function NewProjectDialog({
     <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-6xl p-0 h-[92vh] max-h-[900px] flex flex-col overflow-hidden">
+        <DialogTitle className="sr-only">Create New Project</DialogTitle>
+        <DialogDescription className="sr-only">
+          Complete all steps to create a new project in the system
+        </DialogDescription>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col h-full" autoComplete="off" noValidate>
             <div className="flex flex-1 overflow-hidden">
@@ -1959,6 +1992,17 @@ export function NewProjectDialog({
                       <p className="text-sm text-gray-600 dark:text-gray-400 mt-3">
                         Complete all steps to set up your new project.
                       </p>
+                      {/* Speed Add Button */}
+                      <Button
+                        type="button"
+                        onClick={() => setSpeedAddOpen(true)}
+                        variant="outline"
+                        className="w-full mt-4 border-2 border-dashed border-yellow-400 hover:border-yellow-500 hover:bg-yellow-50 dark:hover:bg-yellow-950/20 transition-colors"
+                        size="sm"
+                      >
+                        <Zap className="mr-2 h-4 w-4 text-yellow-500" />
+                        Speed Add from Job Ad
+                      </Button>
                     </div>
                   </div>
 
@@ -2204,6 +2248,12 @@ export function NewProjectDialog({
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
+
+    <SpeedAddProjectDialog
+      open={speedAddOpen}
+      onOpenChange={setSpeedAddOpen}
+      onDataExtracted={handleSpeedAddData}
+    />
     </>
   );
 }
