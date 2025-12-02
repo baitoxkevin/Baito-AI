@@ -2127,34 +2127,24 @@ export default function ListView({
         <div
           className={cn(
             "flex-1",
-            (isIOS || isMobile) && "mobile-scroll-container"
+            !isIOS && isMobile && "mobile-scroll-container"
           )}
           ref={containerRef}
-          style={{
-            // iOS CRITICAL FIX: Use absolute positioning for scroll container
-            // Flex-based scrolling doesn't work reliably on iOS Safari
-            ...(isIOS ? {
-              position: 'absolute',
-              top: '52px', // Below the zoom controls header
-              left: 0,
-              right: 0,
-              bottom: 0,
-              overflowY: 'scroll',
-              overflowX: 'auto',
-              WebkitOverflowScrolling: 'touch',
-              // No transform, no willChange - these break iOS scroll
-            } : {
-              // Non-iOS: Keep flex-based layout
-              height: 'calc(100% - 52px)',
-              minHeight: 0,
-              overflowY: 'scroll',
-              overflowX: 'auto',
-              touchAction: 'auto',
-              WebkitOverflowScrolling: 'touch',
-              overscrollBehavior: 'contain',
-              willChange: 'scroll-position',
-              transform: 'translateZ(0)',
-            }),
+          style={isIOS ? {
+            // iOS ULTRA-SIMPLE: Just basic overflow, nothing else
+            // Let iOS Safari handle scroll completely natively
+            overflow: 'auto',
+            height: '100%',
+            WebkitOverflowScrolling: 'touch',
+          } : {
+            // Non-iOS: Keep existing optimizations
+            height: 'calc(100% - 52px)',
+            minHeight: 0,
+            overflowY: 'scroll',
+            overflowX: 'auto',
+            touchAction: 'auto',
+            WebkitOverflowScrolling: 'touch',
+            overscrollBehavior: 'contain',
           }}
         >
           {/* Add style tag for today's highlight animation */}
@@ -2194,29 +2184,21 @@ export default function ListView({
           )}
             style={{
               minWidth: `${minContentWidth + (isMobile ? 75 : 60)}px`,
-              // iOS Safari scroll fix: Apply zoom differently to avoid breaking scroll
-              // On iOS, we use CSS zoom instead of transform scale as it doesn't break scroll
-              // For other browsers, we continue using transform for better performance
+              // iOS Safari scroll fix: DISABLE zoom entirely on iOS to test if it fixes scroll
+              // Zoom (both CSS zoom and transform scale) may be breaking iOS scroll
               ...(isIOS ? {
-                // iOS-friendly zoom using CSS zoom property (works on Safari)
-                // CSS zoom doesn't break scroll on iOS like transform: scale() does
-                zoom: zoomLevel,
-                // CRITICAL: No backfaceVisibility, no willChange on iOS
-                // These can create compositing layers that break iOS scroll
+                // iOS: NO zoom, NO transform - pure native rendering to ensure scroll works
+                // Users can use native iOS pinch-to-zoom instead
               } : isMobile ? {
                 // Android and other mobile: use transform but without height/width manipulation
                 transform: `scale(${zoomLevel})`,
                 transformOrigin: 'top left',
-                willChange: 'auto',
-                backfaceVisibility: 'hidden',
               } : {
                 // Desktop: use transform for better performance with full control
                 transform: `scale(${zoomLevel})`,
                 transformOrigin: 'top left',
                 height: `${100 / zoomLevel}%`,
                 width: `${100 / zoomLevel}%`,
-                willChange: 'auto',
-                backfaceVisibility: 'hidden',
               }),
             }}
             role="grid"
