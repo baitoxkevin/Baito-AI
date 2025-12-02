@@ -32,6 +32,7 @@ export function SpotlightCardTabs({ activeTab, onTabChange, className }: Spotlig
   );
   const [hoveredTab, setHoveredTab] = useState<number | null>(null);
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   // Update activeTabIndex when activeTab prop changes
   useEffect(() => {
@@ -41,9 +42,37 @@ export function SpotlightCardTabs({ activeTab, onTabChange, className }: Spotlig
     }
   }, [activeTab]);
 
+  // Scroll active tab into view on mobile
+  useEffect(() => {
+    const activeButton = tabRefs.current[activeTabIndex];
+    const scrollContainer = scrollContainerRef.current;
+
+    if (activeButton && scrollContainer) {
+      // Calculate the scroll position to center the active tab
+      const containerWidth = scrollContainer.offsetWidth;
+      const buttonLeft = activeButton.offsetLeft;
+      const buttonWidth = activeButton.offsetWidth;
+      const scrollPosition = buttonLeft - (containerWidth / 2) + (buttonWidth / 2);
+
+      scrollContainer.scrollTo({
+        left: Math.max(0, scrollPosition),
+        behavior: 'smooth'
+      });
+    }
+  }, [activeTabIndex]);
+
   return (
-    <div className={cn("relative overflow-hidden rounded-xl bg-white dark:bg-gray-900 p-1", className)}>
-      <div className="flex items-center justify-center relative px-1">
+    <div className={cn("relative rounded-xl bg-white dark:bg-gray-900 p-1", className)}>
+      {/* Scrollable container for mobile - horizontal scroll with snap */}
+      <div
+        ref={scrollContainerRef}
+        className="flex items-center relative px-1 overflow-x-auto scrollbar-hide scroll-smooth snap-x snap-mandatory"
+        style={{
+          WebkitOverflowScrolling: 'touch',
+          scrollbarWidth: 'none',
+          msOverflowStyle: 'none',
+        }}
+      >
         {/* Background glow effect */}
         {tabRefs.current[activeTabIndex] && (
           <motion.div
@@ -60,12 +89,12 @@ export function SpotlightCardTabs({ activeTab, onTabChange, className }: Spotlig
           />
         )}
 
-        {/* Tab buttons */}
-        <div className="flex justify-center relative z-10 gap-2 mx-auto">
+        {/* Tab buttons - flex-nowrap prevents wrapping on mobile */}
+        <div className="flex flex-nowrap relative z-10 gap-1 sm:gap-2 mx-auto min-w-max">
           {tabs.map((tab, index) => {
             const isActive = activeTabIndex === index;
             const isHovered = hoveredTab === index;
-            
+
             return (
               <button
                 key={tab.value}
@@ -77,9 +106,9 @@ export function SpotlightCardTabs({ activeTab, onTabChange, className }: Spotlig
                 onMouseEnter={() => setHoveredTab(index)}
                 onMouseLeave={() => setHoveredTab(null)}
                 className={cn(
-                  "relative px-3 py-1.5 rounded-lg font-medium text-sm flex items-center gap-1.5 transition-all",
-                  isActive 
-                    ? "text-white" 
+                  "relative px-2 sm:px-3 py-1.5 rounded-lg font-medium text-xs sm:text-sm flex items-center gap-1 sm:gap-1.5 transition-all whitespace-nowrap snap-center flex-shrink-0",
+                  isActive
+                    ? "text-white"
                     : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
                 )}
                 style={{
@@ -97,7 +126,7 @@ export function SpotlightCardTabs({ activeTab, onTabChange, className }: Spotlig
                     transition={{ type: "spring", bounce: 0.15, duration: 0.5 }}
                   />
                 )}
-                
+
                 {/* Hover glow effect */}
                 {isHovered && !isActive && (
                   <motion.div
@@ -109,12 +138,12 @@ export function SpotlightCardTabs({ activeTab, onTabChange, className }: Spotlig
                     transition={{ duration: 0.15 }}
                   />
                 )}
-                
+
                 <tab.icon className={cn(
-                  "relative z-10 h-3.5 w-3.5 transition-transform duration-200",
+                  "relative z-10 h-3 w-3 sm:h-3.5 sm:w-3.5 transition-transform duration-200 flex-shrink-0",
                   isActive && "text-white"
                 )} />
-                
+
                 <span className="relative z-10 transition-all duration-200">
                   {tab.label}
                 </span>

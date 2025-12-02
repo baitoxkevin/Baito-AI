@@ -21,27 +21,41 @@ import type { Project } from '@/lib/types';
 const useIsMobile = () => {
   const [isMobile, setIsMobile] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
+  const [isMobileEmulation, setIsMobileEmulation] = useState(false);
   const [screenWidth, setScreenWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 768);
 
   useEffect(() => {
     const checkMobile = () => {
       const width = window.innerWidth;
       setScreenWidth(width);
-      setIsMobile(width < 768 || 'ontouchstart' in window);
+
+      // Check for touch support
+      const hasTouchSupport = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+
+      // Detect if we're in mobile emulation mode (desktop browser with small viewport)
+      // This happens when width is small but we don't have actual touch events
+      const isDesktopMobileEmulation = width < 768 && !hasTouchSupport;
+      setIsMobileEmulation(isDesktopMobileEmulation);
+
+      // Consider mobile if small screen OR has touch support
+      setIsMobile(width < 768 || hasTouchSupport);
 
       // Detect iOS devices specifically
       // This is important for iOS-specific scroll fixes
       const ua = navigator.userAgent;
       const isIOSDevice = /iPad|iPhone|iPod/.test(ua) ||
         (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1); // iPad with iOS 13+
-      setIsIOS(isIOSDevice);
+
+      // For consistent behavior, treat desktop mobile emulation similar to real mobile
+      // but NOT like iOS (to avoid iOS-specific overflow:visible that breaks desktop emulation)
+      setIsIOS(isIOSDevice && !isDesktopMobileEmulation);
     };
     checkMobile();
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  return { isMobile, isIOS, screenWidth };
+  return { isMobile, isIOS, isMobileEmulation, screenWidth };
 };
 
 interface ProjectTooltipProps {
@@ -1826,6 +1840,26 @@ export default function ListView({
       }
     }
 
+    /* CRITICAL FIX: Ensure toolbar is always visible on all mobile views */
+    /* This applies to both real iOS devices AND desktop mobile emulation */
+    @media (max-width: 768px) {
+      /* Ensure sticky toolbar remains visible */
+      .sticky.top-0 {
+        position: sticky !important;
+        top: 0 !important;
+        z-index: 20 !important;
+        background-color: rgba(249, 250, 251, 0.95) !important;
+        backdrop-filter: blur(4px) !important;
+        -webkit-backdrop-filter: blur(4px) !important;
+      }
+
+      /* Fix for desktop mobile emulation - ensure scroll container works */
+      .mobile-scroll-container {
+        overflow-y: auto !important;
+        overflow-x: auto !important;
+      }
+    }
+
     /* Touch-friendly hover states */
     @media (hover: none) and (pointer: coarse) {
       .touch-active:active {
@@ -1938,9 +1972,10 @@ export default function ListView({
           // iOS FIX v2: On iOS, use auto height - parent handles scroll
           minHeight: isIOS ? 'auto' : 0,
         }}>
-        {/* Zoom controls - responsive for mobile */}
+        {/* Zoom controls - responsive for mobile - FIXED: Always visible with sticky positioning */}
         <div className={cn(
-          "flex items-center justify-between p-2 border-b bg-gray-50/50 text-gray-600",
+          "flex items-center justify-between p-2 border-b bg-gray-50/90 dark:bg-gray-800/90 text-gray-600 backdrop-blur-sm z-20",
+          "sticky top-0", // Make toolbar sticky so it's always visible when scrolling
           isMobile && "flex-wrap gap-2"
         )}>
           <div className={cn(

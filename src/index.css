@@ -8,6 +8,15 @@
 
 /* Custom override for specific draggable components */
 @layer utilities {
+  /* Hide scrollbar utility - cross-browser support */
+  .scrollbar-hide {
+    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none; /* Firefox */
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, and Opera */
+  }
+
   /* Remove focus styles only from specific items */
   .kanban-focus-override {
     @apply outline-none !important;
