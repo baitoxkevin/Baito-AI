@@ -17,9 +17,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import type { Project } from '@/lib/types';
 
-// Custom hook to detect mobile/touch devices
+// Custom hook to detect mobile/touch devices and iOS specifically
 const useIsMobile = () => {
   const [isMobile, setIsMobile] = useState(false);
+  const [isIOS, setIsIOS] = useState(false);
   const [screenWidth, setScreenWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 768);
 
   useEffect(() => {
@@ -27,13 +28,20 @@ const useIsMobile = () => {
       const width = window.innerWidth;
       setScreenWidth(width);
       setIsMobile(width < 768 || 'ontouchstart' in window);
+
+      // Detect iOS devices specifically
+      // This is important for iOS-specific scroll fixes
+      const ua = navigator.userAgent;
+      const isIOSDevice = /iPad|iPhone|iPod/.test(ua) ||
+        (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1); // iPad with iOS 13+
+      setIsIOS(isIOSDevice);
     };
     checkMobile();
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  return { isMobile, screenWidth };
+  return { isMobile, isIOS, screenWidth };
 };
 
 interface ProjectTooltipProps {
@@ -358,7 +366,7 @@ export default function ListView({
   }
 
   // Mobile detection hook
-  const { isMobile, screenWidth } = useIsMobile();
+  const { isMobile, isIOS, screenWidth } = useIsMobile();
 
   // Calculate optimal column width based on screen size and number of projects
   // Mobile: narrower columns to show more projects (like Excel view)
@@ -1717,6 +1725,23 @@ export default function ListView({
       animation: fadeInOut 1.5s ease-in-out;
     }
 
+    /* iOS Safari scroll fix - Critical CSS rules */
+    @supports (-webkit-touch-callout: none) {
+      /* iOS Safari specific styles */
+      .ios-scroll-container {
+        -webkit-overflow-scrolling: touch !important;
+        overflow-y: scroll !important;
+        overflow-x: auto !important;
+      }
+
+      /* Ensure touch events work properly on iOS */
+      .ios-scroll-content {
+        touch-action: pan-y pan-x !important;
+        -webkit-transform: translateZ(0);
+        transform: translateZ(0);
+      }
+    }
+
     /* Mobile-specific ListView styles */
     @media (max-width: 640px) {
       /* Larger touch targets for mobile */
@@ -1862,7 +1887,7 @@ export default function ListView({
           )}
         </>
       )}
-      <CardContent className="p-0 h-full flex flex-col">
+      <CardContent className="p-0 flex flex-col" style={{ height: '100%', overflow: 'hidden' }}>
         {/* Zoom controls - responsive for mobile */}
         <div className={cn(
           "flex items-center justify-between p-2 border-b bg-gray-50/50 text-gray-600",
@@ -2069,12 +2094,27 @@ export default function ListView({
         </div>
       
         <div
-          className="h-full overflow-auto relative"
+          className={cn(
+            "flex-1 overflow-auto relative",
+            isIOS && "ios-scroll-container" // Add iOS-specific class
+          )}
           ref={containerRef}
           style={{
-            touchAction: 'manipulation',  // Allow all touch gestures including scroll
+            // iOS Safari scroll fix: Use explicit height calculation instead of flex
+            // This ensures iOS properly calculates the scrollable area
+            height: 'calc(100% - 52px)', // Subtract the header height (zoom controls)
+            minHeight: 0, // Required for flex children to properly scroll
+            touchAction: 'pan-y pan-x', // Explicitly allow panning in both directions
             WebkitOverflowScrolling: 'touch',  // Smooth momentum scrolling on iOS
-            overscrollBehavior: 'contain'  // Prevent scroll chaining
+            overscrollBehavior: 'contain',  // Prevent scroll chaining
+            // iOS-specific scroll fixes
+            position: 'relative',
+            zIndex: 1,
+            // Force hardware acceleration on iOS
+            ...(isIOS ? {
+              transform: 'translateZ(0)',
+              WebkitTransform: 'translateZ(0)',
+            } : {}),
           }}
         >
           {/* Add style tag for today's highlight animation */}
@@ -2109,20 +2149,33 @@ export default function ListView({
             "grid min-w-full md:min-w-0",
             // Mobile: wider sidebar (80px) to show "1 SAT" style like Excel
             // Desktop: 60px is enough
-            isMobile ? "grid-cols-[75px_1fr]" : "grid-cols-[60px_1fr]"
-          )} 
+            isMobile ? "grid-cols-[75px_1fr]" : "grid-cols-[60px_1fr]",
+            isIOS && "ios-scroll-content" // Add iOS-specific class for scroll content
+          )}
             style={{
               minWidth: `${minContentWidth + (isMobile ? 75 : 60)}px`,
-              transform: `scale(${zoomLevel})`,
-              transformOrigin: 'top left',
-              height: `${100 / zoomLevel}%`, // Adjust to maintain scrollable area
-              width: `${100 / zoomLevel}%`,  // Adjust to maintain scrollable area
-              willChange: 'transform, scroll-position', // Optimize both transform and scroll
-              overflowY: 'visible',      // Ensure content remains scrollable
-              backfaceVisibility: 'hidden', // Improve performance
+              // iOS Safari scroll fix: Apply zoom differently to avoid breaking scroll
+              // On iOS, we use CSS zoom instead of transform scale as it doesn't break scroll
+              // For other browsers, we continue using transform for better performance
+              ...(isIOS ? {
+                // iOS-friendly zoom using CSS zoom property (works on Safari)
+                // CSS zoom doesn't break scroll on iOS like transform: scale() does
+                zoom: zoomLevel,
+              } : isMobile ? {
+                // Android and other mobile: use transform but without height/width manipulation
+                transform: `scale(${zoomLevel})`,
+                transformOrigin: 'top left',
+              } : {
+                // Desktop: use transform for better performance with full control
+                transform: `scale(${zoomLevel})`,
+                transformOrigin: 'top left',
+                height: `${100 / zoomLevel}%`,
+                width: `${100 / zoomLevel}%`,
+              }),
+              // Common styles for both
+              willChange: 'auto', // Let browser decide optimization
+              backfaceVisibility: 'hidden',
               WebkitBackfaceVisibility: 'hidden',
-              perspective: 1000, // Add 3D acceleration
-              WebkitPerspective: 1000
             }}
             role="grid"
             aria-label="Project calendar view"
