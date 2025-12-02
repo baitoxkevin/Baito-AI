@@ -1335,14 +1335,31 @@ export default function CalendarPage() {
     );
   }
 
+  // Detect iOS for scroll handling
+  const isIOSDevice = typeof navigator !== 'undefined' &&
+    (/iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1));
+
   // Main UI - simplified to avoid the "jumping"
   return (
     <CalendarErrorBoundary>
-      <div className="flex flex-1 w-full h-full" style={{ overflow: 'visible', minHeight: 0 }}>
-      <div className="p-4 border rounded-lg bg-white flex flex-col gap-4 w-full h-full" style={{ overflow: 'visible', minHeight: 0 }}>
-        <div className="flex flex-col h-full flex-grow" style={{ minHeight: 0 }}>
-          {/* Content with lazy loading - minHeight:0 is CRITICAL for nested flex scroll containers */}
-          <div className="flex-grow" style={{ overflow: 'visible', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+      {/* iOS FIX: On iOS, don't use overflow:visible - let content flow naturally with height:auto */}
+      <div className="flex flex-1 w-full h-full" style={{
+        overflow: 'visible',
+        minHeight: isIOSDevice ? 'auto' : 0
+      }}>
+      <div className="p-4 border rounded-lg bg-white flex flex-col gap-4 w-full h-full" style={{
+        overflow: 'visible',
+        minHeight: isIOSDevice ? 'auto' : 0
+      }}>
+        <div className="flex flex-col h-full flex-grow" style={{ minHeight: isIOSDevice ? 'auto' : 0 }}>
+          {/* Content with lazy loading - iOS: use height:auto to let content determine size */}
+          <div className="flex-grow" style={{
+            overflow: 'visible',
+            display: 'flex',
+            flexDirection: 'column',
+            minHeight: isIOSDevice ? 'auto' : 0
+          }}>
             <Suspense fallback={<CalendarSkeleton />}>
               {view === 'calendar' ? (
                 <AnimatePresence mode="wait">

@@ -1741,21 +1741,22 @@ export default function ListView({
       touch-action: auto !important;
     }
 
-    /* iOS Safari CRITICAL scroll fix */
+    /* iOS Safari CRITICAL scroll fix v2 */
     @supports (-webkit-touch-callout: none) {
       .mobile-scroll-container {
         -webkit-overflow-scrolling: touch !important;
       }
 
-      /* iOS native scroll container - MINIMAL styling to allow native scroll */
+      /* iOS native scroll container - v2: DON'T scroll here, let parent handle it */
       .ios-native-scroll {
-        -webkit-overflow-scrolling: touch !important;
-        overflow-y: auto !important;
-        overflow-x: auto !important;
-        /* CRITICAL: touch-action: pan-y allows vertical scroll gestures */
-        touch-action: pan-y !important;
+        /* NO overflow - let content flow naturally to parent scroll container */
+        overflow: visible !important;
+        /* touch-action: auto allows all gestures to propagate to parent */
+        touch-action: auto !important;
         /* NO transform, NO position:fixed, NO calc heights */
-        /* Let flexbox handle sizing with flex:1 */
+        /* Content will scroll via SidebarAdapter's overflow:auto */
+        min-height: auto !important;
+        height: auto !important;
       }
 
       /* Ensure content inside iOS scroll container doesn't block scroll */
@@ -1867,10 +1868,12 @@ export default function ListView({
         // iOS CRITICAL: Use flexbox for proper scroll container sizing
         display: 'flex',
         flexDirection: 'column',
-        // flex:1 and minHeight:0 are critical for nested flexbox scroll containers
+        // iOS FIX v2: On iOS, don't constrain height - let content flow naturally
+        // The scroll happens at SidebarAdapter level, not here
         flex: 1,
-        minHeight: 0,
-        // Height will be inherited from parent - no explicit height needed
+        minHeight: isIOS ? 'auto' : 0,
+        // iOS: Let content determine height, parent handles scroll
+        ...(isIOS && { height: 'auto' }),
       }}>
       {/* Loading overlay - only show if we actually have data to load */}
       {isDataLoading && (
@@ -1932,7 +1935,8 @@ export default function ListView({
           display: 'flex',
           flexDirection: 'column',
           flex: 1,
-          minHeight: 0, // Allow flex container to shrink
+          // iOS FIX v2: On iOS, use auto height - parent handles scroll
+          minHeight: isIOS ? 'auto' : 0,
         }}>
         {/* Zoom controls - responsive for mobile */}
         <div className={cn(
@@ -2147,15 +2151,16 @@ export default function ListView({
           )}
           ref={containerRef}
           style={isIOS ? {
-            // iOS CRITICAL FIX: Use the SIMPLEST possible scroll setup
-            // - flex:1 from className handles height
-            // - overflow-y: auto triggers native iOS scroll
-            // - DO NOT use position:relative, calc heights, or transforms
-            overflowY: 'auto',
-            overflowX: 'auto',
-            WebkitOverflowScrolling: 'touch',
-            // touch-action: pan-y allows vertical scroll gestures
-            touchAction: 'pan-y',
+            // iOS CRITICAL FIX v2: The scroll happens at SidebarAdapter level
+            // This container should NOT try to scroll - let parent handle it
+            // Instead, just let content flow naturally with no height restriction
+            overflow: 'visible',
+            // NO overflowY - parent scrolls
+            // NO fixed height - content determines height
+            // This allows the SidebarAdapter's overflow:auto to capture scroll
+            minHeight: 'auto',
+            // touch-action: auto allows all gestures to propagate to parent
+            touchAction: 'auto',
           } : {
             // Non-iOS: Keep existing optimizations
             height: 'calc(100% - 52px)',

@@ -473,17 +473,27 @@ export function SidebarAdapter({ children }: SidebarAdapterProps) {
           // iOS CRITICAL: minHeight:0 allows flex children to shrink below content size
           // This is required for nested scroll containers to work properly
           minHeight: 0,
-          overflow: 'visible',
+          // iOS FIX: The content container itself needs overflow:auto on iOS
+          // because iOS doesn't properly propagate flex height to nested overflow:auto elements
+          // This matches how the sidebar (which works) handles scroll
+          overflow: isIOS ? 'auto' : 'visible',
+          // iOS: Enable momentum scrolling on this container
+          ...(isIOS && {
+            WebkitOverflowScrolling: 'touch',
+            overflowY: 'auto',
+            overflowX: 'hidden',
+          }),
         }}
       >
         <div
           className="flex-1 w-full"
           style={{
-            // iOS CRITICAL: Both containers need minHeight:0 and overflow:visible
-            // to allow the scroll container (ListView) to calculate its height correctly
+            // iOS CRITICAL: On iOS, this inner wrapper should NOT restrict height
+            // Let the parent handle scrolling, children just flow naturally
             display: 'flex',
             flexDirection: 'column',
-            minHeight: 0,
+            minHeight: isIOS ? 'auto' : 0,
+            // iOS: Let content flow naturally, parent will scroll
             overflow: 'visible',
           }}
         >

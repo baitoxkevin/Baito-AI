@@ -293,7 +293,9 @@ export function WavesBackground({
       updateMouse(e.pageX, e.pageY)
     }
     function onTouchMove(e: TouchEvent) {
-      e.preventDefault()
+      // CRITICAL FIX: Do NOT call preventDefault() here!
+      // This was blocking ALL vertical scrolling on iOS Safari
+      // The waves effect can still track touch position without preventing default
       const touch = e.touches[0]
       updateMouse(touch.clientX, touch.clientY)
     }
@@ -316,7 +318,8 @@ export function WavesBackground({
     requestAnimationFrame(tick)
     window.addEventListener("resize", onResize)
     window.addEventListener("mousemove", onMouseMove)
-    window.addEventListener("touchmove", onTouchMove, { passive: false } as EventListenerOptions)
+    // CRITICAL: Use passive: true to allow iOS scroll to work
+    window.addEventListener("touchmove", onTouchMove, { passive: true } as EventListenerOptions)
 
     return () => {
       window.removeEventListener("resize", onResize)

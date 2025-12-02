@@ -175,7 +175,7 @@
     touch-action: manipulation;
   }
 
-  /* iOS Safari specific scroll fix */
+  /* iOS Safari specific scroll fix v2 */
   @supports (-webkit-touch-callout: none) {
     html, body {
       /* CRITICAL: On iOS Safari, overflow-x:hidden on body blocks ALL touch scroll */
@@ -189,10 +189,14 @@
       -webkit-overflow-scrolling: touch;
     }
 
-    /* Any flex container should allow children to shrink for scroll */
+    /* iOS v2: flex containers should use auto height, not minHeight:0
+       The minHeight:0 trick breaks iOS scroll when combined with nested overflow:auto */
     .flex, .flex-1, .flex-col, [class*="flex"] {
-      min-height: 0;
+      /* Don't set minHeight:0 globally on iOS - it breaks scroll propagation */
     }
+
+    /* iOS: The ONLY element that should scroll is the direct content container */
+    /* All other containers should be overflow:visible with height:auto */
 
     /* Ensure scroll containers have proper iOS scroll behavior */
     [style*="overflow-y: auto"],
