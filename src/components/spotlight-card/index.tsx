@@ -784,8 +784,8 @@ export const SpotlightCard = React.memo(function SpotlightCard({
   return (
     <>
       <AnimatePresence>
-        <motion.div 
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 flex items-center justify-center p-4"
+        <motion.div
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 flex items-center justify-center p-2 md:p-4"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -793,7 +793,7 @@ export const SpotlightCard = React.memo(function SpotlightCard({
           onClick={handleMinimize}
         >
           <motion.div
-            className="w-full max-w-7xl h-[90vh] max-h-[900px] relative md:mx-4"
+            className="w-full max-w-7xl h-[95vh] md:h-[90vh] max-h-[900px] relative mx-0 md:mx-4"
             onClick={(e) => e.stopPropagation()}
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -824,39 +824,21 @@ export const SpotlightCard = React.memo(function SpotlightCard({
                   />
                 </div>
 
-                {/* Mobile Header - shows project info compactly on mobile */}
+                {/* Mobile Header - shows full project info on mobile with collapsible functionality */}
                 <div className="md:hidden flex flex-col bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
-                  {/* Compact project header for mobile */}
-                  <div className="flex items-center justify-between p-3">
-                    <div className="flex items-center gap-3 flex-1 min-w-0">
-                      <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-purple-100 to-pink-100 dark:from-purple-900/30 dark:to-pink-900/30 flex items-center justify-center flex-shrink-0">
-                        <span className="text-lg font-bold text-purple-600 dark:text-purple-400">
-                          {localProject.title?.charAt(0) || 'P'}
-                        </span>
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <h2 className="font-bold text-gray-800 dark:text-gray-200 truncate text-sm">
-                          {localProject.title}
-                        </h2>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                          {formatRecurringDates(localProject)}
-                        </p>
-                      </div>
-                    </div>
-                    <button
-                      onClick={handleMinimize}
-                      className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <line x1="18" y1="6" x2="6" y2="18"></line>
-                        <line x1="6" y1="6" x2="18" y2="18"></line>
-                      </svg>
-                    </button>
-                  </div>
+                  <MobileProjectHeader
+                    project={localProject}
+                    onMinimize={handleMinimize}
+                    onProjectUpdated={handleProjectUpdate}
+                    staffCount={staffDetails.length}
+                    claimsCount={localExpenseClaims.length}
+                    activeTab={activeTab}
+                    onTabChange={handleTabChange}
+                  />
                 </div>
 
                 {/* Main Content Area */}
-                <div 
+                <div
                   ref={(el) => {
                     // Auto-focus the main content area when it mounts
                     if (el && !isMinimized) {
@@ -864,7 +846,7 @@ export const SpotlightCard = React.memo(function SpotlightCard({
                       setTimeout(() => el.focus(), 100);
                     }
                   }}
-                  className="flex-1 bg-gray-50 dark:bg-gray-900 pt-14 px-6 pb-0 overflow-hidden flex flex-col relative outline-none"
+                  className="flex-1 bg-gray-50 dark:bg-gray-900 pt-10 md:pt-14 px-3 md:px-6 pb-0 overflow-hidden flex flex-col relative outline-none"
                   tabIndex={0}
                   onKeyDown={(e) => {
                     // Left and right arrow keys for navigation
@@ -912,9 +894,9 @@ export const SpotlightCard = React.memo(function SpotlightCard({
                   }}
                 >
                   {/* Tab Navigation with arrow key controls - centered with more top padding */}
-                  <div className="absolute top-6 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 p-1">
-                    <button 
-                      className="p-1.5 rounded-full bg-white dark:bg-gray-800 shadow-md hover:bg-gray-50 dark:hover:bg-gray-700 text-indigo-600 dark:text-indigo-400 transition-all hover:scale-110"
+                  <div className="absolute top-2 md:top-6 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1 md:gap-2 p-1">
+                    <button
+                      className="p-1 md:p-1.5 rounded-full bg-white dark:bg-gray-800 shadow-md hover:bg-gray-50 dark:hover:bg-gray-700 text-indigo-600 dark:text-indigo-400 transition-all hover:scale-110"
                       onClick={() => {
                         const tabs = [
                           { value: 'schedule' },
@@ -929,7 +911,7 @@ export const SpotlightCard = React.memo(function SpotlightCard({
                       }}
                       aria-label="Previous tab"
                     >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="md:w-4 md:h-4"><path d="m15 18-6-6 6-6"/></svg>
                     </button>
                     
                     <SpotlightCardDropdown
@@ -938,8 +920,8 @@ export const SpotlightCard = React.memo(function SpotlightCard({
                       className="w-auto"
                     />
                     
-                    <button 
-                      className="p-1.5 rounded-full bg-white dark:bg-gray-800 shadow-md hover:bg-gray-50 dark:hover:bg-gray-700 text-indigo-600 dark:text-indigo-400 transition-all hover:scale-110"
+                    <button
+                      className="p-1 md:p-1.5 rounded-full bg-white dark:bg-gray-800 shadow-md hover:bg-gray-50 dark:hover:bg-gray-700 text-indigo-600 dark:text-indigo-400 transition-all hover:scale-110"
                       onClick={() => {
                         const tabs = [
                           { value: 'schedule' },
@@ -954,14 +936,14 @@ export const SpotlightCard = React.memo(function SpotlightCard({
                       }}
                       aria-label="Next tab"
                     >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="md:w-4 md:h-4"><path d="m9 18 6-6-6-6"/></svg>
                     </button>
                   </div>
                   
                   {/* Tab Content */}
                   <div className="flex-1 overflow-auto">
                     {activeTab === 'documents' && (
-                      <div className="bg-white dark:bg-slate-800 rounded-lg p-6 h-full flex flex-col">
+                      <div className="bg-white dark:bg-slate-800 rounded-lg p-3 md:p-6 h-full flex flex-col">
                         <SpotlightCardDocuments
                           documents={localDocuments}
                           documentsView={documentsView}
@@ -983,7 +965,7 @@ export const SpotlightCard = React.memo(function SpotlightCard({
                     )}
                     
                     {activeTab === 'staffing' && (
-                      <div className="bg-white dark:bg-slate-800 rounded-lg p-6 h-full overflow-y-auto">
+                      <div className="bg-white dark:bg-slate-800 rounded-lg p-3 md:p-6 h-full overflow-y-auto">
                         <StaffingTab
                           confirmedStaff={confirmedStaff}
                           setConfirmedStaff={(newConfirmedStaff) => {
@@ -1190,7 +1172,7 @@ export const SpotlightCard = React.memo(function SpotlightCard({
                     )}
                     
                     {activeTab === 'schedule' && (
-                      <div className="h-full bg-white dark:bg-slate-800 rounded-lg p-6 flex flex-col">
+                      <div className="h-full bg-white dark:bg-slate-800 rounded-lg p-3 md:p-6 flex flex-col">
                         <ScheduleTabContent 
                           project={localProject} 
                           confirmedStaff={confirmedStaff}
@@ -1221,7 +1203,7 @@ export const SpotlightCard = React.memo(function SpotlightCard({
                     )}
                       
                     {activeTab === 'expenses' && (
-                      <div className="bg-white dark:bg-slate-800 rounded-lg p-6 h-full flex flex-col">
+                      <div className="bg-white dark:bg-slate-800 rounded-lg p-3 md:p-6 h-full flex flex-col">
                         <SpotlightCardExpenses
                           project={localProject}
                           expenseClaims={localExpenseClaims}
@@ -1239,18 +1221,18 @@ export const SpotlightCard = React.memo(function SpotlightCard({
                   </div>
                   
                   {/* Footer row - simpler without tab dropdown */}
-                  <div className="mt-auto border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 py-1 px-3">
+                  <div className="mt-auto border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 py-1 px-2 md:px-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center">
-                        <span className="text-xs font-medium text-gray-700 dark:text-gray-300">Status:</span>
-                        <span className="ml-1 inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                        <span className="text-[10px] md:text-xs font-medium text-gray-700 dark:text-gray-300">Status:</span>
+                        <span className="ml-1 inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] md:text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
                           {localProject.status || 'Active'}
                         </span>
                       </div>
-                      
+
                       <div className="flex items-center gap-1">
-                        <span className="text-xs text-gray-500 dark:text-gray-400 hidden sm:inline">Updated:</span>
-                        <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                        <span className="text-[10px] md:text-xs text-gray-500 dark:text-gray-400 hidden sm:inline">Updated:</span>
+                        <span className="text-[10px] md:text-xs font-medium text-gray-700 dark:text-gray-300">
                           {new Date().toLocaleDateString()}
                         </span>
                       </div>
@@ -1623,6 +1605,245 @@ export const SpotlightCard = React.memo(function SpotlightCard({
     </>
   );
 });
+
+// Mobile Project Header Component - shows full project info with collapsible section
+interface MobileProjectHeaderProps {
+  project: Project;
+  onMinimize: () => void;
+  onProjectUpdated?: (updatedProject: Project) => void;
+  staffCount: number;
+  claimsCount: number;
+  activeTab: string;
+  onTabChange: (tab: string) => void;
+}
+
+function MobileProjectHeader({
+  project,
+  onMinimize,
+  onProjectUpdated,
+  staffCount,
+  claimsCount,
+  activeTab,
+  onTabChange
+}: MobileProjectHeaderProps) {
+  const [isExpanded, setIsExpanded] = React.useState(false);
+  const [brandLogoUrl, setBrandLogoUrl] = React.useState<string | null>((project as unknown).brand_logo || null);
+  const [logoError, setLogoError] = React.useState(false);
+  const { toast } = useToast();
+
+  // Helper function to get Google Maps link
+  const getGoogleMapsLink = (address: string) => {
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
+  };
+
+  // Helper function to get Waze link
+  const getWazeLink = (address: string) => {
+    return `https://waze.com/ul?q=${encodeURIComponent(address)}`;
+  };
+
+  return (
+    <div className="flex flex-col">
+      {/* Compact header - always visible */}
+      <div className="flex items-center justify-between p-3">
+        <div
+          className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer"
+          onClick={() => setIsExpanded(!isExpanded)}
+        >
+          {/* Brand Logo or Initial */}
+          <div className="relative">
+            <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-purple-100 to-pink-100 dark:from-purple-900/30 dark:to-pink-900/30 flex items-center justify-center flex-shrink-0 overflow-hidden shadow-sm border border-purple-200 dark:border-purple-800">
+              {brandLogoUrl && !logoError ? (
+                <img
+                  src={brandLogoUrl}
+                  alt="Brand logo"
+                  className="w-full h-full object-contain p-1"
+                  onError={() => setLogoError(true)}
+                />
+              ) : (
+                <span className="text-lg font-bold text-purple-600 dark:text-purple-400">
+                  {project.title?.charAt(0) || 'P'}
+                </span>
+              )}
+            </div>
+            {/* Sparkle indicator */}
+            <motion.div
+              animate={{ rotate: [0, -10, 5, 0] }}
+              transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+              className="absolute -top-1 -left-1"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-yellow-400">
+                <path d="M12 3l1.912 5.813a2 2 0 001.275 1.275L21 12l-5.813 1.912a2 2 0 00-1.275 1.275L12 21l-1.912-5.813a2 2 0 00-1.275-1.275L3 12l5.813-1.912a2 2 0 001.275-1.275L12 3z"/>
+              </svg>
+            </motion.div>
+          </div>
+
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <h2 className="font-bold text-gray-800 dark:text-gray-200 truncate text-sm">
+                {project.title}
+              </h2>
+              {/* Expand indicator */}
+              <motion.svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="text-gray-400 flex-shrink-0"
+                animate={{ rotate: isExpanded ? 180 : 0 }}
+                transition={{ duration: 0.2 }}
+              >
+                <polyline points="6 9 12 15 18 9" />
+              </motion.svg>
+            </div>
+            <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+              {formatRecurringDates(project)}
+            </p>
+          </div>
+        </div>
+
+        <button
+          onClick={onMinimize}
+          className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 flex-shrink-0"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+      </div>
+
+      {/* Expandable content */}
+      <AnimatePresence>
+        {isExpanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.3, ease: "easeInOut" }}
+            className="overflow-hidden"
+          >
+            <div className="px-3 pb-4 space-y-3">
+              {/* Project Type Badges */}
+              <div className="flex flex-wrap gap-2">
+                <Badge className="bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 border-none px-2 py-1 rounded-full text-xs">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                  </svg>
+                  {project.project_type || 'Recruitment'}
+                </Badge>
+                <Badge className="bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-none px-2 py-1 rounded-full text-xs">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                    <line x1="16" y1="2" x2="16" y2="6"/>
+                    <line x1="8" y1="2" x2="8" y2="6"/>
+                    <line x1="3" y1="10" x2="21" y2="10"/>
+                  </svg>
+                  {project.schedule_type || 'Single'}
+                </Badge>
+              </div>
+
+              {/* Schedule Card */}
+              <div className="bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-lg p-3 border border-purple-100 dark:border-purple-800/50">
+                <p className="text-xs font-bold text-purple-600 dark:text-purple-400 mb-2 text-center">Schedule</p>
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-center gap-2 text-gray-700 dark:text-gray-300">
+                    <div className="rounded-full bg-blue-100 dark:bg-blue-900/30 p-1">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-500">
+                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                        <line x1="16" y1="2" x2="16" y2="6"/>
+                        <line x1="8" y1="2" x2="8" y2="6"/>
+                        <line x1="3" y1="10" x2="21" y2="10"/>
+                      </svg>
+                    </div>
+                    <span className="text-xs font-medium">{formatRecurringDates(project)}</span>
+                  </div>
+                  <div className="flex items-center justify-center gap-2 text-gray-700 dark:text-gray-300">
+                    <div className="rounded-full bg-blue-100 dark:bg-blue-900/30 p-1">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-500">
+                        <circle cx="12" cy="12" r="10"/>
+                        <polyline points="12 6 12 12 16 14"/>
+                      </svg>
+                    </div>
+                    <span className="text-xs font-medium">{project.working_hours_start} - {project.working_hours_end}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Location Card */}
+              <div className="bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-lg p-3 border border-purple-100 dark:border-purple-800/50">
+                <p className="text-xs font-bold text-purple-600 dark:text-purple-400 mb-2 text-center">Location</p>
+                <div className="flex items-center justify-center gap-2 text-gray-700 dark:text-gray-300 mb-2">
+                  <div className="rounded-full bg-red-100 dark:bg-red-900/30 p-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-red-500">
+                      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                      <circle cx="12" cy="10" r="3"/>
+                    </svg>
+                  </div>
+                  <span className="text-xs font-medium text-center line-clamp-2">{project.venue_address}</span>
+                </div>
+                <div className="flex gap-2 justify-center">
+                  <button
+                    onClick={() => window.open(getGoogleMapsLink(project.venue_address), '_blank')}
+                    className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 rounded-full border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors shadow-sm"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                      <polyline points="15 3 21 3 21 9"/>
+                      <line x1="10" y1="14" x2="21" y2="3"/>
+                    </svg>
+                    Maps
+                  </button>
+                  <button
+                    onClick={() => window.open(getWazeLink(project.venue_address), '_blank')}
+                    className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 rounded-full border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors shadow-sm"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                      <polyline points="15 3 21 3 21 9"/>
+                      <line x1="10" y1="14" x2="21" y2="3"/>
+                    </svg>
+                    Waze
+                  </button>
+                </div>
+              </div>
+
+              {/* Quick Stats */}
+              <div className="flex justify-center gap-4">
+                <div className="flex items-center gap-1.5 text-gray-600 dark:text-gray-400">
+                  <div className="rounded-full bg-green-100 dark:bg-green-900/30 p-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-green-600 dark:text-green-400">
+                      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                      <circle cx="9" cy="7" r="4"/>
+                      <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                      <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                    </svg>
+                  </div>
+                  <span className="text-xs font-medium">{staffCount} Crew</span>
+                </div>
+                <div className="flex items-center gap-1.5 text-gray-600 dark:text-gray-400">
+                  <div className="rounded-full bg-orange-100 dark:bg-orange-900/30 p-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-orange-600 dark:text-orange-400">
+                      <path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1-2-1Z"/>
+                      <path d="M14 8H8"/>
+                      <path d="M16 12H8"/>
+                      <path d="M13 16H8"/>
+                    </svg>
+                  </div>
+                  <span className="text-xs font-medium">{claimsCount} Claims</span>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
 
 // Separate component for Schedule tab to improve performance
 function ScheduleTabContent({ 
