@@ -1248,12 +1248,14 @@ export default function ListView({
       }
     };
     
-    // Add event listeners
-    container.addEventListener('touchstart', handleTouchStart);
-    container.addEventListener('touchmove', handleTouchMove);
-    container.addEventListener('touchend', handleTouchEnd);
-    container.addEventListener('wheel', handleWheel);
-    
+    // Add event listeners with proper passive options
+    // touchstart/touchend are passive (don't call preventDefault)
+    // touchmove needs { passive: false } to allow preventDefault during pinch
+    container.addEventListener('touchstart', handleTouchStart, { passive: true });
+    container.addEventListener('touchmove', handleTouchMove, { passive: false });
+    container.addEventListener('touchend', handleTouchEnd, { passive: true });
+    container.addEventListener('wheel', handleWheel, { passive: false });
+
     // Clean up event listeners
     return () => {
       container.removeEventListener('touchstart', handleTouchStart);
@@ -2054,7 +2056,14 @@ export default function ListView({
           </div>
         </div>
       
-        <div className="h-full overflow-auto relative" ref={containerRef}>
+        <div
+          className="h-full overflow-auto relative"
+          ref={containerRef}
+          style={{
+            touchAction: 'pan-x pan-y pinch-zoom',  // Allow scroll and pinch on mobile
+            WebkitOverflowScrolling: 'touch'  // Smooth momentum scrolling on iOS
+          }}
+        >
           {/* Add style tag for today's highlight animation */}
           <style dangerouslySetInnerHTML={{ __html: todayHighlightAnimation }} />
           
