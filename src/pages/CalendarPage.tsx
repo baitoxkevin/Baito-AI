@@ -1338,8 +1338,8 @@ export default function CalendarPage() {
   // Main UI - simplified to avoid the "jumping"
   return (
     <CalendarErrorBoundary>
-      <div className="flex flex-1 w-full h-full overflow-hidden">
-      <div className="p-4 border rounded-lg bg-white flex flex-col gap-4 w-full h-full">
+      <div className="flex flex-1 w-full h-full">
+      <div className="p-4 border rounded-lg bg-white flex flex-col gap-4 w-full h-full overflow-hidden">
         <div className="flex flex-col h-full flex-grow">
           {/* Content with lazy loading */}
           <div className="flex-grow overflow-auto">

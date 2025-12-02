@@ -1269,21 +1269,29 @@ export default function ListView({
       }
     };
 
-    // CRITICAL: All touch listeners are PASSIVE to allow native iOS scrolling
-    // We handle pinch zoom without preventDefault - just updating state
-    container.addEventListener('touchstart', handleTouchStart, { passive: true });
-    container.addEventListener('touchmove', handleTouchMove, { passive: true });
-    container.addEventListener('touchend', handleTouchEnd, { passive: true });
+    // CRITICAL FOR iOS: Don't add ANY touch listeners on iOS
+    // Even passive listeners can interfere with iOS Safari scrolling
+    // On iOS, we rely purely on CSS zoom and native scroll handling
+    if (!isIOS) {
+      // Only add touch listeners on non-iOS devices (Android, etc)
+      container.addEventListener('touchstart', handleTouchStart, { passive: true });
+      container.addEventListener('touchmove', handleTouchMove, { passive: true });
+      container.addEventListener('touchend', handleTouchEnd, { passive: true });
+    }
+
+    // Wheel event for desktop zoom (ctrl+scroll)
     container.addEventListener('wheel', handleWheel, { passive: false });
 
     // Clean up event listeners
     return () => {
-      container.removeEventListener('touchstart', handleTouchStart);
-      container.removeEventListener('touchmove', handleTouchMove);
-      container.removeEventListener('touchend', handleTouchEnd);
+      if (!isIOS) {
+        container.removeEventListener('touchstart', handleTouchStart);
+        container.removeEventListener('touchmove', handleTouchMove);
+        container.removeEventListener('touchend', handleTouchEnd);
+      }
       container.removeEventListener('wheel', handleWheel);
     };
-  }, [zoomLevel]);
+  }, [zoomLevel, isIOS]);
   
   // Ref for storing month positions for better performance
   const monthPositionsRef = useRef<Map<string, number>>(new Map());
@@ -1887,7 +1895,7 @@ export default function ListView({
           )}
         </>
       )}
-      <CardContent className="p-0 flex flex-col" style={{ height: '100%', overflow: 'hidden' }}>
+      <CardContent className="p-0 flex flex-col" style={{ height: '100%' }}>
         {/* Zoom controls - responsive for mobile */}
         <div className={cn(
           "flex items-center justify-between p-2 border-b bg-gray-50/50 text-gray-600",
@@ -2095,26 +2103,25 @@ export default function ListView({
       
         <div
           className={cn(
-            "flex-1 overflow-auto relative",
+            "flex-1 relative",
             isIOS && "ios-scroll-container" // Add iOS-specific class
           )}
           ref={containerRef}
           style={{
-            // iOS Safari scroll fix: Use explicit height calculation instead of flex
-            // This ensures iOS properly calculates the scrollable area
+            // iOS Safari scroll fix: Use explicit height and overflow
             height: 'calc(100% - 52px)', // Subtract the header height (zoom controls)
             minHeight: 0, // Required for flex children to properly scroll
-            touchAction: 'pan-y pan-x', // Explicitly allow panning in both directions
+            // CRITICAL: Set overflow explicitly in style for iOS
+            overflowY: 'scroll',
+            overflowX: 'auto',
+            // Touch settings for iOS
+            touchAction: 'auto', // Let browser handle all touch gestures
             WebkitOverflowScrolling: 'touch',  // Smooth momentum scrolling on iOS
             overscrollBehavior: 'contain',  // Prevent scroll chaining
-            // iOS-specific scroll fixes
-            position: 'relative',
-            zIndex: 1,
-            // Force hardware acceleration on iOS
-            ...(isIOS ? {
-              transform: 'translateZ(0)',
-              WebkitTransform: 'translateZ(0)',
-            } : {}),
+            // Force GPU compositing layer on iOS for smooth scroll
+            willChange: 'scroll-position',
+            WebkitTransform: 'translateZ(0)',
+            transform: 'translateZ(0)',
           }}
         >
           {/* Add style tag for today's highlight animation */}
