@@ -1177,82 +1177,94 @@ export default function ListView({
     }
   }, [dates, scrollToDate, date, syncToDate]);
   
+  // Use refs for pinch state to avoid re-attaching listeners
+  const pinchStateRef = useRef<{
+    initialDistance: number | null;
+    initialZoom: number;
+    isPinching: boolean;
+  }>({ initialDistance: null, initialZoom: 1, isPinching: false });
+
   // Implement pinch-to-zoom functionality
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
-    
+
     // Calculate distance between two touch points
     const getDistance = (touch1: Touch, touch2: Touch): number => {
       const dx = touch1.clientX - touch2.clientX;
       const dy = touch1.clientY - touch2.clientY;
       return Math.sqrt(dx * dx + dy * dy);
     };
-    
+
     // Handle touch start - detect two-finger touch for pinch
     const handleTouchStart = (e: TouchEvent) => {
       if (e.touches.length === 2) {
         // Store the initial distance between the two touch points
         const distance = getDistance(e.touches[0], e.touches[1]);
+        pinchStateRef.current = {
+          initialDistance: distance,
+          initialZoom: zoomLevel,
+          isPinching: true
+        };
         setInitialPinchDistance(distance);
         setInitialZoom(zoomLevel);
       }
     };
-    
+
     // Handle touch move - calculate zoom level based on pinch gesture
+    // This handler is PASSIVE - we don't prevent default for single finger scroll
     const handleTouchMove = (e: TouchEvent) => {
-      if (initialPinchDistance && e.touches.length === 2) {
+      // Only handle pinch zoom when we have 2 fingers AND we started a pinch
+      if (e.touches.length === 2 && pinchStateRef.current.isPinching && pinchStateRef.current.initialDistance) {
         // Calculate current distance between touch points
         const currentDistance = getDistance(e.touches[0], e.touches[1]);
-        
+
         // Calculate zoom ratio
-        const ratio = currentDistance / initialPinchDistance;
-        
+        const ratio = currentDistance / pinchStateRef.current.initialDistance;
+
         // Apply zoom with limits (0.5 to 1.0 maximum)
-        const newZoomLevel = Math.max(0.5, Math.min(1.0, initialZoom * ratio));
+        const newZoomLevel = Math.max(0.5, Math.min(1.0, pinchStateRef.current.initialZoom * ratio));
         setZoomLevel(newZoomLevel);
         persistZoomLevel(newZoomLevel);
-        
-        // Prevent default behavior (like page scrolling)
-        e.preventDefault();
       }
+      // Single finger scrolling is handled natively by the browser - we don't interfere
     };
-    
+
     // Handle touch end - reset pinch state
     const handleTouchEnd = () => {
+      pinchStateRef.current = { initialDistance: null, initialZoom: zoomLevel, isPinching: false };
       setInitialPinchDistance(null);
     };
-    
+
     // Handle wheel event for mouse zoom
     const handleWheel = (e: WheelEvent) => {
       // Check if ctrl key is pressed for pinch zoom simulation
       if (e.ctrlKey) {
         // Determine zoom direction (in or out)
         const delta = e.deltaY < 0 ? 0.1 : -0.1;
-        
+
         // Calculate new zoom level with limits (max 100%, min 50%)
         let newZoomLevel = zoomLevel + delta;
-        
+
         // Apply limits
         if (newZoomLevel > 1) {
           newZoomLevel = 1; // Max 100%
         } else if (newZoomLevel < 0.5) {
           newZoomLevel = 0.5; // Min 50%
         }
-        
+
         setZoomLevel(newZoomLevel);
         persistZoomLevel(newZoomLevel);
-        
+
         // Prevent default behavior (page zoom)
         e.preventDefault();
       }
     };
-    
-    // Add event listeners with proper passive options
-    // touchstart/touchend are passive (don't call preventDefault)
-    // touchmove needs { passive: false } to allow preventDefault during pinch
+
+    // CRITICAL: All touch listeners are PASSIVE to allow native iOS scrolling
+    // We handle pinch zoom without preventDefault - just updating state
     container.addEventListener('touchstart', handleTouchStart, { passive: true });
-    container.addEventListener('touchmove', handleTouchMove, { passive: false });
+    container.addEventListener('touchmove', handleTouchMove, { passive: true });
     container.addEventListener('touchend', handleTouchEnd, { passive: true });
     container.addEventListener('wheel', handleWheel, { passive: false });
 
@@ -1263,7 +1275,7 @@ export default function ListView({
       container.removeEventListener('touchend', handleTouchEnd);
       container.removeEventListener('wheel', handleWheel);
     };
-  }, [zoomLevel, initialPinchDistance, initialZoom]);
+  }, [zoomLevel]);
   
   // Ref for storing month positions for better performance
   const monthPositionsRef = useRef<Map<string, number>>(new Map());
@@ -2060,8 +2072,9 @@ export default function ListView({
           className="h-full overflow-auto relative"
           ref={containerRef}
           style={{
-            touchAction: 'pan-x pan-y pinch-zoom',  // Allow scroll and pinch on mobile
-            WebkitOverflowScrolling: 'touch'  // Smooth momentum scrolling on iOS
+            touchAction: 'manipulation',  // Allow all touch gestures including scroll
+            WebkitOverflowScrolling: 'touch',  // Smooth momentum scrolling on iOS
+            overscrollBehavior: 'contain'  // Prevent scroll chaining
           }}
         >
           {/* Add style tag for today's highlight animation */}

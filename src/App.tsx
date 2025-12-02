@@ -24,6 +24,8 @@ import CandidateShowcaseDemo from './pages/CandidateShowcaseDemo';
 import { renderCanvas } from './components/ui/canvas';
 import { SpotlightCommand } from './components/SpotlightCommand';
 import { GlobalErrorBoundary } from './components/GlobalErrorBoundary';
+import { ErrorBoundaryWithReport } from './components/error-reporting/ErrorBoundaryWithReport';
+import { ErrorReportButton } from './components/error-reporting/ErrorReportButton';
 import { ChatWidget } from './components/ai-assistant/ChatWidget';
 import { NotificationBell } from './components/NotificationBell';
 import { useAppState } from './contexts/AppStateContext';
@@ -183,6 +185,13 @@ function RouterContent() {
           <NotificationBell userId={currentUser.id} />
         </div>
       )}
+      {/* Error Report Button - floating button for manual bug reporting */}
+      {!isPublicRoute && currentUser && (
+        <ErrorReportButton
+          userId={currentUser.id}
+          position="bottom-left"
+        />
+      )}
     </>
   );
 }
@@ -261,7 +270,9 @@ function App() {
     <GlobalErrorBoundary>
       <AppStateProvider>
         <BaigerProvider>
-          <AppContent />
+          <ErrorBoundaryWithReport>
+            <AppContent />
+          </ErrorBoundaryWithReport>
         </BaigerProvider>
       </AppStateProvider>
     </GlobalErrorBoundary>
