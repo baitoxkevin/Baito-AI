@@ -1733,18 +1733,23 @@ export default function ListView({
       animation: fadeInOut 1.5s ease-in-out;
     }
 
-    /* iOS Safari scroll fix - Critical CSS rules */
+    /* Mobile scroll fix - Critical CSS rules for iOS and Android */
+    .mobile-scroll-container {
+      -webkit-overflow-scrolling: touch !important;
+      overflow-y: scroll !important;
+      overflow-x: auto !important;
+      touch-action: auto !important;
+    }
+
+    /* iOS Safari specific styles */
     @supports (-webkit-touch-callout: none) {
-      /* iOS Safari specific styles */
-      .ios-scroll-container {
+      .mobile-scroll-container {
         -webkit-overflow-scrolling: touch !important;
-        overflow-y: scroll !important;
-        overflow-x: auto !important;
       }
 
       /* Ensure touch events work properly on iOS */
       .ios-scroll-content {
-        touch-action: pan-y pan-x !important;
+        touch-action: auto !important;
         -webkit-transform: translateZ(0);
         transform: translateZ(0);
       }
@@ -2104,21 +2109,21 @@ export default function ListView({
         <div
           className={cn(
             "flex-1 relative",
-            isIOS && "ios-scroll-container" // Add iOS-specific class
+            (isIOS || isMobile) && "mobile-scroll-container" // Add mobile-specific class
           )}
           ref={containerRef}
           style={{
-            // iOS Safari scroll fix: Use explicit height and overflow
+            // Mobile scroll fix: Use explicit height and overflow
             height: 'calc(100% - 52px)', // Subtract the header height (zoom controls)
             minHeight: 0, // Required for flex children to properly scroll
-            // CRITICAL: Set overflow explicitly in style for iOS
+            // CRITICAL: Set overflow explicitly in style for all mobile
             overflowY: 'scroll',
             overflowX: 'auto',
-            // Touch settings for iOS
-            touchAction: 'auto', // Let browser handle all touch gestures
-            WebkitOverflowScrolling: 'touch',  // Smooth momentum scrolling on iOS
+            // Touch settings - let browser handle all touch gestures
+            touchAction: 'auto',
+            WebkitOverflowScrolling: 'touch',  // Smooth momentum scrolling on iOS/Android
             overscrollBehavior: 'contain',  // Prevent scroll chaining
-            // Force GPU compositing layer on iOS for smooth scroll
+            // Force GPU compositing layer for smooth scroll on all mobile
             willChange: 'scroll-position',
             WebkitTransform: 'translateZ(0)',
             transform: 'translateZ(0)',
