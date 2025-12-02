@@ -156,7 +156,7 @@ const MainAppLayout = memo(({ effectActive, isChatOpen, onChatOpenChange }: Main
             </div>
           )}
           {activeView === 'calendar' && (
-            <div style={{ height: '100%' }}>
+            <div style={{ height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0, flex: 1 }}>
               <CalendarPage key="calendar-page" />
             </div>
           )}

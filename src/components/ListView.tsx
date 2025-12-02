@@ -1741,17 +1741,32 @@ export default function ListView({
       touch-action: auto !important;
     }
 
-    /* iOS Safari specific styles */
+    /* iOS Safari CRITICAL scroll fix */
     @supports (-webkit-touch-callout: none) {
       .mobile-scroll-container {
         -webkit-overflow-scrolling: touch !important;
       }
 
-      /* CRITICAL FIX: Do NOT apply transform to scroll content on iOS */
-      /* transform: translateZ(0) breaks native iOS Safari scrolling */
-      .ios-scroll-content {
-        touch-action: auto !important;
-        /* Removed: transform: translateZ(0) - this breaks iOS scroll */
+      /* iOS native scroll container - MINIMAL styling to allow native scroll */
+      .ios-native-scroll {
+        -webkit-overflow-scrolling: touch !important;
+        overflow-y: auto !important;
+        overflow-x: auto !important;
+        /* CRITICAL: touch-action: pan-y allows vertical scroll gestures */
+        touch-action: pan-y !important;
+        /* NO transform, NO position:fixed, NO calc heights */
+        /* Let flexbox handle sizing with flex:1 */
+      }
+
+      /* Ensure content inside iOS scroll container doesn't block scroll */
+      .ios-native-scroll > * {
+        /* Content should not have its own scroll handling */
+        touch-action: inherit;
+      }
+
+      /* CRITICAL: Remove transform from grid content on iOS - it breaks scroll */
+      .ios-native-scroll .grid {
+        transform: none !important;
       }
     }
 
@@ -1849,15 +1864,13 @@ export default function ListView({
     <Card
       className="h-full rounded-xl border bg-card text-card-foreground shadow relative"
       style={{
-        // iOS scroll fix: Ensure the card has explicit dimensions for scroll to work
+        // iOS CRITICAL: Use flexbox for proper scroll container sizing
         display: 'flex',
         flexDirection: 'column',
-        ...(isIOS && {
-          // On iOS, use fixed height instead of h-full which may not compute correctly
-          height: '100%',
-          maxHeight: '100%',
-          position: 'relative',
-        }),
+        // flex:1 and minHeight:0 are critical for nested flexbox scroll containers
+        flex: 1,
+        minHeight: 0,
+        // Height will be inherited from parent - no explicit height needed
       }}>
       {/* Loading overlay - only show if we actually have data to load */}
       {isDataLoading && (
@@ -1914,10 +1927,12 @@ export default function ListView({
       <CardContent
         className="p-0 flex flex-col flex-1"
         style={{
-          height: '100%',
-          // iOS: CardContent needs position:relative for absolute scroll container
-          position: isIOS ? 'relative' : undefined,
-          flex: isIOS ? 1 : undefined,
+          // iOS CRITICAL: Use flexbox for height, NOT explicit heights or position:relative
+          // position:relative can interfere with scroll container sizing
+          display: 'flex',
+          flexDirection: 'column',
+          flex: 1,
+          minHeight: 0, // Allow flex container to shrink
         }}>
         {/* Zoom controls - responsive for mobile */}
         <div className={cn(
@@ -2127,17 +2142,20 @@ export default function ListView({
         <div
           className={cn(
             "flex-1",
-            !isIOS && isMobile && "mobile-scroll-container"
+            // iOS: Use specific class for native scroll behavior
+            isIOS ? "ios-native-scroll" : (isMobile && "mobile-scroll-container")
           )}
           ref={containerRef}
           style={isIOS ? {
-            // iOS: Use dvh (dynamic viewport height) which works better on iOS Safari
-            // This accounts for the Safari address bar
-            position: 'relative',
-            height: 'calc(100dvh - 200px)', // Subtract header heights
-            overflow: 'scroll',
+            // iOS CRITICAL FIX: Use the SIMPLEST possible scroll setup
+            // - flex:1 from className handles height
+            // - overflow-y: auto triggers native iOS scroll
+            // - DO NOT use position:relative, calc heights, or transforms
+            overflowY: 'auto',
+            overflowX: 'auto',
             WebkitOverflowScrolling: 'touch',
-            overscrollBehavior: 'contain',
+            // touch-action: pan-y allows vertical scroll gestures
+            touchAction: 'pan-y',
           } : {
             // Non-iOS: Keep existing optimizations
             height: 'calc(100% - 52px)',

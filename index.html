@@ -6,16 +6,37 @@
     <link rel="apple-touch-icon" href="/favicon.png" />
     <link rel="manifest" href="/manifest.json" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
-    <!-- iOS Safari specific: prevent touch callout and enable smooth scroll -->
+    <!-- iOS Safari scroll fix - CRITICAL -->
     <style>
-      /* iOS scroll fix at document level */
+      /* iOS Safari scroll fix - Remove ALL scroll blocking from document level */
       html, body {
+        /* Allow natural scrolling */
+        overflow: visible !important;
+        height: 100% !important;
+        /* iOS momentum scrolling */
         -webkit-overflow-scrolling: touch;
-        touch-action: pan-y pan-x;
+        /* Allow all touch gestures */
+        touch-action: manipulation;
       }
-      /* Prevent iOS from blocking scroll on touch */
-      * {
-        -webkit-touch-callout: default;
+
+      /* iOS specific: Ensure nothing blocks scroll propagation */
+      @supports (-webkit-touch-callout: none) {
+        /* iOS Safari detected */
+        html, body, #root {
+          overflow: visible !important;
+          position: relative !important;
+          height: 100% !important;
+          /* CRITICAL: Do NOT use overflow-x: hidden on iOS - it breaks vertical scroll */
+        }
+
+        /* Allow scroll on any element with overflow-y: auto/scroll */
+        [style*="overflow-y: auto"],
+        [style*="overflow-y: scroll"],
+        [style*="overflow: auto"],
+        [style*="overflow: scroll"] {
+          -webkit-overflow-scrolling: touch !important;
+          touch-action: pan-y !important;
+        }
       }
     </style>
     <meta name="theme-color" content="#667eea" />

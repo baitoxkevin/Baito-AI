@@ -159,22 +159,53 @@
   }
   html {
     scroll-behavior: smooth;
-    overflow-x: hidden;
     height: 100%;
-    /* iOS: Ensure html allows scroll propagation */
+    /* iOS: Allow scroll propagation - NO overflow-x: hidden! */
     -webkit-overflow-scrolling: touch;
   }
   body {
     @apply bg-background text-foreground m-0;
     font-feature-settings: "rlig" 1, "calt" 1;
     min-height: 100vh;
-    overflow-x: hidden;
-    /* iOS CRITICAL: Set overflow to visible, not auto - let children handle scroll */
-    overflow-y: visible;
     height: 100%;
+    /* iOS CRITICAL: overflow:visible to let children handle scroll */
+    overflow: visible;
     /* iOS scroll enablement */
     -webkit-overflow-scrolling: touch;
-    touch-action: pan-y pan-x;
+    touch-action: manipulation;
+  }
+
+  /* iOS Safari specific scroll fix */
+  @supports (-webkit-touch-callout: none) {
+    html, body {
+      /* CRITICAL: On iOS Safari, overflow-x:hidden on body blocks ALL touch scroll */
+      overflow: visible !important;
+      overscroll-behavior: none;
+    }
+
+    /* iOS CRITICAL: Force any element with overflow:auto or overflow:scroll to work */
+    * {
+      /* Ensure touch actions propagate correctly */
+      -webkit-overflow-scrolling: touch;
+    }
+
+    /* Any flex container should allow children to shrink for scroll */
+    .flex, .flex-1, .flex-col, [class*="flex"] {
+      min-height: 0;
+    }
+
+    /* Ensure scroll containers have proper iOS scroll behavior */
+    [style*="overflow-y: auto"],
+    [style*="overflow-y: scroll"],
+    [style*="overflow: auto"],
+    [style*="overflow: scroll"],
+    .overflow-auto,
+    .overflow-scroll,
+    .overflow-y-auto,
+    .overflow-y-scroll {
+      -webkit-overflow-scrolling: touch !important;
+      touch-action: pan-y !important;
+    }
   }
 }
 

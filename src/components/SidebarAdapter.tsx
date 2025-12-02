@@ -422,9 +422,11 @@ export function SidebarAdapter({ children }: SidebarAdapterProps) {
         "md:h-[calc(100vh-64px)] md:max-h-[calc(100vh-64px)]"
       )}
       style={{
-        // iOS: This is the MAIN scroll container - enable scroll here
-        overflow: isIOS ? 'auto' : 'visible',
-        WebkitOverflowScrolling: isIOS ? 'touch' : undefined,
+        // iOS CRITICAL FIX: Do NOT make this container scrollable
+        // The scroll must happen INSIDE the content area (ListView/CalendarView)
+        // Setting overflow:auto here creates NESTED scroll containers which breaks iOS
+        overflow: 'visible',
+        // Remove WebkitOverflowScrolling from this container - it should be on the actual scroll element
       }}
     >
       <Sidebar open={open} setOpen={setOpen}>
@@ -465,8 +467,26 @@ export function SidebarAdapter({ children }: SidebarAdapterProps) {
           </div>
         </SidebarBody>
       </Sidebar>
-      <div className="flex-1 flex flex-col bg-gray-100 dark:bg-neutral-800 pb-16 md:pb-0">
-        <div className="flex-1 w-full">
+      <div
+        className="flex-1 flex flex-col bg-gray-100 dark:bg-neutral-800 pb-16 md:pb-0"
+        style={{
+          // iOS CRITICAL: minHeight:0 allows flex children to shrink below content size
+          // This is required for nested scroll containers to work properly
+          minHeight: 0,
+          overflow: 'visible',
+        }}
+      >
+        <div
+          className="flex-1 w-full"
+          style={{
+            // iOS CRITICAL: Both containers need minHeight:0 and overflow:visible
+            // to allow the scroll container (ListView) to calculate its height correctly
+            display: 'flex',
+            flexDirection: 'column',
+            minHeight: 0,
+            overflow: 'visible',
+          }}
+        >
           {children}
         </div>
       </div>
