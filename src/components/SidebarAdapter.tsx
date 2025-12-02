@@ -410,13 +410,22 @@ export function SidebarAdapter({ children }: SidebarAdapterProps) {
     },
   ];
 
+  // Detect iOS
+  const isIOS = typeof navigator !== 'undefined' &&
+    (/iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1));
+
   return (
     <div
       className={cn(
         "rounded-xl flex flex-col md:flex-row w-full max-w-[1200px] min-h-[calc(100vh-64px)] border border-neutral-200 dark:border-neutral-700 shadow-xl relative",
-        "md:h-[calc(100vh-64px)] md:max-h-[calc(100vh-64px)]" // Fixed height only on desktop
+        "md:h-[calc(100vh-64px)] md:max-h-[calc(100vh-64px)]"
       )}
-      style={{ overflow: 'visible' }}
+      style={{
+        // iOS: This is the MAIN scroll container - enable scroll here
+        overflow: isIOS ? 'auto' : 'visible',
+        WebkitOverflowScrolling: isIOS ? 'touch' : undefined,
+      }}
     >
       <Sidebar open={open} setOpen={setOpen}>
         <SidebarBody className="justify-between py-6">
@@ -426,9 +435,9 @@ export function SidebarAdapter({ children }: SidebarAdapterProps) {
             </div>
             <div className="flex flex-col gap-3">
               {links.map((link, idx) => (
-                <SidebarLink 
-                  key={idx} 
-                  link={link} 
+                <SidebarLink
+                  key={idx}
+                  link={link}
                   open={open}
                   className={link.className}
                   aria-label={link["aria-label"]}
@@ -456,8 +465,8 @@ export function SidebarAdapter({ children }: SidebarAdapterProps) {
           </div>
         </SidebarBody>
       </Sidebar>
-      <div className="flex-1 flex flex-col bg-gray-100 dark:bg-neutral-800 pb-16 md:pb-0" style={{ overflow: 'visible' }}>
-        <div className="flex-1 w-full" style={{ overflow: 'visible' }}>
+      <div className="flex-1 flex flex-col bg-gray-100 dark:bg-neutral-800 pb-16 md:pb-0">
+        <div className="flex-1 w-full">
           {children}
         </div>
       </div>
