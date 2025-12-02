@@ -2206,8 +2206,11 @@ export default function ListView({
             role="grid"
             aria-label="Project calendar view"
           >
-            {/* Date sidebar - fixed on the left */}
-            <div className="sticky left-0 bg-background z-10 border-r" role="rowgroup" aria-label="Date headers">
+            {/* Date sidebar - sticky on desktop, static on iOS (sticky breaks iOS scroll) */}
+            <div className={cn(
+              "bg-background z-10 border-r",
+              !isIOS && "sticky left-0"
+            )} role="rowgroup" aria-label="Date headers">
               {dates.map((day, index) => {
                 // Check if day is a Malaysian holiday
                 const isHoliday = isPublicHoliday(day);
