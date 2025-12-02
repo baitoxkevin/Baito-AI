@@ -1846,8 +1846,19 @@ export default function ListView({
   }, []);
   
   return (
-    <Card 
-      className="h-full rounded-xl border bg-card text-card-foreground shadow relative">
+    <Card
+      className="h-full rounded-xl border bg-card text-card-foreground shadow relative"
+      style={{
+        // iOS scroll fix: Ensure the card has explicit dimensions for scroll to work
+        display: 'flex',
+        flexDirection: 'column',
+        ...(isIOS && {
+          // On iOS, use fixed height instead of h-full which may not compute correctly
+          height: '100%',
+          maxHeight: '100%',
+          position: 'relative',
+        }),
+      }}>
       {/* Loading overlay - only show if we actually have data to load */}
       {isDataLoading && (
         <div className="absolute inset-0 bg-white/80 dark:bg-gray-900/80 flex items-center justify-center z-50">
@@ -1900,7 +1911,14 @@ export default function ListView({
           )}
         </>
       )}
-      <CardContent className="p-0 flex flex-col" style={{ height: '100%' }}>
+      <CardContent
+        className="p-0 flex flex-col flex-1"
+        style={{
+          height: '100%',
+          // iOS: CardContent needs position:relative for absolute scroll container
+          position: isIOS ? 'relative' : undefined,
+          flex: isIOS ? 1 : undefined,
+        }}>
         {/* Zoom controls - responsive for mobile */}
         <div className={cn(
           "flex items-center justify-between p-2 border-b bg-gray-50/50 text-gray-600",
@@ -2108,29 +2126,32 @@ export default function ListView({
       
         <div
           className={cn(
-            "flex-1 relative",
-            (isIOS || isMobile) && "mobile-scroll-container" // Add mobile-specific class
+            "flex-1",
+            (isIOS || isMobile) && "mobile-scroll-container"
           )}
           ref={containerRef}
           style={{
-            // Mobile scroll fix: Use explicit height and overflow
-            height: 'calc(100% - 52px)', // Subtract the header height (zoom controls)
-            minHeight: 0, // Required for flex children to properly scroll
-            // CRITICAL: Set overflow explicitly in style for all mobile
-            overflowY: 'scroll',
-            overflowX: 'auto',
-            // Touch settings - let browser handle all touch gestures
-            touchAction: 'auto',
-            WebkitOverflowScrolling: 'touch',  // Smooth momentum scrolling on iOS/Android
-            overscrollBehavior: 'contain',  // Prevent scroll chaining
-            // CRITICAL FIX FOR iOS: Do NOT apply transform or willChange to scroll container on iOS
-            // These properties break native iOS Safari scrolling
-            // Only apply GPU acceleration hints on non-iOS devices
+            // iOS CRITICAL FIX: Use absolute positioning for scroll container
+            // Flex-based scrolling doesn't work reliably on iOS Safari
             ...(isIOS ? {
-              // iOS: Let browser handle scroll natively without any interference
-              // No transform, no willChange - pure native scroll
+              position: 'absolute',
+              top: '52px', // Below the zoom controls header
+              left: 0,
+              right: 0,
+              bottom: 0,
+              overflowY: 'scroll',
+              overflowX: 'auto',
+              WebkitOverflowScrolling: 'touch',
+              // No transform, no willChange - these break iOS scroll
             } : {
-              // Non-iOS: Apply GPU hints for smoother scrolling
+              // Non-iOS: Keep flex-based layout
+              height: 'calc(100% - 52px)',
+              minHeight: 0,
+              overflowY: 'scroll',
+              overflowX: 'auto',
+              touchAction: 'auto',
+              WebkitOverflowScrolling: 'touch',
+              overscrollBehavior: 'contain',
               willChange: 'scroll-position',
               transform: 'translateZ(0)',
             }),
