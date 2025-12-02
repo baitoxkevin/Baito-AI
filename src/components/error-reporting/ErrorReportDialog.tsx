@@ -144,20 +144,19 @@ export function ErrorReportDialog({
     setSubmitStatus('submitting');
 
     try {
-      // Prepare error report data
+      // Prepare error report data (matching database schema)
       const reportData = {
-        error_id: errorData.errorId,
-        user_id: userId || null,
         error_message: errorData.errorMessage,
         error_stack: errorData.errorStack || null,
         component_stack: errorData.componentStack || null,
+        page_url: errorData.url,
+        page_title: document.title || null,
+        reporter_id: userId || null,
+        user_agent: errorData.userAgent,
         user_description: description || null,
         screenshot_url: screenshotPreview || null,
-        page_url: errorData.url,
-        user_agent: errorData.userAgent,
-        page_context: errorData.pageContext || null,
-        created_at: new Date().toISOString(),
-        status: 'new',
+        status: 'new' as const,
+        severity: 'medium' as const,
       };
 
       // Insert into database
