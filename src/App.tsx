@@ -25,8 +25,8 @@ import { renderCanvas } from './components/ui/canvas';
 import { SpotlightCommand } from './components/SpotlightCommand';
 import { GlobalErrorBoundary } from './components/GlobalErrorBoundary';
 import { ErrorBoundaryWithReport } from './components/error-reporting/ErrorBoundaryWithReport';
-// Error reporting now integrated into ChatWidget via 5-tap gesture on Baiger avatar
-import { ChatWidget } from './components/ai-assistant/ChatWidget';
+// Enhanced AI Chat with Smart Baiger - tool execution, data cards, and rich content
+import { EnhancedChatWidget } from './components/ai-assistant/EnhancedChatWidget';
 import { NotificationBell } from './components/NotificationBell';
 import { useAppState } from './contexts/AppStateContext';
 
@@ -170,13 +170,15 @@ function RouterContent() {
       </Routes>
       <SpotlightCommand />
       <EnhancedToaster />
-      {/* AI Chat Widget - only show when user is logged in AND not on public routes */}
+      {/* AI Chat Widget - Enhanced with Smart Baiger, tool execution, and data cards */}
       {!isPublicRoute && currentUser && (
-        <ChatWidget
+        <EnhancedChatWidget
           userId={currentUser.id}
           externalOpen={isChatOpen}
           onOpenChange={handleChatOpenChange}
           contextData={contextData}
+          enableStreaming={false}
+          enableToolExecution={true}
         />
       )}
       {/* Notification Bell - only show when user is logged in AND not on public routes */}
