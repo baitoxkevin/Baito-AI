@@ -147,7 +147,7 @@ const MainAppLayout = memo(({ effectActive, isChatOpen, onChatOpenChange }: Main
           id="canvas"
         ></canvas>
       </div>
-      <div className="w-full min-h-screen flex flex-col flex-1 overflow-y-auto md:items-center md:justify-center md:p-4 lg:p-8">
+      <div className="w-full min-h-screen flex flex-col flex-1 md:items-center md:justify-center md:p-4 lg:p-8" style={{ overflow: 'visible' }}>
         <SidebarAdapter>
           {/* Conditionally render only the active view for better performance */}
           {activeView === 'dashboard' && (

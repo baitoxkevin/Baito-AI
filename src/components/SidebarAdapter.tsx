@@ -414,9 +414,9 @@ export function SidebarAdapter({ children }: SidebarAdapterProps) {
     <div
       className={cn(
         "rounded-xl flex flex-col md:flex-row w-full max-w-[1200px] min-h-[calc(100vh-64px)] border border-neutral-200 dark:border-neutral-700 shadow-xl relative",
-        "md:h-[calc(100vh-64px)] md:max-h-[calc(100vh-64px)]", // Fixed height only on desktop
-        "overflow-y-auto md:overflow-hidden" // Allow scroll on mobile, hidden on desktop (children handle scroll)
+        "md:h-[calc(100vh-64px)] md:max-h-[calc(100vh-64px)]" // Fixed height only on desktop
       )}
+      style={{ overflow: 'visible' }}
     >
       <Sidebar open={open} setOpen={setOpen}>
         <SidebarBody className="justify-between py-6">
@@ -456,8 +456,8 @@ export function SidebarAdapter({ children }: SidebarAdapterProps) {
           </div>
         </SidebarBody>
       </Sidebar>
-      <div className="flex-1 flex flex-col bg-gray-100 dark:bg-neutral-800 overflow-y-auto pb-16 md:pb-0">
-        <div className="flex-1 w-full overflow-y-auto">
+      <div className="flex-1 flex flex-col bg-gray-100 dark:bg-neutral-800 pb-16 md:pb-0" style={{ overflow: 'visible' }}>
+        <div className="flex-1 w-full" style={{ overflow: 'visible' }}>
           {children}
         </div>
       </div>

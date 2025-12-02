@@ -1342,7 +1342,7 @@ export default function CalendarPage() {
       <div className="p-4 border rounded-lg bg-white flex flex-col gap-4 w-full h-full overflow-visible">
         <div className="flex flex-col h-full flex-grow">
           {/* Content with lazy loading */}
-          <div className="flex-grow overflow-auto">
+          <div className="flex-grow" style={{ overflow: 'visible' }}>
             <Suspense fallback={<CalendarSkeleton />}>
               {view === 'calendar' ? (
                 <AnimatePresence mode="wait">
