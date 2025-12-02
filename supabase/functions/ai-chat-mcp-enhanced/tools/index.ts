@@ -1007,6 +1007,890 @@ export const rejectExpenseClaimTool: ToolDefinition = {
 }
 
 // ============================================
+// Business Intelligence Tools (Smart Baiger)
+// ============================================
+
+export const getBusinessOverviewTool: ToolDefinition = {
+  name: 'get_business_overview',
+  description: 'Get a comprehensive business overview including revenue, project stats, crew utilization, and key metrics. Use this for "how are we doing" type questions.',
+  parameters: z.object({
+    period: z.enum(['today', 'this_week', 'this_month', 'last_month', 'this_quarter', 'this_year']).default('this_month').describe('Time period for analysis'),
+    compare_to_previous: z.boolean().default(true).describe('Compare to previous period'),
+  }),
+  execute: async (params, supabase) => {
+    const period = params.period || 'this_month'
+    const now = new Date()
+    let startDate: Date
+    let endDate: Date = now
+    let previousStartDate: Date
+    let previousEndDate: Date
+
+    // Calculate date ranges
+    switch (period) {
+      case 'today':
+        startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+        previousStartDate = new Date(startDate)
+        previousStartDate.setDate(previousStartDate.getDate() - 1)
+        previousEndDate = new Date(startDate)
+        break
+      case 'this_week':
+        const dayOfWeek = now.getDay()
+        startDate = new Date(now)
+        startDate.setDate(now.getDate() - dayOfWeek)
+        previousStartDate = new Date(startDate)
+        previousStartDate.setDate(previousStartDate.getDate() - 7)
+        previousEndDate = new Date(startDate)
+        break
+      case 'this_month':
+        startDate = new Date(now.getFullYear(), now.getMonth(), 1)
+        previousStartDate = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+        previousEndDate = new Date(now.getFullYear(), now.getMonth(), 0)
+        break
+      case 'last_month':
+        startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+        endDate = new Date(now.getFullYear(), now.getMonth(), 0)
+        previousStartDate = new Date(now.getFullYear(), now.getMonth() - 2, 1)
+        previousEndDate = new Date(now.getFullYear(), now.getMonth() - 1, 0)
+        break
+      case 'this_quarter':
+        const quarter = Math.floor(now.getMonth() / 3)
+        startDate = new Date(now.getFullYear(), quarter * 3, 1)
+        previousStartDate = new Date(now.getFullYear(), (quarter - 1) * 3, 1)
+        previousEndDate = new Date(now.getFullYear(), quarter * 3, 0)
+        break
+      case 'this_year':
+        startDate = new Date(now.getFullYear(), 0, 1)
+        previousStartDate = new Date(now.getFullYear() - 1, 0, 1)
+        previousEndDate = new Date(now.getFullYear() - 1, 11, 31)
+        break
+      default:
+        startDate = new Date(now.getFullYear(), now.getMonth(), 1)
+        previousStartDate = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+        previousEndDate = new Date(now.getFullYear(), now.getMonth(), 0)
+    }
+
+    // Get current period projects
+    const { data: currentProjects } = await supabase
+      .from('projects')
+      .select('id, status, priority, crew_count, filled_positions, start_date')
+      .is('deleted_at', null)
+      .gte('start_date', startDate.toISOString())
+      .lte('start_date', endDate.toISOString())
+
+    // Get previous period projects for comparison
+    const { data: previousProjects } = await supabase
+      .from('projects')
+      .select('id, status, crew_count, filled_positions')
+      .is('deleted_at', null)
+      .gte('start_date', previousStartDate.toISOString())
+      .lte('start_date', previousEndDate.toISOString())
+
+    // Get top performers
+    const { data: topPerformers } = await supabase
+      .from('candidates')
+      .select('id, full_name, total_points')
+      .eq('status', 'active')
+      .order('total_points', { ascending: false })
+      .limit(5)
+
+    // Get recent activity
+    const { data: recentAssignments } = await supabase
+      .from('project_staff')
+      .select('id, status, created_at')
+      .gte('created_at', startDate.toISOString())
+
+    const projects = currentProjects || []
+    const prevProjects = previousProjects || []
+    const assignments = recentAssignments || []
+
+    // Calculate metrics
+    const totalProjects = projects.length
+    const completedProjects = projects.filter(p => p.status === 'completed').length
+    const activeProjects = projects.filter(p => p.status === 'active').length
+    const understaffed = projects.filter(p => (p.filled_positions || 0) < (p.crew_count || 0)).length
+
+    const totalCrewNeeded = projects.reduce((sum, p) => sum + (p.crew_count || 0), 0)
+    const totalCrewFilled = projects.reduce((sum, p) => sum + (p.filled_positions || 0), 0)
+    const utilizationRate = totalCrewNeeded > 0 ? Math.round((totalCrewFilled / totalCrewNeeded) * 100) : 0
+
+    // Previous period metrics
+    const prevTotalProjects = prevProjects.length
+    const prevCrewNeeded = prevProjects.reduce((sum, p) => sum + (p.crew_count || 0), 0)
+    const prevCrewFilled = prevProjects.reduce((sum, p) => sum + (p.filled_positions || 0), 0)
+    const prevUtilization = prevCrewNeeded > 0 ? Math.round((prevCrewFilled / prevCrewNeeded) * 100) : 0
+
+    // Calculate changes
+    const projectChange = prevTotalProjects > 0 ? Math.round(((totalProjects - prevTotalProjects) / prevTotalProjects) * 100) : 0
+    const utilizationChange = prevUtilization > 0 ? utilizationRate - prevUtilization : 0
+
+    // Insights
+    const insights: string[] = []
+    if (understaffed > 0) {
+      insights.push(`⚠️ ${understaffed} project(s) are understaffed and need attention`)
+    }
+    if (utilizationChange > 5) {
+      insights.push(`📈 Crew utilization improved by ${utilizationChange}% vs previous period`)
+    } else if (utilizationChange < -5) {
+      insights.push(`📉 Crew utilization dropped by ${Math.abs(utilizationChange)}% vs previous period`)
+    }
+    if (projectChange > 20) {
+      insights.push(`🚀 Project volume increased by ${projectChange}% - consider recruiting more crew`)
+    }
+
+    // Concerns
+    const concerns: string[] = []
+    if (utilizationRate < 70) {
+      concerns.push(`Low crew utilization (${utilizationRate}%) - consider better matching or marketing`)
+    }
+    if (understaffed > totalProjects * 0.3) {
+      concerns.push(`High understaffing rate (${Math.round((understaffed / totalProjects) * 100)}%) - urgent recruitment needed`)
+    }
+
+    return {
+      success: true,
+      data: {
+        period: period,
+        dateRange: { from: startDate.toISOString().split('T')[0], to: endDate.toISOString().split('T')[0] },
+        summary: {
+          totalProjects,
+          completedProjects,
+          activeProjects,
+          understaffed,
+          crewUtilization: `${utilizationRate}%`,
+          totalCrewNeeded,
+          totalCrewFilled,
+          totalAssignments: assignments.length,
+        },
+        comparison: params.compare_to_previous ? {
+          previousPeriod: { from: previousStartDate.toISOString().split('T')[0], to: previousEndDate.toISOString().split('T')[0] },
+          projectChange: `${projectChange > 0 ? '+' : ''}${projectChange}%`,
+          utilizationChange: `${utilizationChange > 0 ? '+' : ''}${utilizationChange}%`,
+        } : null,
+        topPerformers: topPerformers || [],
+        insights,
+        concerns,
+      },
+      suggestions: insights.length > 0 ? insights : ['Business is running smoothly this period'],
+    }
+  },
+}
+
+export const analyzeProblemTool: ToolDefinition = {
+  name: 'analyze_problem',
+  description: 'Analyze a business problem and provide data-driven recommendations. Use for questions like "why are we having X problem" or "what should I do about Y".',
+  parameters: z.object({
+    problem_type: z.enum([
+      'no_shows',
+      'understaffing',
+      'low_performance',
+      'high_cancellations',
+      'payment_delays',
+      'client_complaints',
+      'crew_shortage',
+      'scheduling_conflicts',
+      'other'
+    ]).describe('Type of problem to analyze'),
+    custom_problem: z.string().optional().describe('Description if problem_type is "other"'),
+    time_range_days: z.coerce.number().default(30).describe('Number of days to analyze'),
+  }),
+  execute: async (params, supabase) => {
+    const daysAgo = new Date()
+    daysAgo.setDate(daysAgo.getDate() - (params.time_range_days || 30))
+
+    const analysis: Record<string, unknown> = {
+      problemType: params.problem_type,
+      timeRange: `Last ${params.time_range_days} days`,
+      findings: [],
+      rootCauses: [],
+      recommendations: [],
+      actionItems: [],
+    }
+
+    switch (params.problem_type) {
+      case 'no_shows': {
+        // Analyze no-show patterns
+        const { data: assignments } = await supabase
+          .from('project_staff')
+          .select(`
+            id, status, candidate_id, project_id, created_at,
+            candidates (id, full_name, total_points),
+            projects (id, title, start_date, venue_address)
+          `)
+          .in('status', ['cancelled', 'no_show'])
+          .gte('created_at', daysAgo.toISOString())
+
+        const noShows = assignments || []
+        const byCandidate: Record<string, number> = {}
+        const byDayOfWeek: Record<string, number> = {}
+
+        noShows.forEach(ns => {
+          if (ns.candidate_id) {
+            byCandidate[ns.candidate_id] = (byCandidate[ns.candidate_id] || 0) + 1
+          }
+          const project = ns.projects as { start_date?: string } | null
+          if (project?.start_date) {
+            const day = new Date(project.start_date).toLocaleDateString('en-US', { weekday: 'long' })
+            byDayOfWeek[day] = (byDayOfWeek[day] || 0) + 1
+          }
+        })
+
+        // Find repeat offenders
+        const repeatOffenders = Object.entries(byCandidate)
+          .filter(([_, count]) => count >= 2)
+          .sort((a, b) => b[1] - a[1])
+
+        // Find problematic days
+        const problematicDays = Object.entries(byDayOfWeek)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 2)
+
+        analysis.findings = [
+          `Total no-shows/cancellations: ${noShows.length}`,
+          `Repeat offenders: ${repeatOffenders.length} crew members`,
+          problematicDays.length > 0 ? `Most affected days: ${problematicDays.map(d => d[0]).join(', ')}` : null,
+        ].filter(Boolean)
+
+        analysis.rootCauses = []
+        if (repeatOffenders.length > 0) {
+          analysis.rootCauses.push('Some crew members have reliability issues')
+        }
+        if (problematicDays.some(d => ['Saturday', 'Sunday'].includes(d[0]))) {
+          analysis.rootCauses.push('Weekend events have higher no-show rates')
+        }
+
+        analysis.recommendations = [
+          'Require 24-hour advance confirmation for all assignments',
+          repeatOffenders.length > 0 ? 'Consider flagging or removing repeat offenders' : null,
+          'Implement a penalty point system for no-shows',
+          'Have backup crew on standby for high-risk events',
+        ].filter(Boolean)
+
+        analysis.repeatOffenders = repeatOffenders.slice(0, 5)
+        break
+      }
+
+      case 'understaffing': {
+        // Analyze understaffing patterns
+        const { data: projects } = await supabase
+          .from('projects')
+          .select('id, title, start_date, crew_count, filled_positions, venue_address, event_type')
+          .is('deleted_at', null)
+          .in('status', ['planning', 'active'])
+          .lt('filled_positions', 'crew_count')
+          .order('start_date', { ascending: true })
+
+        const understaffed = projects || []
+        const totalGap = understaffed.reduce((sum, p) => sum + ((p.crew_count || 0) - (p.filled_positions || 0)), 0)
+
+        const byEventType: Record<string, number> = {}
+        understaffed.forEach(p => {
+          if (p.event_type) {
+            byEventType[p.event_type] = (byEventType[p.event_type] || 0) + 1
+          }
+        })
+
+        // Get active crew count
+        const { count: activeCrew } = await supabase
+          .from('candidates')
+          .select('*', { count: 'exact', head: true })
+          .eq('status', 'active')
+
+        analysis.findings = [
+          `${understaffed.length} projects are currently understaffed`,
+          `Total crew gap: ${totalGap} positions`,
+          `Active crew pool: ${activeCrew || 0} members`,
+          Object.keys(byEventType).length > 0 ? `Most affected event types: ${Object.entries(byEventType).sort((a, b) => b[1] - a[1]).slice(0, 3).map(e => e[0]).join(', ')}` : null,
+        ].filter(Boolean)
+
+        analysis.rootCauses = []
+        if (totalGap > (activeCrew || 0) * 0.2) {
+          analysis.rootCauses.push('Crew pool is too small for current demand')
+        }
+        if (Object.keys(byEventType).length > 0) {
+          analysis.rootCauses.push(`Certain event types (${Object.keys(byEventType)[0]}) may need specialized skills`)
+        }
+
+        analysis.recommendations = [
+          'Launch a recruitment drive to expand the crew pool',
+          'Reach out to inactive crew members to reactivate them',
+          'Consider partnering with staffing agencies for overflow',
+          'Review rate competitiveness vs market',
+        ]
+
+        analysis.understaffedProjects = understaffed.slice(0, 10)
+        break
+      }
+
+      case 'crew_shortage': {
+        // Analyze crew supply vs demand
+        const { data: upcomingProjects } = await supabase
+          .from('projects')
+          .select('id, start_date, crew_count, filled_positions')
+          .is('deleted_at', null)
+          .in('status', ['planning', 'active'])
+          .gte('start_date', new Date().toISOString())
+          .order('start_date', { ascending: true })
+          .limit(30)
+
+        const { data: candidates } = await supabase
+          .from('candidates')
+          .select('id, status, created_at')
+
+        const projects = upcomingProjects || []
+        const allCandidates = candidates || []
+
+        const activeCandidates = allCandidates.filter(c => c.status === 'active').length
+        const inactiveCandidates = allCandidates.filter(c => c.status === 'inactive').length
+        const totalDemand = projects.reduce((sum, p) => sum + (p.crew_count || 0), 0)
+        const totalFilled = projects.reduce((sum, p) => sum + (p.filled_positions || 0), 0)
+
+        // Find peak demand dates
+        const demandByDate: Record<string, number> = {}
+        projects.forEach(p => {
+          const date = new Date(p.start_date).toISOString().split('T')[0]
+          demandByDate[date] = (demandByDate[date] || 0) + (p.crew_count || 0)
+        })
+        const peakDates = Object.entries(demandByDate)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 5)
+
+        analysis.findings = [
+          `Active crew: ${activeCandidates}`,
+          `Inactive crew: ${inactiveCandidates} (potential reactivation pool)`,
+          `Upcoming demand: ${totalDemand} positions across ${projects.length} projects`,
+          `Currently filled: ${totalFilled} (${Math.round((totalFilled / totalDemand) * 100)}%)`,
+          peakDates.length > 0 ? `Peak demand dates: ${peakDates.slice(0, 3).map(d => `${d[0]} (${d[1]} crew)`).join(', ')}` : null,
+        ].filter(Boolean)
+
+        analysis.recommendations = [
+          `Contact ${inactiveCandidates} inactive crew members for reactivation`,
+          'Run referral bonus campaign for existing crew',
+          'Post recruitment ads on job platforms',
+          peakDates.length > 0 ? `Plan extra staffing for peak date: ${peakDates[0][0]}` : null,
+        ].filter(Boolean)
+
+        analysis.peakDates = peakDates
+        break
+      }
+
+      default: {
+        // Generic analysis
+        const { data: projectStats } = await supabase
+          .from('projects')
+          .select('status')
+          .is('deleted_at', null)
+          .gte('created_at', daysAgo.toISOString())
+
+        const stats = (projectStats || []).reduce((acc, p) => {
+          acc[p.status] = (acc[p.status] || 0) + 1
+          return acc
+        }, {} as Record<string, number>)
+
+        analysis.findings = [
+          `Analyzed ${Object.values(stats).reduce((a, b) => a + b, 0)} projects`,
+          `Status breakdown: ${JSON.stringify(stats)}`,
+        ]
+
+        analysis.recommendations = [
+          'Provide more specific problem description for detailed analysis',
+          'Consider running get_business_overview for general health check',
+        ]
+      }
+    }
+
+    return {
+      success: true,
+      data: analysis,
+      suggestions: (analysis.recommendations as string[]).slice(0, 3),
+      nextActions: [
+        { label: 'View detailed metrics', action: 'get_business_overview', variant: 'default' },
+        { label: 'Find available crew', action: 'find_candidates with active status', variant: 'outline' },
+      ],
+    }
+  },
+}
+
+export const getFinancialAnalysisTool: ToolDefinition = {
+  name: 'get_financial_analysis',
+  description: 'Analyze financial performance including revenue, costs, profitability by venue/client/event type. Use for "am I making money on X" type questions.',
+  parameters: z.object({
+    analysis_type: z.enum(['venue', 'client', 'event_type', 'overall']).default('overall').describe('What to analyze'),
+    filter_value: z.string().optional().describe('Specific venue/client/event_type to analyze'),
+    period_months: z.coerce.number().default(6).describe('Number of months to analyze'),
+  }),
+  execute: async (params, supabase) => {
+    const monthsAgo = new Date()
+    monthsAgo.setMonth(monthsAgo.getMonth() - (params.period_months || 6))
+
+    // Get projects with staff costs
+    const { data: projects } = await supabase
+      .from('projects')
+      .select(`
+        id, title, venue_address, event_type, client_id, status,
+        crew_count, filled_positions, start_date,
+        project_staff (hourly_rate, actual_hours, status)
+      `)
+      .is('deleted_at', null)
+      .gte('start_date', monthsAgo.toISOString())
+      .in('status', ['completed', 'active'])
+
+    const allProjects = projects || []
+
+    // Calculate metrics per project
+    interface ProjectMetrics {
+      id: string
+      title: string
+      venue: string
+      eventType: string
+      crewCost: number
+      estimatedRevenue: number
+      margin: number
+      marginPercent: number
+    }
+
+    const projectMetrics: ProjectMetrics[] = allProjects.map(p => {
+      const staff = (p.project_staff || []) as Array<{ hourly_rate: number; actual_hours: number; status: string }>
+      const crewCost = staff.reduce((sum, s) => {
+        const hours = s.actual_hours || 8 // Default 8 hours if not recorded
+        const rate = s.hourly_rate || 0
+        return sum + (hours * rate)
+      }, 0)
+
+      // Estimate revenue (typically 30-50% margin on crew cost)
+      const estimatedRevenue = crewCost * 1.4 // Assume 40% markup
+      const margin = estimatedRevenue - crewCost
+      const marginPercent = estimatedRevenue > 0 ? (margin / estimatedRevenue) * 100 : 0
+
+      return {
+        id: p.id,
+        title: p.title,
+        venue: p.venue_address || 'Unknown',
+        eventType: p.event_type || 'Unknown',
+        crewCost,
+        estimatedRevenue,
+        margin,
+        marginPercent,
+      }
+    })
+
+    // Group by analysis type
+    let groupedAnalysis: Record<string, { count: number; totalCost: number; totalRevenue: number; avgMargin: number }> = {}
+
+    if (params.analysis_type === 'venue') {
+      projectMetrics.forEach(p => {
+        const key = p.venue.split(',')[0].trim() // Use first part of address
+        if (!groupedAnalysis[key]) {
+          groupedAnalysis[key] = { count: 0, totalCost: 0, totalRevenue: 0, avgMargin: 0 }
+        }
+        groupedAnalysis[key].count++
+        groupedAnalysis[key].totalCost += p.crewCost
+        groupedAnalysis[key].totalRevenue += p.estimatedRevenue
+      })
+    } else if (params.analysis_type === 'event_type') {
+      projectMetrics.forEach(p => {
+        if (!groupedAnalysis[p.eventType]) {
+          groupedAnalysis[p.eventType] = { count: 0, totalCost: 0, totalRevenue: 0, avgMargin: 0 }
+        }
+        groupedAnalysis[p.eventType].count++
+        groupedAnalysis[p.eventType].totalCost += p.crewCost
+        groupedAnalysis[p.eventType].totalRevenue += p.estimatedRevenue
+      })
+    }
+
+    // Calculate margins
+    Object.keys(groupedAnalysis).forEach(key => {
+      const g = groupedAnalysis[key]
+      g.avgMargin = g.totalRevenue > 0 ? ((g.totalRevenue - g.totalCost) / g.totalRevenue) * 100 : 0
+    })
+
+    // Sort by margin
+    const sortedAnalysis = Object.entries(groupedAnalysis)
+      .map(([name, data]) => ({ name, ...data, profit: data.totalRevenue - data.totalCost }))
+      .sort((a, b) => b.avgMargin - a.avgMargin)
+
+    // Overall totals
+    const totalCost = projectMetrics.reduce((sum, p) => sum + p.crewCost, 0)
+    const totalRevenue = projectMetrics.reduce((sum, p) => sum + p.estimatedRevenue, 0)
+    const overallMargin = totalRevenue > 0 ? ((totalRevenue - totalCost) / totalRevenue) * 100 : 0
+
+    // Identify best and worst performers
+    const bestPerformers = sortedAnalysis.filter(a => a.avgMargin >= 30).slice(0, 3)
+    const underperformers = sortedAnalysis.filter(a => a.avgMargin < 25 && a.count >= 2)
+
+    const insights: string[] = []
+    if (bestPerformers.length > 0) {
+      insights.push(`🏆 Best margins: ${bestPerformers.map(p => `${p.name} (${p.avgMargin.toFixed(1)}%)`).join(', ')}`)
+    }
+    if (underperformers.length > 0) {
+      insights.push(`⚠️ Low margins: ${underperformers.map(p => `${p.name} (${p.avgMargin.toFixed(1)}%)`).join(', ')}`)
+    }
+
+    const recommendations: string[] = []
+    if (underperformers.length > 0) {
+      recommendations.push(`Review pricing for ${underperformers[0].name} - margin is below target`)
+    }
+    if (overallMargin < 25) {
+      recommendations.push('Overall margins are thin - consider raising rates or reducing costs')
+    }
+
+    return {
+      success: true,
+      data: {
+        period: `Last ${params.period_months} months`,
+        overall: {
+          totalProjects: projectMetrics.length,
+          totalCrewCost: totalCost.toFixed(2),
+          estimatedRevenue: totalRevenue.toFixed(2),
+          estimatedProfit: (totalRevenue - totalCost).toFixed(2),
+          overallMargin: `${overallMargin.toFixed(1)}%`,
+        },
+        byCategory: sortedAnalysis,
+        bestPerformers,
+        underperformers,
+        insights,
+        recommendations,
+      },
+      suggestions: insights.concat(recommendations),
+    }
+  },
+}
+
+export const getForecastTool: ToolDefinition = {
+  name: 'get_forecast',
+  description: 'Get demand forecast and recommendations for upcoming period. Use for "what should I prepare for" type questions.',
+  parameters: z.object({
+    period: z.enum(['next_week', 'next_month', 'next_quarter']).default('next_month').describe('Forecast period'),
+    compare_to_historical: z.boolean().default(true).describe('Compare to same period last year'),
+  }),
+  execute: async (params, supabase) => {
+    const now = new Date()
+    let forecastStart: Date
+    let forecastEnd: Date
+    let historicalStart: Date
+    let historicalEnd: Date
+
+    switch (params.period) {
+      case 'next_week':
+        forecastStart = new Date(now)
+        forecastStart.setDate(now.getDate() + 1)
+        forecastEnd = new Date(now)
+        forecastEnd.setDate(now.getDate() + 7)
+        historicalStart = new Date(forecastStart)
+        historicalStart.setFullYear(historicalStart.getFullYear() - 1)
+        historicalEnd = new Date(forecastEnd)
+        historicalEnd.setFullYear(historicalEnd.getFullYear() - 1)
+        break
+      case 'next_month':
+        forecastStart = new Date(now.getFullYear(), now.getMonth() + 1, 1)
+        forecastEnd = new Date(now.getFullYear(), now.getMonth() + 2, 0)
+        historicalStart = new Date(forecastStart)
+        historicalStart.setFullYear(historicalStart.getFullYear() - 1)
+        historicalEnd = new Date(forecastEnd)
+        historicalEnd.setFullYear(historicalEnd.getFullYear() - 1)
+        break
+      case 'next_quarter':
+        const nextQuarter = Math.floor(now.getMonth() / 3) + 1
+        forecastStart = new Date(now.getFullYear(), nextQuarter * 3, 1)
+        forecastEnd = new Date(now.getFullYear(), (nextQuarter + 1) * 3, 0)
+        historicalStart = new Date(forecastStart)
+        historicalStart.setFullYear(historicalStart.getFullYear() - 1)
+        historicalEnd = new Date(forecastEnd)
+        historicalEnd.setFullYear(historicalEnd.getFullYear() - 1)
+        break
+      default:
+        forecastStart = new Date(now.getFullYear(), now.getMonth() + 1, 1)
+        forecastEnd = new Date(now.getFullYear(), now.getMonth() + 2, 0)
+        historicalStart = new Date(forecastStart)
+        historicalStart.setFullYear(historicalStart.getFullYear() - 1)
+        historicalEnd = new Date(forecastEnd)
+        historicalEnd.setFullYear(historicalEnd.getFullYear() - 1)
+    }
+
+    // Get upcoming confirmed projects
+    const { data: upcomingProjects } = await supabase
+      .from('projects')
+      .select('id, title, start_date, crew_count, filled_positions, venue_address, priority')
+      .is('deleted_at', null)
+      .in('status', ['planning', 'active'])
+      .gte('start_date', forecastStart.toISOString())
+      .lte('start_date', forecastEnd.toISOString())
+      .order('start_date', { ascending: true })
+
+    // Get historical data for comparison
+    const { data: historicalProjects } = await supabase
+      .from('projects')
+      .select('id, crew_count')
+      .is('deleted_at', null)
+      .gte('start_date', historicalStart.toISOString())
+      .lte('start_date', historicalEnd.toISOString())
+
+    // Get active crew count
+    const { count: activeCrew } = await supabase
+      .from('candidates')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'active')
+
+    // Get inactive but reactivatable crew
+    const { count: inactiveCrew } = await supabase
+      .from('candidates')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'inactive')
+
+    const upcoming = upcomingProjects || []
+    const historical = historicalProjects || []
+
+    const currentDemand = upcoming.reduce((sum, p) => sum + (p.crew_count || 0), 0)
+    const currentFilled = upcoming.reduce((sum, p) => sum + (p.filled_positions || 0), 0)
+    const historicalDemand = historical.reduce((sum, p) => sum + (p.crew_count || 0), 0)
+
+    // Find peak days
+    const demandByDate: Record<string, { count: number; projects: string[] }> = {}
+    upcoming.forEach(p => {
+      const date = new Date(p.start_date).toISOString().split('T')[0]
+      if (!demandByDate[date]) {
+        demandByDate[date] = { count: 0, projects: [] }
+      }
+      demandByDate[date].count += p.crew_count || 0
+      demandByDate[date].projects.push(p.title)
+    })
+
+    const peakDays = Object.entries(demandByDate)
+      .sort((a, b) => b[1].count - a[1].count)
+      .slice(0, 5)
+      .map(([date, data]) => ({ date, ...data }))
+
+    // Calculate gap
+    const crewGap = currentDemand - (activeCrew || 0)
+    const demandVsHistorical = historicalDemand > 0
+      ? Math.round(((currentDemand - historicalDemand) / historicalDemand) * 100)
+      : 0
+
+    // Recommendations
+    const recommendations: string[] = []
+    if (crewGap > 0) {
+      recommendations.push(`⚠️ Need ${crewGap} more crew to meet demand - start recruiting now`)
+    }
+    if (demandVsHistorical > 20) {
+      recommendations.push(`📈 Demand is ${demandVsHistorical}% higher than same period last year`)
+    }
+    if (peakDays.length > 0 && peakDays[0].count > (activeCrew || 0)) {
+      recommendations.push(`🚨 Peak day ${peakDays[0].date} needs ${peakDays[0].count} crew - plan accordingly`)
+    }
+    if (inactiveCrew && inactiveCrew > 10) {
+      recommendations.push(`💡 Consider reactivating some of the ${inactiveCrew} inactive crew members`)
+    }
+
+    // Action items
+    const actionItems = []
+    if (crewGap > 0) {
+      actionItems.push({ label: 'Start recruitment', action: 'How do I recruit more crew?', variant: 'default' })
+    }
+    if (inactiveCrew && inactiveCrew > 0) {
+      actionItems.push({ label: `Contact ${inactiveCrew} inactive crew`, action: 'find_candidates with inactive status', variant: 'outline' })
+    }
+
+    return {
+      success: true,
+      data: {
+        forecastPeriod: {
+          from: forecastStart.toISOString().split('T')[0],
+          to: forecastEnd.toISOString().split('T')[0],
+        },
+        demand: {
+          confirmedProjects: upcoming.length,
+          totalCrewNeeded: currentDemand,
+          currentlyFilled: currentFilled,
+          fillRate: `${currentDemand > 0 ? Math.round((currentFilled / currentDemand) * 100) : 0}%`,
+          gap: currentDemand - currentFilled,
+        },
+        capacity: {
+          activeCrew: activeCrew || 0,
+          inactiveCrew: inactiveCrew || 0,
+          crewGap,
+          capacityStatus: crewGap <= 0 ? 'sufficient' : crewGap < 10 ? 'tight' : 'critical',
+        },
+        historicalComparison: params.compare_to_historical ? {
+          samePerioLastYear: historicalDemand,
+          change: `${demandVsHistorical > 0 ? '+' : ''}${demandVsHistorical}%`,
+        } : null,
+        peakDays,
+        recommendations,
+      },
+      suggestions: recommendations,
+      nextActions: actionItems as ActionButton[],
+    }
+  },
+}
+
+export const getSmartRecommendationsTool: ToolDefinition = {
+  name: 'get_smart_recommendations',
+  description: 'Get proactive AI recommendations based on current business state. Use this for general "what should I focus on" or "any issues I should know about" questions.',
+  parameters: z.object({
+    focus_area: z.enum(['all', 'staffing', 'projects', 'finance', 'performance']).default('all').describe('Area to focus recommendations on'),
+  }),
+  execute: async (params, supabase) => {
+    const now = new Date()
+    const threeDaysFromNow = new Date(now)
+    threeDaysFromNow.setDate(now.getDate() + 3)
+    const sevenDaysFromNow = new Date(now)
+    sevenDaysFromNow.setDate(now.getDate() + 7)
+
+    const recommendations: Array<{
+      priority: 'critical' | 'high' | 'medium' | 'low'
+      category: string
+      title: string
+      description: string
+      action: string
+    }> = []
+
+    // Check for understaffed urgent projects
+    const { data: urgentProjects } = await supabase
+      .from('projects')
+      .select('id, title, start_date, crew_count, filled_positions')
+      .is('deleted_at', null)
+      .in('status', ['planning', 'active'])
+      .lt('filled_positions', 'crew_count')
+      .gte('start_date', now.toISOString())
+      .lte('start_date', threeDaysFromNow.toISOString())
+
+    if (urgentProjects && urgentProjects.length > 0) {
+      urgentProjects.forEach(p => {
+        const gap = (p.crew_count || 0) - (p.filled_positions || 0)
+        recommendations.push({
+          priority: 'critical',
+          category: 'staffing',
+          title: `${p.title} needs ${gap} more crew`,
+          description: `Project starts on ${new Date(p.start_date).toLocaleDateString()} and is understaffed`,
+          action: `find candidates for project ${p.id}`,
+        })
+      })
+    }
+
+    // Check for unconfirmed staff on upcoming projects
+    const { data: pendingConfirmations } = await supabase
+      .from('project_staff')
+      .select(`
+        id, status,
+        projects (id, title, start_date)
+      `)
+      .eq('status', 'invited')
+      .limit(50)
+
+    const upcomingPending = (pendingConfirmations || []).filter(ps => {
+      const project = ps.projects as { start_date?: string } | null
+      if (!project?.start_date) return false
+      const startDate = new Date(project.start_date)
+      return startDate >= now && startDate <= sevenDaysFromNow
+    })
+
+    if (upcomingPending.length > 0) {
+      recommendations.push({
+        priority: 'high',
+        category: 'staffing',
+        title: `${upcomingPending.length} pending confirmations this week`,
+        description: 'Staff members who haven\'t confirmed their assignments yet',
+        action: 'show pending staff confirmations',
+      })
+    }
+
+    // Check for high priority projects without full staff
+    const { data: highPriorityProjects } = await supabase
+      .from('projects')
+      .select('id, title, start_date, crew_count, filled_positions')
+      .is('deleted_at', null)
+      .eq('priority', 'high')
+      .in('status', ['planning', 'active'])
+      .lt('filled_positions', 'crew_count')
+      .limit(5)
+
+    if (highPriorityProjects && highPriorityProjects.length > 0) {
+      recommendations.push({
+        priority: 'high',
+        category: 'projects',
+        title: `${highPriorityProjects.length} high-priority projects understaffed`,
+        description: 'These VIP/urgent projects need attention',
+        action: 'get_projects with priority high and understaffed_only true',
+      })
+    }
+
+    // Check for pending expense claims (if user is approver)
+    const { data: pendingExpenses } = await supabase
+      .from('expense_claims')
+      .select('id, total_amount')
+      .eq('status', 'pending')
+      .limit(50)
+
+    if (pendingExpenses && pendingExpenses.length > 0) {
+      const totalAmount = pendingExpenses.reduce((sum, e) => sum + parseFloat(e.total_amount || '0'), 0)
+      recommendations.push({
+        priority: 'medium',
+        category: 'finance',
+        title: `${pendingExpenses.length} expense claims pending approval`,
+        description: `Total: RM ${totalAmount.toFixed(2)} waiting for review`,
+        action: 'get_pending_approvals',
+      })
+    }
+
+    // Check crew with low performance
+    const { data: lowPerformers } = await supabase
+      .from('candidates')
+      .select('id, full_name, total_points')
+      .eq('status', 'active')
+      .lt('total_points', 50)
+      .gt('total_points', 0)
+      .limit(10)
+
+    if (lowPerformers && lowPerformers.length > 5) {
+      recommendations.push({
+        priority: 'low',
+        category: 'performance',
+        title: `${lowPerformers.length} crew members with low performance points`,
+        description: 'Consider coaching or reviewing their assignments',
+        action: 'find_candidates with min_points 0 max_points 50',
+      })
+    }
+
+    // Sort by priority
+    const priorityOrder = { critical: 0, high: 1, medium: 2, low: 3 }
+    recommendations.sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority])
+
+    // Filter by focus area if specified
+    const filteredRecs = params.focus_area === 'all'
+      ? recommendations
+      : recommendations.filter(r => r.category === params.focus_area)
+
+    // Summary
+    const critical = recommendations.filter(r => r.priority === 'critical').length
+    const high = recommendations.filter(r => r.priority === 'high').length
+
+    let overallStatus = 'good'
+    if (critical > 0) overallStatus = 'needs_attention'
+    else if (high > 2) overallStatus = 'review_recommended'
+
+    return {
+      success: true,
+      data: {
+        overallStatus,
+        summary: {
+          critical,
+          high,
+          medium: recommendations.filter(r => r.priority === 'medium').length,
+          low: recommendations.filter(r => r.priority === 'low').length,
+        },
+        recommendations: filteredRecs.slice(0, 10),
+        topPriority: filteredRecs[0] || null,
+      },
+      suggestions: filteredRecs.slice(0, 3).map(r => `${r.priority === 'critical' ? '🚨' : r.priority === 'high' ? '⚠️' : '💡'} ${r.title}`),
+      nextActions: filteredRecs.slice(0, 2).map(r => ({
+        label: r.title.substring(0, 30) + (r.title.length > 30 ? '...' : ''),
+        action: r.action,
+        variant: r.priority === 'critical' ? 'destructive' : 'default',
+      })) as ActionButton[],
+    }
+  },
+}
+
+// ============================================
 // SQL Fallback Tool (for complex queries)
 // ============================================
 
@@ -1088,6 +1972,12 @@ export const BAIGER_TOOLS: ToolDefinition[] = [
   rejectExpenseClaimTool,
   // Memory tool
   saveUserMemoryTool,
+  // Business Intelligence tools (Smart Baiger)
+  getBusinessOverviewTool,
+  analyzeProblemTool,
+  getFinancialAnalysisTool,
+  getForecastTool,
+  getSmartRecommendationsTool,
   // SQL fallback
   executeSQLTool,
   // Integration tools (P2)
