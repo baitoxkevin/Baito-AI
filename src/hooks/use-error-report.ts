@@ -51,21 +51,41 @@ export function useErrorReport(options: UseErrorReportOptions = {}): UseErrorRep
 
     try {
       // Dynamically import html2canvas
-      const html2canvas = (await import('html2canvas')).default;
+      const html2canvasModule = await import('html2canvas');
+      const html2canvas = html2canvasModule.default;
 
-      // Capture the entire page
-      const canvas = await html2canvas(document.body, {
+      // Get the target element - try document.documentElement first for better compatibility
+      const targetElement = document.documentElement;
+
+      // Capture the entire page with improved settings for desktop
+      const canvas = await html2canvas(targetElement, {
         logging: false,
         useCORS: true,
         allowTaint: true,
-        scale: 1, // Reduce scale for smaller file size
+        foreignObjectRendering: false, // Disable for better compatibility
+        scale: window.devicePixelRatio > 1 ? 1 : window.devicePixelRatio, // Handle high DPI
+        width: window.innerWidth,
+        height: window.innerHeight,
+        x: window.scrollX,
+        y: window.scrollY,
+        windowWidth: window.innerWidth,
+        windowHeight: window.innerHeight,
         ignoreElements: (element) => {
-          // Ignore modals and overlays
+          // Ignore modals, overlays, and the chat widget itself
+          const tagName = element.tagName?.toLowerCase();
           return (
             element.classList?.contains('error-report-dialog') ||
+            element.classList?.contains('chat-widget') ||
             element.getAttribute('role') === 'dialog' ||
-            element.getAttribute('data-radix-dialog-overlay') !== null
+            element.getAttribute('data-radix-dialog-overlay') !== null ||
+            element.getAttribute('data-radix-portal') !== null ||
+            tagName === 'noscript'
           );
+        },
+        onclone: (clonedDoc) => {
+          // Remove any problematic elements from the cloned document
+          const dialogs = clonedDoc.querySelectorAll('[role="dialog"], [data-radix-portal]');
+          dialogs.forEach((el) => el.remove());
         },
       });
 
@@ -73,7 +93,19 @@ export function useErrorReport(options: UseErrorReportOptions = {}): UseErrorRep
       return screenshot;
     } catch (error) {
       console.error('Failed to capture screenshot:', error);
-      return null;
+      // Try a simpler fallback approach
+      try {
+        const html2canvasModule = await import('html2canvas');
+        const html2canvas = html2canvasModule.default;
+        const canvas = await html2canvas(document.body, {
+          logging: false,
+          scale: 0.5, // Lower scale for fallback
+        });
+        return canvas.toDataURL('image/png', 0.6);
+      } catch (fallbackError) {
+        console.error('Fallback screenshot also failed:', fallbackError);
+        return null;
+      }
     } finally {
       captureInProgress.current = false;
       setIsCapturing(false);

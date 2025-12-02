@@ -1747,11 +1747,11 @@ export default function ListView({
         -webkit-overflow-scrolling: touch !important;
       }
 
-      /* Ensure touch events work properly on iOS */
+      /* CRITICAL FIX: Do NOT apply transform to scroll content on iOS */
+      /* transform: translateZ(0) breaks native iOS Safari scrolling */
       .ios-scroll-content {
         touch-action: auto !important;
-        -webkit-transform: translateZ(0);
-        transform: translateZ(0);
+        /* Removed: transform: translateZ(0) - this breaks iOS scroll */
       }
     }
 
@@ -2123,10 +2123,17 @@ export default function ListView({
             touchAction: 'auto',
             WebkitOverflowScrolling: 'touch',  // Smooth momentum scrolling on iOS/Android
             overscrollBehavior: 'contain',  // Prevent scroll chaining
-            // Force GPU compositing layer for smooth scroll on all mobile
-            willChange: 'scroll-position',
-            WebkitTransform: 'translateZ(0)',
-            transform: 'translateZ(0)',
+            // CRITICAL FIX FOR iOS: Do NOT apply transform or willChange to scroll container on iOS
+            // These properties break native iOS Safari scrolling
+            // Only apply GPU acceleration hints on non-iOS devices
+            ...(isIOS ? {
+              // iOS: Let browser handle scroll natively without any interference
+              // No transform, no willChange - pure native scroll
+            } : {
+              // Non-iOS: Apply GPU hints for smoother scrolling
+              willChange: 'scroll-position',
+              transform: 'translateZ(0)',
+            }),
           }}
         >
           {/* Add style tag for today's highlight animation */}
@@ -2161,8 +2168,8 @@ export default function ListView({
             "grid min-w-full md:min-w-0",
             // Mobile: wider sidebar (80px) to show "1 SAT" style like Excel
             // Desktop: 60px is enough
-            isMobile ? "grid-cols-[75px_1fr]" : "grid-cols-[60px_1fr]",
-            isIOS && "ios-scroll-content" // Add iOS-specific class for scroll content
+            isMobile ? "grid-cols-[75px_1fr]" : "grid-cols-[60px_1fr]"
+            // Removed ios-scroll-content class - was applying transform that breaks iOS scroll
           )}
             style={{
               minWidth: `${minContentWidth + (isMobile ? 75 : 60)}px`,
@@ -2173,21 +2180,23 @@ export default function ListView({
                 // iOS-friendly zoom using CSS zoom property (works on Safari)
                 // CSS zoom doesn't break scroll on iOS like transform: scale() does
                 zoom: zoomLevel,
+                // CRITICAL: No backfaceVisibility, no willChange on iOS
+                // These can create compositing layers that break iOS scroll
               } : isMobile ? {
                 // Android and other mobile: use transform but without height/width manipulation
                 transform: `scale(${zoomLevel})`,
                 transformOrigin: 'top left',
+                willChange: 'auto',
+                backfaceVisibility: 'hidden',
               } : {
                 // Desktop: use transform for better performance with full control
                 transform: `scale(${zoomLevel})`,
                 transformOrigin: 'top left',
                 height: `${100 / zoomLevel}%`,
                 width: `${100 / zoomLevel}%`,
+                willChange: 'auto',
+                backfaceVisibility: 'hidden',
               }),
-              // Common styles for both
-              willChange: 'auto', // Let browser decide optimization
-              backfaceVisibility: 'hidden',
-              WebkitBackfaceVisibility: 'hidden',
             }}
             role="grid"
             aria-label="Project calendar view"

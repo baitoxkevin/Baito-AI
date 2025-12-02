@@ -25,7 +25,7 @@ import { renderCanvas } from './components/ui/canvas';
 import { SpotlightCommand } from './components/SpotlightCommand';
 import { GlobalErrorBoundary } from './components/GlobalErrorBoundary';
 import { ErrorBoundaryWithReport } from './components/error-reporting/ErrorBoundaryWithReport';
-import { ErrorReportButton } from './components/error-reporting/ErrorReportButton';
+// Error reporting now integrated into ChatWidget via 5-tap gesture on Baiger avatar
 import { ChatWidget } from './components/ai-assistant/ChatWidget';
 import { NotificationBell } from './components/NotificationBell';
 import { useAppState } from './contexts/AppStateContext';
@@ -185,13 +185,7 @@ function RouterContent() {
           <NotificationBell userId={currentUser.id} />
         </div>
       )}
-      {/* Error Report Button - floating button for manual bug reporting */}
-      {!isPublicRoute && currentUser && (
-        <ErrorReportButton
-          userId={currentUser.id}
-          position="bottom-left"
-        />
-      )}
+      {/* Error Report - now triggered by tapping Baiger avatar 5 times within 3 seconds */}
     </>
   );
 }

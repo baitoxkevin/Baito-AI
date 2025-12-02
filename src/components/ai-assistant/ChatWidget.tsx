@@ -3,7 +3,7 @@
  * Bottom-right floating chat interface with Framer Motion animations
  */
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { MessageCircle, X, Send, Minimize2, Maximize2, Trash2, ArrowDown, Languages, Users, BarChart3, Calculator, Briefcase, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -21,6 +21,8 @@ import { cn } from '@/lib/utils'
 import { useTranslation } from 'react-i18next'
 import { useToast } from '@/hooks/use-toast'
 import { colors, shadows, borderRadius, zIndex } from '@/lib/chat/design-tokens'
+import { ErrorReportDialog, ErrorReportData } from '@/components/error-reporting/ErrorReportDialog'
+import { useErrorReport } from '@/hooks/use-error-report'
 
 // Persona types and configurations
 type Persona = 'general' | 'operations' | 'finance' | 'hr'
@@ -106,6 +108,51 @@ export function ChatWidget({
   const [persona, setPersona] = useState<Persona>('general')
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const scrollViewportRef = useRef<HTMLDivElement>(null)
+
+  // 5-tap secret gesture for error reporting
+  const [tapTimestamps, setTapTimestamps] = useState<number[]>([])
+  const [showErrorReportDialog, setShowErrorReportDialog] = useState(false)
+  const [errorReportData, setErrorReportData] = useState<ErrorReportData | null>(null)
+  const { captureScreenshot, generateErrorId } = useErrorReport({ userId })
+
+  // Handle tap on Baiger avatar - detect 5 taps within 3 seconds
+  const handleBaigerTap = useCallback(async () => {
+    const now = Date.now()
+    const recentTaps = [...tapTimestamps, now].filter(t => now - t < 3000)
+    setTapTimestamps(recentTaps)
+
+    if (recentTaps.length >= 5) {
+      // Reset taps and trigger error report
+      setTapTimestamps([])
+
+      // Capture screenshot before opening dialog
+      try {
+        const screenshot = await captureScreenshot()
+        const data: ErrorReportData = {
+          errorId: generateErrorId(),
+          errorMessage: 'Manual Feedback/Bug Report',
+          screenshot: screenshot || undefined,
+          url: window.location.href,
+          userAgent: navigator.userAgent,
+          timestamp: new Date().toISOString(),
+          pageContext: document.title,
+        }
+        setErrorReportData(data)
+        setShowErrorReportDialog(true)
+      } catch (error) {
+        // Still open dialog without screenshot
+        setErrorReportData({
+          errorId: generateErrorId(),
+          errorMessage: 'Manual Feedback/Bug Report',
+          url: window.location.href,
+          userAgent: navigator.userAgent,
+          timestamp: new Date().toISOString(),
+          pageContext: document.title,
+        })
+        setShowErrorReportDialog(true)
+      }
+    }
+  }, [tapTimestamps, captureScreenshot, generateErrorId])
 
   // First-time user onboarding state
   const { hasOnboarded, completeOnboarding } = useOnboardingState()
@@ -279,7 +326,10 @@ export function ChatWidget({
             )}
           >
             <Button
-              onClick={() => setIsOpen(true)}
+              onClick={() => {
+                handleBaigerTap()
+                setIsOpen(true)
+              }}
               size="lg"
               className="h-16 w-16 rounded-full transition-all hover:scale-105 bg-white border-2 p-0 overflow-hidden"
               style={{
@@ -337,11 +387,17 @@ export function ChatWidget({
               }}
             >
               <div className="flex items-center gap-3 min-w-0">
-                <img
-                  src={baigerAvatar}
-                  alt="Baiger"
-                  className="h-8 w-8 rounded-full border-2 border-white shadow-sm flex-shrink-0"
-                />
+                <button
+                  onClick={handleBaigerTap}
+                  className="focus:outline-none focus:ring-2 focus:ring-white/50 rounded-full"
+                  aria-label="Tap 5 times quickly for bug report"
+                >
+                  <img
+                    src={baigerAvatar}
+                    alt="Baiger"
+                    className="h-8 w-8 rounded-full border-2 border-white shadow-sm flex-shrink-0 cursor-pointer hover:opacity-90 transition-opacity"
+                  />
+                </button>
                 <div className="flex items-center gap-2 min-w-0">
                   <div
                     className="h-2 w-2 rounded-full animate-pulse flex-shrink-0"
@@ -665,6 +721,19 @@ export function ChatWidget({
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Error Report Dialog - triggered by 5 taps on Baiger */}
+      <ErrorReportDialog
+        open={showErrorReportDialog}
+        onOpenChange={(open) => {
+          setShowErrorReportDialog(open)
+          if (!open) {
+            setTimeout(() => setErrorReportData(null), 300)
+          }
+        }}
+        errorData={errorReportData}
+        userId={userId}
+      />
     </>
   )
 }
