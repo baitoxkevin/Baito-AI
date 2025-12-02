@@ -5,11 +5,29 @@
 
 import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
 
+export type BaigerMode =
+  | 'general'
+  | 'project_create'
+  | 'candidate_search'
+  | 'schedule_help'
+  | 'error_report';
+
+export interface ErrorReportContext {
+  errorId: string;
+  errorMessage: string;
+  errorStack?: string;
+  screenshot?: string;
+  url: string;
+  timestamp: string;
+}
+
 export interface BaigerContextData {
-  mode: 'general' | 'project_create' | 'candidate_search' | 'schedule_help';
+  mode: BaigerMode;
   formRef?: React.RefObject<any>;
   initialMessage?: string;
   onFormUpdate?: (field: string, value: any) => void;
+  // Error reporting specific context
+  errorReport?: ErrorReportContext;
 }
 
 interface BaigerContextValue {
@@ -19,6 +37,7 @@ interface BaigerContextValue {
   closeBaiger: () => void;
   toggleBaiger: () => void;
   setContextData: (data: BaigerContextData | null) => void;
+  openWithErrorReport: (errorReport: ErrorReportContext, userDescription?: string) => void;
 }
 
 const BaigerContext = createContext<BaigerContextValue | undefined>(undefined);
@@ -59,6 +78,26 @@ export function BaigerProvider({ children }: BaigerProviderProps) {
     }
   }, [isOpen, openBaiger, closeBaiger]);
 
+  // Open Baiger with error report context
+  const openWithErrorReport = useCallback((errorReport: ErrorReportContext, userDescription?: string) => {
+    const initialMessage = `I just encountered an error and need help understanding it.
+
+**Error ID:** ${errorReport.errorId}
+**Error:** ${errorReport.errorMessage}
+**Page:** ${errorReport.url}
+**Time:** ${new Date(errorReport.timestamp).toLocaleString()}
+${userDescription ? `\n**What I was doing:** ${userDescription}` : ''}
+
+Can you help me understand what might have caused this and how to resolve it?`;
+
+    setContextData({
+      mode: 'error_report',
+      initialMessage,
+      errorReport,
+    });
+    setIsOpen(true);
+  }, []);
+
   return (
     <BaigerContext.Provider
       value={{
@@ -68,6 +107,7 @@ export function BaigerProvider({ children }: BaigerProviderProps) {
         closeBaiger,
         toggleBaiger,
         setContextData,
+        openWithErrorReport,
       }}
     >
       {children}

@@ -25,7 +25,7 @@ import { fetchProjectExpenseClaimsWithFallback } from "@/lib/expense-claim-servi
 import { getUser } from "@/lib/auth";
 import { uploadProjectDocument, deleteDocument, getProjectDocuments, addProjectLink } from "@/lib/document-service";
 import type { Project } from '@/lib/types';
-import { cn } from '@/lib/utils';
+import { cn, formatRecurringDates } from '@/lib/utils';
 
 import { SpotlightCardMinimized } from './SpotlightCardMinimized';
 import { SpotlightCardHeader } from './SpotlightCardHeader';
@@ -793,7 +793,7 @@ export const SpotlightCard = React.memo(function SpotlightCard({
           onClick={handleMinimize}
         >
           <motion.div
-            className="w-full max-w-7xl h-[90vh] max-h-[900px] relative"
+            className="w-full max-w-7xl h-[90vh] max-h-[900px] relative md:mx-4"
             onClick={(e) => e.stopPropagation()}
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -808,18 +808,53 @@ export const SpotlightCard = React.memo(function SpotlightCard({
               neonColors={{ firstColor: "#A07CFE", secondColor: "#FE8FB5" }}
             >
               {/* SpotlightCardHeader removed */}
-              
-              <div className="flex h-full">
-                <SpotlightCardSidebar
+
+              {/* Responsive layout: stack on mobile, side-by-side on desktop */}
+              <div className="flex flex-col md:flex-row h-full overflow-hidden">
+                {/* Sidebar - collapsible on mobile, fixed on desktop */}
+                <div className="md:block hidden">
+                  <SpotlightCardSidebar
                   project={localProject}
                   onViewDetails={() => {}} // Remove view details functionality
                   staffCount={staffDetails.length}
                   claimsCount={localExpenseClaims.length}
                   activeTab={activeTab}
-                  onTabChange={handleTabChange}
-                  onProjectUpdated={handleProjectUpdate}
-                />
-                
+                    onTabChange={handleTabChange}
+                    onProjectUpdated={handleProjectUpdate}
+                  />
+                </div>
+
+                {/* Mobile Header - shows project info compactly on mobile */}
+                <div className="md:hidden flex flex-col bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
+                  {/* Compact project header for mobile */}
+                  <div className="flex items-center justify-between p-3">
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-purple-100 to-pink-100 dark:from-purple-900/30 dark:to-pink-900/30 flex items-center justify-center flex-shrink-0">
+                        <span className="text-lg font-bold text-purple-600 dark:text-purple-400">
+                          {localProject.title?.charAt(0) || 'P'}
+                        </span>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <h2 className="font-bold text-gray-800 dark:text-gray-200 truncate text-sm">
+                          {localProject.title}
+                        </h2>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                          {formatRecurringDates(localProject)}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={handleMinimize}
+                      className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+
                 {/* Main Content Area */}
                 <div 
                   ref={(el) => {
