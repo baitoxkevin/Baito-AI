@@ -1,7 +1,22 @@
 import { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, Alert, Platform } from 'react-native';
 import { router } from 'expo-router';
+import * as Linking from 'expo-linking';
+import Constants from 'expo-constants';
 import { supabase } from '../../lib/supabase';
+
+// Get the correct redirect URL based on environment
+const getRedirectUrl = () => {
+  // For production builds, use the custom scheme
+  if (!__DEV__) {
+    return 'baito://auth/callback';
+  }
+
+  // For development, use Expo's linking URL
+  const url = Linking.createURL('auth/callback');
+  console.log('Development redirect URL:', url);
+  return url;
+};
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -17,16 +32,22 @@ export default function LoginScreen() {
 
     setLoading(true);
     try {
+      const redirectUrl = getRedirectUrl();
+
       const { error } = await supabase.auth.signInWithOtp({
         email: email,
         options: {
-          emailRedirectTo: 'http://localhost:8087/auth/callback',
+          emailRedirectTo: redirectUrl,
         },
       });
 
       if (error) throw error;
 
-      Alert.alert('Check your email!', 'We sent you a magic link. Click it to login instantly.');
+      Alert.alert(
+        'Check your email!',
+        'We sent you a magic link. Click it to login instantly.',
+        [{ text: 'OK' }]
+      );
     } catch (error: any) {
       Alert.alert('Error', error.message);
     } finally {

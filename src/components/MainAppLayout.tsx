@@ -1,8 +1,9 @@
 import React, { useState, useEffect, Suspense, lazy, useMemo, memo } from 'react';
-import { useParams, useLocation, Navigate } from 'react-router-dom';
+import { useParams, useLocation, Navigate, useNavigate } from 'react-router-dom';
 import { useTheme } from 'next-themes';
 import SidebarAdapter from '@/components/SidebarAdapter';
 import { WavesBackground } from '@/components/ui/waves-background';
+import { MobileBottomNav } from '@/components/MobileBottomNav';
 import { getSession } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 
@@ -26,14 +27,22 @@ import AdminDashboardPage from '@/pages/AdminDashboardPage';
 
 interface MainAppLayoutProps {
   effectActive: boolean;
+  isChatOpen?: boolean;
+  onChatOpenChange?: (open: boolean) => void;
 }
 
-const MainAppLayout = memo(({ effectActive }: MainAppLayoutProps) => {
+const MainAppLayout = memo(({ effectActive, isChatOpen, onChatOpenChange }: MainAppLayoutProps) => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const params = useParams();
   const projectId = params.projectId;
   const location = useLocation();
+  const navigate = useNavigate();
   const { theme } = useTheme();
+
+  // Handle Baiger button click from mobile bottom nav
+  const handleBaigerClick = () => {
+    onChatOpenChange?.(!isChatOpen);
+  };
 
   // Determine active view based on the current route - memoized
   const activeView = useMemo(() => {
@@ -109,7 +118,7 @@ const MainAppLayout = memo(({ effectActive }: MainAppLayoutProps) => {
   }
 
   return (
-    <div className="min-h-screen w-full bg-background text-foreground flex items-center justify-center">
+    <div className="min-h-screen w-full bg-background text-foreground flex flex-col md:items-center md:justify-center">
       {/* Background waves effect - always visible */}
       <div className="fixed inset-0 z-0 pointer-events-none">
         <WavesBackground
@@ -138,7 +147,7 @@ const MainAppLayout = memo(({ effectActive }: MainAppLayoutProps) => {
           id="canvas"
         ></canvas>
       </div>
-      <div className="w-full h-screen flex items-center justify-center p-2 sm:p-4 md:p-8">
+      <div className="w-full min-h-screen flex flex-col flex-1 overflow-y-auto md:items-center md:justify-center md:p-4 lg:p-8">
         <SidebarAdapter>
           {/* Conditionally render only the active view for better performance */}
           {activeView === 'dashboard' && (
@@ -213,6 +222,9 @@ const MainAppLayout = memo(({ effectActive }: MainAppLayoutProps) => {
           )}
         </SidebarAdapter>
       </div>
+
+      {/* Mobile Bottom Navigation with Baiger */}
+      <MobileBottomNav onBaigerClick={handleBaigerClick} isBaigerActive={isChatOpen} />
 
       {/* Quick auth check widget - disabled */}
       {/* {import.meta.env.DEV && <QuickAuthCheck />} */}

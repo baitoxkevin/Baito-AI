@@ -1,10 +1,12 @@
 /**
  * useAIChat Hook
  * Manages AI chat state and communication with Supabase Edge Function
+ * Supports context awareness and memory
  */
 
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
+import { PageContext } from './use-page-context'
 
 export interface ActionButton {
   label: string
@@ -23,6 +25,11 @@ export interface Message {
   buttons?: ActionButton[]
 }
 
+interface UseAIChatOptions {
+  persona?: 'general' | 'operations' | 'finance' | 'hr'
+  pageContext?: PageContext
+}
+
 interface UseAIChatReturn {
   messages: Message[]
   isLoading: boolean
@@ -32,7 +39,8 @@ interface UseAIChatReturn {
   clearConversation: () => void
 }
 
-export function useAIChat(userId: string): UseAIChatReturn {
+export function useAIChat(userId: string, options: UseAIChatOptions = {}): UseAIChatReturn {
+  const { persona = 'general', pageContext } = options
   const [messages, setMessages] = useState<Message[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -115,7 +123,17 @@ export function useAIChat(userId: string): UseAIChatReturn {
           message: messageContent,
           conversationId: conversationId,
           userId: userId,
-          reasoningEffort: 'medium'
+          persona: persona,
+          showToolCalls: false,
+          // Context awareness
+          context: pageContext ? {
+            currentPage: pageContext.currentPage,
+            pageType: pageContext.pageType,
+            entityType: pageContext.entityType,
+            entityId: pageContext.entityId,
+            userAction: pageContext.userAction,
+            breadcrumb: pageContext.breadcrumb
+          } : undefined
         }
       })
 
@@ -161,7 +179,7 @@ export function useAIChat(userId: string): UseAIChatReturn {
     } finally {
       setIsLoading(false)
     }
-  }, [userId, conversationId])
+  }, [userId, conversationId, persona, pageContext])
 
   const clearConversation = useCallback(async () => {
     try {

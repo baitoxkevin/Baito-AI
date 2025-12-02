@@ -1,0 +1,255 @@
+================================================================================
+PROFILE PAGE LAYOUT - MANUAL TEST CHECKLIST
+================================================================================
+Test Date: _______________
+Tester: __________________
+Browser: _________________
+Version: _________________
+
+================================================================================
+PRE-TEST SETUP
+================================================================================
+
+1. [ ] Open the application in development mode (npm run dev)
+2. [ ] Navigate to the Profile page (/profile route)
+3. [ ] Open browser DevTools (F12 or Right-click → Inspect)
+4. [ ] Enable Device Toolbar in DevTools (Ctrl+Shift+M or Cmd+Shift+M on Mac)
+
+================================================================================
+TEST 1: CONTENT CENTERING ON LAPTOP SCREENS (1024px+ width)
+================================================================================
+
+Desktop View (1920px width):
+1. [ ] Set viewport to 1920x1080 (Full HD)
+2. [ ] Verify profile content is horizontally centered
+3. [ ] Check that content has equal spacing on left and right
+4. [ ] Confirm max-width constraint is applied (should not stretch full width)
+5. [ ] Verify vertical centering when content is smaller than viewport
+
+Laptop View (1366px width):
+1. [ ] Set viewport to 1366x768 (Common laptop resolution)
+2. [ ] Verify profile content remains centered
+3. [ ] Check that horizontal margins are consistent
+4. [ ] Confirm content doesn't touch screen edges
+
+Minimum Desktop (1024px width):
+1. [ ] Set viewport to 1024x768
+2. [ ] Verify content is still centered
+3. [ ] Check that layout doesn't break at this breakpoint
+4. [ ] Confirm all text is readable and not cramped
+
+Expected Behavior:
+✓ Content should have a maximum width (typically 1024px or 1280px)
+✓ Content container should be centered with auto margins
+✓ Padding should exist between content and viewport edges
+✓ No horizontal scrollbar should appear
+
+================================================================================
+TEST 2: NATURAL SCROLLING BEHAVIOR
+================================================================================
+
+Content Within Viewport:
+1. [ ] Set viewport to 1920x1080
+2. [ ] Verify no vertical scrollbar appears when content fits
+3. [ ] Check that content is properly positioned (not cut off)
+4. [ ] Confirm footer (if any) is visible or properly positioned
+
+Content Exceeding Viewport:
+1. [ ] Set viewport to 1366x600 (reduced height)
+2. [ ] Verify vertical scrollbar appears
+3. [ ] Scroll to bottom - confirm all content is accessible
+4. [ ] Check smooth scrolling behavior (no jumps or glitches)
+5. [ ] Verify header remains fixed (if applicable) during scroll
+6. [ ] Test scroll with mouse wheel, scrollbar drag, and keyboard (Page Up/Down)
+
+Mobile Long Content:
+1. [ ] Set viewport to 375x667 (iPhone SE)
+2. [ ] Verify touch scrolling works smoothly
+3. [ ] Check that momentum scrolling works (iOS simulation)
+4. [ ] Confirm no content is cut off at bottom
+
+Expected Behavior:
+✓ Scrollbar only appears when content exceeds viewport height
+✓ All content is accessible via scrolling
+✓ No content is hidden or cut off
+✓ Scrolling is smooth without performance issues
+
+================================================================================
+TEST 3: NO HORIZONTAL OVERFLOW
+================================================================================
+
+Desktop Sizes:
+1. [ ] Set viewport to 1920x1080
+2. [ ] Check DevTools Console for no horizontal scrollbar
+3. [ ] In Elements panel, search for elements wider than viewport
+4. [ ] Use DevTools → More Tools → Rendering → Paint flashing to identify overflow
+
+Tablet Sizes:
+1. [ ] Set viewport to 768x1024 (iPad)
+2. [ ] Verify no horizontal scrollbar appears
+3. [ ] Check that all content fits within viewport width
+4. [ ] Test both portrait and landscape orientations
+
+Mobile Sizes:
+1. [ ] Set viewport to 375x667 (iPhone SE)
+2. [ ] Verify no horizontal scrollbar
+3. [ ] Check that text doesn't overflow containers
+4. [ ] Verify images are responsive and don't cause overflow
+5. [ ] Test with 320px width (minimum mobile width)
+
+DevTools Inspection:
+1. [ ] In Elements panel, add this to Console:
+   ```javascript
+   Array.from(document.querySelectorAll('*')).filter(el =>
+     el.scrollWidth > el.clientWidth
+   ).forEach(el => console.log(el, el.scrollWidth - el.clientWidth));
+   ```
+2. [ ] Should return empty or no problematic elements
+3. [ ] Check CSS for any fixed widths larger than viewport
+
+Expected Behavior:
+✓ No horizontal scrollbar at any viewport width
+✓ All content respects viewport boundaries
+✓ Images scale down appropriately
+✓ Text wraps instead of overflowing
+
+================================================================================
+TEST 4: RESPONSIVE BEHAVIOR
+================================================================================
+
+Breakpoint Transitions:
+1. [ ] Slowly resize from 1920px to 320px width
+2. [ ] Watch for any layout jumps or breaks
+3. [ ] Verify smooth transitions between breakpoints
+
+Key Breakpoints to Test:
+1. [ ] 1536px (2xl) - Ultra wide screens
+2. [ ] 1280px (xl) - Large desktops
+3. [ ] 1024px (lg) - Laptops
+4. [ ] 768px (md) - Tablets
+5. [ ] 640px (sm) - Large phones
+6. [ ] 375px - Standard mobile
+7. [ ] 320px - Minimum mobile
+
+For Each Breakpoint Check:
+1. [ ] Layout adapts appropriately
+2. [ ] Text remains readable
+3. [ ] Buttons/links are tappable (min 44x44px on mobile)
+4. [ ] Forms are usable
+5. [ ] Images scale correctly
+6. [ ] Spacing adjusts proportionally
+
+Expected Behavior:
+✓ Smooth transitions between breakpoints
+✓ No content becomes inaccessible
+✓ Touch targets are appropriately sized on mobile
+✓ Typography scales appropriately
+
+================================================================================
+TEST 5: BROWSER DEVTOOLS INSPECTION
+================================================================================
+
+Elements Panel Checks:
+1. [ ] Select the main profile container
+2. [ ] Check Computed styles for:
+   - [ ] display: flex with proper alignment
+   - [ ] max-width is set and not exceeded
+   - [ ] margin: auto for centering
+   - [ ] overflow values are appropriate
+3. [ ] Look for any elements with position: fixed that might cause issues
+4. [ ] Check z-index stacking if overlapping occurs
+
+Console Checks:
+1. [ ] No errors in console related to layout
+2. [ ] No warnings about viewport or overflow
+3. [ ] Run this diagnostic:
+   ```javascript
+   console.log('Viewport:', window.innerWidth, 'x', window.innerHeight);
+   console.log('Body scroll:', document.body.scrollWidth, 'x', document.body.scrollHeight);
+   console.log('Overflow X:', document.body.scrollWidth > window.innerWidth);
+   ```
+
+Network Panel:
+1. [ ] Check that images load at appropriate sizes
+2. [ ] Verify responsive images use srcset if applicable
+
+Performance:
+1. [ ] Check for layout shifts (CLS) in Performance panel
+2. [ ] Verify no excessive repaints during scroll
+
+================================================================================
+TEST 6: CROSS-BROWSER TESTING
+================================================================================
+
+Chrome/Edge (Chromium):
+1. [ ] All tests pass
+2. [ ] Smooth scrolling works
+3. [ ] No rendering issues
+
+Firefox:
+1. [ ] All tests pass
+2. [ ] Scrollbar styling consistent
+3. [ ] No Firefox-specific layout issues
+
+Safari (if on Mac):
+1. [ ] All tests pass
+2. [ ] iOS-style scrolling works
+3. [ ] No Safari-specific rendering issues
+
+================================================================================
+COMMON ISSUES TO CHECK
+================================================================================
+
+1. [ ] Profile image doesn't cause layout shift when loading
+2. [ ] Form inputs don't extend beyond container on mobile
+3. [ ] Long email addresses or names wrap properly
+4. [ ] Tab navigation works correctly (keyboard accessibility)
+5. [ ] No position: absolute elements causing overflow
+6. [ ] Modal/dialog positioning works correctly
+7. [ ] Dropdown menus don't cause horizontal scroll
+8. [ ] Tables (if any) are responsive or scrollable
+9. [ ] Code blocks (if any) have horizontal scroll, not page scroll
+10. [ ] Loading states don't cause layout jumps
+
+================================================================================
+ISSUE TRACKING
+================================================================================
+
+Issues Found:
+1. ____________________________________________________________
+   Browser: _________ Viewport: _________
+   Description: ______________________________________________
+   ___________________________________________________________
+
+2. ____________________________________________________________
+   Browser: _________ Viewport: _________
+   Description: ______________________________________________
+   ___________________________________________________________
+
+3. ____________________________________________________________
+   Browser: _________ Viewport: _________
+   Description: ______________________________________________
+   ___________________________________________________________
+
+================================================================================
+SIGN-OFF
+================================================================================
+
+[ ] All tests completed
+[ ] Issues logged and reported
+[ ] Fixes verified (if applicable)
+
+Tester Signature: ___________________ Date: _______________
+Reviewer: ___________________________ Date: _______________
+
+================================================================================
+NOTES
+================================================================================
+- Always test in incognito/private mode to avoid extension interference
+- Clear cache between major test sessions
+- Test with actual content, not just placeholder text
+- Consider testing with different zoom levels (75%, 100%, 125%, 150%)
+- Test with browser bookmarks bar visible and hidden
+- If testing on actual devices, note the specific model and OS version
+
+================================================================================

@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 import { logger } from '../lib/logger';
+import { useBaiger } from '@/contexts/BaigerContext';
 import {
   CalendarIcon,
   Loader2,
@@ -29,7 +30,8 @@ import {
   Link,
   Search,
   ChevronDown,
-  Zap
+  Zap,
+  MessageSquare
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import {
@@ -68,6 +70,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import { SpeechInput } from "@/components/ui/speech-input";
 import { AmountInput } from "@/components/ui/amount-input";
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import {
@@ -94,24 +97,81 @@ import {
 } from "@/components/ui/command";
 import { SpeedAddProjectDialog } from '@/components/SpeedAddProjectDialog';
 
-// Define step types
-type Step = 
-  | 'project-info' 
-  | 'event-details' 
-  | 'location'
-  | 'schedule' 
-  | 'staffing'
-  | 'advanced'
+// Define step types - Consolidated to 3 steps for hybrid approach
+type Step =
+  | 'essentials'
+  | 'staffing-schedule'
   | 'review';
 
 const steps: { id: Step; label: string; icon: React.ElementType; description: string }[] = [
-  { id: 'project-info', label: 'Project Information', icon: FileText, description: 'Basic details about your project' },
-  { id: 'event-details', label: 'Event Details', icon: Palette, description: 'Type and description of the event' },
-  { id: 'location', label: 'Location', icon: MapPin, description: 'Where the project will take place' },
-  { id: 'schedule', label: 'Schedule', icon: Clock, description: 'When the project will happen' },
-  { id: 'staffing', label: 'Staffing', icon: Users, description: 'Team requirements' },
-  { id: 'advanced', label: 'Advanced', icon: Cog, description: 'Additional settings' },
+  { id: 'essentials', label: 'Project Essentials', icon: FileText, description: 'Basic info, event type & location' },
+  { id: 'staffing-schedule', label: 'Staffing & Schedule', icon: Users, description: 'Team size, dates & settings' },
   { id: 'review', label: 'Review & Create', icon: Share2, description: 'Confirm all details' },
+];
+
+// Template definitions for quick-start
+interface ProjectTemplate {
+  id: string;
+  name: string;
+  icon: React.ElementType;
+  description: string;
+  defaults: Partial<ProjectFormValues>;
+}
+
+const projectTemplates: ProjectTemplate[] = [
+  {
+    id: 'event',
+    name: 'Event Staff',
+    icon: Calendar,
+    description: 'Conference, exhibition, or corporate event',
+    defaults: {
+      event_type: 'Corporate Event',
+      project_type: 'recruitment',
+      crew_count: 5,
+      working_hours_start: '08:00',
+      working_hours_end: '18:00',
+      status: 'planning',
+      priority: 'medium',
+    }
+  },
+  {
+    id: 'promo',
+    name: 'Promotion',
+    icon: Briefcase,
+    description: 'Product sampling or brand activation',
+    defaults: {
+      event_type: 'Promotional Campaign',
+      project_type: 'recruitment',
+      crew_count: 3,
+      working_hours_start: '10:00',
+      working_hours_end: '20:00',
+      status: 'planning',
+      priority: 'medium',
+    }
+  },
+  {
+    id: 'roadshow',
+    name: 'Roadshow',
+    icon: MapPin,
+    description: 'Multi-location touring event',
+    defaults: {
+      event_type: 'Roadshow',
+      project_type: 'recruitment',
+      crew_count: 8,
+      working_hours_start: '09:00',
+      working_hours_end: '21:00',
+      schedule_type: 'multiple',
+      status: 'planning',
+      priority: 'high',
+    }
+  },
+  {
+    id: 'custom',
+    name: 'Custom',
+    icon: Cog,
+    description: 'Start from scratch',
+    defaults: {}
+  }
 ];
 
 const projectSchema = z.object({
@@ -179,13 +239,13 @@ export function NewProjectDialog({
   onProjectAdded,
   initialDates,
 }: NewProjectDialogProps) {
-  const [currentStep, setCurrentStep] = useState<Step>('project-info');
+  const [currentStep, setCurrentStep] = useState<Step>('essentials');
   const [isLoading, setIsLoading] = useState(false);
   const [isDataLoaded, setIsDataLoaded] = useState(false);
   const [customers, setCustomers] = useState<{ id: string; full_name: string; company_name?: string; logo_url?: string }[]>([]);
   const [contacts, setContacts] = useState<{ id: string; name: string; company_id: string; company_name: string; email?: string; designation?: string }[]>([]);
   const [managers, setManagers] = useState<{ id: string; full_name: string; }[]>([]);
-  const [visitedSteps, setVisitedSteps] = useState<Set<Step>>(new Set(['project-info']));
+  const [visitedSteps, setVisitedSteps] = useState<Set<Step>>(new Set(['essentials']));
   const [isLoadingContacts, setIsLoadingContacts] = useState(false);
   const [contactsError, setContactsError] = useState<string | null>(null);
   const [showLogoSelector, setShowLogoSelector] = useState(false);
@@ -194,7 +254,15 @@ export function NewProjectDialog({
   const [showCCResetConfirm, setShowCCResetConfirm] = useState(false);
   const [pendingClientId, setPendingClientId] = useState<string | null>(null);
   const [speedAddOpen, setSpeedAddOpen] = useState(false);
+  const [powerMode, setPowerMode] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['project-info', 'event-details', 'location', 'schedule', 'staffing', 'advanced']));
+  const [showReminderPicker, setShowReminderPicker] = useState(false);
+  const [projectReminders, setProjectReminders] = useState<{id: string; message: string; date: Date; completed: boolean}[]>([]);
   const { toast } = useToast();
+
+  // Baiger AI assistant integration
+  const { openBaiger } = useBaiger();
 
   const form = useForm<ProjectFormValues>({
     resolver: zodResolver(projectSchema),
@@ -226,6 +294,20 @@ export function NewProjectDialog({
     },
     mode: 'onChange',
   });
+
+  // Callback for Baiger to update form fields
+  const handleBaigerFormUpdate = useCallback((field: string, value: any) => {
+    form.setValue(field as any, value);
+  }, [form]);
+
+  // Open Baiger with project creation context
+  const handleOpenBaiger = useCallback(() => {
+    openBaiger({
+      mode: 'project_create',
+      initialMessage: "I'm helping you create a new project. Tell me about the project - for example: \"Nike roadshow at Marina Bay Sands next Friday, need 10 staff from 9am to 6pm\"",
+      onFormUpdate: handleBaigerFormUpdate,
+    });
+  }, [openBaiger, handleBaigerFormUpdate]);
 
   useEffect(() => {
     if (open) {
@@ -261,9 +343,12 @@ export function NewProjectDialog({
       form.clearErrors();
       
       // Reset UI states
-      setCurrentStep('project-info');
-      setVisitedSteps(new Set(['project-info']));
+      setCurrentStep('essentials');
+      setVisitedSteps(new Set(['essentials']));
       setShowLogoSelector(false);
+      setPowerMode(false);
+      setSelectedTemplate(null);
+      setExpandedSections(new Set(['project-info', 'event-details', 'location', 'schedule', 'staffing', 'advanced']));
       setCurrentBrandName('');
       setBrandLogoError(false);
       setIsLoading(false);
@@ -467,21 +552,43 @@ export function NewProjectDialog({
 
   const getFieldsForStep = (step: Step): (keyof ProjectFormValues)[] => {
     switch (step) {
-      case 'project-info':
-        return ['title', 'client_id', 'manager_id'];
-      case 'event-details':
-        return ['event_type', 'description', 'project_type'];
-      case 'location':
-        return ['venue_address', 'venue_details'];
-      case 'schedule':
-        return ['start_date', 'end_date', 'working_hours_start', 'working_hours_end', 'schedule_type'];
-      case 'staffing':
-        return ['crew_count', 'supervisors_required'];
-      case 'advanced':
-        return ['status', 'priority', 'budget', 'invoice_number'];
+      case 'essentials':
+        // Project info + Event details + Location
+        return ['title', 'client_id', 'manager_id', 'event_type', 'venue_address'];
+      case 'staffing-schedule':
+        // Schedule + Staffing + Advanced
+        return ['start_date', 'working_hours_start', 'working_hours_end', 'crew_count'];
       default:
         return [];
     }
+  };
+
+  // Helper function to apply template defaults
+  const applyTemplate = (templateId: string) => {
+    const template = projectTemplates.find(t => t.id === templateId);
+    if (template && template.defaults) {
+      Object.entries(template.defaults).forEach(([key, value]) => {
+        form.setValue(key as keyof ProjectFormValues, value as any);
+      });
+      setSelectedTemplate(templateId);
+      toast({
+        title: `${template.name} template applied`,
+        description: "Default values have been pre-filled. You can customize as needed.",
+      });
+    }
+  };
+
+  // Toggle accordion section in power mode
+  const toggleSection = (sectionId: string) => {
+    setExpandedSections(prev => {
+      const next = new Set(prev);
+      if (next.has(sectionId)) {
+        next.delete(sectionId);
+      } else {
+        next.add(sectionId);
+      }
+      return next;
+    });
   };
 
   const onSubmit = async (values: ProjectFormValues) => {
@@ -562,8 +669,10 @@ export function NewProjectDialog({
 
       // Reset form and step
       form.reset();
-      setCurrentStep('project-info');
-      setVisitedSteps(new Set(['project-info']));
+      setCurrentStep('essentials');
+      setVisitedSteps(new Set(['essentials']));
+      setPowerMode(false);
+      setSelectedTemplate(null);
     } catch (error) {
       logger.error('Error creating project:', error);
       console.error('Project creation error details:', {
@@ -581,23 +690,95 @@ export function NewProjectDialog({
     }
   };
 
+  // Render accordion section for power mode
+  const renderAccordionSection = (
+    id: string,
+    title: string,
+    icon: React.ElementType,
+    content: React.ReactNode
+  ) => {
+    const IconComponent = icon;
+    const isExpanded = expandedSections.has(id);
+    return (
+      <div className="border rounded-lg overflow-hidden mb-3">
+        <button
+          type="button"
+          onClick={() => toggleSection(id)}
+          className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+        >
+          <div className="flex items-center gap-2">
+            <IconComponent className="h-4 w-4" />
+            <span className="font-medium text-sm">{title}</span>
+          </div>
+          <ChevronDown className={cn("h-4 w-4 transition-transform", isExpanded && "rotate-180")} />
+        </button>
+        <AnimatePresence initial={false}>
+          {isExpanded && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+            >
+              <div className="p-4 border-t">{content}</div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    );
+  };
+
   const renderStepContent = () => {
+    // Wizard Mode - 3-step flow (Power Mode toggle coming soon)
     switch (currentStep) {
-      case 'project-info':
+      case 'essentials':
         return (
           <motion.div
-            key="project-info-step"
+            key="essentials-step"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
             transition={{ duration: 0.3 }}
+            className="space-y-6"
           >
+            {/* Template Quick Start */}
+            {!selectedTemplate && (
+              <Card className="shadow-sm border-2 border-dashed border-violet-200 dark:border-violet-800">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base font-semibold flex items-center gap-2 text-gray-900 dark:text-white">
+                    <Zap className="h-4 w-4 text-fuchsia-500" />
+                    Quick Start with Template
+                  </CardTitle>
+                  <CardDescription className="text-xs text-gray-400 dark:text-gray-500">Choose a template to pre-fill common settings</CardDescription>
+                </CardHeader>
+                <CardContent className="pt-2">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                    {projectTemplates.map((template) => {
+                      const TemplateIcon = template.icon;
+                      return (
+                        <button
+                          key={template.id}
+                          type="button"
+                          onClick={() => applyTemplate(template.id)}
+                          className="flex flex-col items-center p-3 rounded-lg border-2 border-gray-200 dark:border-gray-700 hover:border-violet-500 hover:bg-violet-50 dark:hover:bg-violet-950/20 transition-all text-center group"
+                        >
+                          <TemplateIcon className="h-5 w-5 mb-1 text-gray-500 dark:text-gray-400 group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors" />
+                          <span className="text-xs font-medium group-hover:text-violet-700 dark:group-hover:text-violet-300 transition-colors">{template.name}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Project Information */}
             <Card className="shadow-sm border-0">
               <CardHeader className="pb-2">
-                <CardTitle className="text-xl font-semibold">Basic Information</CardTitle>
-                <CardDescription className="text-sm">Start by entering the fundamental details of your project</CardDescription>
+                <CardTitle className="text-lg font-semibold text-gray-900 dark:text-white">Project Information</CardTitle>
+                <CardDescription className="text-xs text-gray-400 dark:text-gray-500">Basic details about your project</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-8 pt-6 pb-8">
+              <CardContent className="space-y-4 pt-4 pb-6">
                 <FormField
                   control={form.control}
                   name="title"
@@ -610,13 +791,13 @@ export function NewProjectDialog({
                         Project Name <span className="text-red-500">*</span>
                       </FormLabel>
                       <FormControl>
-                        <Input 
+                        <SpeechInput
                           value={field.value || ''}
                           onChange={field.onChange}
                           onBlur={field.onBlur}
                           name={field.name}
                           ref={field.ref}
-                          placeholder="e.g., Annual Company Conference 2024" 
+                          placeholder="e.g., Annual Company Conference 2024"
                           className={cn(
                             "h-11 transition-all hover:border-gray-400 focus:border-gray-600",
                             form.formState.errors.title && "border-red-500 focus:border-red-500"
@@ -626,7 +807,7 @@ export function NewProjectDialog({
                           data-form-type="other"
                         />
                       </FormControl>
-                      <FormDescription className="text-xs">Choose a clear, descriptive name for your project</FormDescription>
+                      <FormDescription className="text-xs text-gray-400/70 dark:text-gray-500/70">Choose a clear, descriptive name for your project (or use mic)</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -737,7 +918,7 @@ export function NewProjectDialog({
                             </Command>
                           </PopoverContent>
                         </Popover>
-                        <FormDescription className="text-xs">Select the company or client for this project</FormDescription>
+                        <FormDescription className="text-xs text-gray-400/70 dark:text-gray-500/70">Select the company or client for this project</FormDescription>
                         <FormMessage />
                       </FormItem>
                     );
@@ -786,7 +967,7 @@ export function NewProjectDialog({
                           ))}
                         </SelectContent>
                       </Select>
-                      <FormDescription className="text-xs">Assign the project manager responsible for this project</FormDescription>
+                      <FormDescription className="text-xs text-gray-400/70 dark:text-gray-500/70">Assign the project manager responsible for this project</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -835,7 +1016,7 @@ export function NewProjectDialog({
                             )}
                           </div>
                         </FormControl>
-                        <FormDescription className="text-xs">Enter the brand or company name</FormDescription>
+                        <FormDescription className="text-xs text-gray-400/70 dark:text-gray-500/70">Enter the brand or company name</FormDescription>
                       </FormItem>
                     )}
                   />
@@ -912,7 +1093,7 @@ export function NewProjectDialog({
                             )}
                           </div>
                         </FormControl>
-                        <FormDescription className="text-xs">Logo URL (will auto-fetch based on brand name)</FormDescription>
+                        <FormDescription className="text-xs text-gray-400/70 dark:text-gray-500/70">Logo URL (will auto-fetch based on brand name)</FormDescription>
                       </FormItem>
                     )}
                   />
@@ -933,7 +1114,7 @@ export function NewProjectDialog({
                             className="h-11 transition-all hover:border-gray-400 focus:border-gray-600"
                           />
                         </FormControl>
-                        <FormDescription className="text-xs">Official brand or company website</FormDescription>
+                        <FormDescription className="text-xs text-gray-400/70 dark:text-gray-500/70">Official brand or company website</FormDescription>
                       </FormItem>
                     )}
                   />
@@ -950,8 +1131,8 @@ export function NewProjectDialog({
                     render={({ field }) => (
                       <FormItem className="space-y-2">
                         <FormLabel>CC Contacts</FormLabel>
-                        <FormDescription className="text-xs">
-                          {form.watch('client_id') 
+                        <FormDescription className="text-xs text-gray-400/70 dark:text-gray-500/70">
+                          {form.watch('client_id')
                             ? "Add additional client contacts to keep informed about this project"
                             : "Select a customer first to see their contacts"}
                         </FormDescription>
@@ -1070,7 +1251,7 @@ export function NewProjectDialog({
                     render={({ field }) => (
                       <FormItem className="space-y-2">
                         <FormLabel>CC Users</FormLabel>
-                        <FormDescription className="text-xs">
+                        <FormDescription className="text-xs text-gray-400/70 dark:text-gray-500/70">
                           Add additional team members to keep informed about this project
                         </FormDescription>
                         <Popover>
@@ -1164,24 +1345,14 @@ export function NewProjectDialog({
                 </div>
               </CardContent>
             </Card>
-          </motion.div>
-        );
 
-      case 'event-details':
-        return (
-          <motion.div
-            key="event-details-step"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.3 }}
-          >
+            {/* Event Details */}
             <Card className="shadow-sm border-0">
               <CardHeader className="pb-2">
-                <CardTitle className="text-xl font-semibold">Event Details</CardTitle>
-                <CardDescription className="text-sm">Describe the nature and type of your event</CardDescription>
+                <CardTitle className="text-lg font-semibold text-gray-900 dark:text-white">Event Details</CardTitle>
+                <CardDescription className="text-xs text-gray-400 dark:text-gray-500">Type and description of the event</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-8 pt-6 pb-8">
+              <CardContent className="space-y-4 pt-4 pb-6">
                 <FormField
                   control={form.control}
                   name="event_type"
@@ -1198,13 +1369,13 @@ export function NewProjectDialog({
                         Event Type <span className="text-red-500">*</span>
                       </FormLabel>
                       <FormControl>
-                        <Input 
+                        <SpeechInput
                           value={field.value || ''}
                           onChange={field.onChange}
                           onBlur={field.onBlur}
                           name={field.name}
                           ref={field.ref}
-                          placeholder="e.g., Conference, Wedding, Corporate Event, Exhibition" 
+                          placeholder="e.g., Conference, Wedding, Corporate Event, Exhibition"
                           className={cn(
                             "h-11 transition-all hover:border-gray-400 focus:border-gray-600",
                             form.formState.errors.event_type && "border-red-500 focus:border-red-500"
@@ -1214,7 +1385,7 @@ export function NewProjectDialog({
                           data-form-type="other"
                         />
                       </FormControl>
-                      <FormDescription className="text-xs">What kind of event is this?</FormDescription>
+                      <FormDescription className="text-xs text-gray-400/70 dark:text-gray-500/70">What kind of event is this? (or use mic)</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -1253,7 +1424,7 @@ export function NewProjectDialog({
                           </SelectItem>
                         </SelectContent>
                       </Select>
-                      <FormDescription className="text-xs">Categorize your project for better organization</FormDescription>
+                      <FormDescription className="text-xs text-gray-400/70 dark:text-gray-500/70">Categorize your project for better organization</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -1280,7 +1451,7 @@ export function NewProjectDialog({
                           data-form-type="other"
                         />
                       </FormControl>
-                      <FormDescription className="text-xs">
+                      <FormDescription className="text-xs text-gray-400/70 dark:text-gray-500/70">
                         Include any important information that team members should know
                       </FormDescription>
                     </FormItem>
@@ -1288,23 +1459,14 @@ export function NewProjectDialog({
                 />
               </CardContent>
             </Card>
-          </motion.div>
-        );
 
-      case 'location':
-        return (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.3 }}
-          >
+            {/* Location */}
             <Card className="shadow-sm border-0">
               <CardHeader className="pb-2">
-                <CardTitle className="text-xl font-semibold">Location Information</CardTitle>
-                <CardDescription className="text-sm">Where will this project take place?</CardDescription>
+                <CardTitle className="text-lg font-semibold text-gray-900 dark:text-white">Location</CardTitle>
+                <CardDescription className="text-xs text-gray-400 dark:text-gray-500">Where will this project take place?</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-8 pt-6 pb-8">
+              <CardContent className="space-y-4 pt-4 pb-6">
                 <FormField
                   control={form.control}
                   name="venue_address"
@@ -1321,16 +1483,20 @@ export function NewProjectDialog({
                         Venue Address <span className="text-red-500">*</span>
                       </FormLabel>
                       <FormControl>
-                        <Input 
-                          {...field} 
-                          placeholder="123 Main Street, City, State 12345" 
+                        <SpeechInput
+                          value={field.value || ''}
+                          onChange={field.onChange}
+                          onBlur={field.onBlur}
+                          name={field.name}
+                          ref={field.ref}
+                          placeholder="123 Main Street, City, State 12345"
                           className={cn(
                             "h-11 transition-all hover:border-gray-400 focus:border-gray-600",
                             form.formState.errors.venue_address && "border-red-500 focus:border-red-500"
                           )}
                         />
                       </FormControl>
-                      <FormDescription className="text-xs">Full address including street, city, and postal code</FormDescription>
+                      <FormDescription className="text-xs text-gray-400/70 dark:text-gray-500/70">Full address including street, city, and postal code (or use mic)</FormDescription>
                     </FormItem>
                   )}
                 />
@@ -1349,7 +1515,7 @@ export function NewProjectDialog({
                           className="resize-none transition-all hover:border-gray-400 focus:border-gray-600"
                         />
                       </FormControl>
-                      <FormDescription className="text-xs">
+                      <FormDescription className="text-xs text-gray-400/70 dark:text-gray-500/70">
                         Include specific location details, access instructions, or landmarks
                       </FormDescription>
                       <FormMessage />
@@ -1369,20 +1535,23 @@ export function NewProjectDialog({
           </motion.div>
         );
 
-      case 'schedule':
+      case 'staffing-schedule':
         return (
           <motion.div
+            key="staffing-schedule-step"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
             transition={{ duration: 0.3 }}
+            className="space-y-6"
           >
+            {/* Schedule */}
             <Card className="shadow-sm border-0">
               <CardHeader className="pb-2">
-                <CardTitle className="text-xl font-semibold">Schedule & Timing</CardTitle>
-                <CardDescription className="text-sm">Set the dates and working hours for your project</CardDescription>
+                <CardTitle className="text-lg font-semibold text-gray-900 dark:text-white">Schedule & Timing</CardTitle>
+                <CardDescription className="text-xs text-gray-400 dark:text-gray-500">Set the dates and working hours</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-8 pt-6 pb-8">
+              <CardContent className="space-y-4 pt-4 pb-6">
                 <div className="grid grid-cols-2 gap-6">
                   <FormField
                     control={form.control}
@@ -1545,30 +1714,21 @@ export function NewProjectDialog({
                           <SelectItem value="multiple">Multiple Days</SelectItem>
                         </SelectContent>
                       </Select>
-                      <FormDescription className="text-xs">How often does this project occur?</FormDescription>
+                      <FormDescription className="text-xs text-gray-400/70 dark:text-gray-500/70">How often does this project occur?</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
               </CardContent>
             </Card>
-          </motion.div>
-        );
 
-      case 'staffing':
-        return (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.3 }}
-          >
+            {/* Staffing */}
             <Card className="shadow-sm border-0">
               <CardHeader className="pb-2">
-                <CardTitle className="text-xl font-semibold">Staffing Requirements</CardTitle>
-                <CardDescription className="text-sm">Define the team size and supervision needs</CardDescription>
+                <CardTitle className="text-lg font-semibold text-gray-900 dark:text-white">Staffing Requirements</CardTitle>
+                <CardDescription className="text-xs text-gray-400 dark:text-gray-500">Define team size and supervision</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-8 pt-6 pb-8">
+              <CardContent className="space-y-4 pt-4 pb-6">
                 <div className="grid grid-cols-2 gap-6">
                   <FormField
                     control={form.control}
@@ -1592,7 +1752,7 @@ export function NewProjectDialog({
                             onFocus={(e) => e.target.select()}
                           />
                         </FormControl>
-                        <FormDescription className="text-xs">Total number of crew members needed</FormDescription>
+                        <FormDescription className="text-xs text-gray-400/70 dark:text-gray-500/70">Total number of crew members needed</FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -1621,7 +1781,7 @@ export function NewProjectDialog({
                             onFocus={(e) => e.target.select()}
                           />
                         </FormControl>
-                        <FormDescription className="text-xs">Number of supervisors (if any)</FormDescription>
+                        <FormDescription className="text-xs text-gray-400/70 dark:text-gray-500/70">Number of supervisors (if any)</FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -1636,23 +1796,14 @@ export function NewProjectDialog({
                 </Alert>
               </CardContent>
             </Card>
-          </motion.div>
-        );
 
-      case 'advanced':
-        return (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.3 }}
-          >
+            {/* Advanced Settings */}
             <Card className="shadow-sm border-0">
               <CardHeader className="pb-2">
-                <CardTitle className="text-xl font-semibold">Advanced Settings</CardTitle>
-                <CardDescription className="text-sm">Configure status, priority, and budget</CardDescription>
+                <CardTitle className="text-lg font-semibold text-gray-900 dark:text-white">Advanced Settings</CardTitle>
+                <CardDescription className="text-xs text-gray-400 dark:text-gray-500">Status, priority, and budget</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-8 pt-6 pb-8">
+              <CardContent className="space-y-4 pt-4 pb-6">
                 <div className="grid grid-cols-2 gap-6">
                   <FormField
                     control={form.control}
@@ -1759,7 +1910,7 @@ export function NewProjectDialog({
                             className="h-11 transition-all hover:border-gray-400 focus:border-gray-600"
                           />
                         </FormControl>
-                        <FormDescription className="text-xs">Estimated budget for this project</FormDescription>
+                        <FormDescription className="text-xs text-gray-400/70 dark:text-gray-500/70">Estimated budget for this project</FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -1781,7 +1932,7 @@ export function NewProjectDialog({
                             className="h-11 transition-all hover:border-gray-400 focus:border-gray-600"
                           />
                         </FormControl>
-                        <FormDescription className="text-xs">Invoice number or link</FormDescription>
+                        <FormDescription className="text-xs text-gray-400/70 dark:text-gray-500/70">Invoice number or link</FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -1968,7 +2119,7 @@ export function NewProjectDialog({
   return (
     <>
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-6xl p-0 h-[92vh] max-h-[900px] flex flex-col overflow-hidden">
+      <DialogContent className="w-[95vw] md:max-w-6xl p-0 h-[95vh] md:h-[92vh] max-h-[900px] flex flex-col overflow-hidden">
         <DialogTitle className="sr-only">Create New Project</DialogTitle>
         <DialogDescription className="sr-only">
           Complete all steps to create a new project in the system
@@ -1976,31 +2127,31 @@ export function NewProjectDialog({
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col h-full" autoComplete="off" noValidate>
             <div className="flex flex-1 overflow-hidden">
-              {/* Left Sidebar */}
-              <div className="w-80 bg-gray-50 dark:bg-gray-900 p-6 flex flex-col border-r">
+              {/* Left Sidebar - hidden on mobile */}
+              <div className="hidden md:flex w-80 bg-gray-50 dark:bg-gray-900 p-6 flex-col border-r">
                 <div className="flex-1 overflow-y-auto">
                   <div className="mb-8 relative">
                     {/* Animated gradient background for main title */}
-                    <motion.div 
-                      className="absolute inset-0 bg-gradient-to-r from-purple-600/10 via-pink-500/10 to-purple-600/10 rounded-lg"
+                    <motion.div
+                      className="absolute inset-0 bg-gradient-to-r from-violet-600/15 via-fuchsia-500/15 to-violet-600/15 rounded-lg"
                       animate={{ backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"] }}
                       transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
                       style={{ backgroundSize: "200% 100%" }}
                     />
                     <div className="relative z-10 p-4">
-                      <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100">Create Project</h2>
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-3">
-                        Complete all steps to set up your new project.
+                      <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Create Project</h2>
+                      <p className="text-sm text-gray-400 dark:text-gray-500 mt-2">
+                        3 quick steps to set up your project.
                       </p>
-                      {/* Speed Add Button */}
+                      {/* Speed Add Button - Opens Baiger AI */}
                       <Button
                         type="button"
-                        onClick={() => setSpeedAddOpen(true)}
+                        onClick={handleOpenBaiger}
                         variant="outline"
-                        className="w-full mt-4 border-2 border-dashed border-yellow-400 hover:border-yellow-500 hover:bg-yellow-50 dark:hover:bg-yellow-950/20 transition-colors"
+                        className="w-full mt-4 border-2 border-dashed border-fuchsia-400 hover:border-fuchsia-500 hover:bg-fuchsia-50 dark:hover:bg-fuchsia-950/20 transition-colors"
                         size="sm"
                       >
-                        <Zap className="mr-2 h-4 w-4 text-yellow-500" />
+                        <Zap className="mr-2 h-4 w-4 text-fuchsia-500" />
                         Speed Add from Job Ad
                       </Button>
                     </div>
@@ -2042,11 +2193,11 @@ export function NewProjectDialog({
                           whileTap={{ scale: 0.98 }}
                         >
                           <div className={cn(
-                            "flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center transition-all",
+                            "flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center transition-all shadow-sm",
                             isActive
-                              ? "bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900"
+                              ? "bg-gradient-to-br from-violet-600 to-fuchsia-600 text-white"
                               : isVisited
-                              ? "bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-400"
+                              ? "bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400"
                               : "bg-gray-200 dark:bg-gray-700"
                           )}>
                             {isVisited && !isActive ? (
@@ -2081,8 +2232,8 @@ export function NewProjectDialog({
                     </span>
                   </div>
                   <div className="w-full h-2 rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden">
-                    <motion.div 
-                      className="h-full rounded-full bg-gradient-to-r from-gray-600 to-gray-800"
+                    <motion.div
+                      className="h-full rounded-full bg-gradient-to-r from-violet-500 via-purple-500 to-fuchsia-500"
                       initial={{ width: 0 }}
                       animate={{ width: `${progress}%` }}
                       transition={{ duration: 0.5, ease: "easeInOut" }}
@@ -2093,12 +2244,53 @@ export function NewProjectDialog({
 
               {/* Right Content */}
               <div className="flex-1 flex flex-col bg-gray-50/50 dark:bg-gray-900/50">
-                {/* Header */}
-                <div className="px-8 py-6 border-b bg-white dark:bg-gray-900">
+                {/* Mobile Step Indicator */}
+                <div className="md:hidden px-4 py-3 border-b bg-white dark:bg-gray-900">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center justify-center w-6 h-6 rounded-full bg-gradient-to-br from-violet-600 to-fuchsia-600 text-white text-xs font-bold shadow-sm">
+                        {currentStepIndex + 1}
+                      </div>
+                      <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                        {steps[currentStepIndex].label}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleOpenBaiger}
+                        className="h-7 px-2 text-xs gap-1 border-violet-300 text-violet-600 hover:bg-violet-50"
+                      >
+                        <MessageSquare className="h-3 w-3" />
+                        AI Help
+                      </Button>
+                      <span className="text-xs text-gray-500">
+                        {currentStepIndex + 1}/{steps.length}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex gap-1.5">
+                    {steps.map((step, idx) => (
+                      <div
+                        key={step.id}
+                        className={cn(
+                          "flex-1 h-1.5 rounded-full transition-all",
+                          idx <= currentStepIndex
+                            ? "bg-gradient-to-r from-violet-500 via-purple-500 to-fuchsia-500"
+                            : "bg-gray-200 dark:bg-gray-700"
+                        )}
+                      />
+                    ))}
+                  </div>
+                </div>
+                {/* Header - Hidden on mobile since we have mobile step indicator */}
+                <div className="hidden md:block px-8 py-6 border-b bg-white dark:bg-gray-900">
                   <div className="flex justify-between items-start relative">
                     {/* Animated gradient background */}
-                    <motion.div 
-                      className="absolute inset-0 bg-gradient-to-r from-purple-600/5 via-pink-500/5 to-purple-600/5 rounded-lg"
+                    <motion.div
+                      className="absolute inset-0 bg-gradient-to-r from-violet-600/10 via-fuchsia-500/10 to-violet-600/10 rounded-lg"
                       animate={{ backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"] }}
                       transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
                       style={{ backgroundSize: "200% 100%" }}
@@ -2121,9 +2313,17 @@ export function NewProjectDialog({
                     </button>
                   </div>
                 </div>
+                {/* Mobile Close Button */}
+                <button
+                  type="button"
+                  onClick={() => onOpenChange(false)}
+                  className="md:hidden absolute top-3 right-4 z-50 text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+                >
+                  <X className="h-5 w-5" />
+                </button>
 
                 {/* Scrollable Content Area */}
-                <div className="flex-1 overflow-y-auto px-8 py-8">
+                <div className="flex-1 overflow-y-auto px-4 md:px-8 py-4 md:py-8">
                   <AnimatePresence mode="wait">
                     <div key={currentStep}>
                       {renderStepContent()}
@@ -2134,12 +2334,12 @@ export function NewProjectDialog({
             </div>
 
             {/* Fixed Footer */}
-            <div className="border-t bg-white dark:bg-gray-900 px-8 py-6 flex-shrink-0">
-              <div className="flex justify-between gap-4">
+            <div className="border-t bg-white dark:bg-gray-900 px-4 md:px-8 py-3 md:py-6 flex-shrink-0">
+              <div className="flex justify-between gap-3">
                 <Button
                   type="button"
                   variant="outline"
-                  size="lg"
+                  size="default"
                   onClick={() => {
                     if (currentStepIndex === 0) {
                       onOpenChange(false);
@@ -2147,48 +2347,52 @@ export function NewProjectDialog({
                       handlePrevious();
                     }
                   }}
-                  className="min-w-[100px]"
+                  className="min-w-[80px] md:min-w-[100px] text-sm md:text-base h-9 md:h-11"
                 >
-                  {currentStepIndex === 0 ? 'Cancel' : 'Previous'}
+                  {currentStepIndex === 0 ? 'Cancel' : 'Back'}
                 </Button>
                 <div className="flex gap-2">
                   {currentStepIndex > 0 && (
                     <Button
                       type="button"
                       variant="ghost"
-                      size="lg"
+                      size="default"
                       onClick={() => onOpenChange(false)}
-                      className="min-w-[100px]"
+                      className="hidden md:flex min-w-[100px]"
                     >
                       Cancel
                     </Button>
                   )}
                   {currentStep === 'review' ? (
-                    <Button 
-                      type="submit" 
-                      size="lg"
+                    <Button
+                      type="submit"
+                      size="default"
                       disabled={isLoading || !form.formState.isValid}
-                      className="min-w-[160px] bg-gradient-to-r from-gray-700 to-gray-900 hover:from-gray-800 hover:to-black text-white disabled:opacity-50"
+                      className="min-w-[120px] md:min-w-[160px] bg-gradient-to-r from-violet-600 via-purple-600 to-fuchsia-600 hover:from-violet-700 hover:via-purple-700 hover:to-fuchsia-700 text-white shadow-lg shadow-violet-500/25 disabled:opacity-50 text-sm md:text-base h-9 md:h-11"
                       title={!form.formState.isValid ? "Please fill in all required fields" : ""}
                     >
                       {isLoading ? (
                         <>
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Creating Project...
+                          <span className="hidden md:inline">Creating...</span>
+                          <span className="md:hidden">...</span>
                         </>
                       ) : (
-                        'Create Project'
+                        <>
+                          <span className="md:hidden">Create</span>
+                          <span className="hidden md:inline">Create Project</span>
+                        </>
                       )}
                     </Button>
                   ) : (
-                    <Button 
-                      type="button" 
-                      size="lg"
+                    <Button
+                      type="button"
+                      size="default"
                       onClick={(e) => {
                         e.preventDefault();
                         handleNext();
                       }}
-                      className="min-w-[100px] gap-2"
+                      className="min-w-[80px] md:min-w-[100px] gap-1 md:gap-2 text-sm md:text-base h-9 md:h-11 bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 text-white shadow-lg shadow-violet-500/25"
                     >
                       Next
                       <ChevronRight className="h-4 w-4" />
@@ -2201,7 +2405,7 @@ export function NewProjectDialog({
         </Form>
       </DialogContent>
     </Dialog>
-    
+
     <BrandLogoSelector
       open={showLogoSelector}
       onOpenChange={setShowLogoSelector}

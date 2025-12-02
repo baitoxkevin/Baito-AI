@@ -2,12 +2,15 @@ import './App.css';
 import { useState, useEffect, useRef } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useParams, useLocation } from 'react-router-dom';
 import { AppStateProvider } from './contexts/AppStateContext';
+import { BaigerProvider, useBaiger } from './contexts/BaigerContext';
 import LoginPage from './pages/LoginPage';
 import MainAppLayout from './components/MainAppLayout';
 import { EnhancedToaster } from './components/ui/enhanced-toaster';
 // StaticCandidateUpdatePage was removed
 import ReceiptScannerPage from './pages/ReceiptScannerPage';
 import MobileCandidateUpdatePage from './pages/MobileCandidateUpdatePage';
+import ProfessionalEnhancedProfilePage from './pages/ProfessionalEnhancedProfilePage';
+import ProfessionalProfileTestPage from './pages/ProfessionalProfileTestPage';
 import CandidateDashboardPage from './pages/CandidateDashboardPage';
 import JobDiscoveryPage from './pages/JobDiscoveryPage'; // Added
 import SetPasswordPage from './pages/SetPasswordPage';
@@ -35,11 +38,22 @@ function ProjectRedirect() {
 function RouterContent() {
   const location = useLocation();
   const { currentUser } = useAppState();
+  const { isOpen: isChatOpen, openBaiger, closeBaiger, contextData } = useBaiger();
+
+  // Wrapper functions for MainAppLayout compatibility
+  const handleChatOpenChange = (open: boolean) => {
+    if (open) {
+      openBaiger();
+    } else {
+      closeBaiger();
+    }
+  };
 
   // Check if current route is login or public route
   const isPublicRoute = location.pathname === '/login' ||
                         location.pathname === '/set-password' ||
                         location.pathname.includes('/candidate-update') ||
+                        location.pathname.includes('/candidate-profile-enhanced') ||
                         location.pathname.includes('/candidate/');
 
   return (
@@ -56,12 +70,13 @@ function RouterContent() {
         <Route path="/candidate-showcase-demo" element={<CandidateShowcaseDemo />} />
         {/* Candidate update routes with secure token */}
         <Route path="/candidate-update-mobile/:candidateId" element={<MobileCandidateUpdatePage />} />
+        <Route path="/candidate-profile-enhanced/:candidateId" element={<ProfessionalEnhancedProfilePage />} />
         <Route path="/candidate/dashboard/:candidateId" element={<CandidateDashboardPage />} />
         <Route path="/candidate-form/:token" element={<Navigate to="/login" replace />} />
         <Route path="/candidate/:token" element={<Navigate to="/login" replace />} />
         <Route
           path="/dashboard"
-          element={<MainAppLayout effectActive={false} />}
+          element={<MainAppLayout effectActive={false} isChatOpen={isChatOpen} onChatOpenChange={handleChatOpenChange} />}
         />
         {/* Routes that work both in localhost and production */}
         {/* Redirect from singular /project to plural /projects */}
@@ -69,51 +84,51 @@ function RouterContent() {
         <Route path="/project/:projectId" element={<ProjectRedirect />} />
         <Route
           path="/projects"
-          element={<MainAppLayout effectActive={false} />}
+          element={<MainAppLayout effectActive={false} isChatOpen={isChatOpen} onChatOpenChange={handleChatOpenChange} />}
         />
         <Route
           path="/projects/:projectId"
-          element={<MainAppLayout effectActive={false} />}
+          element={<MainAppLayout effectActive={false} isChatOpen={isChatOpen} onChatOpenChange={handleChatOpenChange} />}
         />
         <Route
           path="/calendar"
-          element={<MainAppLayout effectActive={false} />}
+          element={<MainAppLayout effectActive={false} isChatOpen={isChatOpen} onChatOpenChange={handleChatOpenChange} />}
         />
         <Route
           path="/calendar/list"
-          element={<MainAppLayout effectActive={false} />}
+          element={<MainAppLayout effectActive={false} isChatOpen={isChatOpen} onChatOpenChange={handleChatOpenChange} />}
         />
         <Route
           path="/calendar/view"
-          element={<MainAppLayout effectActive={false} />}
+          element={<MainAppLayout effectActive={false} isChatOpen={isChatOpen} onChatOpenChange={handleChatOpenChange} />}
         />
         <Route
           path="/calendar/dashboard"
-          element={<MainAppLayout effectActive={false} />}
+          element={<MainAppLayout effectActive={false} isChatOpen={isChatOpen} onChatOpenChange={handleChatOpenChange} />}
         />
         <Route
           path="/tools"
-          element={<MainAppLayout effectActive={false} />}
+          element={<MainAppLayout effectActive={false} isChatOpen={isChatOpen} onChatOpenChange={handleChatOpenChange} />}
         />
         <Route
           path="/invites"
-          element={<MainAppLayout effectActive={false} />}
+          element={<MainAppLayout effectActive={false} isChatOpen={isChatOpen} onChatOpenChange={handleChatOpenChange} />}
         />
         <Route
           path="/candidates"
-          element={<MainAppLayout effectActive={false} />}
+          element={<MainAppLayout effectActive={false} isChatOpen={isChatOpen} onChatOpenChange={handleChatOpenChange} />}
         />
         <Route
           path="/candidates/ui-comparison"
-          element={<MainAppLayout effectActive={false} />}
+          element={<MainAppLayout effectActive={false} isChatOpen={isChatOpen} onChatOpenChange={handleChatOpenChange} />}
         />
         <Route
           path="/team"
-          element={<MainAppLayout effectActive={false} />}
+          element={<MainAppLayout effectActive={false} isChatOpen={isChatOpen} onChatOpenChange={handleChatOpenChange} />}
         />
         <Route
           path="/settings"
-          element={<MainAppLayout effectActive={false} />}
+          element={<MainAppLayout effectActive={false} isChatOpen={isChatOpen} onChatOpenChange={handleChatOpenChange} />}
         />
         <Route
           path="/date-picker-test"
@@ -124,24 +139,28 @@ function RouterContent() {
           element={<AmountInputTestPage />}
         />
         <Route
+          path="/profile-test"
+          element={<ProfessionalProfileTestPage />}
+        />
+        <Route
           path="/admin"
-          element={<MainAppLayout effectActive={false} />}
+          element={<MainAppLayout effectActive={false} isChatOpen={isChatOpen} onChatOpenChange={handleChatOpenChange} />}
         />
         <Route
           path="/payments"
-          element={<MainAppLayout effectActive={false} />}
+          element={<MainAppLayout effectActive={false} isChatOpen={isChatOpen} onChatOpenChange={handleChatOpenChange} />}
         />
         <Route
           path="/goals"
-          element={<MainAppLayout effectActive={false} />}
+          element={<MainAppLayout effectActive={false} isChatOpen={isChatOpen} onChatOpenChange={handleChatOpenChange} />}
         />
         <Route
           path="/expenses"
-          element={<MainAppLayout effectActive={false} />}
+          element={<MainAppLayout effectActive={false} isChatOpen={isChatOpen} onChatOpenChange={handleChatOpenChange} />}
         />
         <Route
           path="/warehouse"
-          element={<MainAppLayout effectActive={false} />}
+          element={<MainAppLayout effectActive={false} isChatOpen={isChatOpen} onChatOpenChange={handleChatOpenChange} />}
         />
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         {/* Catch-all route for 404s - redirect to dashboard */}
@@ -150,10 +169,17 @@ function RouterContent() {
       <SpotlightCommand />
       <EnhancedToaster />
       {/* AI Chat Widget - only show when user is logged in AND not on public routes */}
-      {!isPublicRoute && currentUser && <ChatWidget userId={currentUser.id} />}
+      {!isPublicRoute && currentUser && (
+        <ChatWidget
+          userId={currentUser.id}
+          externalOpen={isChatOpen}
+          onOpenChange={handleChatOpenChange}
+          contextData={contextData}
+        />
+      )}
       {/* Notification Bell - only show when user is logged in AND not on public routes */}
       {!isPublicRoute && currentUser && (
-        <div className="fixed top-4 right-20 z-50">
+        <div className="fixed top-1.5 md:top-4 right-14 md:right-20 z-50">
           <NotificationBell userId={currentUser.id} />
         </div>
       )}
@@ -234,7 +260,9 @@ function App() {
   return (
     <GlobalErrorBoundary>
       <AppStateProvider>
-        <AppContent />
+        <BaigerProvider>
+          <AppContent />
+        </BaigerProvider>
       </AppStateProvider>
     </GlobalErrorBoundary>
   );

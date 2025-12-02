@@ -5,37 +5,113 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { MessageCircle, X, Send, Minimize2, Maximize2, Trash2, ArrowDown, Languages } from 'lucide-react'
+import { MessageCircle, X, Send, Minimize2, Maximize2, Trash2, ArrowDown, Languages, Users, BarChart3, Calculator, Briefcase, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useAIChat } from '@/hooks/use-ai-chat'
+import { usePageContext } from '@/hooks/use-page-context'
 import { MessageList } from './MessageList'
 import { TypingIndicator } from './TypingIndicator'
 import { QuickActions } from './QuickActions'
+import { WelcomeOnboarding, useOnboardingState } from './WelcomeOnboarding'
+import { PersonaSelector } from './PersonaSelector'
+import { SuggestionBar } from './SuggestionBar'
 import { VoiceInput } from '@/components/chat/VoiceInput'
 import { cn } from '@/lib/utils'
 import { useTranslation } from 'react-i18next'
 import { useToast } from '@/hooks/use-toast'
 import { colors, shadows, borderRadius, zIndex } from '@/lib/chat/design-tokens'
+
+// Persona types and configurations
+type Persona = 'general' | 'operations' | 'finance' | 'hr'
+
+const PERSONA_CONFIG: Record<Persona, { name: string; icon: React.ReactNode; description: string; tagline: string; color: string }> = {
+  general: {
+    name: 'All Tasks',
+    icon: <Sparkles className="h-4 w-4" />,
+    description: 'Ask me anything',
+    tagline: 'Your everyday helper',
+    color: colors.primary[600],
+  },
+  operations: {
+    name: 'Events & Schedules',
+    icon: <Briefcase className="h-4 w-4" />,
+    description: 'Plan and track work',
+    tagline: 'Projects, shifts, venues',
+    color: '#059669', // emerald-600
+  },
+  finance: {
+    name: 'Money Matters',
+    icon: <Calculator className="h-4 w-4" />,
+    description: 'Track spending',
+    tagline: 'Expenses, budgets, claims',
+    color: '#D97706', // amber-600
+  },
+  hr: {
+    name: 'People & Teams',
+    icon: <Users className="h-4 w-4" />,
+    description: 'Manage staff',
+    tagline: 'Find and manage team members',
+    color: '#7C3AED', // violet-600
+  },
+}
 // Direct path to optimized image in public folder
 const baigerAvatar = '/baiger-optimized.png'
+
+interface BaigerContextData {
+  mode: 'general' | 'project_create' | 'candidate_search' | 'schedule_help';
+  formRef?: React.RefObject<any>;
+  initialMessage?: string;
+  onFormUpdate?: (field: string, value: any) => void;
+}
 
 interface ChatWidgetProps {
   userId: string
   userRole?: 'admin' | 'manager' | 'staff'
   className?: string
+  // External control props
+  externalOpen?: boolean
+  onOpenChange?: (open: boolean) => void
+  hideFloatingButton?: boolean
+  // Context data from BaigerProvider
+  contextData?: BaigerContextData | null
 }
 
-export function ChatWidget({ userId, userRole = 'manager', className }: ChatWidgetProps) {
+export function ChatWidget({
+  userId,
+  userRole = 'manager',
+  className,
+  externalOpen,
+  onOpenChange,
+  hideFloatingButton = false,
+  contextData
+}: ChatWidgetProps) {
   const { t, i18n } = useTranslation()
   const { toast } = useToast()
-  const [isOpen, setIsOpen] = useState(false)
+  const [internalOpen, setInternalOpen] = useState(false)
+
+  // Use external control if provided, otherwise use internal state
+  const isOpen = externalOpen !== undefined ? externalOpen : internalOpen
+  const setIsOpen = (open: boolean) => {
+    if (onOpenChange) {
+      onOpenChange(open)
+    } else {
+      setInternalOpen(open)
+    }
+  }
   const [isMinimized, setIsMinimized] = useState(false)
   const [inputMessage, setInputMessage] = useState('')
   const [showScrollButton, setShowScrollButton] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
-  const inputRef = useRef<HTMLInputElement>(null)
+  const [persona, setPersona] = useState<Persona>('general')
+  const inputRef = useRef<HTMLTextAreaElement>(null)
   const scrollViewportRef = useRef<HTMLDivElement>(null)
+
+  // First-time user onboarding state
+  const { hasOnboarded, completeOnboarding } = useOnboardingState()
+
+  // Get current page context for AI awareness
+  const pageContext = usePageContext()
 
   const {
     messages,
@@ -44,7 +120,7 @@ export function ChatWidget({ userId, userRole = 'manager', className }: ChatWidg
     conversationId,
     error,
     clearConversation
-  } = useAIChat(userId)
+  } = useAIChat(userId, { persona, pageContext })
 
   // Language toggle function
   const toggleLanguage = () => {
@@ -83,6 +159,32 @@ export function ChatWidget({ userId, userRole = 'manager', className }: ChatWidg
     }
   }, [isOpen, isMinimized])
 
+  // Handle context data changes (e.g., when opened from Create Project dialog)
+  const [contextGreeting, setContextGreeting] = useState<string | null>(null)
+  const contextFormUpdateRef = useRef<((field: string, value: any) => void) | null>(null)
+
+  useEffect(() => {
+    if (contextData?.initialMessage && isOpen) {
+      setContextGreeting(contextData.initialMessage)
+      contextFormUpdateRef.current = contextData.onFormUpdate || null
+    }
+  }, [contextData, isOpen])
+
+  // Clear context greeting when chat is closed
+  useEffect(() => {
+    if (!isOpen) {
+      setContextGreeting(null)
+      contextFormUpdateRef.current = null
+    }
+  }, [isOpen])
+
+  // Compute theme colors based on context mode
+  const isProjectMode = contextData?.mode === 'project_create'
+  const themeColors = {
+    primary: isProjectMode ? '#7C3AED' : colors.primary[600], // violet-600 for project mode
+    secondary: isProjectMode ? '#6D28D9' : colors.primary[700], // violet-700 for project mode
+  }
+
   const handleSend = async () => {
     if (!inputMessage.trim() || isLoading) return
 
@@ -101,11 +203,13 @@ export function ChatWidget({ userId, userRole = 'manager', className }: ChatWidg
     await sendMessage(message)
   }
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // Cmd/Ctrl + Enter to send
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
       e.preventDefault()
       handleSend()
     }
+    // Plain Enter adds new line (default behavior for textarea)
   }
 
   const handleQuickAction = (action: string) => {
@@ -161,9 +265,9 @@ export function ChatWidget({ userId, userRole = 'manager', className }: ChatWidg
 
   return (
     <>
-      {/* Floating Action Button */}
+      {/* Floating Action Button - hidden on mobile or when controlled externally */}
       <AnimatePresence>
-        {!isOpen && (
+        {!isOpen && !hideFloatingButton && !isMobile && (
           <motion.div
             initial={{ scale: 0, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
@@ -225,31 +329,40 @@ export function ChatWidget({ userId, userRole = 'manager', className }: ChatWidg
           >
             {/* Header */}
             <div
-              className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-800 text-white"
+              className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-800 text-white transition-colors duration-300 relative"
               style={{
-                background: `linear-gradient(to right, ${colors.primary[600]}, ${colors.primary[700]})`
+                background: `linear-gradient(to right, ${themeColors.primary}, ${themeColors.secondary})`,
+                zIndex: 10002,
+                pointerEvents: 'auto'
               }}
             >
-              <div className="flex items-center space-x-3">
+              <div className="flex items-center gap-3 min-w-0">
                 <img
                   src={baigerAvatar}
                   alt="Baiger"
-                  className="h-8 w-8 rounded-full border-2 border-white shadow-sm"
+                  className="h-8 w-8 rounded-full border-2 border-white shadow-sm flex-shrink-0"
                 />
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center gap-2 min-w-0">
                   <div
-                    className="h-2 w-2 rounded-full animate-pulse"
+                    className="h-2 w-2 rounded-full animate-pulse flex-shrink-0"
                     style={{ backgroundColor: colors.status.online }}
                     title={t('chat.online', 'Online')}
                   />
-                  <h3 className="font-semibold text-sm">{t('chat.header', 'Baiger')}</h3>
-                  {conversationId && (
-                    <span className="text-xs opacity-75">{t('chat.connected', 'Active')}</span>
-                  )}
+                  <h3 className="font-semibold text-sm whitespace-nowrap">{t('chat.header', 'Baiger')}</h3>
                 </div>
               </div>
 
               <div className="flex items-center space-x-1">
+                {/* Persona Selector */}
+                <PersonaSelector
+                  currentPersona={persona}
+                  onSelectPersona={setPersona}
+                  onSelectExample={(example) => {
+                    setInputMessage(example)
+                    inputRef.current?.focus()
+                  }}
+                />
+
                 {/* Language Toggle */}
                 <Button
                   variant="ghost"
@@ -267,7 +380,9 @@ export function ChatWidget({ userId, userRole = 'manager', className }: ChatWidg
                   size="sm"
                   onClick={async () => {
                     await clearConversation()
-                    window.location.reload()
+                    // Reset input and scroll to top - no page reload needed
+                    setInputMessage('')
+                    scrollViewportRef.current?.scrollTo({ top: 0 })
                   }}
                   className="h-8 w-8 p-0 hover:bg-blue-500/20 text-white"
                   aria-label={t('chat.clearConversation', 'Clear conversation')}
@@ -308,7 +423,10 @@ export function ChatWidget({ userId, userRole = 'manager', className }: ChatWidg
             {!isMinimized && (
               <>
                 {/* Messages Area */}
-                <div className="flex-1 relative overflow-hidden">
+                <div
+                  className="flex-1 relative overflow-hidden"
+                  style={{ zIndex: 10001, pointerEvents: 'auto' }}
+                >
                   <div
                     ref={scrollViewportRef}
                     className={cn(
@@ -317,28 +435,107 @@ export function ChatWidget({ userId, userRole = 'manager', className }: ChatWidg
                     )}
                     style={{
                       scrollbarWidth: 'thin',
-                      scrollbarColor: '#cbd5e1 transparent'
+                      scrollbarColor: '#cbd5e1 transparent',
+                      pointerEvents: 'auto'
                     }}
                   >
                     {messages.length === 0 ? (
-                      <div className="flex flex-col items-center justify-center h-full text-center space-y-4 min-h-[400px]">
-                        <img
-                          src={baigerAvatar}
-                          alt="Baiger AI Assistant"
-                          className="w-24 h-24 rounded-full shadow-lg"
-                        />
-                        <div>
-                          <h4 className="font-semibold text-gray-900 dark:text-gray-100 mb-1">
-                            {t('messages.welcome', 'How can I help you today?')}
-                          </h4>
-                          <p className="text-sm text-gray-500 dark:text-gray-400">
-                            {t('messages.welcomeDescription', 'Ask me about projects, candidates, schedules, or anything else.')}
-                          </p>
+                      contextGreeting ? (
+                        // Context-specific greeting (e.g., from Create Project dialog)
+                        <div className="flex flex-col h-full">
+                          <div className="flex items-start gap-3 mb-4">
+                            <motion.img
+                              src={baigerAvatar}
+                              alt="Baiger AI Assistant"
+                              className="w-10 h-10 rounded-full shadow-md border-2 border-white flex-shrink-0"
+                              initial={{ scale: 0.8, opacity: 0 }}
+                              animate={{ scale: 1, opacity: 1 }}
+                              transition={{ type: 'spring', stiffness: 200 }}
+                            />
+                            <motion.div
+                              initial={{ opacity: 0, y: 10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ delay: 0.1 }}
+                              className="bg-gray-100 dark:bg-gray-800 rounded-2xl rounded-tl-md px-4 py-3 max-w-[85%]"
+                            >
+                              <p className="text-sm text-gray-900 dark:text-gray-100">
+                                {contextGreeting}
+                              </p>
+                            </motion.div>
+                          </div>
+                          {/* Show context-specific quick actions */}
+                          {contextData?.mode === 'project_create' && (
+                            <motion.div
+                              initial={{ opacity: 0, y: 10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ delay: 0.2 }}
+                              className="flex flex-wrap gap-2 mt-auto pt-4"
+                            >
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-xs"
+                                onClick={() => handleQuickAction("What information do you need from me?")}
+                              >
+                                What's needed?
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-xs"
+                                onClick={() => handleQuickAction("Help me estimate the crew size")}
+                              >
+                                Estimate crew
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-xs"
+                                onClick={() => handleQuickAction("Set a reminder for this project")}
+                              >
+                                Set reminder
+                              </Button>
+                            </motion.div>
+                          )}
                         </div>
+                      ) : !hasOnboarded ? (
+                        // First-time user experience
+                        <WelcomeOnboarding
+                          onGetStarted={completeOnboarding}
+                          onSkip={completeOnboarding}
+                          onSelectPrompt={(prompt) => {
+                            setInputMessage(prompt)
+                            inputRef.current?.focus()
+                          }}
+                        />
+                      ) : (
+                        // Returning user - simpler welcome
+                        <div className="flex flex-col items-center justify-center h-full text-center space-y-4 min-h-[400px]">
+                          <motion.img
+                            src={baigerAvatar}
+                            alt="Baiger AI Assistant"
+                            className="w-20 h-20 rounded-full shadow-lg border-4 border-white"
+                            initial={{ scale: 0.8, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            transition={{ type: 'spring', stiffness: 200 }}
+                          />
+                          <motion.div
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.1 }}
+                          >
+                            <h4 className="font-semibold text-gray-900 dark:text-gray-100 mb-1">
+                              {t('messages.welcomeBack', 'Welcome back! How can I help?')}
+                            </h4>
+                            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                              {t('messages.readyToHelp', 'Ready when you are')}
+                            </p>
+                          </motion.div>
 
-                        {/* Quick Actions */}
-                        <QuickActions onSelect={handleQuickAction} userRole={userRole} />
-                      </div>
+                          {/* Quick Actions */}
+                          <QuickActions onSelect={handleQuickAction} userRole={userRole} />
+                        </div>
+                      )
                     ) : (
                       <>
                         <MessageList messages={messages} onAction={async (action) => {
@@ -380,7 +577,7 @@ export function ChatWidget({ userId, userRole = 'manager', className }: ChatWidg
                           size="icon"
                           className="h-10 w-10 rounded-full shadow-lg text-white border-2 border-white dark:border-gray-800"
                           style={{
-                            backgroundColor: colors.primary[600]
+                            backgroundColor: themeColors.primary
                           }}
                           aria-label={t('accessibility.scrollToBottom', 'Scroll to bottom')}
                         >
@@ -393,20 +590,50 @@ export function ChatWidget({ userId, userRole = 'manager', className }: ChatWidg
 
                 {/* Input Area */}
                 <div className={cn(
-                  'border-t border-gray-200 dark:border-gray-800',
+                  'border-t border-gray-200 dark:border-gray-800 relative',
                   isMobile ? 'p-3' : 'p-4'
-                )}>
-                  <div className={cn('flex', isMobile ? 'space-x-1.5' : 'space-x-2')}>
-                    <Input
+                )}
+                style={{ zIndex: 10001, pointerEvents: 'auto' }}
+                >
+                  {/* Suggestion Bar - shows when messages exist */}
+                  {messages.length > 0 && (
+                    <SuggestionBar
+                      persona={persona}
+                      userRole={userRole}
+                      onSelect={handleQuickAction}
+                      isTyping={!!inputMessage.trim()}
+                      className="mb-3"
+                    />
+                  )}
+
+                  <div className={cn('flex items-end', isMobile ? 'space-x-1.5' : 'space-x-2')}>
+                    <textarea
                       ref={inputRef}
-                      type="text"
                       placeholder={t('chat.placeholder', 'Type your message...')}
                       value={inputMessage}
                       onChange={(e) => setInputMessage(e.target.value)}
-                      onKeyPress={handleKeyPress}
+                      onKeyDown={handleKeyDown}
                       disabled={isLoading}
-                      className={cn('flex-1', isMobile && 'h-11 text-base')}
-                      aria-label={t('accessibility.messageInput', 'Message input')}
+                      rows={1}
+                      className={cn(
+                        'flex-1 min-h-[44px] max-h-[120px] px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600',
+                        'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100',
+                        'placeholder:text-gray-500 dark:placeholder:text-gray-400',
+                        'focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent',
+                        'resize-none overflow-y-auto',
+                        isMobile && 'text-base'
+                      )}
+                      style={{
+                        height: 'auto',
+                        minHeight: isMobile ? '44px' : '40px'
+                      }}
+                      onInput={(e) => {
+                        // Auto-resize textarea
+                        const target = e.target as HTMLTextAreaElement
+                        target.style.height = 'auto'
+                        target.style.height = Math.min(target.scrollHeight, 120) + 'px'
+                      }}
+                      aria-label={t('accessibility.messageInput', 'Message input field')}
                     />
                     <VoiceInput
                       onTranscript={handleVoiceTranscript}
@@ -421,7 +648,7 @@ export function ChatWidget({ userId, userRole = 'manager', className }: ChatWidg
                       size="icon"
                       className={cn('text-white', isMobile && 'h-11 w-11')}
                       style={{
-                        backgroundColor: colors.primary[600]
+                        backgroundColor: themeColors.primary
                       }}
                       aria-label={t('accessibility.sendMessage', 'Send message')}
                     >
@@ -430,7 +657,7 @@ export function ChatWidget({ userId, userRole = 'manager', className }: ChatWidg
                   </div>
 
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 text-center">
-                    Press <kbd className="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-800 rounded border border-gray-300 dark:border-gray-700">⌘ K</kbd> to toggle
+                    {t('chat.inputHint', 'Press Enter for new line, ⌘+Enter to send')}
                   </p>
                 </div>
               </>

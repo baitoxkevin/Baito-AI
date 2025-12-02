@@ -1,18 +1,96 @@
 {
+  "greeting": {
+    "morning": "早上好",
+    "afternoon": "下午好",
+    "evening": "晚上好",
+    "welcomeBack": "欢迎回来，{{name}}！"
+  },
+  "onboarding": {
+    "title": "嗨！我是百哥，你的工作助手",
+    "subtitle": "我可以帮你处理日常任务 - 不需要打字技能！",
+    "showCapabilities": "看看你能做什么",
+    "skip": "我自己探索",
+    "tapToStart": "点击任意卡片开始：",
+    "justChat": "或者直接开始聊天",
+    "schedulesTitle": "查看排班",
+    "schedulesDesc": "看看今天谁在上班",
+    "staffTitle": "找员工",
+    "staffDesc": "搜索可用的团队成员",
+    "projectsTitle": "跟踪项目",
+    "projectsDesc": "获取项目更新",
+    "expensesTitle": "处理费用",
+    "expensesDesc": "提交或审批报销"
+  },
+  "persona": {
+    "allTasks": "全部任务",
+    "allTasksDesc": "问我任何问题",
+    "allTasksTagline": "你的日常助手",
+    "eventsSchedules": "活动与排班",
+    "eventsSchedulesDesc": "计划和跟踪工作",
+    "eventsSchedulesTagline": "项目、班次、场地",
+    "moneyMatters": "财务事项",
+    "moneyMattersDesc": "跟踪支出",
+    "moneyMattersTagline": "费用、预算、报销",
+    "peopleTeams": "人员与团队",
+    "peopleTeamsDesc": "管理员工",
+    "peopleTeamsTagline": "查找和管理团队成员",
+    "tooltip": "根据你需要帮助的内容选择。可以随时切换！",
+    "bestFor": "最适合"
+  },
+  "suggestions": {
+    "label": "试试问：",
+    "followUp": "你可能还想问：",
+    "placeholder": "输入问题或点击上方建议",
+    "general": {
+      "attention": "今天有什么需要注意的？",
+      "schedule": "显示排班表",
+      "findStaff": "查找可用员工",
+      "activeProjects": "活跃项目",
+      "helpMe": "帮我..."
+    },
+    "operations": {
+      "whoWorking": "今天谁在上班？",
+      "activeProjects": "显示活跃项目",
+      "upcomingEvents": "即将到来的活动",
+      "staffingNeeds": "检查人员需求",
+      "projectUpdates": "项目更新"
+    },
+    "finance": {
+      "pending": "待审费用",
+      "budgets": "显示项目预算",
+      "claims": "未处理报销",
+      "spending": "本月支出",
+      "summary": "预算摘要"
+    },
+    "hr": {
+      "findStaff": "查找可用员工",
+      "skills": "查看员工技能",
+      "whoCanWork": "这周谁能上班？",
+      "certifications": "员工资质",
+      "contact": "联系信息"
+    }
+  },
+  "clarification": {
+    "title": "我不太确定我理解了",
+    "subtitle": "你是指以下之一吗？",
+    "somethingElse": "让我换个方式问"
+  },
   "chat": {
-    "header": "AI 助手",
+    "header": "百哥",
     "placeholder": "输入您的消息...",
+    "inputHint": "输入问题或点击上方建议",
     "send": "发送",
     "voiceInput": "语音输入",
     "minimize": "最小化",
     "maximize": "最大化",
     "close": "关闭",
-    "clearConversation": "清空对话",
+    "clearConversation": "开始新对话",
+    "switchMode": "切换模式",
     "settings": "设置",
     "typing": "正在输入",
     "online": "在线",
     "offline": "离线",
-    "connected": "已连接",
+    "connected": "活跃",
     "disconnected": "已断开",
     "retry": "重试",
     "edit": "编辑",
@@ -22,21 +100,44 @@
     "quickActions": "快捷操作"
   },
   "quickActions": {
+    "tapToStart": "点击任意卡片开始：",
     "todayProjects": "今天的项目",
+    "activeProjects": "活跃项目",
+    "findStaff": "找员工",
+    "whoIsWorking": "谁在上班？",
+    "pendingExpenses": "待审费用",
+    "approveExpenses": "审批费用",
+    "helpMe": "帮助我",
     "addStaff": "添加员工",
     "updateAttendance": "更新考勤",
     "viewReports": "查看报表",
     "projectsOverview": "项目总览",
     "staffScheduling": "员工排班",
-    "approveExpenses": "审批费用",
     "financialReports": "财务报表",
     "mySchedule": "我的排班",
     "checkIn": "打卡签到",
     "submitExpense": "提交费用",
-    "contactAdmin": "联系管理员"
+    "askQuestion": "问个问题",
+    "contactAdmin": "联系管理员",
+    "queries": {
+      "todayProjects": "显示今天安排的所有项目",
+      "findStaff": "帮我找这周有空的员工",
+      "pendingExpenses": "显示待审批的费用报销",
+      "viewReports": "显示项目报表",
+      "activeProjects": "显示活跃的项目和它们的状态",
+      "whoIsWorking": "今天谁在上班？在哪个项目？",
+      "approveExpenses": "显示需要我审批的费用报销",
+      "helpMe": "你能帮我做什么？",
+      "mySchedule": "显示我这周的排班",
+      "checkIn": "我要打卡签到",
+      "submitExpense": "帮我提交费用报销",
+      "askQuestion": "我有一个关于工作的问题"
+    }
   },
   "messages": {
-    "welcome": "你好！我是你的AI助手。有什么可以帮你的吗？",
+    "welcome": "今天有什么可以帮你的？",
+    "welcomeBack": "欢迎回来！有什么可以帮你的？",
+    "readyToHelp": "随时准备好帮助你",
     "welcomeDescription": "问我关于项目、候选人、排班或其他任何事情。",
     "noMessages": "还没有消息",
     "sendingFailed": "发送失败",
@@ -62,8 +163,8 @@
     "messageTooLong": "消息太长，请缩短后重试"
   },
   "accessibility": {
-    "openChat": "打开AI助手",
-    "closeChat": "关闭AI助手",
+    "openChat": "打开百哥",
+    "closeChat": "关闭百哥",
     "sendMessage": "发送消息",
     "messageSent": "消息已发送",
     "messageInput": "消息输入框",

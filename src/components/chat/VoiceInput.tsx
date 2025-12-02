@@ -1,6 +1,6 @@
 /**
  * Voice Input Component
- * Provides voice recording UI with visual feedback
+ * Provides voice recording UI with real-time transcription display
  */
 
 import { motion, AnimatePresence } from 'framer-motion'
@@ -17,6 +17,7 @@ interface VoiceInputProps {
   disabled?: boolean
   className?: string
   isMobile?: boolean
+  showTranscription?: boolean  // Show live transcription bubble
 }
 
 export function VoiceInput({
@@ -25,13 +26,15 @@ export function VoiceInput({
   language = 'zh',
   disabled = false,
   className,
-  isMobile = false
+  isMobile = false,
+  showTranscription = true
 }: VoiceInputProps) {
   const { t } = useTranslation()
 
   const {
     isRecording,
     isProcessing,
+    interimText,
     startRecording,
     stopRecording
   } = useWhisperTranscription({
@@ -52,6 +55,65 @@ export function VoiceInput({
 
   return (
     <div className={cn('relative', className)}>
+      {/* Live Transcription Bubble - shows above the button */}
+      <AnimatePresence>
+        {showTranscription && isRecording && interimText && (
+          <motion.div
+            initial={{ opacity: 0, y: 10, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 10, scale: 0.95 }}
+            transition={{ duration: 0.2 }}
+            className={cn(
+              "absolute bottom-full mb-2 left-1/2 -translate-x-1/2",
+              "bg-neutral-900 dark:bg-neutral-800 text-white",
+              "px-3 py-2 rounded-lg shadow-lg",
+              "max-w-[280px] sm:max-w-[320px]",
+              "text-sm leading-relaxed",
+              "z-50"
+            )}
+          >
+            {/* Speech bubble arrow */}
+            <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-neutral-900 dark:bg-neutral-800 rotate-45" />
+
+            {/* Live text with typing indicator */}
+            <div className="relative">
+              <span className="break-words">{interimText}</span>
+              <motion.span
+                animate={{ opacity: [1, 0, 1] }}
+                transition={{ duration: 0.8, repeat: Infinity }}
+                className="inline-block ml-0.5 w-0.5 h-4 bg-white align-middle"
+              />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Recording status indicator - shows when recording but no text yet */}
+      <AnimatePresence>
+        {showTranscription && isRecording && !interimText && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 10 }}
+            className={cn(
+              "absolute bottom-full mb-2 left-1/2 -translate-x-1/2",
+              "bg-red-500 text-white",
+              "px-3 py-1.5 rounded-full shadow-lg",
+              "text-xs font-medium whitespace-nowrap",
+              "flex items-center gap-2",
+              "z-50"
+            )}
+          >
+            <motion.div
+              animate={{ scale: [1, 1.2, 1] }}
+              transition={{ duration: 1, repeat: Infinity }}
+              className="w-2 h-2 bg-white rounded-full"
+            />
+            {t('voice.listening', 'Listening...')}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <Button
         onClick={handleClick}
         disabled={disabled || isProcessing}

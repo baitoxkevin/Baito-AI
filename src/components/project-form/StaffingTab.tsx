@@ -38,7 +38,7 @@ import { useToast, toast as toastFn } from "@/hooks/use-toast";
 import { WorkingDatePicker, WorkingDateWithSalary } from "@/components/ui/working-date-picker";
 import { UserPlus, X, UserCheck, CalendarDays, AlertCircle, GripVertical, Check, ClockIcon, Calendar, CheckCircle, Users } from "lucide-react";
 import { checkStaffScheduleConflicts, getProjectStaffConflicts } from "@/lib/staff-scheduling-validator";
-import { format } from "date-fns";
+import { format, eachDayOfInterval, parseISO } from "date-fns";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { ConflictAlert, ConflictSummary } from "@/components/ui/conflict-alert";
 import { cn } from "@/lib/utils";
@@ -176,17 +176,15 @@ const SortableStaffRow: React.FC<SortableStaffRowProps> = ({
           <GripVertical className="h-4 w-4 text-slate-400" />
         </button>
       </TableCell>
-      <TableCell className="font-medium py-2">
+      <TableCell className="font-medium py-2 text-left">
         <div className="flex items-center space-x-2 pl-3">
-          <Avatar className="h-7 w-7 border border-white dark:border-slate-700 shadow-sm">
-            {staff.photo && typeof staff.photo === 'string' && staff.photo.startsWith('http') ? (
-              <AvatarImage src={staff.photo} alt={staff.name} />
-            ) : (
-              <AvatarFallback className="bg-gradient-to-br from-indigo-500 to-purple-500 text-white text-xs font-semibold">
-                {getInitials(staff.name)}
-              </AvatarFallback>
-            )}
-          </Avatar>
+          <CandidateAvatar
+            src={staff.photo}
+            fallback={getInitials(staff.name)}
+            candidateId={staff.id}
+            size="sm"
+            className="border border-white dark:border-slate-700 shadow-sm"
+          />
           <span className="font-medium text-slate-900 dark:text-slate-100">{staff.name}</span>
         </div>
       </TableCell>
@@ -716,16 +714,56 @@ const StaffingTab = ({
   const [currentStaff, setCurrentStaff] = useState<StaffMember | null>(null);
   const [currentStaffConflicts, setCurrentStaffConflicts] = useState<ScheduleConflict[]>([]);
   const [isLoadingConflicts, setIsLoadingConflicts] = useState(false);
-  
+
+  // State for schedule dates (dates that have active schedules)
+  const [scheduleDates, setScheduleDates] = useState<Set<string>>(new Set());
+
+  // Load schedule dates from project_schedules table
+  useEffect(() => {
+    if (!projectId) return;
+
+    const loadScheduleDates = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('project_schedules')
+          .select('start_date, end_date')
+          .eq('project_id', projectId)
+          .eq('is_active', true);
+
+        if (error) {
+          logger.error('Error loading schedule dates:', error);
+          return;
+        }
+
+        // Create a Set of all dates that have schedules
+        const dates = new Set<string>();
+        data?.forEach(schedule => {
+          const start = parseISO(schedule.start_date);
+          const end = parseISO(schedule.end_date);
+          const days = eachDayOfInterval({ start, end });
+          days.forEach(day => {
+            dates.add(format(day, 'yyyy-MM-dd'));
+          });
+        });
+
+        setScheduleDates(dates);
+      } catch (error) {
+        logger.error('Error in loadScheduleDates:', error);
+      }
+    };
+
+    loadScheduleDates();
+  }, [projectId]);
+
   // Log project date range for debugging only when values actually change
   useEffect(() => {
     // Convert to timestamp for proper comparison
     const startTime = projectStartDate?.getTime();
     const endTime = projectEndDate?.getTime();
-    
+
     // Commenting out excessive logging
-    // // logger.debug('Project date range:', { data: { 
-    //   start: projectStartDate ? projectStartDate.toISOString( }) : 'undefined', 
+    // // logger.debug('Project date range:', { data: {
+    //   start: projectStartDate ? projectStartDate.toISOString( }) : 'undefined',
     //   end: projectEndDate ? projectEndDate.toISOString() : 'undefined'
     // });
   }, [projectStartDate?.getTime(), projectEndDate?.getTime()]);
@@ -1383,15 +1421,13 @@ const StaffingTab = ({
                     <TableRow key={applicant.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-all duration-200">
                       <TableCell className="font-medium py-2">
                         <div className="flex items-center space-x-2 pl-3">
-                          <Avatar className="h-7 w-7 border border-white dark:border-slate-700 shadow-sm">
-                            {applicant.photo && typeof applicant.photo === 'string' && applicant.photo.startsWith('http') ? (
-                              <AvatarImage src={applicant.photo} alt={applicant.name} />
-                            ) : (
-                              <AvatarFallback className="bg-gradient-to-br from-blue-500 to-indigo-500 text-white text-xs font-semibold">
-                                {getInitials(applicant.name)}
-                              </AvatarFallback>
-                            )}
-                          </Avatar>
+                          <CandidateAvatar
+                            src={applicant.photo}
+                            fallback={getInitials(applicant.name)}
+                            candidateId={applicant.id}
+                            size="sm"
+                            className="border border-white dark:border-slate-700 shadow-sm"
+                          />
                           <span className="font-medium text-slate-900 dark:text-slate-100">{applicant.name}</span>
                         </div>
                       </TableCell>
@@ -1596,8 +1632,17 @@ const StaffingTab = ({
                       .map(entry => entry.date instanceof Date ? entry.date : new Date(entry.date))}
                     disabled={(date) => {
                       const dateToCheck = normalizeDate(date);
-                      return dateToCheck.getTime() < projectStart.getTime() || 
-                             dateToCheck.getTime() > projectEnd.getTime();
+                      const dateStr = format(dateToCheck, 'yyyy-MM-dd');
+
+                      // Check if date is outside project range
+                      const outsideRange = dateToCheck.getTime() < projectStart.getTime() ||
+                                           dateToCheck.getTime() > projectEnd.getTime();
+
+                      // Check if date has a schedule
+                      const hasSchedule = scheduleDates.has(dateStr);
+
+                      // Disable if outside range OR no schedule exists
+                      return outsideRange || !hasSchedule;
                     }}
                     fromMonth={new Date(projectStartDate)}
                     toMonth={new Date(projectEndDate)}
@@ -1692,15 +1737,21 @@ const StaffingTab = ({
                     {currentStaff.workingDatesWithSalary?.length || 0} day{(currentStaff.workingDatesWithSalary?.length || 0) !== 1 ? 's' : ''} selected
                   </Badge>
                   
-                  {/* Project date range info - always show with extra prominence */}
+                  {/* Schedule dates info - always show with extra prominence */}
                   <div className="mt-3 px-3 py-2 bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-100 dark:border-indigo-800 rounded-md">
                     <div className="text-xs font-medium text-indigo-800 dark:text-indigo-300 flex items-center justify-center gap-1.5">
                       <CalendarDays className="h-3.5 w-3.5 text-indigo-500 dark:text-indigo-400" />
-                      <span>Only dates within project period can be selected:</span>
+                      <span>Only dates with active schedules can be selected</span>
                     </div>
-                    <div className="text-sm font-semibold text-indigo-700 dark:text-indigo-300 mt-1">
-                      {format(new Date(projectStartDate), 'MMM d')} - {format(new Date(projectEndDate), 'MMM d, yyyy')}
-                    </div>
+                    {scheduleDates.size === 0 ? (
+                      <div className="text-xs text-amber-700 dark:text-amber-300 mt-1 text-center">
+                        No schedules created yet. Add schedules in the Calendar tab first.
+                      </div>
+                    ) : (
+                      <div className="text-xs text-indigo-600 dark:text-indigo-400 mt-1 text-center">
+                        {scheduleDates.size} date{scheduleDates.size !== 1 ? 's' : ''} available
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

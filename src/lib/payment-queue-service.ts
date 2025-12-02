@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase';
 import { format, addDays } from 'date-fns';
 import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 
 import { logger } from './logger';
 // Type definitions for status values
@@ -58,18 +59,21 @@ export interface PaymentBatch {
 // Interface for payment item
 export interface PaymentItem {
   id: string;
-  batch_id: string;
+  batch_id?: string;
   staff_id: string;
   staff_name: string;
   bank_code?: string;
   bank_account_number?: string;
+  ic_number?: string;  // IC/Passport number (mandatory for DuitNow)
+  email?: string;
+  phone_number?: string;
   amount: number;
   reference?: string;
   description?: string;
-  status: PaymentBatchStatus;
+  status?: PaymentBatchStatus;
   payment_details?: Record<string, unknown>;
-  created_at: string | Date;
-  updated_at: string | Date;
+  created_at?: string | Date;
+  updated_at?: string | Date;
 }
 
 // Interface for payment approval history
@@ -85,7 +89,8 @@ export interface PaymentApprovalHistory {
 
 // Interface for payment batch details
 export interface PaymentBatchDetails extends PaymentBatch {
-  payment_items: PaymentItem[];
+  payments: PaymentItem[];  // Changed from payment_items to match actual return value
+  payment_items?: PaymentItem[];  // Kept for backwards compatibility
 }
 
 // Interface for payment batch filtering
@@ -286,8 +291,10 @@ export async function getPaymentBatchDetails(batchId: string): Promise<{
       console.log('Found payments in batch:', batch.payments);
       paymentsList = batch.payments.map((payment: any) => ({
         id: payment.id || crypto.randomUUID(),
+        staff_id: payment.staff_id, // Keep staff_id for IC number lookup
         staff_name: payment.staff_name || payment.name || payment.candidate_name || 'Unknown',
         ic_number: payment.ic_number || payment.ic || payment.candidate_ic || payment.staff_ic || '',
+        bank_code: payment.bank_code || '',
         bank_name: payment.bank_name || payment.bank || payment.staff_bank || '',
         bank_account_number: payment.bank_account_number || payment.account || payment.staff_account || '',
         amount: payment.amount || 0,
@@ -511,7 +518,7 @@ export async function approvePaymentBatch(
     const { error } = await supabase
       .from('payment_batches')
       .update({
-        status: 'approved',
+        status: 'processing', // Use 'processing' instead of 'approved' (constraint only allows: draft, pending, processing, completed, failed)
         approved_by: user.user.id,
         approved_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
@@ -564,7 +571,7 @@ export async function rejectPaymentBatch(
     const { error } = await supabase
       .from('payment_batches')
       .update({
-        status: 'rejected',
+        status: 'failed', // Use 'failed' instead of 'rejected' (constraint only allows: draft, pending, processing, completed, failed)
         approved_by: user.user.id,
         approved_at: new Date().toISOString(),
         rejection_reason: notes,
@@ -1094,7 +1101,7 @@ export async function generateECPExport(
   try {
     if (options.transactionType === 'DUITNOW') {
       // Handle DuitNow export
-      return generateDuitNowExport(batch, options);
+      return await generateDuitNowExport(batch, options);
     }
 
     // Map payment data to ECP format for IBG/RENTAS
@@ -1130,28 +1137,38 @@ export async function generateECPExport(
 /**
  * Generate DuitNow-compatible Excel file from payment batch
  */
-function generateDuitNowExport(
+async function generateDuitNowExport(
   batch: PaymentBatchDetails,
   options: ECPExportOptions
-): Blob {
+): Promise<Blob> {
   // Map payment data to DuitNow format
   const duitnowRows: DuitNowPaymentRow[] = batch.payments.map(payment => {
     // Determine ID type based on IC number format
     let idType: DuitNowPaymentRow['idType'] = 'NRIC';
     let recipientId = payment.ic_number || '';
 
+    // Strip hyphens and spaces from IC number for proper formatting
+    const cleanedId = recipientId.replace(/[-\s]/g, '');
+
     // Check if it's a passport (contains letters or special passport format)
-    if (recipientId && /[A-Za-z]/.test(recipientId)) {
+    if (cleanedId && /[A-Za-z]/.test(cleanedId)) {
       idType = 'PASSPORT';
       // For passport, append country code if not already present
-      if (!recipientId.match(/[A-Z]{3}$/)) {
+      if (!cleanedId.match(/[A-Z]{3}$/)) {
         // Default to Malaysia if country not specified
-        recipientId = recipientId + 'MYS';
+        recipientId = cleanedId + 'MYS';
+      } else {
+        recipientId = cleanedId;
       }
-    } else if (recipientId && recipientId.length === 12) {
+    } else if (cleanedId && cleanedId.length === 12) {
       idType = 'NRIC';
-    } else if (recipientId && recipientId.length < 12) {
+      recipientId = cleanedId;
+    } else if (cleanedId && cleanedId.length < 12) {
       idType = 'OLD_IC';
+      recipientId = cleanedId;
+    } else {
+      // Use cleaned ID for any other format
+      recipientId = cleanedId;
     }
 
     return {
@@ -1172,8 +1189,8 @@ function generateDuitNowExport(
   // Validate DuitNow data
   validateDuitNowData(duitnowRows);
 
-  // Create Excel file
-  return createDuitNowExcelFile(duitnowRows, options.batchReference);
+  // Create Excel file from template
+  return await createDuitNowExcelFile(duitnowRows, options.batchReference);
 }
 
 /**
@@ -1357,16 +1374,19 @@ function validateDuitNowData(rows: DuitNowPaymentRow[]): void {
       throw new Error(`Row ${index + 1}: Amount must be greater than 0`);
     }
 
+    // Strip hyphens and spaces for validation
+    const cleanedId = row.recipientId.replace(/[-\s]/g, '');
+
     // Validate passport format if ID type is passport
     if (row.idType === 'PASSPORT') {
-      if (!row.recipientId.match(/[A-Z]{3}$/)) {
-        throw new Error(`Row ${index + 1}: Passport ID must include 3-letter country code (e.g., ${row.recipientId}MYS)`);
+      if (!cleanedId.match(/[A-Z]{3}$/)) {
+        throw new Error(`Row ${index + 1}: Passport ID must include 3-letter country code (e.g., ${cleanedId}MYS)`);
       }
     }
 
-    // Validate NRIC format
-    if (row.idType === 'NRIC' && row.recipientId.length !== 12) {
-      throw new Error(`Row ${index + 1}: NRIC must be 12 digits`);
+    // Validate NRIC format (check cleaned ID without hyphens)
+    if (row.idType === 'NRIC' && cleanedId.length !== 12) {
+      throw new Error(`Row ${index + 1}: NRIC must be 12 digits (current: ${cleanedId.length} digits after removing hyphens)`);
     }
 
     // Validate payment date
@@ -1386,57 +1406,86 @@ function validateDuitNowData(rows: DuitNowPaymentRow[]): void {
 }
 
 /**
- * Create DuitNow Excel file
+ * Create DuitNow Excel file by loading template and filling data
+ * Uses ExcelJS to preserve ALL formatting (colors, borders, validation, etc.)
  */
-function createDuitNowExcelFile(data: DuitNowPaymentRow[], batchReference: string): Blob {
-  const wb = XLSX.utils.book_new();
+async function createDuitNowExcelFile(data: DuitNowPaymentRow[], batchReference: string): Promise<Blob> {
+  try {
+    // Fetch the template file from the public directory
+    const templatePath = '/Payment/DUITNOW ECP/duitnow-ecp-excel-template 2.xlsx';
+    const response = await fetch(templatePath);
 
-  // Convert data to worksheet with specific header order for DuitNow
-  const ws = XLSX.utils.json_to_sheet(data, {
-    header: [
-      'recipientName',
-      'recipientId',
-      'idType',
-      'recipientReference',
-      'amount',
-      'paymentDate',
-      'paymentDescription',
-      'emailNotification',
-      'mobileNotification',
-      'proxyType',
-      'proxyValue'
-    ]
-  });
+    if (!response.ok) {
+      throw new Error(`Failed to load template: ${response.statusText}`);
+    }
 
-  // Set column widths for better readability
-  ws['!cols'] = [
-    { wch: 30 }, // recipientName
-    { wch: 20 }, // recipientId
-    { wch: 12 }, // idType
-    { wch: 30 }, // recipientReference
-    { wch: 12 }, // amount
-    { wch: 12 }, // paymentDate
-    { wch: 40 }, // paymentDescription
-    { wch: 30 }, // emailNotification
-    { wch: 15 }, // mobileNotification
-    { wch: 12 }, // proxyType
-    { wch: 20 }  // proxyValue
-  ];
+    const arrayBuffer = await response.arrayBuffer();
 
-  // Add worksheet to workbook
-  XLSX.utils.book_append_sheet(wb, ws, 'DuitNow_Payments');
+    // Create ExcelJS workbook and load template
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(arrayBuffer);
 
-  // Generate binary string
-  const wbout = XLSX.write(wb, {
-    bookType: 'xlsx',
-    type: 'array',
-    cellDates: false,
-    bookSST: false
-  });
+    // Get the first worksheet
+    const worksheet = workbook.worksheets[0];
 
-  return new Blob([wbout], {
-    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-  });
+    if (!worksheet) {
+      throw new Error('Template has no worksheets');
+    }
+
+    // Fill in the payment date in B1 (or A2 based on template)
+    const paymentDate = data[0]?.paymentDate || format(new Date(), 'dd/MM/yyyy');
+
+    // Check if B1 has content, otherwise use A2
+    const b1Cell = worksheet.getCell('B1');
+    if (b1Cell.value !== null && b1Cell.value !== undefined && b1Cell.value !== '') {
+      b1Cell.value = paymentDate;
+    } else {
+      worksheet.getCell('A2').value = paymentDate;
+    }
+
+    // Data rows start from row 4 (after row 1: date, row 2: headers, row 3: specs)
+    data.forEach((row, index) => {
+      const rowNum = index + 4; // Start from row 4
+
+      // Convert ID type to template format codes
+      const idTypeCode = {
+        'NRIC': 'NI',
+        'OLD_IC': 'NI',
+        'PASSPORT': 'PP',
+        'BUSINESS_REG': 'BR',
+        'ARMY_ID': 'ML',
+        'POLICE_ID': 'PL'
+      }[row.idType] || 'NI';
+
+      // Fill data (ExcelJS automatically preserves all cell formatting)
+      worksheet.getCell(`A${rowNum}`).value = 'DTN';  // Payment Type
+      worksheet.getCell(`B${rowNum}`).value = idTypeCode;  // ID Type code
+      worksheet.getCell(`C${rowNum}`).value = '';  // BIC (empty for DuitNow)
+      worksheet.getCell(`D${rowNum}`).value = row.recipientId;  // Recipient's DuitNow ID
+      worksheet.getCell(`E${rowNum}`).value = parseFloat(row.amount);  // Payment Amount (as number)
+      worksheet.getCell(`F${rowNum}`).value = row.recipientReference;  // Recipient Reference
+
+      // Column G: Other Payment Details (includes recipient name)
+      const paymentDetails = `${row.recipientName} - ${row.paymentDescription || 'Salary payment'}`;
+      worksheet.getCell(`G${rowNum}`).value = paymentDetails.substring(0, 140);
+
+      worksheet.getCell(`H${rowNum}`).value = row.emailNotification || '';  // Email 1
+      worksheet.getCell(`I${rowNum}`).value = '';  // Email 2
+      worksheet.getCell(`J${rowNum}`).value = row.mobileNotification || '';  // Mobile 1
+      worksheet.getCell(`K${rowNum}`).value = '';  // Mobile 2
+    });
+
+    // Generate Excel file as buffer
+    const buffer = await workbook.xlsx.writeBuffer();
+
+    // Convert buffer to blob
+    return new Blob([buffer], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    });
+  } catch (error) {
+    logger.error('Error creating DuitNow Excel from template:', error);
+    throw new Error(`Failed to create DuitNow Excel file: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
 }
 
 /**

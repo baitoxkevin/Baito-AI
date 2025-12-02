@@ -12,12 +12,45 @@ import type { Message } from '@/hooks/use-ai-chat'
 import { ActionButtons } from './ActionButtons'
 import { RichContentCard, type RichContent } from '@/components/chat/RichContentCard'
 
+// Known action commands (from button clicks) - these should not be displayed in chat
+const ACTION_COMMANDS = [
+  'get_projects', 'get_project_details', 'create_project',
+  'find_candidates', 'get_candidate_details',
+  'assign_staff', 'get_project_staff', 'update_staff_status',
+  'get_project_stats', 'get_upcoming_deadlines',
+  'get_expense_claims', 'get_pending_approvals', 'approve_expense_claim', 'reject_expense_claim',
+  'execute_sql', 'save_user_memory'
+]
+
+/**
+ * Check if a message is an action command (from button click)
+ * These should be hidden from the user as they're internal system messages
+ */
+function isActionCommand(text: string): boolean {
+  const trimmed = text.trim().toLowerCase()
+  // Check if it starts with a known action command
+  for (const cmd of ACTION_COMMANDS) {
+    if (trimmed.startsWith(cmd)) return true
+  }
+  // Check for snake_case pattern with parameters (e.g., "get_project_details?project_id=...")
+  if (/^[a-z_]+(\?|$)/.test(trimmed) && trimmed.includes('_') && trimmed.length < 100) return true
+  return false
+}
+
 interface MessageListProps {
   messages: Message[]
   onAction?: (action: string) => void
 }
 
 export function MessageList({ messages, onAction }: MessageListProps) {
+  // Filter out action command messages from display
+  const visibleMessages = messages.filter(msg => {
+    // Always show assistant, error, and system messages
+    if (msg.type !== 'user') return true
+    // Hide user messages that are action commands (from button clicks)
+    return !isActionCommand(msg.content)
+  })
+
   return (
     <div
       className="space-y-3"
@@ -25,7 +58,7 @@ export function MessageList({ messages, onAction }: MessageListProps) {
       aria-live="polite"
       aria-label="Conversation messages"
     >
-      {messages.map((message, index) => (
+      {visibleMessages.map((message, index) => (
         <MessageBubble key={message.id || index} message={message} onAction={onAction} />
       ))}
     </div>

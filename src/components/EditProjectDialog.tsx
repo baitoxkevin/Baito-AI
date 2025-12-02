@@ -56,6 +56,8 @@ import { ShineBorder } from "@/components/ui/shine-border";
 import { MagicCard } from "@/components/ui/magic-card";
 import { TextAnimate } from "@/components/ui/text-animate";
 import type { Project } from '@/lib/types';
+import { DateRangeManager, DateRange } from '@/components/DateRangeManager';
+import { LocationManager } from '@/components/project-form/LocationManager';
 
 const editProjectSchema = z.object({
   title: z.string().min(1, 'Project name is required'),
@@ -76,6 +78,12 @@ const editProjectSchema = z.object({
   budget: z.number().min(0).optional(),
   project_type: z.string().optional(),
   schedule_type: z.string().optional(),
+  date_ranges: z.array(z.object({
+    id: z.string(),
+    startDate: z.date(),
+    endDate: z.date(),
+    locationId: z.string().optional(),
+  })).optional().default([]),
   cc_client_ids: z.array(z.string()).optional(), // CC contact IDs from company_contacts table
   cc_user_ids: z.array(z.string()).optional(),
 });
@@ -139,6 +147,7 @@ export function EditProjectDialog({
   const [managers, setManagers] = useState<{ id: string; full_name: string; }[]>([]);
   const [startDateOpen, setStartDateOpen] = useState(false);
   const [endDateOpen, setEndDateOpen] = useState(false);
+  const [loadingSchedules, setLoadingSchedules] = useState(false);
   const { toast } = useToast();
 
   const form = useForm<EditProjectFormValues>({
@@ -192,6 +201,41 @@ export function EditProjectDialog({
       cc_user_ids: 'cc_user_ids' in project ? (project as Project & { cc_user_ids?: string[] }).cc_user_ids || [] : [],
     });
   }, [project, form]);
+
+  const loadProjectSchedules = useCallback(async () => {
+    if (project.schedule_type !== 'multi') return;
+
+    setLoadingSchedules(true);
+    try {
+      const { data, error } = await supabase
+        .from('project_schedules')
+        .select('*')
+        .eq('project_id', project.id)
+        .eq('is_active', true)
+        .order('start_date');
+
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        const dateRanges: DateRange[] = data.map(schedule => ({
+          id: schedule.id,
+          startDate: new Date(schedule.start_date),
+          endDate: new Date(schedule.end_date),
+          locationId: schedule.location_id,
+        }));
+        form.setValue('date_ranges', dateRanges);
+      }
+    } catch (error) {
+      logger.error('Error loading project schedules:', error);
+      toast({
+        title: "Warning",
+        description: "Failed to load project schedules",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingSchedules(false);
+    }
+  }, [project.id, project.schedule_type, form, toast]);
 
   const fetchCustomersAndManagers = useCallback(async () => {
     try {
@@ -259,8 +303,9 @@ export function EditProjectDialog({
   useEffect(() => {
     if (open) {
       fetchCustomersAndManagers();
+      loadProjectSchedules();
     }
-  }, [open, fetchCustomersAndManagers]);
+  }, [open, fetchCustomersAndManagers, loadProjectSchedules]);
 
   // Clear CC contacts when customer changes
   useEffect(() => {
@@ -334,6 +379,49 @@ export function EditProjectDialog({
         .single();
 
       if (error) throw error;
+
+      // Handle multi-schedule: update project_schedules
+      if (values.schedule_type === 'multi' && values.date_ranges && values.date_ranges.length > 0) {
+        // Mark existing schedules as inactive
+        const { error: deactivateError } = await supabase
+          .from('project_schedules')
+          .update({ is_active: false })
+          .eq('project_id', project.id);
+
+        if (deactivateError) {
+          logger.error('Error deactivating old schedules:', deactivateError);
+        }
+
+        // Insert new schedules
+        const schedules = values.date_ranges.map(range => ({
+          project_id: project.id,
+          start_date: format(range.startDate, 'yyyy-MM-dd HH:mm:ssX'),
+          end_date: format(range.endDate, 'yyyy-MM-dd HH:mm:ssX'),
+          location_id: range.locationId || null,
+          shift_start_time: values.working_hours_start,
+          shift_end_time: values.working_hours_end,
+          is_active: true,
+        }));
+
+        const { error: insertError } = await supabase
+          .from('project_schedules')
+          .insert(schedules);
+
+        if (insertError) {
+          logger.error('Error inserting schedules:', insertError);
+          throw new Error('Failed to update project schedules');
+        }
+      } else if (values.schedule_type === 'single') {
+        // If switched from multi to single, deactivate all schedules
+        const { error: deactivateError } = await supabase
+          .from('project_schedules')
+          .update({ is_active: false })
+          .eq('project_id', project.id);
+
+        if (deactivateError) {
+          logger.error('Error deactivating schedules:', deactivateError);
+        }
+      }
 
       // Send notification to client and CC to person in charge
       if (Object.keys(changedFields).length > 0) {
@@ -839,8 +927,8 @@ export function EditProjectDialog({
                   <FormItem>
                     <FormLabel>Venue Details</FormLabel>
                     <FormControl>
-                      <Textarea 
-                        {...field} 
+                      <Textarea
+                        {...field}
                         placeholder="Additional venue information..."
                         rows={2}
                       />
@@ -851,9 +939,38 @@ export function EditProjectDialog({
               />
             </SectionCard>
 
+            {/* Multiple Locations Management */}
+            <SectionCard title="Project Locations" icon={MapPin} delay={0.25}>
+              <LocationManager projectId={project.id} />
+            </SectionCard>
+
             {/* Schedule */}
             <SectionCard title="Schedule" icon={Clock} delay={0.3}>
-              
+
+              {/* Show DateRangeManager for multi-schedule projects */}
+              {form.watch('schedule_type') === 'multi' ? (
+                <FormField
+                  control={form.control}
+                  name="date_ranges"
+                  render={({ field }) => (
+                    <FormItem>
+                      {loadingSchedules ? (
+                        <div className="flex items-center justify-center py-8">
+                          <Loader2 className="w-6 h-6 animate-spin text-purple-500" />
+                          <span className="ml-2 text-gray-600">Loading schedules...</span>
+                        </div>
+                      ) : (
+                        <DateRangeManager
+                          dateRanges={field.value || []}
+                          onChange={field.onChange}
+                        />
+                      )}
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              ) : (
+                <>
               <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
@@ -972,6 +1089,8 @@ export function EditProjectDialog({
                   )}
                 />
               </div>
+              </>
+              )}
             </SectionCard>
 
             {/* Staffing & Budget */}

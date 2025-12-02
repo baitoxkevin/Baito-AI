@@ -447,12 +447,241 @@ export default function CandidatesPage() {
             </motion.div>
           </motion.div>
 
-          {/* Enhanced Table with Glass Morphism */}
-          <motion.div 
+          {/* Mobile Card Layout - Hidden on md and above */}
+          <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.6 }}
-            className="bg-white/70 dark:bg-neutral-900/70 backdrop-blur-xl rounded-2xl border border-white/20 dark:border-neutral-700/30 shadow-lg overflow-hidden"
+            className="md:hidden space-y-3"
+          >
+            <AnimatePresence>
+              {sortedCandidates.map((candidate, index) => {
+                // Calculate age for mobile card
+                const age = candidate.date_of_birth ?
+                  differenceInYears(new Date(), new Date(candidate.date_of_birth)) :
+                  null;
+
+                // Get initials for avatar
+                const getInitials = (name: string) => {
+                  if (!name) return '';
+                  const parts = name.split(' ').filter(part => part.trim() !== '');
+                  if (parts.length === 0) return '';
+                  if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
+                  return (parts[0][0] + parts[1][0]).toUpperCase();
+                };
+
+                // Get tier level for loyalty badge
+                const tierLevel = candidate.loyalty_status?.tier_level || 'bronze';
+                const tierColor = loyaltyTierColors[tierLevel] || loyaltyTierColors.bronze;
+
+                // Format IC number consistently
+                const formatIcNumber = (ic: string | null | undefined): string => {
+                  if (!ic) return '';
+                  const cleaned = ic.replace(/[^a-zA-Z0-9]/g, '');
+                  if (cleaned.length === 12) {
+                    return `${cleaned.substring(0, 6)}-${cleaned.substring(6, 8)}-${cleaned.substring(8, 12)}`;
+                  }
+                  if (cleaned.length >= 8) {
+                    return `${cleaned.substring(0, 4)}-${cleaned.substring(4)}`;
+                  }
+                  return ic;
+                };
+
+                return (
+                  <motion.div
+                    key={candidate.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -20 }}
+                    transition={{ duration: 0.3, delay: index * 0.05 }}
+                    className="bg-white/70 dark:bg-neutral-900/70 backdrop-blur-xl rounded-2xl border border-white/20 dark:border-neutral-700/30 shadow-lg p-4 cursor-pointer active:scale-[0.98] transition-transform"
+                    onClick={() => {
+                      setSelectedCandidate(candidate);
+                      setDetailsDialogOpen(true);
+                    }}
+                  >
+                    {/* Header: Avatar + Name + Status */}
+                    <div className="flex items-start gap-3 mb-3">
+                      {/* Avatar with availability indicator */}
+                      <div className="relative flex-shrink-0">
+                        <div className="h-14 w-14 rounded-full bg-gradient-to-br from-slate-200 to-slate-300 dark:from-slate-700 dark:to-slate-600 flex items-center justify-center text-slate-600 dark:text-slate-300 font-medium text-base overflow-hidden ring-2 ring-white dark:ring-slate-800 shadow-md">
+                          {candidate.profile_photo ? (
+                            <img
+                              src={candidate.profile_photo}
+                              alt={candidate.full_name}
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            getInitials(candidate.full_name)
+                          )}
+                        </div>
+                        <div
+                          className={`absolute -bottom-0.5 -right-0.5 h-4 w-4 rounded-full border-2 border-white dark:border-slate-800 ${
+                            candidate.current_projects_count > 0 ? 'bg-red-500' : 'bg-emerald-500'
+                          }`}
+                        >
+                          {candidate.current_projects_count === 0 && (
+                            <span className="absolute inset-0 rounded-full bg-emerald-500 animate-ping opacity-75" />
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Name and IC */}
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-slate-900 dark:text-white text-base truncate">
+                          {candidate.full_name}
+                        </h3>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">
+                          {candidate.ic_number ? formatIcNumber(candidate.ic_number) :
+                           candidate.unique_id || candidate.id?.substring(0, 8) || '-'}
+                        </p>
+                        {age && (
+                          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                            {age} years old
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Status badges */}
+                      <div className="flex flex-col gap-1.5 items-end flex-shrink-0">
+                        <Badge
+                          variant={candidate.is_banned ? "destructive" : "success"}
+                          className={`text-xs px-2 py-0.5 ${candidate.is_banned ? 'bg-gradient-to-r from-red-500 to-red-600' : 'bg-gradient-to-r from-emerald-500 to-green-600'} text-white border-0`}
+                        >
+                          {candidate.is_banned ? 'Banned' : 'Active'}
+                        </Badge>
+                        {tierLevel && (
+                          <Badge className={`text-xs px-2 py-0.5 ${tierColor} border`}>
+                            <span className="mr-1">{loyaltyTierEmojis[tierLevel]}</span>
+                            {tierLevel.charAt(0).toUpperCase() + tierLevel.slice(1)}
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Contact Info */}
+                    <div className="space-y-2 mb-3 pl-1">
+                      <div className="flex items-center gap-2 text-sm">
+                        <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-800 dark:to-blue-700 flex items-center justify-center flex-shrink-0">
+                          <span className="text-xs">tel</span>
+                        </div>
+                        <span className={`truncate ${
+                          !candidate.phone_number || candidate.phone_number.trim() === ''
+                            ? 'text-slate-400 dark:text-slate-500 italic'
+                            : 'text-slate-700 dark:text-slate-300'
+                        }`}>
+                          {formatPhoneNumber(candidate.phone_number)}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm">
+                        <div className="w-6 h-6 rounded-full bg-gradient-to-br from-purple-100 to-purple-200 dark:from-purple-800 dark:to-purple-700 flex items-center justify-center flex-shrink-0">
+                          <span className="text-xs">@</span>
+                        </div>
+                        <span className={`truncate ${
+                          !candidate.email || !candidate.email.includes('@')
+                            ? 'text-slate-400 dark:text-slate-500 italic'
+                            : 'text-slate-700 dark:text-slate-300'
+                        }`}>
+                          {formatEmail(candidate.email)}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Performance Stats */}
+                    {candidate.performance_metrics && (
+                      <div className="flex items-center gap-2 mb-3 flex-wrap">
+                        <div className="flex items-center h-7 px-2.5 bg-gradient-to-r from-yellow-100 to-amber-100 dark:from-yellow-900/30 dark:to-amber-900/30 rounded-full text-sm border border-yellow-200 dark:border-yellow-800/50">
+                          <Star className="h-3.5 w-3.5 fill-yellow-400 text-yellow-400 mr-1" />
+                          <span className="font-medium text-yellow-700 dark:text-yellow-400">
+                            {candidate.performance_metrics.avg_rating?.toFixed(1) || '-'}
+                          </span>
+                        </div>
+                        <div className="text-xs bg-slate-100 dark:bg-slate-800 rounded-full px-2.5 py-1 text-slate-700 dark:text-slate-300">
+                          <span className="font-medium">{candidate.performance_metrics.total_gigs_completed || '0'}</span> gigs
+                        </div>
+                        <div className="text-xs bg-blue-50 dark:bg-blue-900/20 rounded-full px-2.5 py-1 text-blue-700 dark:text-blue-300">
+                          <span className="font-medium">{candidate.performance_metrics.reliability_score?.toFixed(0) || '0'}%</span> reliable
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Action Buttons */}
+                    <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditCandidate(candidate);
+                          setEditDialogOpen(true);
+                        }}
+                        className="h-8 px-3 text-xs text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-green-50 hover:text-green-700"
+                      >
+                        <Edit className="h-3.5 w-3.5 mr-1" />
+                        Edit
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={(e) => copyEditLink(e, candidate)}
+                        className="h-8 px-3 text-xs text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-blue-50 hover:text-blue-700"
+                      >
+                        {copiedCandidateId === candidate.id ? (
+                          <Check className="h-3.5 w-3.5 mr-1" />
+                        ) : (
+                          <Share2 className="h-3.5 w-3.5 mr-1" />
+                        )}
+                        Share
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={(e) => openReportDialog(e, candidate)}
+                        className="h-8 px-3 text-xs text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-red-50 hover:text-red-700"
+                      >
+                        <Flag className="h-3.5 w-3.5 mr-1" />
+                        Report
+                      </Button>
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </AnimatePresence>
+
+            {/* Empty state for mobile */}
+            {sortedCandidates.length === 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+                className="py-16 text-center bg-white/70 dark:bg-neutral-900/70 backdrop-blur-xl rounded-2xl border border-white/20 dark:border-neutral-700/30"
+              >
+                <div className="relative">
+                  <div className="w-16 h-16 rounded-full bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-700 flex items-center justify-center mx-auto mb-4 shadow-lg">
+                    <FileText className="h-8 w-8 text-slate-400" />
+                  </div>
+                </div>
+                <h3 className="text-base font-semibold text-slate-900 dark:text-slate-200 mb-2">No candidates found</h3>
+                <p className="text-sm text-slate-500 dark:text-slate-400 px-4 mb-4">
+                  {searchQuery ? `No results for "${searchQuery}"` : 'Add a new candidate to get started'}
+                </p>
+                <Button
+                  className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white border-0 shadow-lg"
+                  onClick={() => setNewDialogOpen(true)}
+                >
+                  <UserPlus className="h-4 w-4 mr-2" />
+                  Add Candidate
+                </Button>
+              </motion.div>
+            )}
+          </motion.div>
+
+          {/* Desktop Table Layout - Hidden on mobile */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.6 }}
+            className="hidden md:block bg-white/70 dark:bg-neutral-900/70 backdrop-blur-xl rounded-2xl border border-white/20 dark:border-neutral-700/30 shadow-lg overflow-hidden"
           >
             <Table className="w-full border-collapse">
               <TableHeader className="bg-gradient-to-r from-slate-50 to-blue-50/30 dark:from-slate-800/50 dark:to-blue-900/20 border-b border-slate-200/50 dark:border-slate-700/50">

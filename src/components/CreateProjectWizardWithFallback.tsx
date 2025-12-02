@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -20,7 +20,8 @@ import {
   Check,
   AlertCircle,
   WifiOff,
-  RefreshCw
+  RefreshCw,
+  Zap
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import {
@@ -55,6 +56,8 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { cn } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
+import { DateRangeManager, DateRange } from '@/components/DateRangeManager';
+import { SpeedAddProjectDialog } from '@/components/SpeedAddProjectDialog';
 
 // ============================================================================
 // FALLBACK CONFIGURATION & TYPES
@@ -327,11 +330,17 @@ const projectSchema = z.object({
   // Schedule
   start_date: z.date({
     required_error: 'Start date is required',
-  }),
+  }).optional(),
   end_date: z.date().optional(),
-  working_hours_start: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Invalid time format'),
-  working_hours_end: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Invalid time format'),
+  working_hours_start: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Invalid time format').optional(),
+  working_hours_end: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Invalid time format').optional(),
   schedule_type: z.string().optional().default('single'),
+  date_ranges: z.array(z.object({
+    id: z.string(),
+    startDate: z.date(),
+    endDate: z.date(),
+    locationId: z.string().optional(),
+  })).optional().default([]),
 
   // Staffing
   crew_count: z.number().min(1, 'At least one staff member is required'),
@@ -370,6 +379,7 @@ export function CreateProjectWizardWithFallback({
   const [isLoading, setIsLoading] = useState(false);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
   const [dataSource, setDataSource] = useState<'fresh' | 'cache' | 'mock'>('fresh');
+  const [speedAddOpen, setSpeedAddOpen] = useState(false);
 
   // Data states
   const [customers, setCustomers] = useState<any[]>([]);
@@ -405,6 +415,7 @@ export function CreateProjectWizardWithFallback({
       working_hours_start: '09:00',
       working_hours_end: '17:00',
       schedule_type: 'single',
+      date_ranges: [],
       crew_count: 1,
       hourly_rate: 20,
       color: '#3B82F6',
@@ -570,6 +581,30 @@ export function CreateProjectWizardWithFallback({
   };
 
   // ============================================================================
+  // SPEED ADD HANDLER
+  // ============================================================================
+
+  const handleSpeedAddData = (extractedData: any) => {
+    // Pre-fill form with extracted data
+    if (extractedData.title) form.setValue('title', extractedData.title);
+    if (extractedData.event_type) form.setValue('event_type', extractedData.event_type);
+    if (extractedData.description) form.setValue('description', extractedData.description);
+    if (extractedData.venue_address) form.setValue('venue_address', extractedData.venue_address);
+    if (extractedData.venue_details) form.setValue('venue_details', extractedData.venue_details);
+    if (extractedData.start_date) form.setValue('start_date', extractedData.start_date);
+    if (extractedData.end_date) form.setValue('end_date', extractedData.end_date);
+    if (extractedData.working_hours_start) form.setValue('working_hours_start', extractedData.working_hours_start);
+    if (extractedData.working_hours_end) form.setValue('working_hours_end', extractedData.working_hours_end);
+    if (extractedData.crew_count) form.setValue('crew_count', extractedData.crew_count);
+    if (extractedData.hourly_rate) form.setValue('hourly_rate', extractedData.hourly_rate);
+
+    toast({
+      title: "Data Loaded",
+      description: "Project information has been pre-filled. Please review and complete any missing fields.",
+    });
+  };
+
+  // ============================================================================
   // FORM SUBMISSION
   // ============================================================================
 
@@ -602,27 +637,70 @@ export function CreateProjectWizardWithFallback({
       const { data: user } = await supabase.auth.getUser();
       if (!user.user) throw new Error('Not authenticated');
 
-      const projectData = {
-        ...data,
-        start_date: format(data.start_date, 'yyyy-MM-dd'),
-        end_date: data.end_date ? format(data.end_date, 'yyyy-MM-dd') : null,
+      // Prepare project data (remove date_ranges from main insert)
+      const { date_ranges, ...projectFormData } = data;
+
+      const projectData: any = {
+        ...projectFormData,
         filled_positions: 0,
         completion_percentage: 0,
         payment_status: 'pending',
         user_id: user.user.id,
       };
 
-      const { data: newProject, error } = await supabase
+      // For single-schedule mode: include start_date/end_date/working_hours in main project
+      if (data.schedule_type === 'single') {
+        projectData.start_date = data.start_date ? format(data.start_date, 'yyyy-MM-dd') : null;
+        projectData.end_date = data.end_date ? format(data.end_date, 'yyyy-MM-dd') : null;
+      } else {
+        // For multi-schedule: set first date range as main project dates for backward compat
+        if (date_ranges && date_ranges.length > 0) {
+          projectData.start_date = format(date_ranges[0].startDate, 'yyyy-MM-dd');
+          projectData.end_date = format(date_ranges[0].endDate, 'yyyy-MM-dd');
+        }
+      }
+
+      // Create project
+      const { data: newProject, error: projectError } = await supabase
         .from('projects')
         .insert([projectData])
         .select()
         .single();
 
-      if (error) throw error;
+      if (projectError) throw projectError;
+
+      // For multi-schedule: create project_schedules entries
+      if (data.schedule_type === 'multi' && date_ranges && date_ranges.length > 0) {
+        const schedules = date_ranges.map(range => ({
+          project_id: newProject.id,
+          start_date: format(range.startDate, 'yyyy-MM-dd HH:mm:ssX'),
+          end_date: format(range.endDate, 'yyyy-MM-dd HH:mm:ssX'),
+          working_hours_start: data.working_hours_start || '09:00',
+          working_hours_end: data.working_hours_end || '17:00',
+          daily_rate: data.hourly_rate ? data.hourly_rate * 8 : null, // Convert hourly to daily (8h)
+          is_active: true,
+        }));
+
+        const { error: schedulesError } = await supabase
+          .from('project_schedules')
+          .insert(schedules);
+
+        if (schedulesError) {
+          logger.error('Failed to create schedules:', schedulesError);
+          // Don't throw - project is created, just warn user
+          toast({
+            title: "Warning",
+            description: "Project created but some schedules may not have saved correctly. Please edit the project to fix.",
+            variant: "destructive",
+          });
+        }
+      }
 
       toast({
         title: "Success",
-        description: "Project created successfully",
+        description: data.schedule_type === 'multi'
+          ? `Multi-schedule project created with ${date_ranges?.length || 0} date ranges`
+          : "Project created successfully",
       });
 
       clearDraft();
@@ -720,6 +798,17 @@ export function CreateProjectWizardWithFallback({
                     Complete all steps to set up your new project
                   </p>
                 </div>
+
+                {/* Speed Add Button */}
+                <Button
+                  onClick={() => setSpeedAddOpen(true)}
+                  variant="outline"
+                  className="w-full border-2 border-dashed border-yellow-400 hover:border-yellow-500 hover:bg-yellow-50"
+                  size="sm"
+                >
+                  <Zap className="mr-2 h-4 w-4 text-yellow-500" />
+                  Speed Add from Job Ad
+                </Button>
 
                 {/* Connection Status */}
                 {(isOffline || dataSource !== 'fresh') && (
@@ -951,6 +1040,221 @@ export function CreateProjectWizardWithFallback({
                           </div>
                         )}
 
+                        {/* Schedule Step */}
+                        {currentStep === 'schedule' && (
+                          <div className="space-y-6">
+                            {/* Schedule Type Toggle */}
+                            <FormField
+                              control={form.control}
+                              name="schedule_type"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Schedule Type *</FormLabel>
+                                  <div className="grid grid-cols-2 gap-4">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        field.onChange('single');
+                                        form.setValue('date_ranges', []);
+                                      }}
+                                      className={cn(
+                                        "p-4 border-2 rounded-lg transition-all text-left",
+                                        field.value === 'single'
+                                          ? "border-blue-500 bg-blue-50"
+                                          : "border-gray-200 hover:border-gray-300"
+                                      )}
+                                    >
+                                      <div className="font-medium mb-1">Single Day/Range</div>
+                                      <div className="text-xs text-gray-600">
+                                        Project at one location on one day or consecutive days
+                                      </div>
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        field.onChange('multi');
+                                        // Initialize with one date range if empty
+                                        if (form.getValues('date_ranges')?.length === 0) {
+                                          form.setValue('date_ranges', [{
+                                            id: `range-${Date.now()}`,
+                                            startDate: new Date(),
+                                            endDate: new Date(),
+                                          }]);
+                                        }
+                                      }}
+                                      className={cn(
+                                        "p-4 border-2 rounded-lg transition-all text-left",
+                                        field.value === 'multi'
+                                          ? "border-blue-500 bg-blue-50"
+                                          : "border-gray-200 hover:border-gray-300"
+                                      )}
+                                    >
+                                      <div className="font-medium mb-1">Multi-Schedule</div>
+                                      <div className="text-xs text-gray-600">
+                                        Project across multiple days, locations, or non-consecutive dates
+                                      </div>
+                                    </button>
+                                  </div>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+
+                            {/* Single Schedule Mode */}
+                            {form.watch('schedule_type') === 'single' && (
+                              <>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                  <FormField
+                                    control={form.control}
+                                    name="start_date"
+                                    render={({ field }) => (
+                                      <FormItem>
+                                        <FormLabel>Start Date *</FormLabel>
+                                        <Popover>
+                                          <PopoverTrigger asChild>
+                                            <FormControl>
+                                              <Button
+                                                variant="outline"
+                                                className={cn(
+                                                  "w-full justify-start text-left font-normal",
+                                                  !field.value && "text-gray-400"
+                                                )}
+                                              >
+                                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                                {field.value ? format(field.value, 'PPP') : <span>Pick a date</span>}
+                                              </Button>
+                                            </FormControl>
+                                          </PopoverTrigger>
+                                          <PopoverContent className="w-auto p-0">
+                                            <Calendar
+                                              mode="single"
+                                              selected={field.value}
+                                              onSelect={field.onChange}
+                                              initialFocus
+                                            />
+                                          </PopoverContent>
+                                        </Popover>
+                                        <FormMessage />
+                                      </FormItem>
+                                    )}
+                                  />
+
+                                  <FormField
+                                    control={form.control}
+                                    name="end_date"
+                                    render={({ field }) => (
+                                      <FormItem>
+                                        <FormLabel>End Date (Optional)</FormLabel>
+                                        <Popover>
+                                          <PopoverTrigger asChild>
+                                            <FormControl>
+                                              <Button
+                                                variant="outline"
+                                                className={cn(
+                                                  "w-full justify-start text-left font-normal",
+                                                  !field.value && "text-gray-400"
+                                                )}
+                                              >
+                                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                                {field.value ? format(field.value, 'PPP') : <span>Pick a date</span>}
+                                              </Button>
+                                            </FormControl>
+                                          </PopoverTrigger>
+                                          <PopoverContent className="w-auto p-0">
+                                            <Calendar
+                                              mode="single"
+                                              selected={field.value}
+                                              onSelect={field.onChange}
+                                              disabled={(date) =>
+                                                form.watch('start_date') ? date < form.watch('start_date') : false
+                                              }
+                                              initialFocus
+                                            />
+                                          </PopoverContent>
+                                        </Popover>
+                                        <p className="text-xs text-gray-500 mt-1">
+                                          Leave empty for single-day event
+                                        </p>
+                                        <FormMessage />
+                                      </FormItem>
+                                    )}
+                                  />
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                  <FormField
+                                    control={form.control}
+                                    name="working_hours_start"
+                                    render={({ field }) => (
+                                      <FormItem>
+                                        <FormLabel>Start Time *</FormLabel>
+                                        <FormControl>
+                                          <Input
+                                            type="time"
+                                            {...field}
+                                            placeholder="09:00"
+                                          />
+                                        </FormControl>
+                                        <FormMessage />
+                                      </FormItem>
+                                    )}
+                                  />
+
+                                  <FormField
+                                    control={form.control}
+                                    name="working_hours_end"
+                                    render={({ field }) => (
+                                      <FormItem>
+                                        <FormLabel>End Time *</FormLabel>
+                                        <FormControl>
+                                          <Input
+                                            type="time"
+                                            {...field}
+                                            placeholder="17:00"
+                                          />
+                                        </FormControl>
+                                        <FormMessage />
+                                      </FormItem>
+                                    )}
+                                  />
+                                </div>
+                              </>
+                            )}
+
+                            {/* Multi-Schedule Mode */}
+                            {form.watch('schedule_type') === 'multi' && (
+                              <FormField
+                                control={form.control}
+                                name="date_ranges"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <DateRangeManager
+                                      dateRanges={field.value || []}
+                                      onChange={field.onChange}
+                                    />
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                            )}
+
+                            {/* Schedule Summary Info */}
+                            {form.watch('schedule_type') === 'single' && form.watch('start_date') && (
+                              <Alert>
+                                <Info className="h-4 w-4" />
+                                <AlertDescription>
+                                  {form.watch('end_date')
+                                    ? `${Math.ceil((form.watch('end_date')!.getTime() - form.watch('start_date')!.getTime()) / (1000 * 60 * 60 * 24)) + 1} days scheduled`
+                                    : 'Single-day event'}
+                                  {form.watch('working_hours_start') && form.watch('working_hours_end') && (
+                                    <> • Working hours: {form.watch('working_hours_start')} - {form.watch('working_hours_end')}</>
+                                  )}
+                                </AlertDescription>
+                              </Alert>
+                            )}
+                          </div>
+                        )}
+
                         {/* Add other step contents here... */}
                         {currentStep === 'review' && (
                           <div className="space-y-6">
@@ -1048,6 +1352,13 @@ export function CreateProjectWizardWithFallback({
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Speed Add Dialog */}
+      <SpeedAddProjectDialog
+        open={speedAddOpen}
+        onOpenChange={setSpeedAddOpen}
+        onDataExtracted={handleSpeedAddData}
+      />
     </ProjectWizardErrorBoundary>
   );
 }

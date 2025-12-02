@@ -1,7 +1,7 @@
-import React, { useMemo, useRef, useEffect, useState, useCallback, memo } from 'react';
-import { 
-  format, startOfMonth, endOfMonth, eachDayOfInterval, isWeekend, 
-  addMonths, differenceInDays, isSameMonth, isSameDay 
+import React, { useMemo, useRef, useEffect, useState, useCallback, memo, TouchEvent as ReactTouchEvent } from 'react';
+import {
+  format, startOfMonth, endOfMonth, eachDayOfInterval, isWeekend,
+  addMonths, differenceInDays, isSameMonth, isSameDay
 } from 'date-fns';
 import { cn, isPublicHoliday, getHolidayDetails, eventColors, formatTimeString, formatRecurringDates, projectsOverlap, getBestTextColor } from '@/lib/utils';
 import { Card, CardContent } from '@/components/ui/card';
@@ -11,11 +11,30 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Calendar, Clock, Users, MapPin, Trash2, Check, List } from 'lucide-react';
+import { Calendar, Clock, Users, MapPin, Trash2, Check, List, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import type { Project } from '@/lib/types';
+
+// Custom hook to detect mobile/touch devices
+const useIsMobile = () => {
+  const [isMobile, setIsMobile] = useState(false);
+  const [screenWidth, setScreenWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 768);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      const width = window.innerWidth;
+      setScreenWidth(width);
+      setIsMobile(width < 768 || 'ontouchstart' in window);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  return { isMobile, screenWidth };
+};
 
 interface ProjectTooltipProps {
   project: Project;
@@ -117,6 +136,8 @@ interface ProjectCardProps {
   onSelect?: (id: string, selected: boolean) => void;
   selectionMode?: boolean;
   zoomLevel?: number; // New prop for zoom level
+  columnWidth?: number; // Dynamic column width for mobile
+  isMobile?: boolean; // Mobile flag for responsive styling
 }
 
 const ProjectCard = ({
@@ -131,21 +152,28 @@ const ProjectCard = ({
   onSelect,
   selectionMode = false,
   zoomLevel = 1, // Default to normal zoom if not provided
+  columnWidth = 95, // Default column width
+  isMobile = false, // Default to desktop
 }: ProjectCardProps) => {
   const startDate = new Date(project.start_date);
   const endDate = project.end_date ? new Date(project.end_date) : startDate;
-  
+
   // For recurring projects, calculate display height based on recurrence pattern
   const duration = differenceInDays(endDate, startDate) + 1;
-  
+
+  // Calculate card width based on column width (slightly smaller for gaps)
+  const cardWidth = columnWidth - 10;
+  // Center the card within its column
+  const cardLeftOffset = (columnWidth - cardWidth) / 2;
+
   return (
     <TooltipProvider key={project.id}>
       <Tooltip>
         <TooltipTrigger asChild>
-          <div 
+          <div
             className="absolute transition-all duration-200 will-change-transform"
             style={{
-              left: `${(column * 95 + 10)}px`, // The parent transform scale will handle zoom
+              left: `${(column * columnWidth + cardLeftOffset)}px`, // Centered within column
               height: (() => {
                 // Calculate display height inline
                 let height;
@@ -183,7 +211,7 @@ const ProjectCard = ({
                 
                 return `${height}px`;
               })(),
-              width: '85px',
+              width: `${cardWidth}px`,
               zIndex: 10
             }}
             // Ensure this element is never hidden from assistive technologies
@@ -229,25 +257,37 @@ const ProjectCard = ({
             >
               
               {duration <= 2 ? (
-                <div className="text-xs sm:text-[10px] font-medium text-center line-clamp-2">
-                  {project.title.length > 20 ? `${project.title.slice(0, 20)}...` : project.title}
+                <div className={cn(
+                  "font-medium text-center line-clamp-2",
+                  isMobile ? "text-[9px]" : "text-xs sm:text-[10px]"
+                )}>
+                  {project.title.length > (isMobile ? 12 : 20) ? `${project.title.slice(0, isMobile ? 12 : 20)}...` : project.title}
                 </div>
               ) : (
                 <div className="space-y-0.5 w-full">
-                  <div className="font-medium text-xs sm:text-[10px] text-center line-clamp-2">
+                  <div className={cn(
+                    "font-semibold text-center line-clamp-2",
+                    isMobile ? "text-[10px] leading-tight" : "text-xs sm:text-[10px]"
+                  )}>
                     {project.title}
                   </div>
                   {/* Show recurrence info for recurring projects */}
                   {project.schedule_type === 'recurring' && project.recurrence_days ? (
-                    <div className="text-[8px] sm:text-[7px] font-medium text-center opacity-75">
-                      {project.recurrence_days.map(day => 
+                    <div className={cn(
+                      "font-medium text-center opacity-75",
+                      isMobile ? "text-[7px]" : "text-[8px] sm:text-[7px]"
+                    )}>
+                      {project.recurrence_days.map(day =>
                         ['Su','Mo','Tu','We','Th','Fr','Sa'][day]
                       ).join(',')}
                     </div>
                   ) : null}
-                  <div className="flex flex-col items-center text-[9px] sm:text-[8px] opacity-75 space-y-0.5">
+                  <div className={cn(
+                    "flex flex-col items-center opacity-75 space-y-0.5",
+                    isMobile ? "text-[8px]" : "text-[9px] sm:text-[8px]"
+                  )}>
                     <div>{formatTimeString(project.working_hours_start)} - {formatTimeString(project.working_hours_end)}</div>
-                    <div>{project.filled_positions}/{project.crew_count} crew</div>
+                    <div>{project.filled_positions}/{project.crew_count}</div>
                   </div>
                 </div>
               )}
@@ -316,6 +356,22 @@ export default function ListView({
       </div>
     );
   }
+
+  // Mobile detection hook
+  const { isMobile, screenWidth } = useIsMobile();
+
+  // Calculate optimal column width based on screen size and number of projects
+  // Mobile: narrower columns to show more projects (like Excel view)
+  const getColumnWidth = useMemo(() => {
+    if (isMobile) {
+      // On mobile, use narrower columns (60-75px) to fit more projects
+      if (screenWidth < 400) return 55; // Very small phones
+      if (screenWidth < 500) return 65; // Small phones
+      return 75; // Larger phones
+    }
+    return 95; // Desktop default
+  }, [isMobile, screenWidth]);
+
   // Calculate the number of past and future months to show - expanded to a full year
   const MAX_PAST_MONTHS = 24;  // Expanded to 2 years in the past
   const MAX_FUTURE_MONTHS = 24; // Expanded to 2 years in the future
@@ -698,10 +754,18 @@ export default function ListView({
   // Calculate width based on number of columns and zoom level
   // Scale factor: 1 = 100% (max), 0.5 = 50% (min), we don't allow zooming in beyond 100%
   // Persist zoom level in localStorage to prevent reset during re-renders
+  // Mobile uses a lower default zoom to show more projects (like Excel view)
+  const getDefaultZoom = useCallback(() => {
+    // Mobile starts at 80% zoom to show more projects
+    // Desktop starts at 100% for better readability
+    return isMobile ? 0.85 : 1.0;
+  }, [isMobile]);
+
   const [zoomLevel, setZoomLevel] = useState(() => {
     try {
       // Try to read from localStorage first
-      const stored = localStorage.getItem('calendar_list_zoom_level');
+      const storageKey = 'calendar_list_zoom_level';
+      const stored = localStorage.getItem(storageKey);
       if (stored) {
         const parsed = parseFloat(stored);
         // Validate the stored value is within valid range
@@ -709,20 +773,32 @@ export default function ListView({
           return parsed;
         }
       }
-      // Default to 100% zoom (1.0) for better readability
-      localStorage.setItem('calendar_list_zoom_level', '1.0');
-      return 1.0;
+      // Default based on device type (will be set properly on first effect)
+      return 0.85; // Start with mobile-friendly default, will adjust in effect
     } catch (e) {
-      // Default to 1.0 (100%) if anything goes wrong
-      return 1.0;
+      // Default to mobile-friendly value if anything goes wrong
+      return 0.85;
     }
   });
+
+  // Update zoom level when device type changes (e.g., resize)
+  useEffect(() => {
+    // Only update if no stored preference exists
+    const stored = localStorage.getItem('calendar_list_zoom_level');
+    if (!stored) {
+      const defaultZoom = getDefaultZoom();
+      setZoomLevel(defaultZoom);
+      persistZoomLevel(defaultZoom);
+    }
+  }, [isMobile, getDefaultZoom]);
   const [initialPinchDistance, setInitialPinchDistance] = useState<number | null>(null);
   const [initialZoom, setInitialZoom] = useState<number>(zoomLevel); // Use the loaded zoom level
   // Track current visible position for zoom operations
   const [visibleTopPosition, setVisibleTopPosition] = useState<number | null>(null);
-  const columnWidth = 95 * zoomLevel; // Width for each project column, adjusted by zoom
-  const minContentWidth = Math.max(300, (processedProjects.maxColumn + 1) * columnWidth + 40); // Adjusted for zoom
+  // Use base column width for positioning - the CSS transform scale handles zoom
+  // This ensures cards stay centered at all zoom levels
+  const baseColumnWidth = getColumnWidth;
+  const minContentWidth = Math.max(300, (processedProjects.maxColumn + 1) * baseColumnWidth + 40);
   
   // Ref for container scrolling
   const containerRef = useRef<HTMLDivElement>(null);
@@ -1622,9 +1698,81 @@ export default function ListView({
       80% { opacity: 1; transform: scale(1); }
       100% { opacity: 0; transform: scale(0.9); }
     }
-    
+
     .animate-fade-in-out {
       animation: fadeInOut 1.5s ease-in-out;
+    }
+
+    /* Mobile-specific ListView styles */
+    @media (max-width: 640px) {
+      /* Larger touch targets for mobile */
+      .mobile-touch-target {
+        min-height: 44px !important;
+        padding: 10px 8px !important;
+      }
+
+      /* Mobile date sidebar styling */
+      .mobile-date-sidebar {
+        font-size: 12px !important;
+      }
+
+      .mobile-date-sidebar .text-\\[10px\\] {
+        font-size: 11px !important;
+        font-weight: 600 !important;
+      }
+
+      .mobile-date-sidebar .text-\\[8px\\] {
+        font-size: 9px !important;
+      }
+
+      /* Mobile project card improvements */
+      .mobile-project-card {
+        padding: 6px 8px !important;
+        min-height: 36px !important;
+      }
+
+      .mobile-project-card .text-xs {
+        font-size: 11px !important;
+      }
+
+      /* Zoom controls on mobile */
+      .mobile-zoom-controls {
+        flex-wrap: wrap !important;
+        gap: 4px !important;
+      }
+
+      /* Mobile floating month indicator */
+      .floating-month-mobile {
+        font-size: 2rem !important;
+        padding: 1rem 1.5rem !important;
+      }
+
+      /* Hide complex elements on small screens */
+      .hide-on-mobile {
+        display: none !important;
+      }
+
+      /* Make project columns narrower on mobile */
+      .project-column-mobile {
+        width: 70px !important;
+      }
+    }
+
+    /* Touch-friendly hover states */
+    @media (hover: none) and (pointer: coarse) {
+      .touch-active:active {
+        transform: scale(0.98);
+        opacity: 0.9;
+      }
+
+      /* Disable hover effects on touch devices */
+      .hover\\:bg-gray-100:hover {
+        background-color: transparent;
+      }
+
+      .hover\\:bg-primary\\/10:hover {
+        background-color: transparent;
+      }
     }
   `;
 
@@ -1701,23 +1849,32 @@ export default function ListView({
         </>
       )}
       <CardContent className="p-0 h-full flex flex-col">
-        {/* Zoom controls */}
-        <div className="flex items-center justify-between p-2 border-b bg-gray-50/50 text-gray-600">
-          <div className="text-xs flex items-center">
-            <span className="mr-2">Pinch or Ctrl+Wheel to zoom (50-100%)</span>
-            <span className="text-gray-400 text-[9px] px-1.5 py-0.5 bg-gray-100 rounded-full">
-              {pastMonths}/{MAX_PAST_MONTHS} past · {futureMonths}/{MAX_FUTURE_MONTHS} future
+        {/* Zoom controls - responsive for mobile */}
+        <div className={cn(
+          "flex items-center justify-between p-2 border-b bg-gray-50/50 text-gray-600",
+          isMobile && "flex-wrap gap-2"
+        )}>
+          <div className={cn(
+            "text-xs flex items-center",
+            isMobile && "order-2 w-full justify-center"
+          )}>
+            <span className={cn("mr-2", isMobile && "hidden sm:inline")}>Pinch or Ctrl+Wheel to zoom</span>
+            <span className={cn("text-gray-400 text-[9px] px-1.5 py-0.5 bg-gray-100 rounded-full", isMobile && "text-[8px]")}>
+              {isMobile ? `${pastMonths}/${MAX_PAST_MONTHS}` : `${pastMonths}/${MAX_PAST_MONTHS} past`} · {isMobile ? `${futureMonths}/${MAX_FUTURE_MONTHS}` : `${futureMonths}/${MAX_FUTURE_MONTHS} future`}
             </span>
           </div>
-          
-          <div className="flex items-center gap-2">
+
+          <div className={cn(
+            "flex items-center gap-2",
+            isMobile && "order-1 w-full justify-between mobile-zoom-controls"
+          )}>
             {/* View toggle - Calendar/List */}
             {onViewChange && (
-              <div className="flex items-center gap-1 bg-white/50 rounded p-0.5">
+              <div className="flex items-center gap-1 bg-white/50 rounded-lg sm:rounded p-0.5">
                 <button
                   onClick={() => onViewChange('calendar')}
                   className={cn(
-                    "p-1.5 rounded transition-colors",
+                    "p-2.5 sm:p-1.5 rounded-lg sm:rounded transition-colors touch-active active:scale-95",
                     currentView === 'calendar'
                       ? "bg-primary text-primary-foreground"
                       : "text-primary hover:bg-primary/10"
@@ -1725,12 +1882,12 @@ export default function ListView({
                   title="Calendar view"
                   aria-label="Switch to calendar view"
                 >
-                  <Calendar className="h-3.5 w-3.5" />
+                  <Calendar className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
                 </button>
                 <button
                   onClick={() => onViewChange('list')}
                   className={cn(
-                    "p-1.5 rounded transition-colors",
+                    "p-2.5 sm:p-1.5 rounded-lg sm:rounded transition-colors touch-active active:scale-95",
                     currentView === 'list'
                       ? "bg-primary text-primary-foreground"
                       : "text-primary hover:bg-primary/10"
@@ -1926,9 +2083,14 @@ export default function ListView({
             </div>
           )}
           
-          <div className="grid grid-cols-[60px_1fr] min-w-full md:min-w-0" 
-            style={{ 
-              minWidth: `${minContentWidth + 60}px`,
+          <div className={cn(
+            "grid min-w-full md:min-w-0",
+            // Mobile: wider sidebar (80px) to show "1 SAT" style like Excel
+            // Desktop: 60px is enough
+            isMobile ? "grid-cols-[75px_1fr]" : "grid-cols-[60px_1fr]"
+          )} 
+            style={{
+              minWidth: `${minContentWidth + (isMobile ? 75 : 60)}px`,
               transform: `scale(${zoomLevel})`,
               transformOrigin: 'top left',
               height: `${100 / zoomLevel}%`, // Adjust to maintain scrollable area
@@ -1973,21 +2135,32 @@ export default function ListView({
                           // Add data attribute for month marker if this is the first day of month
                           {...(day.getDate() === 1 ? { 'data-month-marker': format(day, 'MMMM yyyy') } : {})}
                         >
-                          <div className="flex flex-col items-center">
+                          <div className={cn(
+                            "flex items-center gap-1 w-full px-1",
+                            // Mobile: horizontal layout like Excel "1 SAT" - centered
+                            // Desktop: vertical stacked layout - centered
+                            isMobile ? "flex-row justify-center" : "flex-col justify-center"
+                          )}>
                             {/* Show month name on first day of month */}
                             {day.getDate() === 1 && (
                               <div className="absolute top-0 left-0 right-0 -mt-5 text-[10px] font-bold text-primary bg-background px-1 py-0.5 text-center border-t border-primary/30 rounded-t-sm">
                                 {format(day, 'MMMM yyyy')}
                               </div>
                             )}
-                            <span className="text-[10px] font-medium">
+                            {/* Day number */}
+                            <span className={cn(
+                              "font-bold",
+                              isMobile ? "text-[12px] min-w-[18px]" : "text-[10px]"
+                            )}>
                               {day.getDate()}
                             </span>
+                            {/* Day name */}
                             <span className={cn(
-                              "text-[8px] uppercase",
-                              isHoliday ? "text-red-500" : "text-muted-foreground"
+                              "uppercase font-medium",
+                              isHoliday ? "text-red-500" : "text-muted-foreground",
+                              isMobile ? "text-[10px]" : "text-[8px]"
                             )}>
-                              {format(day, 'EEE')}
+                              {isMobile ? format(day, 'EEE') : format(day, 'EEE')}
                             </span>
                             {/* Small indicator for holidays */}
                             {isHoliday && (
@@ -2079,6 +2252,8 @@ export default function ListView({
                           onSelect={onProjectSelect}
                           selectionMode={selectionMode}
                           zoomLevel={zoomLevel}
+                          columnWidth={baseColumnWidth}
+                          isMobile={isMobile}
                         />
                       );
                     })}

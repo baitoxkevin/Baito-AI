@@ -1,20 +1,253 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts"
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
+import { getToolsForLLM, executeTool, type ToolResult, type ToolContext } from './tools/index.ts'
+import { getCachedResult, setCachedResult, isCacheable } from './tools/cache.ts'
 
+// ============================================
 // Configuration
+// ============================================
+
+const GROQ_API_KEY = Deno.env.get('GROQ_API_KEY')!
 const OPENROUTER_API_KEY = Deno.env.get('OPENROUTER_API_KEY')!
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-const MODEL = 'google/gemini-2.5-flash-preview-09-2025'
 
-// MCP Configuration
-const MCP_ENABLED = true // Feature flag
-const MAX_ITERATIONS = 10 // Increased from 5 to allow more recovery attempts
+// Model configuration with fallbacks (P1)
+// Primary: Groq Qwen3 32B - Best for Malaysian rojak (119 languages, trained on 100B SEA tokens)
+// Fallbacks: OpenRouter models if Groq fails
+const MODELS = {
+  primary: 'qwen/qwen3-32b',  // Groq - $0.29/M input, $0.59/M output, 119+ languages
+  fallback1: 'llama-3.3-70b-versatile',  // Groq fallback - fast and capable
+  fallback2: 'x-ai/grok-4.1-fast',  // OpenRouter fallback
+}
+
+// API configuration
+const API_CONFIG = {
+  groq: {
+    url: 'https://api.groq.com/openai/v1/chat/completions',
+    models: ['qwen/qwen3-32b', 'llama-3.3-70b-versatile', 'llama-3.1-8b-instant'],
+  },
+  openrouter: {
+    url: 'https://openrouter.ai/api/v1/chat/completions',
+    models: ['x-ai/grok-4.1-fast', 'anthropic/claude-3.5-sonnet', 'openai/gpt-4o'],
+  },
+}
+
+// Rate limiting configuration (P0)
+const RATE_LIMITS = {
+  maxRequestsPerMinute: 20,
+  maxRequestsPerHour: 100,
+  maxTokensPerDay: 500000,
+}
+
+// Context window configuration (P1)
+const CONTEXT_CONFIG = {
+  maxHistoryMessages: 20,
+  maxTokensPerMessage: 4000,
+  summarizeAfterMessages: 15,
+}
+
+// ============================================
+// Language Detection (Server-side)
+// ============================================
+
+type DetectedLanguage = 'chinese' | 'malay' | 'english'
+
+// Known action commands from button clicks (these are internal, not user language)
+const ACTION_COMMANDS = [
+  'get_projects', 'get_project_details', 'create_project',
+  'find_candidates', 'get_candidate_details',
+  'assign_staff', 'get_project_staff', 'update_staff_status',
+  'get_project_stats', 'get_upcoming_deadlines',
+  'get_expense_claims', 'get_pending_approvals', 'approve_expense_claim', 'reject_expense_claim',
+  'execute_sql', 'save_user_memory'
+]
+
+/**
+ * Check if text is an action command (from button click)
+ */
+function isActionCommand(text: string): boolean {
+  const trimmed = text.trim().toLowerCase()
+  // Check if it's a known action command or looks like one (snake_case, short)
+  if (ACTION_COMMANDS.includes(trimmed)) return true
+  // Check for snake_case pattern with no spaces (likely an action)
+  if (/^[a-z_]+$/.test(trimmed) && trimmed.includes('_') && trimmed.length < 30) return true
+  return false
+}
+
+/**
+ * Detect the primary language of user input
+ * Returns: 'chinese' | 'malay' | 'english'
+ */
+function detectLanguage(text: string): DetectedLanguage {
+  // Check for Chinese characters (CJK Unified Ideographs)
+  const chineseRegex = /[\u4e00-\u9fff\u3400-\u4dbf]/
+  if (chineseRegex.test(text)) {
+    return 'chinese'
+  }
+
+  // Check for Malay/Malaysian rojak indicators
+  const malayWords = [
+    // Common particles
+    'lah', 'lor', 'meh', 'leh', 'kan', 'hor', 'wei', 'woi',
+    // Common Malay words
+    'nak', 'tak', 'boleh', 'saya', 'kami', 'kita', 'awak', 'mereka',
+    'ada', 'mana', 'bila', 'kenapa', 'macam', 'mane', 'camne', 'cemana',
+    'tolong', 'tengok', 'tunjuk', 'buat', 'ambil', 'cari', 'letak',
+    // Rojak exclamations
+    'aiyo', 'alamak', 'walao', 'wah', 'siao', 'jialat',
+    // Common slang
+    'boss', 'settle', 'kautim', 'cincai', 'tapau', 'lepak', 'gostan',
+    'syok', 'mantap', 'terror', 'gempak', 'power',
+    // Question particles
+    'ke', 'kah'
+  ]
+
+  const lowerText = text.toLowerCase()
+  const words = lowerText.split(/\s+/)
+
+  // Check if any Malay words exist in the text
+  for (const word of words) {
+    // Remove punctuation for matching
+    const cleanWord = word.replace(/[.,!?;:'"]/g, '')
+    if (malayWords.includes(cleanWord)) {
+      return 'malay'
+    }
+  }
+
+  // Check for Malay sentence patterns
+  const malayPatterns = [
+    /\b(apa|siapa|mana|bila|berapa|bagaimana)\b/i,  // Question words
+    /\b(dan|atau|tetapi|tapi|dengan|untuk|kepada)\b/i,  // Conjunctions
+    /\b(ini|itu|sini|situ|di|ke|dari)\b/i,  // Demonstratives/prepositions
+    /\b(sudah|sedang|akan|telah|belum)\b/i,  // Aspect markers
+    /\b(yang|punya|nya)\b/i,  // Relative/possessive
+  ]
+
+  for (const pattern of malayPatterns) {
+    if (pattern.test(lowerText)) {
+      return 'malay'
+    }
+  }
+
+  // Default to English
+  return 'english'
+}
+
+/**
+ * Check if text contains Chinese characters
+ */
+function containsChinese(text: string): boolean {
+  return /[\u4e00-\u9fff\u3400-\u4dbf]/.test(text)
+}
+
+/**
+ * Detect language with conversation context
+ * If current message is an action command, look at history to find user's language
+ * Also checks assistant responses for Chinese content
+ */
+function detectLanguageWithHistory(currentMessage: string, history: Array<{role: string, content: string}>): DetectedLanguage {
+  const isAction = isActionCommand(currentMessage)
+  console.log(`🔍 Language detection - message: "${currentMessage}", isAction: ${isAction}, historyLen: ${history.length}`)
+
+  // If current message is NOT an action command, detect from it directly
+  if (!isAction) {
+    return detectLanguage(currentMessage)
+  }
+
+  // Log history for debugging
+  console.log(`🔍 History contents: ${JSON.stringify(history.map(h => ({ role: h.role, preview: h.content.substring(0, 40) })))}`)
+
+  // Current message is an action command - look at conversation history
+  // Strategy 1: Find the most recent user message that's not an action command
+  for (let i = history.length - 1; i >= 0; i--) {
+    const msg = history[i]
+    if (msg.role === 'user' && !isActionCommand(msg.content)) {
+      const lang = detectLanguage(msg.content)
+      console.log(`🌐 Found user language from history: ${lang} from "${msg.content.substring(0, 30)}..."`)
+      return lang
+    }
+  }
+
+  // Strategy 2: Check if any assistant response contains Chinese (means conversation was in Chinese)
+  for (let i = history.length - 1; i >= 0; i--) {
+    const msg = history[i]
+    if (msg.role === 'assistant' && containsChinese(msg.content)) {
+      console.log(`🌐 Found Chinese in assistant response, using Chinese`)
+      return 'chinese'
+    }
+  }
+
+  console.log(`⚠️ No valid language found in history, defaulting to English`)
+  return 'english'
+}
+
+/**
+ * Get language instruction block for system prompt
+ */
+function getLanguageInstruction(detectedLang: DetectedLanguage): string {
+  switch (detectedLang) {
+    case 'chinese':
+      return `
+**🚨 用户语言：中文 - 必须用中文回复！**
+用户正在使用中文。你必须：
+- 用100%中文回复
+- 不要用英文或马来文
+- 按钮标签也要用中文
+
+中文回复模板：
+- 成功：好的，让我帮你查一下...
+- 无数据：目前没有相关数据。你想要...
+- 错误：抱歉，系统出现问题。请稍后再试。
+- 建议：你可以试试：1. ... 2. ... 3. ...
+`
+    case 'malay':
+      return `
+**🚨 USER LANGUAGE: MALAYSIAN ROJAK - Reply in rojak style!**
+User is speaking Malaysian rojak. You MUST:
+- Reply in Malaysian rojak style (mix of Malay, English, Chinese)
+- Use particles: lah, lor, meh, kan, etc.
+- Be casual and friendly like a Malaysian friend
+- Button labels should be in rojak
+
+Rojak response templates:
+- Success: Ok boss, jap aku check...
+- No data: Takde data la sekarang. Nak cuba...
+- Error: Alamak, ada masalah sikit. Cuba lagi kejap.
+- Suggestions: Boleh try ni: 1. ... 2. ... 3. ...
+`
+    case 'english':
+    default:
+      return `
+**🚨 USER LANGUAGE: ENGLISH - Reply in English!**
+User is speaking English. You MUST:
+- Reply 100% in English
+- Do NOT mix in Malay or Chinese
+- Be professional yet friendly
+
+English response templates:
+- Success: Sure, let me check that for you...
+- No data: No data found. Would you like to...
+- Error: Sorry, there was an issue. Please try again.
+- Suggestions: You could try: 1. ... 2. ... 3. ...
+`
+  }
+}
+
+const MAX_ITERATIONS = 10
+const MAX_RETRIES = 2
+
+// ============================================
+// Types
+// ============================================
 
 interface Message {
   role: string
   content: string
+  tool_calls?: ToolCall[]
+  tool_call_id?: string
+  name?: string
 }
 
 interface ToolCall {
@@ -26,452 +259,633 @@ interface ToolCall {
   }
 }
 
-// SQL Validation - Block DELETE operations
-function validateSQL(sql: string): { valid: boolean; error?: string } {
-  const upperSQL = sql.trim().toUpperCase()
+// Agent Personas (P2)
+type Persona = 'general' | 'operations' | 'finance' | 'hr'
 
-  // Block DELETE operations
-  if (upperSQL.includes('DELETE FROM') || upperSQL.startsWith('DELETE ')) {
-    return {
-      valid: false,
-      error: 'DELETE operations are not allowed. Only SELECT, INSERT, and UPDATE are permitted.'
-    }
-  }
-
-  // Block DROP operations
-  if (upperSQL.includes('DROP TABLE') || upperSQL.includes('DROP DATABASE')) {
-    return {
-      valid: false,
-      error: 'DROP operations are not allowed.'
-    }
-  }
-
-  // Block TRUNCATE operations
-  if (upperSQL.includes('TRUNCATE')) {
-    return {
-      valid: false,
-      error: 'TRUNCATE operations are not allowed.'
-    }
-  }
-
-  // Warn about multiple statements (potential SQL injection)
-  const statements = sql.split(';').filter(s => s.trim().length > 0)
-  if (statements.length > 1) {
-    return {
-      valid: false,
-      error: 'Multiple SQL statements are not allowed. Please execute one statement at a time.'
-    }
-  }
-
-  return { valid: true }
+interface PersonaConfig {
+  name: string
+  systemPromptAddition: string
+  focusAreas: string[]
+  preferredTools: string[]
 }
 
-// Audit logging for database operations
-async function logDatabaseOperation(
-  supabase: any,
-  userId: string,
-  operation: string,
-  sql: string,
-  success: boolean,
-  error?: string
-) {
-  try {
-    await supabase.from('audit_logs').insert({
-      user_id: userId,
-      operation_type: operation,
-      sql_query: sql,
-      success: success,
-      error_message: error,
-      timestamp: new Date().toISOString()
-    })
-  } catch (err) {
-    console.error('Failed to log database operation:', err)
-  }
+// Page Context from frontend
+interface PageContext {
+  currentPage: string
+  pageType: string
+  entityType: string | null
+  entityId: string | null
+  userAction: string
+  breadcrumb: string
 }
 
-// Enhanced system prompt with MCP awareness
-const SYSTEM_PROMPT = `You are an intelligent AI assistant for Baito-AI, a staffing management platform.
+// User Memory
+interface UserMemory {
+  key: string
+  value: string
+  memory_type: string
+  category: string | null
+  confidence: number
+  times_used: number
+}
 
-**CAPABILITIES:**
-You have direct database access via SQL tools. You can:
-✅ SELECT - Query any table to find information
-✅ INSERT - Create new records (projects, candidates, assignments, etc.)
-✅ UPDATE - Modify existing records
-❌ DELETE - Not allowed (security restriction)
+const PERSONAS: Record<Persona, PersonaConfig> = {
+  general: {
+    name: 'General Assistant',
+    systemPromptAddition: '',
+    focusAreas: ['all operations', 'general queries'],
+    preferredTools: [],
+  },
+  operations: {
+    name: 'Operations Manager',
+    systemPromptAddition: `
+**OPERATIONS FOCUS:**
+You are in Operations Manager mode. Prioritize:
+- Project scheduling and staffing levels
+- Deadline tracking and urgent alerts
+- Staff availability and conflicts
+- Venue logistics and requirements
+- Real-time status updates
 
-**EXACT DATABASE SCHEMA:**
+Always check for understaffed projects and upcoming deadlines proactively.`,
+    focusAreas: ['projects', 'scheduling', 'staffing'],
+    preferredTools: ['get_projects', 'get_upcoming_deadlines', 'find_candidates', 'assign_staff'],
+  },
+  finance: {
+    name: 'Finance Analyst',
+    systemPromptAddition: `
+**FINANCE FOCUS:**
+You are in Finance Analyst mode. Prioritize:
+- Payment status and pending amounts
+- Budget tracking per project
+- Staff hourly rates and total costs
+- Invoice tracking
+- Expense claims
 
-\`\`\`sql
--- PROJECTS TABLE (⚠️ CRITICAL: No user_id column! Use manager_id or client_id for filtering)
-projects:
-  - id UUID PRIMARY KEY (⚠️ NOT "project_id"! Use "id")
-  - title TEXT (required)
-  - client_id UUID (nullable - foreign key to clients)
-  - manager_id UUID (nullable - who manages the project)
-  - created_by UUID (nullable - who created the project)
-  - event_type TEXT (required - type of event: 'promotion', 'exhibition', etc.)
-  - brand_name VARCHAR (nullable - brand/company name)
-  - brand_logo TEXT (nullable - URL to logo)
-  - status TEXT (required - 'active', 'completed', 'planning', 'cancelled', 'archived')
-  - priority TEXT (required - 'low', 'medium', 'high')
-  - project_type TEXT (nullable - additional classification)
-  - schedule_type TEXT (nullable - 'single', 'recurring', etc.)
-  - start_date TIMESTAMPTZ (required - start date/time)
-  - end_date TIMESTAMPTZ (nullable - end date/time)
-  - venue_address TEXT (nullable - ⚠️ Use "venue_address" not "venue")
-  - venue_details TEXT (nullable - additional venue information)
-  - venue_lat NUMERIC (nullable - latitude)
-  - venue_lng NUMERIC (nullable - longitude)
-  - crew_count INTEGER (required - total staff needed)
-  - filled_positions INTEGER (required - how many filled, default 0)
-  - supervisors_required INTEGER (required - supervisors needed, default 0)
-  - description TEXT (nullable - project description)
-  - special_skills_required TEXT (nullable - required skills)
-  - special_requirements JSONB (nullable - other requirements)
-  - budget NUMERIC (nullable - project budget)
-  - invoice_number VARCHAR (nullable)
-  - breaks JSONB (nullable - break schedules)
-  - recurrence_days JSONB (nullable - for recurring projects)
-  - excluded_dates ARRAY (nullable - dates to exclude)
-  - confirmed_staff JSONB (nullable - list of confirmed staff)
-  - applicants JSONB (nullable - list of applicants)
-  - cc_client_ids ARRAY (nullable - CC'd clients)
-  - cc_user_ids ARRAY (nullable - CC'd users)
-  - color TEXT (nullable - UI color for calendar)
-  - name TEXT (nullable - alternative name field)
-  - created_at TIMESTAMPTZ (auto)
-  - updated_at TIMESTAMPTZ (auto)
-  - deleted_at TIMESTAMPTZ (nullable - soft delete)
-  - deleted_by UUID (nullable)
+Always calculate costs and highlight budget concerns.`,
+    focusAreas: ['payments', 'budgets', 'costs'],
+    preferredTools: ['get_project_stats', 'get_projects', 'execute_sql'],
+  },
+  hr: {
+    name: 'HR Specialist',
+    systemPromptAddition: `
+**HR FOCUS:**
+You are in HR Specialist mode. Prioritize:
+- Candidate profiles and skills
+- Performance points and ratings
+- Work history and reliability
+- Staff availability
+- Team composition
 
--- CANDIDATES TABLE
-candidates:
-  - id UUID PRIMARY KEY
-  - full_name TEXT (required - ⚠️ Use "full_name" not "name")
-  - ic_number TEXT (required - IC/passport number)
-  - date_of_birth DATE (required)
-  - phone_number TEXT (required - ⚠️ Use "phone_number" not "phone")
-  - gender TEXT (required)
-  - email TEXT (nullable)
-  - nationality TEXT (required)
-  - skills TEXT[] (⚠️ Array type - use '= ANY(skills)' syntax)
-  - languages TEXT[] (⚠️ Array type - use '= ANY(languages)' syntax)
-  - experience_tags TEXT[] (⚠️ Array type - use '= ANY(experience_tags)' syntax)
-  - status TEXT ('active', 'inactive', etc.)
-  - total_points INTEGER (nullable - loyalty/performance points)
-  - profile_photo TEXT (nullable)
-  - emergency_contact_name TEXT (required)
-  - emergency_contact_number TEXT (required)
-  - bank_name TEXT (nullable)
-  - bank_account_number TEXT (nullable)
-  - has_vehicle BOOLEAN (nullable)
-  - is_banned BOOLEAN (nullable)
-  - created_at TIMESTAMPTZ
-  - updated_at TIMESTAMPTZ
-  - custom_fields JSONB (nullable)
+Focus on finding the right people for projects and track performance metrics.`,
+    focusAreas: ['candidates', 'skills', 'performance'],
+    preferredTools: ['find_candidates', 'get_candidate_details', 'get_project_staff'],
+  },
+}
 
--- PROJECT_STAFF TABLE
-project_staff:
-  - id UUID PRIMARY KEY
-  - project_id UUID (foreign key to projects.id)
-  - candidate_id UUID (foreign key to candidates.id)
-  - role TEXT
-  - status TEXT ('invited', 'confirmed', 'completed', 'cancelled', 'checked_in', 'checked_out')
-  - hourly_rate DECIMAL
-  - actual_hours DECIMAL
-  - check_in_time TIMESTAMPTZ
-  - check_out_time TIMESTAMPTZ
-  - created_at TIMESTAMPTZ
-  - updated_at TIMESTAMPTZ
+// ============================================
+// System Prompt
+// ============================================
 
--- OTHER TABLES
-payments: id, project_id, staff_id, amount, status, paid_at, created_at
-expenses: id, project_id, staff_id, amount, description, status, submitted_at
-ai_conversations: id, user_id, title, created_at
-ai_messages: id, conversation_id, role, content, created_at
-\`\`\`
+interface SystemPromptContext {
+  persona?: Persona
+  pageContext?: PageContext | null
+  memories?: UserMemory[]
+  recentSummaries?: string[]
+  detectedLanguage?: DetectedLanguage
+}
 
-**CRITICAL SQL SYNTAX RULES:**
+function getSystemPrompt(options: SystemPromptContext = {}): string {
+  const { persona = 'general', pageContext, memories = [], recentSummaries = [], detectedLanguage = 'english' } = options
 
-1. **Primary Key:** Use \`id\` not \`project_id\` for projects table
-   ✅ SELECT * FROM projects WHERE id = 'abc-123'
-   ❌ SELECT * FROM projects WHERE project_id = 'abc-123'
+  // Get explicit language instruction based on detected language
+  const languageInstruction = getLanguageInstruction(detectedLanguage)
+  const personaConfig = PERSONAS[persona]
 
-2. **Venue Column:** Use \`venue_address\` not \`venue\`
-   ✅ SELECT * FROM projects WHERE venue_address LIKE '%Hyatt%'
-   ❌ SELECT * FROM projects WHERE venue LIKE '%Hyatt%'
+  // Build context section if available
+  let contextSection = ''
+  if (pageContext) {
+    contextSection = `
+**CURRENT USER CONTEXT:**
+- User is on: ${pageContext.breadcrumb}
+- Page type: ${pageContext.pageType}
+${pageContext.entityType && pageContext.entityId ? `- Viewing ${pageContext.entityType}: ${pageContext.entityId}` : ''}
+- Action: ${pageContext.userAction}
 
-3. **Array Searches:** Use \`= ANY(array_column)\` syntax
-   ✅ SELECT * FROM candidates WHERE 'Mandarin' = ANY(languages)
-   ❌ SELECT * FROM candidates WHERE languages LIKE '%Mandarin%'
+When the user says "this", "here", or refers to the current context, use this information.
+If they're viewing a specific project or candidate, you can proactively offer relevant info.
+`
+  }
 
-4. **Manager/Client Filtering:** Filter by manager_id or client_id for user's data
-   ✅ SELECT * FROM projects WHERE manager_id = 'user-123' AND status = 'active'
-   ✅ SELECT * FROM projects WHERE client_id = 'client-123'
-   ❌ SELECT * FROM projects WHERE user_id = 'user-123' (column doesn't exist!)
+  // Build memory section if available
+  let memorySection = ''
+  if (memories.length > 0) {
+    const memoryLines = memories.map(m => `- ${m.key}: ${m.value}`).join('\n')
+    memorySection = `
+**THINGS I REMEMBER ABOUT THIS USER:**
+${memoryLines}
 
-5. **No Bind Parameters:** Don't use :param syntax - use actual values
-   ✅ WHERE manager_id = 'abc-123'
-   ❌ WHERE manager_id = :manager_id
+Use this knowledge naturally. Don't mention you "remember" unless relevant.
+`
+  }
 
-6. **Date Filtering:** Use proper date format
-   ✅ WHERE start_date >= '2024-12-01' AND start_date < '2025-01-01'
-   ❌ WHERE YEAR(start_date) = 2024
+  // Build recent conversations section
+  let conversationSection = ''
+  if (recentSummaries.length > 0) {
+    conversationSection = `
+**RECENT CONVERSATIONS:**
+${recentSummaries.map((s, i) => `${i + 1}. ${s}`).join('\n')}
+
+You can reference past topics if relevant. Don't repeat yourself.
+`
+  }
+
+  return `You are Baiger, an intelligent AI assistant for Baito-AI, a staffing management platform.
+${languageInstruction}
+You understand Malaysian "rojak" - code-switching between:
+- Bahasa Malaysia (Malay)
+- English (Manglish)
+- Mandarin Chinese
+- Hokkien, Cantonese, and other Chinese dialects
+
+Common expressions you understand:
+- Particles: lah, lor, meh, leh, ah, kan, hor, wei
+- Exclamations: aiyo, alamak, walao, wah lao, siao, jialat
+- Slang: power, syok, mantap, terror, gempak, settle, kautim, cincai, tapau, lepak, gostan
+- Phrases: "can or not", "got meh", "how ah", "no need lah", "like that also can"
+${contextSection}${memorySection}${conversationSection}
+**YOUR CAPABILITIES:**
+You have access to typed tools for database operations. Always use the appropriate tool:
+
+📊 **Project Tools:**
+- \`get_projects\` - List and filter projects
+- \`get_project_details\` - Get full project info with staff
+- \`create_project\` - Create new projects
+
+👥 **Candidate Tools:**
+- \`find_candidates\` - Search candidates by skills, availability
+- \`get_candidate_details\` - Get candidate profile and history
+
+📋 **Assignment Tools:**
+- \`assign_staff\` - Assign candidate to project
+- \`get_project_staff\` - List project staff
+- \`update_staff_status\` - Update assignment status
+
+📈 **Analytics Tools:**
+- \`get_project_stats\` - Get project statistics
+- \`get_upcoming_deadlines\` - Check urgent projects
+
+💰 **Expense Tools:**
+- \`get_expense_claims\` - View expense claims (filter by status, project)
+- \`get_pending_approvals\` - See claims waiting for your approval
+- \`approve_expense_claim\` - Approve an expense claim
+- \`reject_expense_claim\` - Reject an expense claim with reason
+
+🔧 **SQL Tool (fallback):**
+- \`execute_sql\` - For complex queries not covered by other tools
+
+🧠 **Memory Tool:**
+- \`save_user_memory\` - Remember important facts about the user for future conversations
+
+${personaConfig.systemPromptAddition}
 
 **BEHAVIORAL GUIDELINES:**
 
-1. **Proactive Intelligence - THINK AHEAD FOR THE USER**
+1. **ALWAYS use tools** - Never make up data. Query first, then respond.
 
-   **Always analyze and suggest:**
-   - 🔍 **Potential Issues:** Check for conflicts, shortages, or problems BEFORE they happen
-   - 💡 **Smart Suggestions:** Recommend optimal staff counts, backup plans, alternatives
-   - ⚠️ **Risk Assessment:** Identify high-risk scenarios (e.g., understaffed, tight timeline)
-   - 📊 **Data Insights:** Show trends, patterns, and historical context
-   - 🎯 **Next Steps:** Always suggest logical next actions
+2. **CONFIRM before creating:**
+   - When user wants to create a project, FIRST summarize what you understood and ask for confirmation
+   - Show them: project name, date/time, location, staff needed, and any other details you extracted
+   - Ask "Should I create this project?" with a confirmation button BEFORE calling create_project
+   - Only call create_project AFTER user explicitly confirms
 
-   **IMPORTANT: When offering suggestions, ALWAYS include action buttons in your response!**
+3. **Be Proactive:**
+   - Check for conflicts before creating projects
+   - Alert about understaffed projects
+   - Suggest candidates based on skills match
+   - Warn about upcoming deadlines
+   - If user mentions preferences, use save_user_memory to remember them
 
-   Format response with buttons - wrap in JSON code block:
-   - reply: Your message text
-   - buttons: Array with label, action, variant fields
+4. **Action Buttons:**
+   When offering suggestions, include action buttons in your response.
+   Format as JSON: \`\`\`json
+   { "reply": "your message", "buttons": [{ "label": "...", "action": "...", "variant": "default|outline" }] }
+   \`\`\`
 
-   **Examples with Buttons:**
-   - After creating project: Include button to show candidates
-   - Low candidate match: Include buttons to search alternatives or show current matches
-   - Tight timeline: Include buttons to update priority or find staff
-   - Understaffed: Include buttons to find more candidates or show current staff
+5. **Smart Context:**
+   - "this weekend" = calculate exact dates
+   - "my projects" = filter by current user
+   - "urgent" = high priority, tight deadline
+   - "need staff" = understaffed projects
+   - "this project/candidate" = use current context from page
 
-   Button format: label (what user sees), action (query to send), variant (default or outline)
-
-2. **Problem Detection - IDENTIFY ISSUES PROACTIVELY**
-
-   **Always check for:**
-   - ❌ **Missing Information:** "I notice you didn't specify venue. Venue details help candidates prepare. Would you like to add it?"
-   - ⚠️ **Scheduling Conflicts:** "⚠️ Warning: You have 3 other events on Dec 15th. Staff availability might be limited."
-   - 📉 **Understaffing:** "⚠️ Only 3 of 8 positions filled. Should I find more candidates?"
-   - 🔴 **High Priority Gaps:** "🚨 High priority event tomorrow with 0 staff assigned! This needs immediate attention."
-   - 💰 **Budget Concerns:** "Note: 8 staff × 8 hours × RM20 = RM1,280. Is this within budget?"
-
-3. **Intelligent Suggestions - OFFER SMART ALTERNATIVES**
-
-   **When results are suboptimal:**
-   - No exact matches → Suggest similar skills or similar point levels
-   - Low candidate count → Expand search criteria
-   - Tight timeline → Suggest priority actions
-   - Similar past events → Reference historical data
-
-   **Examples:**
-   - "I found 0 'Promoter' candidates, but 12 candidates have 'Sales' skill which is very similar. Show them?"
-   - "Based on your past 5 wedding events, you typically need 8-10 waiters. You specified 6. Should I adjust?"
-   - "The venue 'KLCC' is 15km from city center. Consider adding travel allowance or transport."
-
-4. **Contextual Intelligence - UNDERSTAND WHAT USER REALLY NEEDS**
-
-   **Interpret context:**
-   - "my stuff" = user's projects/candidates
-   - "this weekend" = calculate exact dates (next Sat/Sun)
-   - "urgent" = set priority='high', suggest immediate actions
-   - "backup" = find additional candidates
-   - "similar to last time" = query past projects for patterns
-
-5. **Smart Workflows - COMPLETE THE FULL PICTURE**
-
-   **After each operation, think ahead:**
-
-   **Created project?**
-   - ✅ "Project created! Next steps: 1) Find candidates 2) Send invitations 3) Confirm attendance. Want me to find candidates now?"
-
-   **Found candidates?**
-   - ✅ "Found 8 qualified candidates (avg points: 450). Should I: A) Show details, B) Auto-assign top 5, C) Send invitations?"
-
-   **Low results?**
-   - ⚠️ "Only found 2 matches. I can: A) Broaden search criteria, B) Show candidates with related skills, C) Check your past successful events for patterns."
-
-6. **Historical Context - LEARN FROM PAST DATA**
-
-   **Before creating similar projects:**
-   - Query past events of same type
-   - Check average staff count, ratings, success rate
-   - Suggest improvements based on history
-
-   **Example:**
-   - "I see you've run 12 Samsung promotions before. Typically you need 5-7 staff with avg points 350+. Your current request matches this pattern ✓"
-
-7. **Data Privacy**
-   - Never expose sensitive data (IC numbers, phone numbers) unless explicitly requested
+6. **Data Privacy:**
+   - Mask IC numbers, bank accounts unless explicitly needed
    - Summarize large result sets
-   - Use aggregates when appropriate
+   - Never expose internal system details
 
-**SQL INSERT EXAMPLES:**
+**CURRENT DATE:** ${new Date().toISOString().split('T')[0]}
+**PERSONA:** ${personaConfig.name}
 
-\`\`\`sql
--- Example 1: Create new project (minimal required fields)
-INSERT INTO projects (
-  id,
-  title,
-  event_type,
-  status,
-  priority,
-  start_date,
-  crew_count,
-  filled_positions,
-  supervisors_required
-) VALUES (
-  gen_random_uuid(),
-  'Samsung Promotion Event',
-  'promotion',
-  'planning',
-  'medium',
-  '2024-12-10 10:00:00+08'::timestamptz,
-  5,
-  0,
-  0
-) RETURNING id, title, start_date, crew_count;
+Be helpful, proactive, and concise. Show your thinking when making decisions.`
+}
 
--- Example 2: Create project with venue and brand
-INSERT INTO projects (
-  id,
-  title,
-  event_type,
-  brand_name,
-  status,
-  priority,
-  start_date,
-  end_date,
-  venue_address,
-  crew_count,
-  filled_positions,
-  supervisors_required,
-  description
-) VALUES (
-  gen_random_uuid(),
-  'Product Launch - Mid Valley',
-  'promotion',
-  'Samsung',
-  'planning',
-  'high',
-  '2024-12-15 09:00:00+08'::timestamptz,
-  '2024-12-15 18:00:00+08'::timestamptz,
-  'Mid Valley Megamall, Kuala Lumpur',
-  8,
-  0,
-  1,
-  'Samsung Galaxy S24 product launch and demonstration'
-) RETURNING id, title, venue_address;
+// ============================================
+// Rate Limiting (P0)
+// ============================================
 
--- Example 3: Assign staff to project
-INSERT INTO project_staff (
-  id,
-  project_id,
-  candidate_id,
-  role,
-  status,
-  hourly_rate
-) VALUES (
-  gen_random_uuid(),
-  'project-uuid-here',
-  'candidate-uuid-here',
-  'Promoter',
-  'invited',
-  20.00
-) RETURNING id, role, status;
-\`\`\`
+async function checkRateLimit(
+  supabase: ReturnType<typeof createClient>,
+  userId: string
+): Promise<{ allowed: boolean; message?: string; retryAfter?: number }> {
+  try {
+    // Check requests per minute
+    const oneMinuteAgo = new Date(Date.now() - 60 * 1000).toISOString()
+    const { count: minuteCount } = await supabase
+      .from('ai_messages')
+      .select('*', { count: 'exact', head: true })
+      .eq('role', 'user')
+      .gte('created_at', oneMinuteAgo)
 
-**REQUIRED FIELDS FOR INSERT:**
+    if ((minuteCount || 0) >= RATE_LIMITS.maxRequestsPerMinute) {
+      return {
+        allowed: false,
+        message: 'Rate limit exceeded. Please wait a moment before sending more messages.',
+        retryAfter: 60,
+      }
+    }
 
-projects table:
-  - id → use gen_random_uuid()
-  - title → TEXT (project name)
-  - event_type → TEXT (use 'promotion', 'exhibition', 'conference', etc.)
-  - status → TEXT (use 'planning' for new projects)
-  - priority → TEXT (use 'medium' as default, or 'low'/'high')
-  - start_date → TIMESTAMPTZ (format: '2024-12-10 10:00:00+08'::timestamptz)
-  - crew_count → INTEGER (how many staff needed)
-  - filled_positions → INTEGER (use 0 for new projects)
-  - supervisors_required → INTEGER (use 0 or 1 as needed)
+    // Check requests per hour
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString()
+    const { count: hourCount } = await supabase
+      .from('ai_messages')
+      .select('*', { count: 'exact', head: true })
+      .eq('role', 'user')
+      .gte('created_at', oneHourAgo)
 
-**PROACTIVE DATA CHECKS - RUN THESE QUERIES TO GATHER CONTEXT:**
+    if ((hourCount || 0) >= RATE_LIMITS.maxRequestsPerHour) {
+      return {
+        allowed: false,
+        message: 'Hourly rate limit exceeded. Please try again in a few minutes.',
+        retryAfter: 300,
+      }
+    }
 
-Before creating a project:
-  SELECT COUNT(*) as conflict_count, title
-  FROM projects
-  WHERE start_date::date = '2024-12-05'
-  AND status IN ('active', 'planning')
-  GROUP BY title;
+    return { allowed: true }
+  } catch (error) {
+    // If rate limit check fails, allow the request
+    console.warn('Rate limit check failed:', error)
+    return { allowed: true }
+  }
+}
 
-  SELECT AVG(crew_count) as avg_staff, AVG(filled_positions) as avg_filled
-  FROM projects
-  WHERE event_type = 'event'
-  AND LOWER(title) LIKE '%wedding%'
-  AND status = 'completed';
+// ============================================
+// Context Window Management (P1)
+// ============================================
 
-After finding candidates:
-  SELECT c.id, c.full_name, c.total_points, COUNT(ps.id) as active_assignments
-  FROM candidates c
-  LEFT JOIN project_staff ps ON c.id = ps.candidate_id
-  WHERE c.id = ANY(ARRAY['id1', 'id2'])
-  AND ps.status IN ('confirmed', 'invited')
-  GROUP BY c.id, c.full_name, c.total_points;
+function truncateHistory(messages: Message[]): Message[] {
+  if (messages.length <= CONTEXT_CONFIG.maxHistoryMessages) {
+    return messages
+  }
 
-When project is understaffed:
-  SELECT p.title, p.crew_count, p.filled_positions,
-         (p.crew_count - p.filled_positions) as still_needed
-  FROM projects p
-  WHERE p.id = 'project-id'
-  AND p.filled_positions < p.crew_count;
+  // Keep system message + last N messages
+  const systemMessage = messages.find(m => m.role === 'system')
+  const nonSystemMessages = messages.filter(m => m.role !== 'system')
+  const truncated = nonSystemMessages.slice(-CONTEXT_CONFIG.maxHistoryMessages)
 
-**EXAMPLE WORKFLOWS WITH PROACTIVE THINKING:**
+  return systemMessage ? [systemMessage, ...truncated] : truncated
+}
 
-User: "Need 8 waiters for wedding dinner. Dec 5th, 6pm-11pm. Grand Hyatt KL."
+function estimateTokens(text: string): number {
+  // Rough estimate: 1 token ≈ 4 characters
+  return Math.ceil(text.length / 4)
+}
 
-**Intelligent Response Flow:**
-1. ✅ Recognize job posting
-2. 🔍 **CHECK:** Query for conflicts on Dec 5th
-3. 🔍 **CHECK:** Query past wedding events for avg staff count
-4. 📊 **ANALYZE:** "I see you have 2 other events on Dec 5th. Staff might be limited."
-5. 💡 **SUGGEST:** "Based on 5 past weddings, 8 waiters is typical ✓"
-6. ✅ Create project with INSERT
-7. 🔍 **CHECK:** Find matching candidates
-8. 📊 **ANALYZE:** "Found 12 qualified waiters (avg points: 450)"
-9. 💡 **SUGGEST:** "Shall I show top 8 based on points + availability?"
-10. 🎯 **NEXT STEPS:** "After you choose, I can send invitations immediately."
+function truncateMessageContent(content: string, maxTokens: number): string {
+  const estimated = estimateTokens(content)
+  if (estimated <= maxTokens) {
+    return content
+  }
 
-User: "Show me my active projects"
+  // Truncate to approximate max tokens
+  const maxChars = maxTokens * 4
+  return content.slice(0, maxChars) + '\n\n[Content truncated due to length]'
+}
 
-**Intelligent Response Flow:**
-1. ✅ Query active projects
-2. 🔍 **CHECK:** Check staffing status for each
-3. 📊 **ANALYZE:** Identify problems (understaffed, urgent, conflicts)
-4. ⚠️ **ALERT:** "3 projects found. WARNING: 'Samsung Event' needs 3 more staff (5 days away)!"
-5. 💡 **SUGGEST:** "Would you like me to find candidates for understaffed projects?"
+// ============================================
+// Retry Logic with Fallback Models (P1)
+// ============================================
 
-User: "I need to replace John for tomorrow's event"
+async function callLLMWithRetry(
+  messages: Message[],
+  tools: ReturnType<typeof getToolsForLLM>,
+  retryCount = 0
+): Promise<{ data: any; model: string }> {
+  const models = [MODELS.primary, MODELS.fallback1, MODELS.fallback2]
+  const modelIndex = Math.min(retryCount, models.length - 1)
+  const model = models[modelIndex]
 
-**Intelligent Response Flow:**
-1. 🔍 **CHECK:** Find tomorrow's projects with John assigned
-2. 🔍 **CHECK:** Get John's role and skills from assignment
-3. 📊 **ANALYZE:** "John is assigned as 'Waiter' for Wedding at Grand Hyatt"
-4. 🔍 **CHECK:** Find available candidates with Waiter skill
-5. 🔍 **CHECK:** Exclude candidates already assigned tomorrow
-6. 📊 **ANALYZE:** "Found 5 available waiters not assigned tomorrow"
-7. 💡 **SUGGEST:** "Here are top 3 replacements (sorted by points): ..."
-8. 🎯 **ACTION:** "Shall I: A) Assign replacement, B) Remove John, C) Both?"
+  // Determine which API to use based on model
+  const isGroqModel = API_CONFIG.groq.models.includes(model)
+  const apiUrl = isGroqModel ? API_CONFIG.groq.url : API_CONFIG.openrouter.url
+  const apiKey = isGroqModel ? GROQ_API_KEY : OPENROUTER_API_KEY
 
-**SQL BEST PRACTICES:**
-- Always use gen_random_uuid() for new IDs
-- Include RETURNING clause to get created record details
-- Use explicit timestamp format: '2024-12-10 10:00:00+08'::timestamptz
-- Provide all required fields (see REQUIRED FIELDS above)
-- Use 0 for filled_positions on new projects
-- Use 'planning' status for new projects
+  try {
+    console.log(`🤖 Calling ${model} via ${isGroqModel ? 'Groq' : 'OpenRouter'} (attempt ${retryCount + 1})`)
 
-**SECURITY:**
-- Validate all inputs
-- Never expose system internals
-- Log all write operations
-- Use read-only when possible
+    const headers: Record<string, string> = {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    }
 
-Be helpful, proactive, and intelligent. Think before acting. Show your reasoning.`
+    // Add OpenRouter-specific headers
+    if (!isGroqModel) {
+      headers['HTTP-Referer'] = 'https://baito-ai.com'
+      headers['X-Title'] = 'Baito-AI Baiger Chat'
+    }
+
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        model,
+        messages,
+        tools,
+        tool_choice: 'auto',
+        max_tokens: 4000,
+        temperature: 0.3,
+      }),
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text()
+
+      // Check if we should retry with fallback
+      if (retryCount < MAX_RETRIES && (response.status >= 500 || response.status === 429)) {
+        console.warn(`⚠️ ${model} failed with ${response.status}, trying fallback...`)
+        return callLLMWithRetry(messages, tools, retryCount + 1)
+      }
+
+      throw new Error(`API error (${response.status}): ${errorText}`)
+    }
+
+    const data = await response.json()
+    return { data, model }
+  } catch (error) {
+    if (retryCount < MAX_RETRIES) {
+      console.warn(`⚠️ ${model} error, trying fallback:`, error)
+      return callLLMWithRetry(messages, tools, retryCount + 1)
+    }
+    throw error
+  }
+}
+
+// ============================================
+// Tool Analytics (P3)
+// ============================================
+
+interface ToolAnalytics {
+  toolName: string
+  executionTime: number
+  success: boolean
+  errorMessage?: string
+}
+
+async function logToolAnalytics(
+  supabase: ReturnType<typeof createClient>,
+  userId: string,
+  conversationId: string,
+  analytics: ToolAnalytics
+): Promise<void> {
+  try {
+    await supabase.from('ai_tool_analytics').insert({
+      user_id: userId,
+      conversation_id: conversationId,
+      tool_name: analytics.toolName,
+      execution_time_ms: analytics.executionTime,
+      success: analytics.success,
+      error_message: analytics.errorMessage,
+      created_at: new Date().toISOString(),
+    })
+  } catch (error) {
+    // Don't fail if analytics logging fails
+    console.warn('Failed to log tool analytics:', error)
+  }
+}
+
+// ============================================
+// Streaming Response Handler (P0)
+// ============================================
+
+function createStreamingResponse(
+  responseStream: ReadableStream,
+  conversationId: string,
+  model: string
+): Response {
+  return new Response(responseStream, {
+    headers: {
+      ...corsHeaders,
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
+      'X-Conversation-Id': conversationId,
+      'X-Model': model,
+    },
+  })
+}
+
+// ============================================
+// Memory & Context Functions
+// ============================================
+
+async function getUserMemories(
+  supabase: ReturnType<typeof createClient>,
+  userId: string
+): Promise<UserMemory[]> {
+  try {
+    const { data, error } = await supabase.rpc('get_user_memories', {
+      p_user_id: userId,
+      p_limit: 20,
+    })
+
+    if (error) {
+      console.warn('Failed to fetch user memories:', error)
+      return []
+    }
+
+    return data || []
+  } catch (error) {
+    console.warn('Error fetching user memories:', error)
+    return []
+  }
+}
+
+async function getRecentSummaries(
+  supabase: ReturnType<typeof createClient>,
+  userId: string
+): Promise<string[]> {
+  try {
+    const { data, error } = await supabase.rpc('get_recent_summaries', {
+      p_user_id: userId,
+      p_limit: 5,
+    })
+
+    if (error) {
+      console.warn('Failed to fetch conversation summaries:', error)
+      return []
+    }
+
+    return (data || []).map((s: { summary: string }) => s.summary)
+  } catch (error) {
+    console.warn('Error fetching conversation summaries:', error)
+    return []
+  }
+}
+
+async function saveContextSnapshot(
+  supabase: ReturnType<typeof createClient>,
+  userId: string,
+  conversationId: string,
+  context: PageContext
+): Promise<void> {
+  try {
+    await supabase.from('ai_context_snapshots').insert({
+      user_id: userId,
+      conversation_id: conversationId,
+      current_page: context.currentPage,
+      page_type: context.pageType,
+      entity_type: context.entityType,
+      entity_id: context.entityId,
+      user_action: context.userAction,
+      created_at: new Date().toISOString(),
+    })
+  } catch (error) {
+    console.warn('Failed to save context snapshot:', error)
+  }
+}
+
+// Summarize conversation when it has enough messages
+async function summarizeConversationIfNeeded(
+  supabase: ReturnType<typeof createClient>,
+  conversationId: string,
+  userId: string
+): Promise<void> {
+  try {
+    // Get message count
+    const { count, error: countError } = await supabase
+      .from('ai_messages')
+      .select('*', { count: 'exact', head: true })
+      .eq('conversation_id', conversationId)
+
+    if (countError || !count || count < CONTEXT_CONFIG.summarizeAfterMessages) {
+      return // Not enough messages to summarize
+    }
+
+    // Check if already summarized
+    const { data: existingSummary } = await supabase
+      .from('ai_conversation_summaries')
+      .select('id')
+      .eq('conversation_id', conversationId)
+      .single()
+
+    if (existingSummary) {
+      return // Already summarized
+    }
+
+    // Get messages for summary
+    const { data: messages } = await supabase
+      .from('ai_messages')
+      .select('type, content, created_at')
+      .eq('conversation_id', conversationId)
+      .order('created_at', { ascending: true })
+      .limit(50)
+
+    if (!messages || messages.length < 5) return
+
+    // Create a summary using a simple LLM call
+    const summaryPrompt = `Summarize this conversation in 2-3 sentences. Focus on key topics discussed and any decisions or actions taken.
+
+Conversation:
+${messages.map(m => `${m.type}: ${m.content.substring(0, 500)}`).join('\n\n')}
+
+Summary:`
+
+    // Call LLM for summary (use a fast model)
+    const summaryResponse = await fetch(API_CONFIG.groq.url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${GROQ_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'llama-3.1-8b-instant',
+        messages: [{ role: 'user', content: summaryPrompt }],
+        max_tokens: 200,
+        temperature: 0.3,
+      }),
+    })
+
+    if (!summaryResponse.ok) {
+      console.warn('Failed to generate summary')
+      return
+    }
+
+    const summaryData = await summaryResponse.json()
+    const summary = summaryData.choices[0]?.message?.content || ''
+
+    if (!summary) return
+
+    // Extract key topics (simple extraction from messages)
+    const userMessages = messages.filter(m => m.type === 'user')
+    const topics = extractTopics(userMessages.map(m => m.content).join(' '))
+
+    // Calculate duration
+    const firstMessage = new Date(messages[0].created_at)
+    const lastMessage = new Date(messages[messages.length - 1].created_at)
+    const durationMinutes = Math.round((lastMessage.getTime() - firstMessage.getTime()) / 60000)
+
+    // Save summary
+    await supabase.from('ai_conversation_summaries').insert({
+      user_id: userId,
+      conversation_id: conversationId,
+      summary: summary.trim(),
+      key_topics: topics,
+      message_count: count,
+      duration_minutes: durationMinutes,
+      created_at: new Date().toISOString(),
+    })
+
+    console.log('📝 Saved conversation summary')
+  } catch (error) {
+    console.warn('Failed to summarize conversation:', error)
+  }
+}
+
+// Simple topic extraction
+function extractTopics(text: string): string[] {
+  const topics: string[] = []
+  const lowerText = text.toLowerCase()
+
+  // Domain-specific keywords
+  const keywords = [
+    'project', 'staff', 'candidate', 'schedule', 'payment',
+    'deadline', 'event', 'venue', 'budget', 'assignment',
+    'promotion', 'exhibition', 'conference', 'wedding',
+    'report', 'analytics', 'dashboard', 'settings',
+  ]
+
+  for (const keyword of keywords) {
+    if (lowerText.includes(keyword) && !topics.includes(keyword)) {
+      topics.push(keyword)
+    }
+  }
+
+  return topics.slice(0, 5) // Max 5 topics
+}
+
+// ============================================
+// Main Handler
+// ============================================
 
 Deno.serve(async (req) => {
   // Handle CORS
@@ -487,55 +901,160 @@ Deno.serve(async (req) => {
       message,
       conversationId,
       userId,
-      reasoningEffort = 'medium',
-      showReasoning = false
+      showToolCalls = false,
+      stream = false,
+      persona = 'general',
+      context: pageContext = null,
     } = await req.json()
 
     if (!message) {
       throw new Error('Message is required')
     }
 
-    console.log('🚀 Starting MCP-enhanced chat')
-    console.log('📝 Message:', message)
+    console.log('🚀 Starting Baiger chat')
+    console.log('📝 Message:', message.substring(0, 100))
     console.log('👤 User ID:', userId)
-    console.log('🔧 Reasoning Effort:', reasoningEffort)
+    console.log('🎭 Persona:', persona)
+    if (pageContext) {
+      console.log('📍 Context:', pageContext.pageType, pageContext.entityType ? `(${pageContext.entityType})` : '')
+    }
 
     // Initialize Supabase client
-    const supabase = createClient(
-      SUPABASE_URL,
-      SUPABASE_SERVICE_ROLE_KEY
-    )
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+
+    // Rate limit check (P0)
+    if (userId) {
+      const rateCheck = await checkRateLimit(supabase, userId)
+      if (!rateCheck.allowed) {
+        return new Response(
+          JSON.stringify({
+            error: rateCheck.message,
+            retryAfter: rateCheck.retryAfter,
+          }),
+          {
+            status: 429,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          }
+        )
+      }
+    }
 
     // Get or create conversation
     let activeConversationId = conversationId
+    let isNewConversation = false
+    let storedLanguage: DetectedLanguage | null = null
+
     if (!activeConversationId && userId) {
+      isNewConversation = true
       const { data: conversation } = await supabase
         .from('ai_conversations')
         .insert({
           user_id: userId,
           title: message.substring(0, 50),
-          created_at: new Date().toISOString()
+          persona: persona,
+          created_at: new Date().toISOString(),
         })
         .select('id')
         .single()
 
       activeConversationId = conversation?.id
+    } else if (activeConversationId) {
+      // Fetch existing conversation to get stored language
+      const { data: existingConv } = await supabase
+        .from('ai_conversations')
+        .select('metadata')
+        .eq('id', activeConversationId)
+        .single()
+
+      if (existingConv?.metadata?.language) {
+        storedLanguage = existingConv.metadata.language as DetectedLanguage
+        console.log(`🌐 Found stored language in conversation: ${storedLanguage}`)
+      }
     }
 
-    // Build conversation history
-    const messages: Message[] = [{ role: 'system', content: SYSTEM_PROMPT }]
+    // Fetch user memories and context (parallel for performance)
+    let memories: UserMemory[] = []
+    let recentSummaries: string[] = []
 
+    if (userId) {
+      const [memoriesResult, summariesResult] = await Promise.all([
+        getUserMemories(supabase, userId),
+        getRecentSummaries(supabase, userId),
+      ])
+      memories = memoriesResult
+      recentSummaries = summariesResult
+
+      console.log(`🧠 Loaded ${memories.length} memories, ${recentSummaries.length} summaries`)
+
+      // Save context snapshot for new conversations
+      if (isNewConversation && pageContext && activeConversationId) {
+        saveContextSnapshot(supabase, userId, activeConversationId, pageContext)
+      }
+    }
+
+    // Fetch conversation history FIRST (needed for language detection)
+    let conversationHistory: Array<{role: string, content: string}> = []
     if (activeConversationId) {
       const { data: history } = await supabase
         .from('ai_messages')
-        .select('role, content')
+        .select('type, content')
         .eq('conversation_id', activeConversationId)
         .order('created_at', { ascending: true })
-        .limit(10)
+        .limit(CONTEXT_CONFIG.maxHistoryMessages)
 
       if (history && history.length > 0) {
-        messages.push(...history)
+        // Truncate long messages and map 'type' to 'role' for LLM compatibility
+        conversationHistory = history.map(msg => ({
+          role: msg.type, // Map DB column 'type' to LLM expected 'role'
+          content: truncateMessageContent(msg.content, CONTEXT_CONFIG.maxTokensPerMessage),
+        }))
       }
+    }
+
+    // Detect user's language with conversation context (maintains language for button actions)
+    // Priority: 1) Stored language for action commands, 2) Detection from history, 3) Detection from message
+    let detectedLanguage: DetectedLanguage
+
+    if (isActionCommand(message) && storedLanguage) {
+      // Action command + stored language available: use stored language
+      detectedLanguage = storedLanguage
+      console.log(`🌐 Using stored language for action command: ${detectedLanguage}`)
+    } else if (isActionCommand(message)) {
+      // Action command but no stored language: try history
+      detectedLanguage = detectLanguageWithHistory(message, conversationHistory)
+      console.log(`🌐 Detected from history for action command: ${detectedLanguage}`)
+    } else {
+      // Regular message: detect directly
+      detectedLanguage = detectLanguage(message)
+      console.log(`🌐 Detected from message: ${detectedLanguage}`)
+
+      // Store this language in conversation for future action commands
+      if (activeConversationId && detectedLanguage !== 'english') {
+        supabase
+          .from('ai_conversations')
+          .update({
+            metadata: { language: detectedLanguage },
+            last_activity: new Date().toISOString(),
+          })
+          .eq('id', activeConversationId)
+          .then(() => console.log(`💾 Stored language ${detectedLanguage} in conversation`))
+          .catch(err => console.error('Failed to store language:', err))
+      }
+    }
+
+    // Build system prompt with detected language
+    const systemPrompt = getSystemPrompt({
+      persona: persona as Persona,
+      pageContext: pageContext as PageContext | null,
+      memories,
+      recentSummaries,
+      detectedLanguage,
+    })
+    const messages: Message[] = [{ role: 'system', content: systemPrompt }]
+
+    // Add conversation history to messages
+    if (conversationHistory.length > 0) {
+      messages.push(...conversationHistory)
     }
 
     // Add current user message
@@ -545,355 +1064,214 @@ Deno.serve(async (req) => {
     if (activeConversationId) {
       await supabase.from('ai_messages').insert({
         conversation_id: activeConversationId,
-        role: 'user',
+        type: 'user', // DB column is 'type', not 'role'
         content: message,
-        created_at: new Date().toISOString()
+        created_at: new Date().toISOString(),
       })
     }
 
-    // MCP Tools - Supabase database operations
-    const MCP_TOOLS = [
-      {
-        type: 'function',
-        function: {
-          name: 'execute_sql',
-          description: 'Execute a SQL query on the Baito-AI database. Supports SELECT, INSERT, UPDATE (DELETE is blocked). Returns query results or success confirmation.',
-          parameters: {
-            type: 'object',
-            properties: {
-              query: {
-                type: 'string',
-                description: 'The SQL query to execute. Use standard PostgreSQL syntax. For INSERT/UPDATE without RETURNING, returns {success:true}. For queries with RETURNING or SELECT, returns JSON array of results.'
-              }
-            },
-            required: ['query']
-          }
-        }
-      },
-      {
-        type: 'function',
-        function: {
-          name: 'list_tables',
-          description: 'List all available database tables with their schemas. Use this to discover what data is available.',
-          parameters: {
-            type: 'object',
-            properties: {
-              schemas: {
-                type: 'array',
-                items: { type: 'string' },
-                description: 'List of schemas to include (default: ["public"])'
-              }
-            }
-          }
-        }
-      }
-    ]
+    // Get typed tools
+    const MCP_TOOLS = getToolsForLLM()
 
-    // ReAct Loop with MCP
+    // Tool context for execution
+    const toolContext: ToolContext = {
+      userId,
+      conversationId: activeConversationId,
+      persona: persona as Persona,
+    }
+
+    // ReAct Loop with typed tools
     let iteration = 0
     let finalResponse = ''
-    let reasoningTokensUsed = 0
-    let allToolCalls: any[] = []
+    let allToolCalls: ToolAnalytics[] = []
+    let usedModel = MODELS.primary
 
     while (iteration < MAX_ITERATIONS) {
       iteration++
       console.log(`\n🔄 Iteration ${iteration}/${MAX_ITERATIONS}`)
 
-      // Call LLM with reasoning + MCP tools
-      const llmResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
-          'Content-Type': 'application/json',
-          'HTTP-Referer': 'https://baito-ai.com',
-          'X-Title': 'Baito-AI MCP Enhanced Chat'
-        },
-        body: JSON.stringify({
-          model: MODEL,
-          messages: messages,
-          tools: MCP_TOOLS,
-          tool_choice: 'auto',
-          reasoning: {
-            effort: reasoningEffort
-          },
-          max_tokens: 4000,
-          temperature: 0.7
-        })
-      })
+      // Truncate history if needed
+      const truncatedMessages = truncateHistory(messages)
 
-      if (!llmResponse.ok) {
-        const errorText = await llmResponse.text()
-        throw new Error(`OpenRouter API error: ${errorText}`)
-      }
+      // Call LLM with retry and fallback (P1)
+      const { data, model } = await callLLMWithRetry(truncatedMessages, MCP_TOOLS)
+      usedModel = model
 
-      const data = await llmResponse.json()
       const assistantMessage = data.choices[0].message
-
-      // Track reasoning tokens
-      if (data.usage?.reasoning_tokens) {
-        reasoningTokensUsed += data.usage.reasoning_tokens
-      }
-
-      // Add assistant message to conversation
       messages.push(assistantMessage)
 
-      console.log('🤖 Assistant response:', assistantMessage.content?.substring(0, 100))
+      console.log('🤖 Response:', assistantMessage.content?.substring(0, 100))
 
       // Check if there are tool calls
       if (!assistantMessage.tool_calls || assistantMessage.tool_calls.length === 0) {
-        // No more tool calls - final response
         finalResponse = assistantMessage.content || 'I apologize, I could not generate a response.'
         break
       }
 
-      // Execute tool calls
+      // Execute tool calls using typed tools
       console.log(`🔧 Executing ${assistantMessage.tool_calls.length} tool calls`)
 
       for (const toolCall of assistantMessage.tool_calls) {
         const functionName = toolCall.function.name
-        const functionArgs = JSON.parse(toolCall.function.arguments)
+        const toolStartTime = Date.now()
 
-        console.log(`🛠️  Tool: ${functionName}`)
-        console.log(`📋 Args:`, functionArgs)
-
-        allToolCalls.push({ name: functionName, args: functionArgs })
-
-        let toolResult: any
+        let toolResult: ToolResult
 
         try {
-          if (functionName === 'execute_sql') {
-            const sql = functionArgs.query
+          const functionArgs = JSON.parse(toolCall.function.arguments)
+          console.log(`🛠️ Tool: ${functionName}`, functionArgs)
 
-            // Validate SQL
-            const validation = validateSQL(sql)
-            if (!validation.valid) {
-              toolResult = {
-                error: validation.error,
-                blocked: true
-              }
-
-              // Log blocked operation
-              if (userId) {
-                await logDatabaseOperation(
-                  supabase,
-                  userId,
-                  'SQL_BLOCKED',
-                  sql,
-                  false,
-                  validation.error
-                )
-              }
+          // Check cache first (P1)
+          if (isCacheable(functionName)) {
+            const cachedResult = await getCachedResult(supabase, functionName, functionArgs)
+            if (cachedResult) {
+              toolResult = cachedResult as ToolResult
+              console.log('📦 Using cached result')
             } else {
-              // Execute SQL
-              console.log('📊 Executing SQL:', sql)
-
-              const { data: sqlData, error: sqlError } = await supabase.rpc('execute_sql', {
-                sql_query: sql
-              })
-
-              if (sqlError) {
-                // Return detailed error information to help LLM fix the query
-                toolResult = {
-                  error: true,
-                  message: sqlError.message,
-                  detail: sqlError.detail || 'No additional details',
-                  hint: sqlError.hint || 'Check SQL syntax, column names, and table names',
-                  code: sqlError.code,
-                  query: sql,
-                  helpfulContext: `The SQL query failed. Common issues:
-- Column name doesn't exist (check EXACT DATABASE SCHEMA above)
-- Table name misspelled
-- Wrong data type
-- Syntax error
-Please review the error message and try a corrected query.`
-                }
-
-                // Log failed operation
-                if (userId) {
-                  await logDatabaseOperation(
-                    supabase,
-                    userId,
-                    sql.trim().toUpperCase().split(' ')[0], // SELECT/INSERT/UPDATE
-                    sql,
-                    false,
-                    sqlError.message
-                  )
-                }
-              } else {
-                toolResult = {
-                  success: true,
-                  data: sqlData,
-                  rowCount: Array.isArray(sqlData) ? sqlData.length : 0
-                }
-
-                // Log successful operation
-                if (userId) {
-                  await logDatabaseOperation(
-                    supabase,
-                    userId,
-                    sql.trim().toUpperCase().split(' ')[0],
-                    sql,
-                    true
-                  )
-                }
-              }
-            }
-          } else if (functionName === 'list_tables') {
-            // Use MCP list_tables tool
-            const schemas = functionArgs.schemas || ['public']
-
-            // Query to list tables
-            const tablesQuery = `
-              SELECT table_name, table_schema
-              FROM information_schema.tables
-              WHERE table_schema = ANY($1)
-              ORDER BY table_name
-            `
-
-            const { data: tables, error: tablesError } = await supabase.rpc('execute_sql', {
-              sql_query: tablesQuery
-            })
-
-            if (tablesError) {
-              toolResult = { error: tablesError.message }
-            } else {
-              toolResult = {
-                success: true,
-                tables: tables,
-                count: tables?.length || 0
+              // Execute and cache
+              toolResult = await executeTool(functionName, functionArgs, supabase, toolContext)
+              if (toolResult.success) {
+                await setCachedResult(supabase, functionName, functionArgs, toolResult)
               }
             }
           } else {
-            toolResult = {
-              error: `Unknown tool: ${functionName}`
-            }
+            // Execute without caching (write operations)
+            toolResult = await executeTool(functionName, functionArgs, supabase, toolContext)
           }
+
+          const toolEndTime = Date.now()
+          allToolCalls.push({
+            toolName: functionName,
+            executionTime: toolEndTime - toolStartTime,
+            success: toolResult.success,
+            errorMessage: toolResult.error,
+          })
 
           console.log('✅ Tool result:', JSON.stringify(toolResult).substring(0, 200))
-
-          // Add tool result to messages
-          messages.push({
-            role: 'tool',
-            content: JSON.stringify(toolResult),
-            tool_call_id: toolCall.id
-          } as any)
-
         } catch (error) {
-          console.error('❌ Tool execution error:', error)
+          console.error('❌ Tool error:', error)
 
-          const errorResult = {
+          const toolEndTime = Date.now()
+          allToolCalls.push({
+            toolName: functionName,
+            executionTime: toolEndTime - toolStartTime,
+            success: false,
+            errorMessage: error instanceof Error ? error.message : 'Unknown error',
+          })
+
+          toolResult = {
+            success: false,
             error: error instanceof Error ? error.message : 'Unknown error',
-            failed: true
           }
+        }
 
-          messages.push({
-            role: 'tool',
-            content: JSON.stringify(errorResult),
-            tool_call_id: toolCall.id
-          } as any)
+        // Add tool result to messages
+        messages.push({
+          role: 'tool',
+          content: JSON.stringify(toolResult),
+          tool_call_id: toolCall.id,
+        } as any)
+
+        // Log analytics (P3)
+        if (userId && activeConversationId) {
+          await logToolAnalytics(supabase, userId, activeConversationId, allToolCalls[allToolCalls.length - 1])
         }
       }
-
-      // Continue to next iteration for LLM to process tool results
     }
 
-    // Check if we hit max iterations
+    // Handle max iterations
     if (iteration >= MAX_ITERATIONS && !finalResponse) {
       finalResponse = 'I apologize, but I needed too many steps to complete this request. Could you please rephrase or break down your request?'
     }
 
-    // Extract buttons from response if present
+    // Extract buttons from response
     let extractedButtons: any[] = []
     let cleanResponse = finalResponse
 
-    // Try to parse response as JSON to extract buttons
     try {
-      // Look for JSON block in response (between ```json and ```)
       const jsonMatch = finalResponse.match(/```json\s*(\{[\s\S]*?\})\s*```/)
       if (jsonMatch) {
         const parsed = JSON.parse(jsonMatch[1])
         if (parsed.reply && parsed.buttons) {
           cleanResponse = parsed.reply
           extractedButtons = parsed.buttons
-          console.log('📋 Extracted buttons:', extractedButtons)
         }
       } else {
-        // Try parsing entire response as JSON
         const parsed = JSON.parse(finalResponse)
         if (parsed.reply && parsed.buttons) {
           cleanResponse = parsed.reply
           extractedButtons = parsed.buttons
-          console.log('📋 Extracted buttons:', extractedButtons)
         }
       }
-    } catch (e) {
-      // Not JSON or no buttons - that's okay, use original response
+    } catch {
+      // Not JSON - use as-is
     }
 
     // Save assistant response
     if (activeConversationId) {
       await supabase.from('ai_messages').insert({
         conversation_id: activeConversationId,
-        role: 'assistant',
+        type: 'assistant', // DB column is 'type', not 'role'
         content: cleanResponse,
         metadata: extractedButtons.length > 0 ? { buttons: extractedButtons } : null,
-        created_at: new Date().toISOString()
+        created_at: new Date().toISOString(),
       })
+
+      // Trigger summarization check (async, don't wait)
+      if (userId) {
+        summarizeConversationIfNeeded(supabase, activeConversationId, userId).catch(console.warn)
+      }
     }
 
     const endTime = Date.now()
     const totalTime = endTime - startTime
 
     console.log('✅ Chat completed')
-    console.log('⏱️  Total time:', totalTime, 'ms')
-    console.log('🧠 Reasoning tokens:', reasoningTokensUsed)
+    console.log('⏱️ Total time:', totalTime, 'ms')
     console.log('🔧 Tool calls made:', allToolCalls.length)
+    console.log('🤖 Model used:', usedModel)
 
     // Build response
     const response: any = {
       reply: cleanResponse,
       conversationId: activeConversationId,
       metadata: {
-        model: MODEL,
-        reasoningTokens: reasoningTokensUsed,
-        totalTime: totalTime,
+        model: usedModel,
+        totalTime,
         iterations: iteration,
         toolCallsCount: allToolCalls.length,
-        mcpEnabled: MCP_ENABLED,
-        timestamp: new Date().toISOString()
-      }
+        persona,
+        timestamp: new Date().toISOString(),
+      },
     }
 
-    // Add buttons if present
     if (extractedButtons.length > 0) {
       response.buttons = extractedButtons
     }
 
-    if (showReasoning && allToolCalls.length > 0) {
-      response.toolCalls = allToolCalls
+    if (showToolCalls && allToolCalls.length > 0) {
+      response.toolCalls = allToolCalls.map(tc => ({
+        name: tc.toolName,
+        time: tc.executionTime,
+        success: tc.success,
+      }))
     }
 
     return new Response(JSON.stringify(response), {
-      headers: {
-        ...corsHeaders,
-        'Content-Type': 'application/json'
-      }
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
 
   } catch (error) {
-    console.error('❌ MCP Chat error:', error)
+    console.error('❌ Baiger Chat error:', error)
 
     return new Response(
       JSON.stringify({
         error: error instanceof Error ? error.message : 'Unknown error',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       }),
       {
         status: 500,
-        headers: {
-          ...corsHeaders,
-          'Content-Type': 'application/json'
-        }
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
     )
   }

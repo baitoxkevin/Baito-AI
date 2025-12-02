@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MCP Chatbot - Advanced Testing Suite</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 32px;
+        }
+
+        .status {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            background: #10b981;
+            color: white;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .panel {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        .panel h2 {
+            color: #667eea;
+            font-size: 20px;
+            margin-bottom: 20px;
+        }
+
+        .test-suite {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .test-button {
+            padding: 15px 20px;
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: left;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .test-button:hover {
+            background: #f3f4f6;
+            border-color: #667eea;
+        }
+
+        .test-button.running {
+            background: #fef3c7;
+            border-color: #f59e0b;
+        }
+
+        .test-button.passed {
+            background: #d1fae5;
+            border-color: #10b981;
+        }
+
+        .test-button.failed {
+            background: #fee2e2;
+            border-color: #ef4444;
+        }
+
+        .test-name {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .test-status {
+            font-size: 20px;
+        }
+
+        .chat-area {
+            display: flex;
+            flex-direction: column;
+            height: 600px;
+        }
+
+        .messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            background: #f9fafb;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .message {
+            margin-bottom: 15px;
+            padding: 15px;
+            border-radius: 10px;
+            max-width: 80%;
+        }
+
+        .message.user {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            margin-left: auto;
+        }
+
+        .message.assistant {
+            background: white;
+            border: 2px solid #e5e7eb;
+        }
+
+        .message.system {
+            background: #fef3c7;
+            border: 2px solid #f59e0b;
+            max-width: 100%;
+            font-size: 14px;
+        }
+
+        .message-meta {
+            font-size: 12px;
+            opacity: 0.7;
+            margin-top: 5px;
+        }
+
+        .input-area {
+            display: flex;
+            gap: 10px;
+        }
+
+        .input-area textarea {
+            flex: 1;
+            padding: 15px;
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+            font-family: inherit;
+            font-size: 14px;
+            resize: none;
+        }
+
+        .input-area button {
+            padding: 15px 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .input-area button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .input-area button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .stat-card {
+            background: #f9fafb;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 32px;
+            font-weight: 700;
+            color: #667eea;
+        }
+
+        .stat-label {
+            font-size: 14px;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .control-button {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+            background: white;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .control-button:hover {
+            background: #f3f4f6;
+        }
+
+        .control-button.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        pre {
+            background: #1f2937;
+            color: #10b981;
+            padding: 15px;
+            border-radius: 10px;
+            overflow-x: auto;
+            font-size: 12px;
+            margin-top: 10px;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .loading.visible {
+            display: block;
+        }
+
+        .spinner {
+            border: 3px solid #f3f4f6;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 MCP Chatbot - Advanced Testing Suite</h1>
+            <span class="status">✅ READY</span>
+
+            <div class="stats">
+                <div class="stat-card">
+                    <div class="stat-value" id="testsPassed">0</div>
+                    <div class="stat-label">Tests Passed</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="testsFailed">0</div>
+                    <div class="stat-label">Tests Failed</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="avgResponseTime">0ms</div>
+                    <div class="stat-label">Avg Response Time</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="totalQueries">0</div>
+                    <div class="stat-label">Total Queries</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid">
+            <div class="panel">
+                <h2>🧪 Automated Test Suite</h2>
+
+                <div class="controls">
+                    <button class="control-button" onclick="runAllTests()">▶️ Run All Tests</button>
+                    <button class="control-button" onclick="clearResults()">🗑️ Clear Results</button>
+                    <button class="control-button" onclick="exportResults()">📥 Export Results</button>
+                </div>
+
+                <div class="test-suite" id="testSuite">
+                    <button class="test-button" onclick="runTest(1)" data-test="1">
+                        <span class="test-name">1. Capabilities Query</span>
+                        <span class="test-status">⏸️</span>
+                    </button>
+                    <button class="test-button" onclick="runTest(2)" data-test="2">
+                        <span class="test-name">2. Database Read (Active Projects)</span>
+                        <span class="test-status">⏸️</span>
+                    </button>
+                    <button class="test-button" onclick="runTest(3)" data-test="3">
+                        <span class="test-name">3. Security: Block DELETE</span>
+                        <span class="test-status">⏸️</span>
+                    </button>
+                    <button class="test-button" onclick="runTest(4)" data-test="4">
+                        <span class="test-name">4. List Database Tables</span>
+                        <span class="test-status">⏸️</span>
+                    </button>
+                    <button class="test-button" onclick="runTest(5)" data-test="5">
+                        <span class="test-name">5. Complex Query (Mandarin Speakers)</span>
+                        <span class="test-status">⏸️</span>
+                    </button>
+                    <button class="test-button" onclick="runTest(6)" data-test="6">
+                        <span class="test-name">6. Job Posting Recognition</span>
+                        <span class="test-status">⏸️</span>
+                    </button>
+                    <button class="test-button" onclick="runTest(7)" data-test="7">
+                        <span class="test-name">7. Create New Project</span>
+                        <span class="test-status">⏸️</span>
+                    </button>
+                    <button class="test-button" onclick="runTest(8)" data-test="8">
+                        <span class="test-name">8. Update Project Status</span>
+                        <span class="test-status">⏸️</span>
+                    </button>
+                    <button class="test-button" onclick="runTest(9)" data-test="9">
+                        <span class="test-name">9. Find Available Candidates</span>
+                        <span class="test-status">⏸️</span>
+                    </button>
+                    <button class="test-button" onclick="runTest(10)" data-test="10">
+                        <span class="test-name">10. Conversation Memory</span>
+                        <span class="test-status">⏸️</span>
+                    </button>
+                </div>
+
+                <div class="loading" id="loadingTests">
+                    <div class="spinner"></div>
+                    <p>Running tests...</p>
+                </div>
+            </div>
+
+            <div class="panel">
+                <h2>💬 Interactive Chat</h2>
+
+                <div class="chat-area">
+                    <div class="messages" id="messages">
+                        <div class="message system">
+                            <strong>System:</strong> MCP Chatbot ready. Type a message or run automated tests.
+                        </div>
+                    </div>
+
+                    <div class="input-area">
+                        <textarea id="userMessage" placeholder="Type your message here..." rows="3"></textarea>
+                        <button onclick="sendMessage()" id="sendButton">Send</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const ENDPOINT = 'https://aoiwrdzlichescqgnohi.supabase.co/functions/v1/ai-chat-mcp-enhanced';
+        const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFvaXdyZHpsaWNoZXNjcWdub2hpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDAyNTM2NDgsImV4cCI6MjA1NTgyOTY0OH0.F505FnCo_hg6_LpEZ-yvNWd5Zw5OnCnGxIogP4txeCY';
+
+        let conversationId = null;
+        let userId = 'test-user-advanced-' + Date.now();
+        let testResults = [];
+        let responseTimes = [];
+
+        const testCases = {
+            1: { message: 'What can you do?', reasoning: 'medium', expected: 'capabilities' },
+            2: { message: 'Show me all my active projects', reasoning: 'low', expected: 'projects' },
+            3: { message: 'Delete all old projects from 2023', reasoning: 'low', expected: 'blocked' },
+            4: { message: 'What tables are in the database?', reasoning: 'low', expected: 'tables' },
+            5: { message: 'Find me all Mandarin-speaking candidates', reasoning: 'medium', expected: 'candidates' },
+            6: { message: 'Need 8 waiters for wedding. Dec 5th, 6pm-11pm. Grand Hyatt. RM20/hour.', reasoning: 'high', expected: 'create' },
+            7: { message: 'Create a new project for Samsung product launch at Mid Valley on Dec 15', reasoning: 'high', expected: 'created' },
+            8: { message: 'Update the Samsung project status to confirmed', reasoning: 'medium', expected: 'updated' },
+            9: { message: 'Show me candidates available this weekend', reasoning: 'medium', expected: 'available' },
+            10: { message: 'What was my first question?', reasoning: 'low', expected: 'memory' }
+        };
+
+        async function callChatbot(message, reasoningEffort = 'medium') {
+            const startTime = Date.now();
+
+            const payload = {
+                message,
+                userId,
+                reasoningEffort,
+                showReasoning: true
+            };
+
+            if (conversationId) {
+                payload.conversationId = conversationId;
+            }
+
+            const response = await fetch(ENDPOINT, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${ANON_KEY}`
+                },
+                body: JSON.stringify(payload)
+            });
+
+            const endTime = Date.now();
+            const responseTime = endTime - startTime;
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+            }
+
+            const data = await response.json();
+
+            if (data.conversationId) {
+                conversationId = data.conversationId;
+            }
+
+            responseTimes.push(responseTime);
+            updateStats();
+
+            return { ...data, responseTime };
+        }
+
+        function addMessage(type, content, metadata = null) {
+            const messagesDiv = document.getElementById('messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}`;
+
+            let html = `<div>${content}</div>`;
+
+            if (metadata) {
+                html += `<div class="message-meta">`;
+                html += `⏱️ ${metadata.responseTime}ms | `;
+                html += `🧠 ${metadata.reasoningTokens || 0} tokens | `;
+                html += `🔄 ${metadata.iterations || 0} iterations | `;
+                html += `🛠️ ${metadata.toolCallsCount || 0} tools`;
+                html += `</div>`;
+            }
+
+            messageDiv.innerHTML = html;
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('userMessage');
+            const message = input.value.trim();
+
+            if (!message) return;
+
+            input.value = '';
+            document.getElementById('sendButton').disabled = true;
+
+            addMessage('user', message);
+            addMessage('system', '🤔 Thinking...');
+
+            try {
+                const result = await callChatbot(message);
+
+                // Remove thinking message
+                const messages = document.getElementById('messages');
+                messages.removeChild(messages.lastChild);
+
+                addMessage('assistant', result.reply, result.metadata);
+
+                if (result.toolCalls && result.toolCalls.length > 0) {
+                    const toolsHtml = '<strong>Tool Calls:</strong><pre>' +
+                        JSON.stringify(result.toolCalls, null, 2) +
+                        '</pre>';
+                    addMessage('system', toolsHtml);
+                }
+
+                document.getElementById('totalQueries').textContent =
+                    parseInt(document.getElementById('totalQueries').textContent) + 1;
+
+            } catch (error) {
+                const messages = document.getElementById('messages');
+                messages.removeChild(messages.lastChild);
+                addMessage('system', `❌ Error: ${error.message}`);
+            }
+
+            document.getElementById('sendButton').disabled = false;
+        }
+
+        async function runTest(testNum) {
+            const button = document.querySelector(`[data-test="${testNum}"]`);
+            const statusSpan = button.querySelector('.test-status');
+
+            button.classList.add('running');
+            statusSpan.textContent = '⏳';
+
+            const testCase = testCases[testNum];
+
+            addMessage('system', `🧪 Running Test ${testNum}: ${testCase.message}`);
+
+            try {
+                const result = await callChatbot(testCase.message, testCase.reasoning);
+
+                const passed = evaluateTest(testNum, result);
+
+                button.classList.remove('running');
+                if (passed) {
+                    button.classList.add('passed');
+                    statusSpan.textContent = '✅';
+                    document.getElementById('testsPassed').textContent =
+                        parseInt(document.getElementById('testsPassed').textContent) + 1;
+                } else {
+                    button.classList.add('failed');
+                    statusSpan.textContent = '❌';
+                    document.getElementById('testsFailed').textContent =
+                        parseInt(document.getElementById('testsFailed').textContent) + 1;
+                }
+
+                testResults.push({
+                    test: testNum,
+                    message: testCase.message,
+                    passed,
+                    responseTime: result.responseTime,
+                    reply: result.reply,
+                    metadata: result.metadata
+                });
+
+                addMessage('assistant', result.reply, result.metadata);
+
+            } catch (error) {
+                button.classList.remove('running');
+                button.classList.add('failed');
+                statusSpan.textContent = '❌';
+                addMessage('system', `❌ Test ${testNum} failed: ${error.message}`);
+
+                document.getElementById('testsFailed').textContent =
+                    parseInt(document.getElementById('testsFailed').textContent) + 1;
+            }
+        }
+
+        function evaluateTest(testNum, result) {
+            const testCase = testCases[testNum];
+            const reply = result.reply.toLowerCase();
+
+            switch (testCase.expected) {
+                case 'capabilities':
+                    return reply.includes('project') || reply.includes('candidate') || reply.includes('manage');
+                case 'projects':
+                    return !result.error && result.metadata.iterations < 5;
+                case 'blocked':
+                    return reply.includes('delete') && reply.includes('not allowed');
+                case 'tables':
+                    return reply.includes('table') || reply.includes('database');
+                case 'candidates':
+                    return reply.includes('candidate') || reply.includes('mandarin');
+                case 'create':
+                case 'created':
+                    return reply.includes('project') || reply.includes('created');
+                case 'updated':
+                    return reply.includes('update') || reply.includes('confirmed');
+                case 'available':
+                    return reply.includes('available') || reply.includes('candidate');
+                case 'memory':
+                    return reply.includes('first') || reply.includes('question');
+                default:
+                    return true;
+            }
+        }
+
+        async function runAllTests() {
+            clearResults();
+            document.getElementById('loadingTests').classList.add('visible');
+
+            for (let i = 1; i <= 10; i++) {
+                await runTest(i);
+                await new Promise(resolve => setTimeout(resolve, 2000)); // 2s delay between tests
+            }
+
+            document.getElementById('loadingTests').classList.remove('visible');
+            addMessage('system', '✅ All tests completed!');
+        }
+
+        function clearResults() {
+            testResults = [];
+            responseTimes = [];
+            conversationId = null;
+
+            document.querySelectorAll('.test-button').forEach(button => {
+                button.classList.remove('running', 'passed', 'failed');
+                button.querySelector('.test-status').textContent = '⏸️';
+            });
+
+            document.getElementById('testsPassed').textContent = '0';
+            document.getElementById('testsFailed').textContent = '0';
+            document.getElementById('totalQueries').textContent = '0';
+
+            document.getElementById('messages').innerHTML = `
+                <div class="message system">
+                    <strong>System:</strong> Results cleared. Ready for new tests.
+                </div>
+            `;
+
+            updateStats();
+        }
+
+        function updateStats() {
+            if (responseTimes.length > 0) {
+                const avg = responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length;
+                document.getElementById('avgResponseTime').textContent = Math.round(avg) + 'ms';
+            }
+        }
+
+        function exportResults() {
+            const data = {
+                userId,
+                conversationId,
+                timestamp: new Date().toISOString(),
+                testResults,
+                stats: {
+                    passed: parseInt(document.getElementById('testsPassed').textContent),
+                    failed: parseInt(document.getElementById('testsFailed').textContent),
+                    avgResponseTime: document.getElementById('avgResponseTime').textContent,
+                    totalQueries: parseInt(document.getElementById('totalQueries').textContent)
+                }
+            };
+
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `mcp-test-results-${Date.now()}.json`;
+            a.click();
+        }
+
+        // Enter to send
+        document.getElementById('userMessage').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        console.log('🎉 MCP Advanced Testing Suite Loaded');
+        console.log('Endpoint:', ENDPOINT);
+        console.log('User ID:', userId);
+    </script>
+</body>
+</html>

@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Profile Layout</title>
+    <style>
+        /* Reset styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        /* Ensure proper scrolling */
+        html {
+            scroll-behavior: smooth;
+            overflow-x: hidden;
+            height: 100%;
+        }
+
+        body {
+            min-height: 100vh;
+            overflow-x: hidden;
+            overflow-y: auto;
+            height: auto;
+            background: #f3f4f6;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        /* Root container */
+        #root {
+            width: 100%;
+            max-width: 100%;
+            margin: 0 auto;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* Main container */
+        .main-container {
+            min-height: 100vh;
+            background-color: #f3f4f6;
+            width: 100%;
+        }
+
+        /* Content wrapper with max-width and centering */
+        .content-wrapper {
+            width: 100%;
+            max-width: 56rem; /* max-w-4xl = 56rem */
+            margin: 0 auto;
+            padding: 0 1rem;
+        }
+
+        /* For larger screens, remove padding */
+        @media (min-width: 1024px) {
+            .content-wrapper {
+                padding: 0;
+            }
+        }
+
+        /* Header section */
+        .header {
+            background: #000;
+            padding: 2rem 1rem 1.5rem;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3), 0 6px 12px rgba(0,0,0,0.2);
+        }
+
+        .header-content {
+            max-width: 42rem;
+            margin: 0 auto;
+            color: white;
+        }
+
+        /* Tab navigation */
+        .tab-nav {
+            background: #f9fafb;
+            border-bottom: 1px solid #e5e7eb;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.1), 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .tab-nav-content {
+            max-width: 42rem;
+            margin: 0 auto;
+            padding: 0 1rem;
+            display: flex;
+            gap: 0.25rem;
+            overflow-x: auto;
+        }
+
+        .tab-button {
+            padding: 0.75rem 1rem;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            font-size: 0.875rem;
+            color: #6b7280;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .tab-button:hover {
+            color: #000;
+        }
+
+        .tab-button.active {
+            color: #000;
+            background: white;
+            border-bottom-color: #000;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
+        /* Main content area */
+        .main-content {
+            max-width: 42rem;
+            margin: 0 auto;
+            padding: 1.5rem 1rem 8rem;
+        }
+
+        /* Card example */
+        .card {
+            background: white;
+            border-radius: 1rem;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.5), 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        /* Fixed save button */
+        .save-button-container {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            border-top: 1px solid #e5e7eb;
+            padding: 1rem;
+            z-index: 20;
+            box-shadow: 0 -4px 12px rgba(0,0,0,0.1);
+        }
+
+        .save-button-wrapper {
+            width: 100%;
+            max-width: 56rem;
+            margin: 0 auto;
+        }
+
+        .save-button-inner {
+            max-width: 42rem;
+            margin: 0 auto;
+        }
+
+        .save-button {
+            width: 100%;
+            background: #000;
+            color: white;
+            border: none;
+            border-radius: 9999px;
+            padding: 1rem;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.1), 0 4px 16px rgba(0,0,0,0.2);
+        }
+
+        .save-button:hover {
+            transform: scale(1.05);
+        }
+
+        /* Test long content */
+        .test-content {
+            height: 150vh;
+            background: linear-gradient(to bottom, #f3f4f6, #e5e7eb);
+            padding: 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            color: #6b7280;
+        }
+    </style>
+</head>
+<body>
+    <div id="root">
+        <div class="main-container">
+            <div class="content-wrapper">
+                <!-- Header -->
+                <div class="header">
+                    <div class="header-content">
+                        <h1>Professional Profile Test</h1>
+                        <p>Testing centering and scrollability</p>
+                    </div>
+                </div>
+
+                <!-- Tab Navigation -->
+                <div class="tab-nav">
+                    <div class="tab-nav-content">
+                        <button class="tab-button active">Personal Info</button>
+                        <button class="tab-button">Address</button>
+                        <button class="tab-button">Photos</button>
+                        <button class="tab-button">Skills & Edu</button>
+                        <button class="tab-button">Bank Details</button>
+                    </div>
+                </div>
+
+                <!-- Main Content -->
+                <div class="main-content">
+                    <div class="card">
+                        <h2>Content is Properly Centered</h2>
+                        <p>This content should be centered on laptop/desktop screens (max-width: 56rem / 896px).</p>
+                        <p>On screens larger than 1024px, there should be no horizontal padding.</p>
+                    </div>
+
+                    <div class="card">
+                        <h2>Scrollability Test</h2>
+                        <p>The page should scroll naturally when content exceeds viewport height.</p>
+                        <p>There should be no horizontal scrollbar.</p>
+                    </div>
+
+                    <!-- Long content to test scrolling -->
+                    <div class="test-content">
+                        <div>
+                            <p>This is a tall content area to test scrolling.</p>
+                            <p>You should be able to scroll vertically to see all content.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Fixed Save Button -->
+                <div class="save-button-container">
+                    <div class="save-button-wrapper">
+                        <div class="save-button-inner">
+                            <button class="save-button">
+                                Save Changes (Test Mode)
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

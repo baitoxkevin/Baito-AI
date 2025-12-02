@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>White Cards Test</title>
+    <style>
+        body {
+            background-color: #f3f4f6;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            padding: 20px;
+        }
+
+        /* Test the exact CSS we're using */
+        .bg-white {
+            background-color: #ffffff !important;
+            opacity: 1 !important;
+        }
+
+        .dark .bg-white {
+            background-color: #ffffff !important;
+        }
+
+        .test-card {
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 20px;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.5), 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        h2 {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 16px;
+        }
+
+        .info {
+            background: #3b82f6;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="info">
+        Testing white cards rendering on gray background (#f3f4f6)
+    </div>
+
+    <div class="test-card bg-white">
+        <h2>Card 1: Using bg-white class</h2>
+        <p>This card uses the bg-white class with !important</p>
+    </div>
+
+    <div class="test-card" style="background-color: #ffffff;">
+        <h2>Card 2: Inline style without !important</h2>
+        <p>This card uses inline style without !important</p>
+    </div>
+
+    <div class="test-card" style="background-color: #ffffff !important;">
+        <h2>Card 3: Inline style with !important</h2>
+        <p>This card uses inline style with !important</p>
+    </div>
+
+    <div class="test-card" style="background: white;">
+        <h2>Card 4: Using background shorthand</h2>
+        <p>This card uses background: white;</p>
+    </div>
+
+    <script>
+        // Log computed styles for debugging
+        const cards = document.querySelectorAll('.test-card');
+        cards.forEach((card, index) => {
+            const computed = window.getComputedStyle(card);
+            console.log(`Card ${index + 1}:`, {
+                backgroundColor: computed.backgroundColor,
+                opacity: computed.opacity,
+                display: computed.display
+            });
+        });
+    </script>
+</body>
+</html>

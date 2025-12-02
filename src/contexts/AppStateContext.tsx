@@ -90,7 +90,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // Load user data on initialization - but skip for public routes
+  // Load user data on initialization - listen for auth state changes
   useEffect(() => {
     // Skip user authentication for specific public routes
     const isPublicRoute = window.location.pathname.includes('/candidate-update/') ||
@@ -98,38 +98,34 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
                           window.location.pathname.includes('/set-password');
 
     if (isPublicRoute) {
-      console.log('Public route detected - skipping authentication');
+      console.log('[APPSTATE] Public route detected - skipping authentication');
       setIsLoadingUser(false);
       return;
     }
 
-    const loadUser = async () => {
-      try {
-        // Don't set loading true - load in background without blocking UI
-        const user = await getUser();
-        setCurrentUser(user);
-      } catch (error) {
-        console.error('Error loading user:', error);
+    console.log('[APPSTATE] Setting up auth state listener');
 
-        // Handle auth session missing error silently
-        const errorMessage = String(error);
-        if (errorMessage.includes('AuthSessionMissingError') ||
-            errorMessage.includes('Auth session missing')) {
-          console.log('No authentication session found - user not logged in');
-          setCurrentUser(null);
+    // Listen for auth state changes - this handles session restoration
+    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('[APPSTATE] Auth event:', event, 'Session:', !!session);
+
+      if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        if (session?.user) {
+          console.log('[APPSTATE] Setting currentUser:', session.user.email);
+          setCurrentUser(session.user);
         }
-        // Don't show toast for candidate-update routes or auth session missing errors
-        else if (!isPublicRoute) {
-          toast({
-            title: 'Authentication Error',
-            description: 'Failed to authenticate user. Please try logging in again.',
-            variant: 'destructive',
-          });
-        }
+      } else if (event === 'SIGNED_OUT') {
+        console.log('[APPSTATE] User signed out, clearing currentUser');
+        setCurrentUser(null);
       }
-    };
+      setIsLoadingUser(false);
+    });
 
-    loadUser();
+    // Cleanup listener on unmount
+    return () => {
+      console.log('[APPSTATE] Cleaning up auth listener');
+      authListener?.subscription.unsubscribe();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

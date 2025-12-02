@@ -297,7 +297,7 @@ export default function DashboardPage() {
                 .from('performance_metrics')
                 .select('reliability_score')
                 .eq('candidate_id', user.id)
-                .single();
+                .maybeSingle();
 
             setPersonalKPI({
                 projectsCompleted: completedProjects,

@@ -214,6 +214,29 @@ export class ProjectService {
 
     if (error) throw error;
 
+    // Automatically create default schedule for the project
+    try {
+      const { error: scheduleError } = await supabase
+        .from('project_schedules')
+        .insert({
+          project_id: project.id,
+          start_date: project.start_date || new Date().toISOString(),
+          end_date: project.end_date || project.start_date || new Date().toISOString(),
+          location: data.venue_address || 'TBD',
+          shift_start_time: '09:00', // Default shift start time
+          shift_end_time: '17:00',   // Default shift end time
+          is_active: true
+        });
+
+      if (scheduleError) {
+        console.error('Failed to create default schedule:', scheduleError);
+        // Don't throw - project creation succeeded, schedule is optional
+      }
+    } catch (scheduleCreationError) {
+      console.error('Error creating default schedule:', scheduleCreationError);
+      // Don't throw - project creation succeeded
+    }
+
     // Invalidate list cache
     await cacheManager.invalidate('projects:list:*');
 

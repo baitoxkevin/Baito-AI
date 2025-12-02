@@ -34,6 +34,58 @@
     white-space: nowrap;
     border-width: 0;
   }
+
+  /* Content centering utilities */
+  .center-content {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    width: 100%;
+  }
+
+  .center-horizontal {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+  }
+
+  .center-vertical {
+    display: flex;
+    align-items: center;
+    min-height: 100vh;
+  }
+
+  /* Main content container with proper scrolling */
+  .main-content {
+    width: 100%;
+    max-width: 100%;
+    min-height: 100vh;
+    overflow-y: auto;
+    overflow-x: hidden;
+    position: relative;
+  }
+
+  /* Fixed layout with scrollable content area */
+  .app-layout {
+    display: flex;
+    min-height: 100vh;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+
+  .app-layout-sidebar {
+    flex-shrink: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+
+  .app-layout-content {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    position: relative;
+  }
 }
 
 @layer base {
@@ -105,9 +157,18 @@
     @apply border-border;
     -webkit-tap-highlight-color: transparent;
   }
+  html {
+    scroll-behavior: smooth;
+    overflow-x: hidden;
+    height: 100%;
+  }
   body {
-    @apply bg-background text-foreground m-0 overflow-hidden;
+    @apply bg-background text-foreground m-0;
     font-feature-settings: "rlig" 1, "calt" 1;
+    min-height: 100vh;
+    overflow-x: hidden;
+    overflow-y: auto;
+    height: auto;
   }
 }
 
@@ -179,9 +240,25 @@
   box-shadow: 0 0 0 2px hsl(var(--ring));
 }
 
-/* Add smooth transitions for theme changes */
-* {
+/* Add smooth transitions for theme changes - More specific to avoid conflicts */
+html, body {
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* Apply transitions only to theme-aware elements */
+.theme-transition {
   transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+/* Ensure white backgrounds are always visible */
+.bg-white {
+  background-color: #ffffff !important;
+  opacity: 1 !important;
+}
+
+/* Prevent dark mode from overriding explicit white backgrounds */
+.dark .bg-white {
+  background-color: #ffffff !important;
 }
 
 /* Hide scrollbar but keep functionality */
@@ -203,6 +280,27 @@
   .sidebar-link-icon {
     @apply h-4 w-4;
   }
+}
+
+/* iOS Safe Area Support */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+.safe-area-top {
+  padding-top: env(safe-area-inset-top, 0);
+}
+
+/* Touch-friendly tap targets (minimum 44px) */
+.touch-target {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+/* Optimize for touch interactions */
+.touch-manipulation {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 /* Custom scrollbar */

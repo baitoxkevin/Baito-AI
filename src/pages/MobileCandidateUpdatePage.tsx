@@ -370,6 +370,7 @@ export default function MobileCandidateUpdatePage() {
         profile_photo: candidateData.profile_photo || '',
         home_address: candidateData.home_address || '',
         business_address: candidateData.business_address || '',
+        country: candidateData.country || '',
         bank_name: candidateData.bank_name || '',
         bank_account_number: candidateData.bank_account_number || '',
         bank_account_name: candidateData.bank_account_name || candidateData.full_name || '',
@@ -490,6 +491,7 @@ export default function MobileCandidateUpdatePage() {
         profile_photo: fullCandidateData.profile_photo || '',
         home_address: fullCandidateData.home_address || '',
         business_address: fullCandidateData.business_address || '',
+        country: fullCandidateData.country || '',
         bank_name: fullCandidateData.bank_name || '',
         bank_account_number: fullCandidateData.bank_account_number || '',
         bank_account_name: fullCandidateData.bank_account_name || fullCandidateData.full_name || '',
@@ -709,6 +711,7 @@ export default function MobileCandidateUpdatePage() {
       // Contact/Address tab
       'home_address': 'contact',
       'business_address': 'contact',
+      'country': 'contact',
       // Banking tab
       'bank_name': 'banking',
       'bank_account_number': 'banking',
@@ -773,7 +776,11 @@ export default function MobileCandidateUpdatePage() {
     if (!formData.home_address) {
       errors.home_address = 'Home address is required';
     }
-    
+
+    if (!formData.country) {
+      errors.country = 'Country is required';
+    }
+
     // Validate bank information
     if (!formData.bank_name) {
       errors.bank_name = 'Bank name is required';
@@ -953,6 +960,7 @@ export default function MobileCandidateUpdatePage() {
         profile_photo: profilePhotoUrl,
         home_address: formData.home_address,
         business_address: formData.business_address,
+        country: formData.country,
         bank_name: formData.bank_name,
         bank_account_number: formData.bank_account_number,
         bank_account_name: formData.bank_account_name,
@@ -1458,8 +1466,30 @@ export default function MobileCandidateUpdatePage() {
                       </AnimatedGradientText>
                     </h3>
                   </motion.div>
+
+                  {/* Enhanced UI Button */}
+                  <motion.div
+                    className="mt-2"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 0.3 }}
+                  >
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-xs bg-gradient-to-r from-blue-500 to-cyan-500 text-white border-0 hover:from-blue-600 hover:to-cyan-600 shadow-md hover:shadow-lg transition-all"
+                      onClick={() => {
+                        const currentUrl = window.location.pathname + window.location.search;
+                        const enhancedUrl = currentUrl.replace('/candidate-update-mobile/', '/candidate-profile-enhanced/');
+                        window.location.href = enhancedUrl;
+                      }}
+                    >
+                      <Sparkles className="h-3 w-3 mr-1" />
+                      Try Enhanced UI
+                    </Button>
+                  </motion.div>
                 </div>
-                
+
                 <div className="w-full flex flex-col flex-1">
                   <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex-1 flex flex-col">
                     <MagicCard className="relative w-full overflow-visible rounded-lg mb-2">
@@ -1557,14 +1587,31 @@ export default function MobileCandidateUpdatePage() {
                                   </CenteredSelectTrigger>
                                   <SelectContent>
                                     <CenteredSelectItem value="Malaysian">Malaysian</CenteredSelectItem>
+                                    <CenteredSelectItem value="" disabled>─────────────</CenteredSelectItem>
                                     <CenteredSelectItem value="Singaporean">Singaporean</CenteredSelectItem>
                                     <CenteredSelectItem value="Indonesian">Indonesian</CenteredSelectItem>
                                     <CenteredSelectItem value="Thai">Thai</CenteredSelectItem>
                                     <CenteredSelectItem value="Filipino">Filipino</CenteredSelectItem>
                                     <CenteredSelectItem value="Vietnamese">Vietnamese</CenteredSelectItem>
-                                    <CenteredSelectItem value="Bangladeshi">Bangladeshi</CenteredSelectItem>
-                                    <CenteredSelectItem value="Indian">Indian</CenteredSelectItem>
+                                    <CenteredSelectItem value="Bruneian">Bruneian</CenteredSelectItem>
+                                    <CenteredSelectItem value="Myanmar (Burmese)">Myanmar (Burmese)</CenteredSelectItem>
+                                    <CenteredSelectItem value="Cambodian">Cambodian</CenteredSelectItem>
+                                    <CenteredSelectItem value="Laotian">Laotian</CenteredSelectItem>
+                                    <CenteredSelectItem value="" disabled>─────────────</CenteredSelectItem>
                                     <CenteredSelectItem value="Chinese">Chinese</CenteredSelectItem>
+                                    <CenteredSelectItem value="Indian">Indian</CenteredSelectItem>
+                                    <CenteredSelectItem value="Pakistani">Pakistani</CenteredSelectItem>
+                                    <CenteredSelectItem value="Bangladeshi">Bangladeshi</CenteredSelectItem>
+                                    <CenteredSelectItem value="Sri Lankan">Sri Lankan</CenteredSelectItem>
+                                    <CenteredSelectItem value="Nepalese">Nepalese</CenteredSelectItem>
+                                    <CenteredSelectItem value="" disabled>─────────────</CenteredSelectItem>
+                                    <CenteredSelectItem value="British">British</CenteredSelectItem>
+                                    <CenteredSelectItem value="American">American</CenteredSelectItem>
+                                    <CenteredSelectItem value="Australian">Australian</CenteredSelectItem>
+                                    <CenteredSelectItem value="Canadian">Canadian</CenteredSelectItem>
+                                    <CenteredSelectItem value="Japanese">Japanese</CenteredSelectItem>
+                                    <CenteredSelectItem value="Korean">Korean</CenteredSelectItem>
+                                    <CenteredSelectItem value="" disabled>─────────────</CenteredSelectItem>
                                     <CenteredSelectItem value="Other">Other</CenteredSelectItem>
                                   </SelectContent>
                                 </Select>
@@ -1935,13 +1982,13 @@ export default function MobileCandidateUpdatePage() {
                           
                           <Separator className="my-4" />
                           
-                          {/* Half Body Photos Section - 3 placeholders */}
+                          {/* Half Body Photos Section - 4 placeholders */}
                           <div className="space-y-3">
                             <Label className="text-xs font-semibold text-center block bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">
-                              Half Body Photos
+                              Half Body Photos (Max 4)
                             </Label>
-                            <div className="grid grid-cols-3 gap-3">
-                              {[1, 2, 3].map((index) => (
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                              {[1, 2, 3, 4].map((index) => (
                                 <div key={index}>
                                   <div 
                                     className="relative h-32 w-full border-2 border-dashed border-gray-300 rounded-lg overflow-hidden bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors"
@@ -2235,7 +2282,26 @@ Days Committed: [Number]`}
                                 <p className="text-[10px] text-red-500 mt-1 text-center">{fieldErrors.home_address}</p>
                               )}
                             </div>
-                            
+
+                            <div>
+                              <Label htmlFor="country" className="text-xs text-center block bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent font-semibold">
+                                Country *
+                              </Label>
+                              <Input
+                                id="country"
+                                value={formData.country || ''}
+                                onChange={(e) => setFormData({...formData, country: e.target.value})}
+                                className={cn(
+                                  "mt-1 text-xs text-center",
+                                  fieldErrors.country && "border-red-500 focus:ring-red-500"
+                                )}
+                                placeholder="Enter country"
+                              />
+                              {fieldErrors.country && (
+                                <p className="text-[10px] text-red-500 mt-1 text-center">{fieldErrors.country}</p>
+                              )}
+                            </div>
+
                             <div className="relative mb-3">
                               <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-cyan-500 blur-sm opacity-25"></div>
                               <h4 className="font-semibold flex items-center justify-center gap-2 relative bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">

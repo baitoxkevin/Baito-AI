@@ -1,18 +1,96 @@
 {
+  "greeting": {
+    "morning": "Good morning",
+    "afternoon": "Good afternoon",
+    "evening": "Good evening",
+    "welcomeBack": "Welcome back, {{name}}!"
+  },
+  "onboarding": {
+    "title": "Hi! I'm Baiger, your work assistant",
+    "subtitle": "I can help with everyday tasks - no typing skills needed!",
+    "showCapabilities": "Show me what you can do",
+    "skip": "I'll explore on my own",
+    "tapToStart": "Tap any card to get started:",
+    "justChat": "Or just start chatting",
+    "schedulesTitle": "Check Schedules",
+    "schedulesDesc": "See who's working today",
+    "staffTitle": "Find Staff",
+    "staffDesc": "Search for available team members",
+    "projectsTitle": "Track Projects",
+    "projectsDesc": "Get updates on any project",
+    "expensesTitle": "Handle Expenses",
+    "expensesDesc": "Submit or approve claims"
+  },
+  "persona": {
+    "allTasks": "All Tasks",
+    "allTasksDesc": "Ask me anything",
+    "allTasksTagline": "Your everyday helper",
+    "eventsSchedules": "Events & Schedules",
+    "eventsSchedulesDesc": "Plan and track work",
+    "eventsSchedulesTagline": "Projects, shifts, venues",
+    "moneyMatters": "Money Matters",
+    "moneyMattersDesc": "Track spending",
+    "moneyMattersTagline": "Expenses, budgets, claims",
+    "peopleTeams": "People & Teams",
+    "peopleTeamsDesc": "Manage staff",
+    "peopleTeamsTagline": "Find and manage team members",
+    "tooltip": "Pick based on what you need help with. You can switch anytime!",
+    "bestFor": "Best for"
+  },
+  "suggestions": {
+    "label": "Try asking:",
+    "followUp": "You might also ask:",
+    "placeholder": "Type a question or tap a suggestion",
+    "general": {
+      "attention": "What needs attention today?",
+      "schedule": "Show me the schedule",
+      "findStaff": "Find available staff",
+      "activeProjects": "Active projects",
+      "helpMe": "Help me with..."
+    },
+    "operations": {
+      "whoWorking": "Who's working today?",
+      "activeProjects": "Show active projects",
+      "upcomingEvents": "Upcoming events",
+      "staffingNeeds": "Check staffing needs",
+      "projectUpdates": "Project updates"
+    },
+    "finance": {
+      "pending": "Pending expenses",
+      "budgets": "Show project budgets",
+      "claims": "Outstanding claims",
+      "spending": "This month's spending",
+      "summary": "Budget summary"
+    },
+    "hr": {
+      "findStaff": "Find available staff",
+      "skills": "Check staff skills",
+      "whoCanWork": "Who can work this week?",
+      "certifications": "Staff certifications",
+      "contact": "Contact information"
+    }
+  },
+  "clarification": {
+    "title": "I'm not sure I understood that",
+    "subtitle": "Did you mean one of these?",
+    "somethingElse": "Let me try asking differently"
+  },
   "chat": {
-    "header": "AI Assistant",
+    "header": "Baiger",
     "placeholder": "Type your message...",
+    "inputHint": "Type a question or tap a suggestion above",
     "send": "Send",
     "voiceInput": "Voice Input",
     "minimize": "Minimize",
     "maximize": "Maximize",
     "close": "Close",
-    "clearConversation": "Clear Conversation",
+    "clearConversation": "Start new conversation",
+    "switchMode": "Switch mode",
     "settings": "Settings",
     "typing": "is typing",
     "online": "Online",
     "offline": "Offline",
-    "connected": "Connected",
+    "connected": "Active",
     "disconnected": "Disconnected",
     "retry": "Retry",
     "edit": "Edit",
@@ -22,21 +100,44 @@
     "quickActions": "Quick Actions"
   },
   "quickActions": {
+    "tapToStart": "Tap any card to get started:",
     "todayProjects": "Today's Projects",
+    "activeProjects": "Active Projects",
+    "findStaff": "Find Staff",
+    "whoIsWorking": "Who's Working?",
+    "pendingExpenses": "Pending Expenses",
+    "approveExpenses": "Approve Expenses",
+    "helpMe": "Help Me",
     "addStaff": "Add Staff",
     "updateAttendance": "Update Attendance",
     "viewReports": "View Reports",
     "projectsOverview": "Projects Overview",
     "staffScheduling": "Staff Scheduling",
-    "approveExpenses": "Approve Expenses",
     "financialReports": "Financial Reports",
     "mySchedule": "My Schedule",
     "checkIn": "Check-in",
     "submitExpense": "Submit Expense",
-    "contactAdmin": "Contact Admin"
+    "askQuestion": "Ask a Question",
+    "contactAdmin": "Contact Admin",
+    "queries": {
+      "todayProjects": "Show me all projects scheduled for today",
+      "findStaff": "Find available staff for this week",
+      "pendingExpenses": "Show pending expense claims for approval",
+      "viewReports": "Show me project reports",
+      "activeProjects": "Show me active projects and their status",
+      "whoIsWorking": "Who's working today and on which projects?",
+      "approveExpenses": "Show pending expense claims I need to approve",
+      "helpMe": "What can you help me with?",
+      "mySchedule": "Show my schedule for this week",
+      "checkIn": "I want to check-in to my project",
+      "submitExpense": "Help me submit an expense claim",
+      "askQuestion": "I have a question about my work"
+    }
   },
   "messages": {
-    "welcome": "Hello! I'm your AI assistant. How can I help you today?",
+    "welcome": "How can I help you today?",
+    "welcomeBack": "Welcome back! How can I help?",
+    "readyToHelp": "Ready when you are",
     "welcomeDescription": "Ask me about projects, candidates, schedules, or anything else.",
     "noMessages": "No messages yet",
     "sendingFailed": "Failed to send",
@@ -62,8 +163,8 @@
     "messageTooLong": "Message is too long, please shorten it"
   },
   "accessibility": {
-    "openChat": "Open AI Assistant",
-    "closeChat": "Close AI Assistant",
+    "openChat": "Open Baiger",
+    "closeChat": "Close Baiger",
     "sendMessage": "Send Message",
     "messageSent": "Message sent",
     "messageInput": "Message input field",

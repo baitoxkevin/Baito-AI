@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback, TouchEvent as ReactTouchEvent } from 'react';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, differenceInDays } from 'date-fns';
 import { cn, eventColors, getBestTextColor, formatTimeString, projectsOverlap } from '@/lib/utils';
 import { Card, CardContent } from '@/components/ui/card';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion, useAnimation, PanInfo } from 'framer-motion';
 import {
   Tooltip,
   TooltipContent,
@@ -14,10 +14,26 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Clock, Users, MapPin, ChevronLeft, ChevronRight, Calendar, List } from 'lucide-react';
+import { Clock, Users, MapPin, ChevronLeft, ChevronRight, Calendar, List, CalendarDays } from 'lucide-react';
 import { EventHoverCard } from './EventHoverCard';
 import { useEventHover } from '@/hooks/use-event-hover';
 import type { Project } from '@/lib/types';
+
+// Custom hook to detect mobile/touch devices
+const useIsMobile = () => {
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768 || 'ontouchstart' in window);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  return isMobile;
+};
 
 // Convert Tailwind color names to hex for gradients
 const getColorHex = (colorName: string): string => {
@@ -119,7 +135,7 @@ const CalendarView = React.memo(React.forwardRef<HTMLDivElement, CalendarViewPro
       </div>
     );
   }
-  
+
   if (!Array.isArray(projects)) {
     console.error('CalendarView: projects prop must be an array');
     return (
@@ -128,6 +144,52 @@ const CalendarView = React.memo(React.forwardRef<HTMLDivElement, CalendarViewPro
       </div>
     );
   }
+
+  // Mobile detection hook
+  const isMobile = useIsMobile();
+
+  // Touch/swipe state for mobile navigation
+  const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null);
+  const [touchEnd, setTouchEnd] = useState<{ x: number; y: number } | null>(null);
+  const minSwipeDistance = 50;
+
+  // Handle touch events for swipe navigation
+  const handleTouchStart = useCallback((e: ReactTouchEvent) => {
+    setTouchEnd(null);
+    setTouchStart({
+      x: e.targetTouches[0].clientX,
+      y: e.targetTouches[0].clientY
+    });
+  }, []);
+
+  const handleTouchMove = useCallback((e: ReactTouchEvent) => {
+    setTouchEnd({
+      x: e.targetTouches[0].clientX,
+      y: e.targetTouches[0].clientY
+    });
+  }, []);
+
+  const handleTouchEnd = useCallback(() => {
+    if (!touchStart || !touchEnd) return;
+
+    const distanceX = touchStart.x - touchEnd.x;
+    const distanceY = touchStart.y - touchEnd.y;
+    const isHorizontalSwipe = Math.abs(distanceX) > Math.abs(distanceY);
+
+    if (isHorizontalSwipe && Math.abs(distanceX) > minSwipeDistance) {
+      if (distanceX > 0 && onNextMonth) {
+        // Swipe left - go to next month
+        onNextMonth();
+      } else if (distanceX < 0 && onPrevMonth) {
+        // Swipe right - go to previous month
+        onPrevMonth();
+      }
+    }
+
+    setTouchStart(null);
+    setTouchEnd(null);
+  }, [touchStart, touchEnd, onNextMonth, onPrevMonth]);
+
   const [isDragging, setIsDragging] = useState(false);
   const [dragStartDate, setDragStartDate] = useState<Date | null>(null);
   const [dragEndDate, setDragEndDate] = useState<Date | null>(null);
@@ -737,16 +799,35 @@ const CalendarView = React.memo(React.forwardRef<HTMLDivElement, CalendarViewPro
   };
 
   return (
-    <Card ref={(el) => {
-      // Assign to both internal ref and the forwarded ref
-      calendarRef.current = el;
-      if (typeof ref === 'function') {
-        ref(el);
-      } else if (ref) {
-        ref.current = el;
-      }
-    }} className={`h-full rounded-xl border bg-card text-card-foreground shadow flex flex-col overflow-hidden calendar-container ${isHoveringProject ? 'hovering-project' : ''}`}>
+    <Card
+      ref={(el) => {
+        // Assign to both internal ref and the forwarded ref
+        calendarRef.current = el;
+        if (typeof ref === 'function') {
+          ref(el);
+        } else if (ref) {
+          ref.current = el;
+        }
+      }}
+      className={cn(
+        "h-full rounded-xl border bg-card text-card-foreground shadow flex flex-col overflow-hidden calendar-container",
+        isHoveringProject && 'hovering-project',
+        isMobile && 'touch-pan-y select-none'
+      )}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+    >
       <div ref={containerRef} className="px-1 sm:px-2 pt-0.5 pb-2 flex flex-col flex-grow h-full">
+        {/* Mobile swipe hint - shows once on first load */}
+        {isMobile && (
+          <div className="text-center text-xs text-muted-foreground py-1 sm:hidden flex items-center justify-center gap-1">
+            <ChevronLeft className="w-3 h-3 swipe-hint" />
+            <span>Swipe to change month</span>
+            <ChevronRight className="w-3 h-3 swipe-hint" />
+          </div>
+        )}
+
         <div className="grid grid-cols-7 gap-1 mt-0 pb-4 relative bg-gray-100"
              style={{
                isolation: 'isolate',
@@ -766,6 +847,13 @@ const CalendarView = React.memo(React.forwardRef<HTMLDivElement, CalendarViewPro
               width: 100% !important;
               opacity: 1 !important;
               visibility: visible !important;
+            }
+
+            /* Mobile-specific cell height - taller for better touch targets */
+            @media (max-width: 640px) {
+              [role="gridcell"] {
+                min-height: 70px !important;
+              }
             }
 
             /* Dark mode support */
@@ -798,6 +886,15 @@ const CalendarView = React.memo(React.forwardRef<HTMLDivElement, CalendarViewPro
               align-items: center !important;
             }
 
+            /* Mobile date display - larger touch target */
+            @media (max-width: 640px) {
+              .date-display {
+                height: 36px !important;
+                min-height: 36px !important;
+                padding-top: 8px !important;
+              }
+            }
+
             /* Day number visibility */
             .day-number {
               z-index: 50 !important;
@@ -806,6 +903,20 @@ const CalendarView = React.memo(React.forwardRef<HTMLDivElement, CalendarViewPro
               opacity: 1 !important;
               color: #1f2937 !important;
               font-weight: 500 !important;
+            }
+
+            /* Mobile day number - larger for better readability */
+            @media (max-width: 640px) {
+              .day-number {
+                font-size: 14px !important;
+                font-weight: 600 !important;
+              }
+
+              .day-number.bg-primary {
+                width: 28px !important;
+                height: 28px !important;
+                font-size: 12px !important;
+              }
             }
 
             .dark .day-number {
@@ -827,7 +938,50 @@ const CalendarView = React.memo(React.forwardRef<HTMLDivElement, CalendarViewPro
             .event-dot {
               z-index: 50 !important; /* Event dots */
             }
-            
+
+            /* Mobile event improvements */
+            @media (max-width: 640px) {
+              .day-single-event {
+                height: 24px !important;
+                padding: 2px 4px !important;
+              }
+
+              .day-single-event .text-\\[11px\\] {
+                font-size: 10px !important;
+                line-height: 12px !important;
+              }
+
+              .day-single-event .text-\\[9px\\] {
+                display: none !important;
+              }
+
+              .project-segment {
+                height: 18px !important;
+              }
+
+              .project-segment .text-\\[11px\\] {
+                font-size: 9px !important;
+              }
+
+              /* Show only event dots on mobile for cleaner look */
+              .mobile-event-dot-only .day-single-event {
+                display: none !important;
+              }
+
+              .mobile-event-dot-only .project-segment {
+                display: none !important;
+              }
+
+              .event-dot {
+                width: 8px !important;
+                height: 8px !important;
+              }
+
+              .event-dots-container {
+                gap: 3px !important;
+              }
+            }
+
             /* Month indicator styles for first day of month */
             .month-indicator {
               position: absolute !important;
@@ -850,46 +1004,81 @@ const CalendarView = React.memo(React.forwardRef<HTMLDivElement, CalendarViewPro
               overflow: hidden !important;
               text-overflow: ellipsis !important;
             }
-            
+
+            /* Mobile month indicator */
+            @media (max-width: 640px) {
+              .month-indicator {
+                font-size: 7px !important;
+                padding: 1px 2px !important;
+                max-width: 50px !important;
+                top: -3px !important;
+                left: 2px !important;
+              }
+            }
+
             /* Special style for first day in view */
             .month-indicator.first-in-view {
               background: rgba(79, 70, 229, 0.1) !important;
               font-weight: 700 !important;
               border: 1px solid rgba(79, 70, 229, 0.5) !important;
             }
+
+            /* Mobile swipe hint animation */
+            @keyframes swipeHint {
+              0%, 100% { transform: translateX(0); opacity: 0.5; }
+              50% { transform: translateX(-5px); opacity: 1; }
+            }
+
+            .swipe-hint {
+              animation: swipeHint 1.5s ease-in-out 2;
+            }
+
+            /* Mobile-friendly header navigation buttons */
+            @media (max-width: 640px) {
+              .mobile-nav-btn {
+                min-width: 44px !important;
+                min-height: 44px !important;
+                padding: 10px !important;
+              }
+
+              .mobile-nav-btn svg {
+                width: 20px !important;
+                height: 20px !important;
+              }
+            }
           `}</style>
           {/* Current Month Display Header - Fixed at top of calendar */}
-          <div className="col-span-7 flex items-center justify-between px-2 py-1 bg-primary/10 border-b border-primary/20 rounded-t-lg">
-            <div className="flex items-center gap-2">
+          <div className="col-span-7 flex items-center justify-between px-1 sm:px-2 py-2 sm:py-1 bg-primary/10 border-b border-primary/20 rounded-t-lg">
+            <div className="flex items-center gap-1 sm:gap-2">
               {onPrevMonth && (
                 <button
                   onClick={onPrevMonth}
-                  className="p-1 hover:bg-primary/20 rounded transition-colors"
+                  className="mobile-nav-btn p-2 sm:p-1 hover:bg-primary/20 rounded-lg sm:rounded transition-colors active:bg-primary/30"
                   aria-label="Previous month"
                 >
-                  <ChevronLeft className="h-4 w-4 text-primary" />
+                  <ChevronLeft className="h-5 w-5 sm:h-4 sm:w-4 text-primary" />
                 </button>
               )}
-              <h3 className="text-sm font-semibold text-primary min-w-[140px] text-center">
-                {format(date, 'MMMM yyyy')}
+              <h3 className="text-base sm:text-sm font-bold sm:font-semibold text-primary min-w-[100px] sm:min-w-[140px] text-center">
+                {format(date, isMobile ? 'MMM yyyy' : 'MMMM yyyy')}
               </h3>
               {onNextMonth && (
                 <button
                   onClick={onNextMonth}
-                  className="p-1 hover:bg-primary/20 rounded transition-colors"
+                  className="mobile-nav-btn p-2 sm:p-1 hover:bg-primary/20 rounded-lg sm:rounded transition-colors active:bg-primary/30"
                   aria-label="Next month"
                 >
-                  <ChevronRight className="h-4 w-4 text-primary" />
+                  <ChevronRight className="h-5 w-5 sm:h-4 sm:w-4 text-primary" />
                 </button>
               )}
             </div>
 
             {onViewChange && (
-              <div className="flex items-center gap-1 bg-white/50 rounded p-0.5">
+              <div className="flex items-center gap-1 bg-white/50 rounded-lg sm:rounded p-0.5">
                 <button
                   onClick={() => onViewChange('calendar')}
                   className={cn(
-                    "p-1.5 rounded transition-colors",
+                    "p-2.5 sm:p-1.5 rounded-lg sm:rounded transition-colors active:scale-95",
                     currentView === 'calendar'
                       ? "bg-primary text-primary-foreground"
                       : "text-primary hover:bg-primary/10"
@@ -897,12 +1086,12 @@ const CalendarView = React.memo(React.forwardRef<HTMLDivElement, CalendarViewPro
                   aria-label="Calendar view"
                   title="Calendar view"
                 >
-                  <Calendar className="h-3.5 w-3.5" />
+                  <Calendar className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
                 </button>
                 <button
                   onClick={() => onViewChange('list')}
                   className={cn(
-                    "p-1.5 rounded transition-colors",
+                    "p-2.5 sm:p-1.5 rounded-lg sm:rounded transition-colors active:scale-95",
                     currentView === 'list'
                       ? "bg-primary text-primary-foreground"
                       : "text-primary hover:bg-primary/10"
@@ -910,20 +1099,30 @@ const CalendarView = React.memo(React.forwardRef<HTMLDivElement, CalendarViewPro
                   aria-label="List view"
                   title="List view"
                 >
-                  <List className="h-3.5 w-3.5" />
+                  <List className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
                 </button>
               </div>
             )}
           </div>
-          
-          {/* Day headers */}
-          {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, index) => (
+
+          {/* Day headers - Mobile: full day names, Desktop: single letter */}
+          {(isMobile
+            ? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+            : ['M', 'T', 'W', 'T', 'F', 'S', 'S']
+          ).map((day, index) => (
             <div
               key={`day-header-${index}`}
-              className="h-5 sm:h-6 flex items-center justify-center bg-card z-10 first:rounded-tl-none last:rounded-tr-none text-center"
+              className={cn(
+                "h-6 sm:h-6 flex items-center justify-center bg-card z-10 first:rounded-tl-none last:rounded-tr-none text-center",
+                // Weekend styling
+                index >= 5 && "bg-gray-50 dark:bg-gray-800/50"
+              )}
               role="columnheader"
             >
-              <span className="text-[10px] sm:text-xs font-medium text-gray-600 dark:text-gray-400">
+              <span className={cn(
+                "text-[10px] sm:text-xs font-semibold sm:font-medium",
+                index >= 5 ? "text-gray-500 dark:text-gray-400" : "text-gray-700 dark:text-gray-300"
+              )}>
                 {day}
               </span>
             </div>

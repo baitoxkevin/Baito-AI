@@ -528,9 +528,15 @@ export default function ProjectsPageRedesign() {
       <style>
         {`
           .metric-card {
-            padding: 12px !important;
-            height: 90px !important;
+            padding: 8px !important;
+            height: 70px !important;
             overflow: hidden !important;
+          }
+          @media (min-width: 768px) {
+            .metric-card {
+              padding: 12px !important;
+              height: 90px !important;
+            }
           }
         `}
       </style>
@@ -543,34 +549,34 @@ export default function ProjectsPageRedesign() {
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.2, ease: "easeInOut" }}
-            className="bentobox-container bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm mb-0 pt-3 pb-0 overflow-hidden"
+            className="bentobox-container bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm mb-0 pt-2 md:pt-3 pb-0 overflow-hidden"
           >
-            <div className="px-6">
-              <div className="bentobox-grid grid grid-cols-1 md:grid-cols-4 grid-rows-1 gap-3 max-w-6xl mx-auto">
+            <div className="px-3 md:px-6">
+              <div className="bentobox-grid grid grid-cols-2 md:grid-cols-4 grid-rows-2 md:grid-rows-1 gap-2 md:gap-3 max-w-6xl mx-auto">
                 {/* Active/Completed Projects card */}
-                <div className="metric-card col-span-1 bg-white dark:bg-slate-900 rounded-xl border shadow-sm flex overflow-hidden relative transition-all p-0">
+                <div className="metric-card col-span-1 bg-white dark:bg-slate-900 rounded-lg md:rounded-xl border shadow-sm flex overflow-hidden relative transition-all p-0">
                   <div className="flex flex-col w-1/2 flex-grow">
                     {/* Active Projects side */}
                     <div className="h-full flex flex-col items-center justify-center text-center px-1">
-                      <span className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 truncate w-full">
+                      <span className="text-[10px] md:text-xs font-medium text-gray-700 dark:text-gray-300 mb-0.5 md:mb-1 truncate w-full">
                         Active
                       </span>
-                      <span className="text-3xl font-bold text-slate-800 dark:text-slate-100">
+                      <span className="text-xl md:text-3xl font-bold text-slate-800 dark:text-slate-100">
                         {metrics.activeProjects.length}
                       </span>
                     </div>
                   </div>
-                  
+
                   {/* Divider */}
                   <div className="w-px h-full bg-slate-200 dark:bg-slate-800"></div>
-                  
+
                   <div className="flex flex-col w-1/2 flex-grow">
                     {/* Completed side */}
                     <div className="h-full flex flex-col items-center justify-center text-center px-1">
-                      <span className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 truncate w-full">
+                      <span className="text-[10px] md:text-xs font-medium text-gray-700 dark:text-gray-300 mb-0.5 md:mb-1 truncate w-full">
                         Completed
                       </span>
-                      <span className="text-3xl font-bold text-slate-800 dark:text-slate-100">
+                      <span className="text-xl md:text-3xl font-bold text-slate-800 dark:text-slate-100">
                         {metrics.completedProjects.length}
                       </span>
                     </div>
@@ -578,60 +584,60 @@ export default function ProjectsPageRedesign() {
                 </div>
             
                 {/* Today's Projects */}
-                <div className="metric-card col-span-1 bg-gradient-to-br from-teal-500 to-emerald-600 dark:from-teal-700 dark:to-emerald-800 rounded-xl border border-teal-300/30 dark:border-teal-800/30 shadow-sm p-4 flex flex-col overflow-hidden relative">
+                <div className="metric-card col-span-1 bg-gradient-to-br from-teal-500 to-emerald-600 dark:from-teal-700 dark:to-emerald-800 rounded-lg md:rounded-xl border border-teal-300/30 dark:border-teal-800/30 shadow-sm p-2 md:p-4 flex flex-col overflow-hidden relative">
                   <div className="flex justify-between items-center">
-                    <span className="text-xs font-medium text-white">Today's Projects</span>
-                    <Calendar className="h-4 w-4 text-white/80" />
+                    <span className="text-[10px] md:text-xs font-medium text-white truncate">Today's Projects</span>
+                    <Calendar className="h-3 w-3 md:h-4 md:w-4 text-white/80 flex-shrink-0" />
                   </div>
-                  
+
                   <div className="flex-grow flex flex-col justify-center items-center">
-                    <div className="text-4xl font-bold text-white">{todaysProjectsCount}</div>
+                    <div className="text-2xl md:text-4xl font-bold text-white">{todaysProjectsCount}</div>
                   </div>
-                  
+
                   {/* Decorative circle */}
-                  <div className="absolute -bottom-8 -right-8 w-32 h-32 bg-white/10 rounded-full"></div>
+                  <div className="absolute -bottom-6 -right-6 md:-bottom-8 md:-right-8 w-20 h-20 md:w-32 md:h-32 bg-white/10 rounded-full"></div>
                 </div>
-                
+
                 {/* This Month's Projects */}
-                <div className="metric-card col-span-1 bg-gradient-to-br from-blue-500 to-sky-600 dark:from-blue-700 dark:to-sky-800 rounded-xl border border-blue-300/30 dark:border-blue-800/30 shadow-sm p-4 flex flex-col overflow-hidden relative">
+                <div className="metric-card col-span-1 bg-gradient-to-br from-blue-500 to-sky-600 dark:from-blue-700 dark:to-sky-800 rounded-lg md:rounded-xl border border-blue-300/30 dark:border-blue-800/30 shadow-sm p-2 md:p-4 flex flex-col overflow-hidden relative">
                   <div className="flex justify-between items-center">
-                    <span className="text-xs font-medium text-white">{months[activeMonth]} Projects</span>
-                    <CalendarDays className="h-4 w-4 text-white/80" />
+                    <span className="text-[10px] md:text-xs font-medium text-white truncate">{months[activeMonth]} Projects</span>
+                    <CalendarDays className="h-3 w-3 md:h-4 md:w-4 text-white/80 flex-shrink-0" />
                   </div>
                   <div className="flex-grow flex flex-col justify-center items-center">
-                    <div className="text-4xl font-bold text-white">{currentMonthProjects.length}</div>
+                    <div className="text-2xl md:text-4xl font-bold text-white">{currentMonthProjects.length}</div>
                   </div>
-                  
+
                   {/* Decorative circle */}
-                  <div className="absolute -bottom-8 -right-8 w-32 h-32 bg-white/10 rounded-full"></div>
+                  <div className="absolute -bottom-6 -right-6 md:-bottom-8 md:-right-8 w-20 h-20 md:w-32 md:h-32 bg-white/10 rounded-full"></div>
                 </div>
-                
+
                 {/* Total projects this year widget */}
-                <div className="metric-card col-span-1 bg-gradient-to-br from-purple-500 to-indigo-600 dark:from-purple-700 dark:to-indigo-800 rounded-xl border border-purple-300/30 dark:border-purple-800/30 shadow-sm p-4 flex flex-col overflow-hidden relative">
+                <div className="metric-card col-span-1 bg-gradient-to-br from-purple-500 to-indigo-600 dark:from-purple-700 dark:to-indigo-800 rounded-lg md:rounded-xl border border-purple-300/30 dark:border-purple-800/30 shadow-sm p-2 md:p-4 flex flex-col overflow-hidden relative">
                   <div className="flex justify-between items-center">
-                    <span className="text-xs font-medium text-white">All Projects {currentYear}</span>
-                    <div className="flex items-center gap-1">
-                      <button 
+                    <span className="text-[10px] md:text-xs font-medium text-white truncate">All Projects {currentYear}</span>
+                    <div className="flex items-center gap-0.5 md:gap-1 flex-shrink-0">
+                      <button
                         onClick={() => setCurrentYear(prev => prev - 1)}
-                        className="text-white/80 hover:text-white text-xs p-0.5"
+                        className="text-white/80 hover:text-white text-[10px] md:text-xs p-0.5"
                       >
                         ←
                       </button>
-                      <CalendarRange className="h-4 w-4 text-white/80" />
-                      <button 
+                      <CalendarRange className="h-3 w-3 md:h-4 md:w-4 text-white/80" />
+                      <button
                         onClick={() => setCurrentYear(prev => prev + 1)}
-                        className="text-white/80 hover:text-white text-xs p-0.5"
+                        className="text-white/80 hover:text-white text-[10px] md:text-xs p-0.5"
                       >
                         →
                       </button>
                     </div>
                   </div>
                   <div className="flex-grow flex flex-col justify-center items-center">
-                    <div className="text-4xl font-bold text-white">{yearProjectsCount}</div>
+                    <div className="text-2xl md:text-4xl font-bold text-white">{yearProjectsCount}</div>
                   </div>
-                  
+
                   {/* Decorative circle */}
-                  <div className="absolute -bottom-8 -right-8 w-32 h-32 bg-white/10 rounded-full"></div>
+                  <div className="absolute -bottom-6 -right-6 md:-bottom-8 md:-right-8 w-20 h-20 md:w-32 md:h-32 bg-white/10 rounded-full"></div>
                 </div>
               </div>
             </div>
@@ -640,88 +646,88 @@ export default function ProjectsPageRedesign() {
       </AnimatePresence>
       
       {/* Controls bar - handles transitions smoothly */}
-      <div className="bg-white/95 dark:bg-slate-900/95 border-b shadow-sm py-4 z-10 relative">
-      
-        <div className="px-6">
+      <div className="bg-white/95 dark:bg-slate-900/95 border-b shadow-sm py-2 md:py-4 z-10 relative">
+
+        <div className="px-3 md:px-6">
           <div className="max-w-6xl mx-auto">
-            <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center justify-between gap-2 md:gap-3">
               {/* Left-side controls */}
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 md:gap-2">
                 {/* Month Selector */}
                 <div className="relative">
-                  <EnhancedMonthDropdown 
-                    months={months} 
-                    activeMonth={activeMonth} 
+                  <EnhancedMonthDropdown
+                    months={months}
+                    activeMonth={activeMonth}
                     onMonthChange={handleTabChange}
-                    className="min-w-24 h-10 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900"
+                    className="min-w-20 md:min-w-24 h-8 md:h-10 text-xs md:text-sm border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900"
                   />
                 </div>
-                
+
                 {/* Search input */}
-                <div className="relative w-full md:w-64">
-                  <div className="flex items-center h-10 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
-                    <div className="flex-shrink-0 pl-3">
-                      <Search className="h-4 w-4 text-slate-400" />
+                <div className="relative w-28 md:w-64">
+                  <div className="flex items-center h-8 md:h-10 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+                    <div className="flex-shrink-0 pl-2 md:pl-3">
+                      <Search className="h-3.5 w-3.5 md:h-4 md:w-4 text-slate-400" />
                     </div>
                     <Input
                       type="search"
-                      placeholder="Search projects..."
-                      className="pl-2 pr-4 py-2 h-10 bg-transparent border-0 shadow-none focus:ring-0 focus:outline-none"
+                      placeholder="Search..."
+                      className="pl-1.5 md:pl-2 pr-2 md:pr-4 py-1 md:py-2 h-8 md:h-10 text-xs md:text-sm bg-transparent border-0 shadow-none focus:ring-0 focus:outline-none"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                     />
                     {searchQuery && (
-                      <button 
-                        className="flex-shrink-0 pr-3 text-slate-400 hover:text-slate-500"
+                      <button
+                        className="flex-shrink-0 pr-2 md:pr-3 text-slate-400 hover:text-slate-500"
                         onClick={() => setSearchQuery('')}
                       >
-                        <XCircle className="h-4 w-4" />
+                        <XCircle className="h-3.5 w-3.5 md:h-4 md:w-4" />
                       </button>
                     )}
                   </div>
                 </div>
               </div>
-              
+
               {/* Right-side controls */}
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 md:gap-2">
                 {/* View Toggle */}
-                <div className="flex items-center h-10 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 p-1">
+                <div className="hidden md:flex items-center h-8 md:h-10 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 p-0.5 md:p-1">
                   <button
                     aria-label="Switch to grid view"
                     title="Grid view"
-                    className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                    className={`px-2 md:px-3 py-1 md:py-1.5 text-sm font-medium rounded-md transition-colors ${
                       viewMode === 'grid'
                         ? 'bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300'
                         : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
                     }`}
                     onClick={() => setViewMode('grid')}
                   >
-                    <Grid3X3 className="h-4 w-4" />
+                    <Grid3X3 className="h-3.5 w-3.5 md:h-4 md:w-4" />
                   </button>
                   <button
                     aria-label="Switch to list view"
                     title="List view"
-                    className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                    className={`px-2 md:px-3 py-1 md:py-1.5 text-sm font-medium rounded-md transition-colors ${
                       viewMode === 'list'
                         ? 'bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300'
                         : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
                     }`}
                     onClick={() => setViewMode('list')}
                   >
-                    <List className="h-4 w-4" />
+                    <List className="h-3.5 w-3.5 md:h-4 md:w-4" />
                   </button>
                 </div>
 
-                {/* Additional Filters */}
+                {/* Additional Filters - hidden on mobile */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button
                       variant="outline"
                       size="sm"
-                      className="h-10 gap-2"
+                      className="h-8 md:h-10 gap-1 md:gap-2 px-2 md:px-3"
                     >
-                      <Filter className="h-4 w-4" />
-                      <span>Filters</span>
+                      <Filter className="h-3.5 w-3.5 md:h-4 md:w-4" />
+                      <span className="hidden md:inline">Filters</span>
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-56">
@@ -733,26 +739,26 @@ export default function ProjectsPageRedesign() {
                   </DropdownMenuContent>
                 </DropdownMenu>
                 {/* All dropdown - simulating the design from the image */}
-                <div className="flex items-center h-10 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 px-3">
-                  <div className="w-8 h-8 flex items-center justify-center bg-slate-100 dark:bg-slate-800 rounded-full mr-2">
-                    <Circle className="h-4 w-4 text-slate-500" />
+                <div className="flex items-center h-8 md:h-10 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 px-2 md:px-3">
+                  <div className="w-6 h-6 md:w-8 md:h-8 flex items-center justify-center bg-slate-100 dark:bg-slate-800 rounded-full mr-1.5 md:mr-2">
+                    <Circle className="h-3 w-3 md:h-4 md:w-4 text-slate-500" />
                   </div>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="h-8 font-medium border-0 p-0 hover:bg-transparent"
+                        className="h-6 md:h-8 font-medium border-0 p-0 hover:bg-transparent text-xs md:text-sm"
                       >
                         <div className="flex items-center">
-                          <span className="mr-1">{statusOptions.find(option => option.value === activeFilter)?.label}</span>
-                          <ChevronDown className="h-3.5 w-3.5 text-slate-500 ml-1" />
+                          <span className="mr-0.5 md:mr-1">{statusOptions.find(option => option.value === activeFilter)?.label}</span>
+                          <ChevronDown className="h-3 w-3 md:h-3.5 md:w-3.5 text-slate-500 ml-0.5 md:ml-1" />
                         </div>
                       </Button>
                     </DropdownMenuTrigger>
-                    
-                    <DropdownMenuContent 
-                      align="start" 
+
+                    <DropdownMenuContent
+                      align="start"
                       sideOffset={4}
                       className="w-48 p-0 overflow-hidden border-slate-200 dark:border-slate-800 shadow-lg"
                     >
@@ -760,17 +766,17 @@ export default function ProjectsPageRedesign() {
                         <h3 className="font-semibold text-slate-900 dark:text-white text-sm">Project Status</h3>
                         <p className="text-xs text-slate-500 dark:text-slate-400">Filter projects by status</p>
                       </div>
-                    
+
                       <DropdownMenuRadioGroup value={activeFilter} onValueChange={setActiveFilter}>
                         {statusOptions.map(option => (
-                          <DropdownMenuRadioItem 
-                            key={option.value} 
+                          <DropdownMenuRadioItem
+                            key={option.value}
                             value={option.value}
                             className="flex items-center gap-2 px-3 py-2 text-sm cursor-pointer"
                           >
                             <span className={`${
-                              activeFilter === option.value ? 
-                                'text-blue-500 dark:text-blue-400' : 
+                              activeFilter === option.value ?
+                                'text-blue-500 dark:text-blue-400' :
                                 'text-slate-500 dark:text-slate-400'
                             }`}>
                               {option.icon}
@@ -782,14 +788,14 @@ export default function ProjectsPageRedesign() {
                   </DropdownMenuContent>
                 </DropdownMenu>
                 </div>
-                
+
                 {/* Create new project button */}
-                <Button 
-                  className="h-10 gap-2 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white shadow-sm border-0 rounded-lg"
+                <Button
+                  className="h-8 md:h-10 gap-1 md:gap-2 px-2 md:px-4 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white shadow-sm border-0 rounded-lg text-xs md:text-sm"
                   onClick={() => setNewProjectDialogOpen(true)}
                 >
-                  <Plus className="h-5 w-5" /> 
-                  <span>New Project</span>
+                  <Plus className="h-4 w-4 md:h-5 md:w-5" />
+                  <span className="hidden sm:inline">New Project</span>
                 </Button>
               </div>
             </div>
@@ -799,8 +805,8 @@ export default function ProjectsPageRedesign() {
       </div>
       
       {/* Project content area */}
-      <div 
-        className="flex-1 overflow-auto px-6 py-4 project-content-area" 
+      <div
+        className="flex-1 overflow-auto px-3 md:px-6 py-3 md:py-4 project-content-area" 
         onScroll={(e) => {
           // Implement scroll-based minimization
           const scrollTop = e.currentTarget.scrollTop;

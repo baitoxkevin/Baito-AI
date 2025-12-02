@@ -303,6 +303,23 @@ const AVAILABLE_TOOLS = [
         required: ['date_from', 'date_to']
       }
     }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'speed_add_project',
+      description: 'Extract project information from a job ad text and create a new project. Use this when users paste a job advertisement or ask to quickly add a project from a job posting.',
+      parameters: {
+        type: 'object',
+        properties: {
+          job_ad_text: {
+            type: 'string',
+            description: 'The full job advertisement text containing project details'
+          }
+        },
+        required: ['job_ad_text']
+      }
+    }
   }
 ]
 
@@ -582,6 +599,9 @@ async function executeTool(
 
     case 'get_current_datetime':
       return getCurrentDateTime()
+
+    case 'speed_add_project':
+      return await speedAddProject(supabase, args, context)
 
     default:
       throw new Error(`Unknown tool: ${toolName}`)
@@ -879,6 +899,107 @@ async function checkSchedulingConflicts(supabase: any, args: any, context: Conte
   }
 }
 
+async function speedAddProject(supabase: any, args: any, context: Context) {
+  const { job_ad_text } = args
+
+  if (!job_ad_text || job_ad_text.trim().length === 0) {
+    throw new Error('Job ad text is required')
+  }
+
+  // System prompt for extracting project information from job ad
+  const extractionPrompt = `You are an expert job posting analyzer. Extract project information from this job ad.
+
+Extract these fields:
+- title: Project/event title
+- event_type: Type of event (e.g., "Conference", "Exhibition", "Product Launch", "Roadshow")
+- description: Job description
+- venue_address: Location/address
+- venue_details: Additional venue info
+- start_date: Start date (YYYY-MM-DD)
+- end_date: End date (YYYY-MM-DD, null if single day)
+- working_hours_start: Start time (HH:MM, 24-hour)
+- working_hours_end: End time (HH:MM, 24-hour)
+- crew_count: Number of staff needed
+- hourly_rate: Hourly pay rate (number only)
+
+Return JSON with these fields. Set to null if not found.`
+
+  try {
+    // Call OpenRouter to extract project data
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': 'https://baito-ai.com',
+        'X-Title': 'Baito-AI Project Extractor'
+      },
+      body: JSON.stringify({
+        model: MODEL,
+        messages: [
+          { role: 'system', content: extractionPrompt },
+          { role: 'user', content: `Job ad:\n\n${job_ad_text}` }
+        ],
+        temperature: 0.1,
+        response_format: { type: 'json_object' }
+      })
+    })
+
+    if (!response.ok) {
+      throw new Error('Failed to extract project information from job ad')
+    }
+
+    const data = await response.json()
+    const extracted = JSON.parse(data.choices[0].message.content)
+
+    // Prepare project data for database
+    const projectData: any = {
+      title: extracted.title || 'Untitled Project',
+      event_type: extracted.event_type || 'Event',
+      description: extracted.description || '',
+      venue_address: extracted.venue_address || '',
+      venue_details: extracted.venue_details || '',
+      start_date: extracted.start_date || new Date().toISOString().split('T')[0],
+      end_date: extracted.end_date || null,
+      working_hours_start: extracted.working_hours_start || '09:00',
+      working_hours_end: extracted.working_hours_end || '17:00',
+      crew_count: extracted.crew_count || 1,
+      hourly_rate: extracted.hourly_rate || 0,
+      filled_positions: 0,
+      completion_percentage: 0,
+      payment_status: 'pending',
+      status: 'planning',
+      priority: 'medium',
+      color: '#3B82F6',
+      user_id: context.userId,
+      project_type: 'recruitment',
+      schedule_type: 'single'
+    }
+
+    // Create the project in database
+    const { data: newProject, error: createError } = await supabase
+      .from('projects')
+      .insert([projectData])
+      .select()
+      .single()
+
+    if (createError) {
+      throw new Error(`Failed to create project: ${createError.message}`)
+    }
+
+    return {
+      success: true,
+      project: newProject,
+      extracted_fields: extracted,
+      message: `Successfully created project "${newProject.title}" with ID ${newProject.id}. The project is in planning status and ready for you to add staff and finalize details.`
+    }
+
+  } catch (error) {
+    console.error('Speed add project error:', error)
+    throw new Error(`Failed to speed add project: ${error.message}`)
+  }
+}
+
 // ==========================================
 // Helper Functions
 // ==========================================
@@ -951,7 +1072,8 @@ function hasPermission(context: Context, toolName: string): boolean {
     'query_candidates': 'read:candidates',
     'get_project_details': 'read:projects',
     'calculate_revenue': 'read:projects',
-    'check_scheduling_conflicts': 'read:projects'
+    'check_scheduling_conflicts': 'read:projects',
+    'speed_add_project': 'write:projects'
   }
 
   const required = toolPermissions[toolName]
