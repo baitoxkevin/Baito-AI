@@ -2131,11 +2131,13 @@ export default function ListView({
           )}
           ref={containerRef}
           style={isIOS ? {
-            // iOS ULTRA-SIMPLE: Just basic overflow, nothing else
-            // Let iOS Safari handle scroll completely natively
-            overflow: 'auto',
-            height: '100%',
+            // iOS: Use dvh (dynamic viewport height) which works better on iOS Safari
+            // This accounts for the Safari address bar
+            position: 'relative',
+            height: 'calc(100dvh - 200px)', // Subtract header heights
+            overflow: 'scroll',
             WebkitOverflowScrolling: 'touch',
+            overscrollBehavior: 'contain',
           } : {
             // Non-iOS: Keep existing optimizations
             height: 'calc(100% - 52px)',
