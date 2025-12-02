@@ -356,7 +356,7 @@ export default function CandidatesPage() {
   }
 
   return (
-    <div className="flex flex-col flex-1 p-2 sm:p-6 rounded-none md:rounded-tl-2xl bg-gradient-to-br from-slate-50 via-white to-blue-50/30 dark:from-neutral-900 dark:via-neutral-900 dark:to-blue-950/20 min-h-screen">
+    <div className="flex flex-col h-full p-2 sm:p-6 rounded-none md:rounded-tl-2xl bg-gradient-to-br from-slate-50 via-white to-blue-50/30 dark:from-neutral-900 dark:via-neutral-900 dark:to-blue-950/20 overflow-y-auto">
       {/* Glass Morphism Header */}
       <motion.div 
         initial={{ opacity: 0, y: -20 }}
