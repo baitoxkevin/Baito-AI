@@ -5,7 +5,19 @@
     <link rel="icon" type="image/png" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/favicon.png" />
     <link rel="manifest" href="/manifest.json" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
+    <!-- iOS Safari specific: prevent touch callout and enable smooth scroll -->
+    <style>
+      /* iOS scroll fix at document level */
+      html, body {
+        -webkit-overflow-scrolling: touch;
+        touch-action: pan-y pan-x;
+      }
+      /* Prevent iOS from blocking scroll on touch */
+      * {
+        -webkit-touch-callout: default;
+      }
+    </style>
     <meta name="theme-color" content="#667eea" />
     <title>BaitoAI Labs</title>
   </head>

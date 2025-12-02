@@ -161,14 +161,20 @@
     scroll-behavior: smooth;
     overflow-x: hidden;
     height: 100%;
+    /* iOS: Ensure html allows scroll propagation */
+    -webkit-overflow-scrolling: touch;
   }
   body {
     @apply bg-background text-foreground m-0;
     font-feature-settings: "rlig" 1, "calt" 1;
     min-height: 100vh;
     overflow-x: hidden;
-    overflow-y: auto;
-    height: auto;
+    /* iOS CRITICAL: Set overflow to visible, not auto - let children handle scroll */
+    overflow-y: visible;
+    height: 100%;
+    /* iOS scroll enablement */
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y pan-x;
   }
 }
 
